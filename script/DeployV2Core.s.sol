@@ -824,6 +824,99 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
     }
 
+    /// @notice Deploy (or check) ONLY CCTPAdapter on this chain.
+    /// @dev Scoped entrypoint, same shape as `runRelayAdapterV2`: the generic `run()` would also deploy any
+    ///      OTHER contract missing on the chain; this keeps the blast radius to the one adapter. The executor
+    ///      is read from the chain's output JSON (the status map is only filled by __checkContract), only the
+    ///      adapter is checked, the wrapper's summary line is printed ("0 out of 0" on chains without CCTP V2
+    ///      config), and the address is merged into <Chain>-latest.json after validation.
+    /// @param check true = verification only (no broadcast), false = deploy
+    /// @param env 0 = prod, 1 = dev, 2 = staging
+    /// @param chainId must equal block.chainid
+    function runCCTPAdapter(bool check, uint256 env, uint64 chainId) public broadcast(env) {
+        require(block.chainid == chainId, "CCTP_ADAPTER_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        if (!availability.cctpAdapter) {
+            console2.log("SKIPPED CCTPAdapter: CCTP V2 transmitter or native USDC not configured for chain", chainId);
+            console2.log(
+                "=====> On this chain we have", uint256(0), "contracts already deployed out of", uint256(0)
+            );
+            return;
+        }
+
+        string memory existing = _readCoreContractsFromOutput(chainId, env);
+        address superDestExecutor =
+            _safeParseJsonAddress(existing, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        require(superDestExecutor != address(0), "CCTP_ADAPTER_DEST_EXECUTOR_NOT_IN_OUTPUT");
+        require(superDestExecutor.code.length > 0, "CCTP_ADAPTER_DEST_EXECUTOR_NO_CODE");
+        require(__checkBytecodeExists("CCTPAdapter", env), "CCTP_ADAPTER_BYTECODE_MISSING");
+
+        // Same constructor args as the generic check/deploy passes (parity is pinned by
+        // test/script/DeployV2CoreCCTPAdapterArgs.t.sol).
+        bytes memory ctorArgs = abi.encode(
+            configuration.messageTransmittersV2[chainId],
+            CCTP_V2_TOKEN_MESSENGER,
+            configuration.usdcs[chainId],
+            superDestExecutor
+        );
+        __checkContract(CCTP_ADAPTER_KEY, __getSalt(CCTP_ADAPTER_KEY), ctorArgs, env);
+
+        _logDeploymentSummary(chainId);
+        console2.log(
+            "=====> On this chain we have",
+            _countDeployedContracts(chainId),
+            "contracts already deployed out of",
+            _getAllContractNames(chainId).length
+        );
+        if (check) return;
+
+        // Deploy-time sanity, identical to the generic deploy block: Circle's messenger must be live here and
+        // its minter must resolve the canonical remote USDC pair to the configured local USDC (otherwise the
+        // adapter would escrow every USDC intent as "non-USDC").
+        require(CCTP_V2_TOKEN_MESSENGER.code.length > 0, "CCTP_ADAPTER_TOKEN_MESSENGER_NOT_DEPLOYED");
+        {
+            (uint32 remoteDomain, address remoteUsdc) = chainId == MAINNET_CHAIN_ID
+                ? (CCTP_DOMAIN_BASE, configuration.usdcs[BASE_CHAIN_ID])
+                : (CCTP_DOMAIN_ETHEREUM, configuration.usdcs[MAINNET_CHAIN_ID]);
+            address minter = ITokenMessengerV2MinterSource(CCTP_V2_TOKEN_MESSENGER).localMinter();
+            require(minter != address(0), "CCTP_ADAPTER_MINTER_NOT_SET");
+            require(
+                ITokenMinterV2(minter).getLocalToken(remoteDomain, bytes32(uint256(uint160(remoteUsdc))))
+                    == configuration.usdcs[chainId],
+                "CCTP_ADAPTER_USDC_NOT_MINTER_LOCAL_TOKEN"
+            );
+        }
+
+        address cctpAdapter = __deployContractIfNeeded(
+            CCTP_ADAPTER_KEY,
+            chainId,
+            __getSalt(CCTP_ADAPTER_KEY),
+            abi.encodePacked(__getBytecode("CCTPAdapter", env), ctorArgs)
+        );
+
+        require(cctpAdapter != address(0), "CCTP_ADAPTER_DEPLOYMENT_FAILED");
+        require(cctpAdapter.code.length > 0, "CCTP_ADAPTER_NO_CODE");
+        require(
+            address(CCTPAdapter(cctpAdapter).SUPER_DESTINATION_EXECUTOR()) == superDestExecutor,
+            "CCTP_ADAPTER_EXECUTOR_MISMATCH"
+        );
+        require(
+            address(CCTPAdapter(cctpAdapter).MESSAGE_TRANSMITTER()) == configuration.messageTransmittersV2[chainId],
+            "CCTP_ADAPTER_TRANSMITTER_MISMATCH"
+        );
+        require(address(CCTPAdapter(cctpAdapter).USDC()) == configuration.usdcs[chainId], "CCTP_ADAPTER_USDC_MISMATCH");
+        require(
+            address(CCTPAdapter(cctpAdapter).TOKEN_MESSENGER()) == CCTP_V2_TOKEN_MESSENGER,
+            "CCTP_ADAPTER_TOKEN_MESSENGER_MISMATCH"
+        );
+
+        _writeExportedContracts(chainId);
+        console2.log(" CCTPAdapter deployed and validated:", cctpAdapter);
+    }
+
     /// @notice Check or deploy only the Across V2 contracts required on Avalanche.
     /// @notice Deploy (or check) ONLY RelayAdapterV2 on this chain.
     /// @dev Scoped entrypoint for the V2 rollout: RelayAdapterV2 ships ALONGSIDE the existing
