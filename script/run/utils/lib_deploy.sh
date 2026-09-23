@@ -558,7 +558,7 @@ check_v2_addresses() {
         chain_flag=""
     fi
     check_output=$(forge script "$forge_script" \
-        --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
+        --sig "${DEPLOY_SIG:-run(bool,uint256,uint64)}" true $FORGE_ENV $network_id \
         --rpc-url "${!rpc_url_var}" \
         $chain_flag \
         -vv 2>&1)
@@ -1096,7 +1096,7 @@ deploy_to_network() {
         fi
 
         forge script "$forge_script" \
-            --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
+            --sig "${DEPLOY_SIG:-run(bool,uint256,uint64)}" false $FORGE_ENV $network_id \
             --account "$ACCOUNT" \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url "${!rpc_var}" \

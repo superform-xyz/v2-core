@@ -10,6 +10,10 @@
 # Usage:
 #   ./script/run/deploy/deploy_v2_staging_prod.sh <environment> <mode> <account> [--slow] [--resume] [--legacy]
 #
+#   Targeted single-contract deploy (uses an explicit run<X>() entrypoint in DeployV2Core.s.sol,
+#   e.g. runRelayAdapterV2 — DEPLOY_SIG defaults to the generic run() when unset):
+#     DEPLOY_SIG='runRelayAdapterV2(bool,uint256,uint64)' ./script/run/deploy/deploy_v2_staging_prod.sh staging deploy v2
+#
 # Arguments:
 #   environment: staging or prod
 #   mode: simulate or deploy

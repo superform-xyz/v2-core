@@ -27,3 +27,5 @@ broadcast/*/31337/
 
 # node_modules
 lib/modulekit/node_modules
+# per-test fixture roots created by test/script/DeployV2CoreRelayAdapterV2Scoped.t.sol
+test/.tmp-scoped-deploy-*/
