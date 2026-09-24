@@ -36,6 +36,7 @@ abstract contract Constants {
     string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
     string internal constant RELAY_ADAPTER_KEY = "RelayAdapter";
     string internal constant CCTP_ADAPTER_KEY = "CCTPAdapter";
+    string internal constant CIRCLE_GATEWAY_ADAPTER_KEY = "CircleGatewayAdapter";
     string internal constant RELAY_ADAPTER_V2_KEY = "RelayAdapterV2";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
