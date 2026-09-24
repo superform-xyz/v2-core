@@ -37,7 +37,10 @@ RelayAdapterV2 #1014). Implements `technical-spec.md` §6 in full; nothing was d
   rejected in `_parse` (`ATTESTATION_SET_DUPLICATE`, R1-F1) on both entrypoints.
 - **Constructor** binds `gatewayMinter.code.length > 0 && isTokenSupported(usdc)`; `domain()` is NOT required to
   be non-zero (Ethereum is domain 0 — covered by a fork test).
-- **No scoped deploy entrypoint** (interview decision). `runCCTPAdapter` is the template if one is wanted later.
+- **Scoped deploy entrypoint** `runCircleGatewayAdapter(bool check, uint256 env, uint64 chainId)` (added after the
+  interview's "generic only" decision, on request, mirroring `runCCTPAdapter`; covered by
+  `test/script/DeployV2CoreScopedEntrypoints.t.sol`). Usage:
+  `DEPLOY_SIG='runCircleGatewayAdapter(bool,uint256,uint64)' bash script/run/deploy/deploy_v2_staging_prod.sh <staging|prod> <simulate|deploy> <account>`.
 
 ## Verified on-chain (2026-09-23)
 

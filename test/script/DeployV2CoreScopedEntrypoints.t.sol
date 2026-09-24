@@ -52,6 +52,20 @@ contract MessengerStub {
     }
 }
 
+/// @dev Stand-in for the live GatewayMinter proxy: the deploy sanity check and the adapter constructor both call
+///      `isTokenSupported(usdc)`.
+contract GatewayMinterStub {
+    address public immutable usdc;
+
+    constructor(address u) {
+        usdc = u;
+    }
+
+    function isTokenSupported(address token) external view returns (bool) {
+        return token == usdc;
+    }
+}
+
 contract MinterStub {
     address public immutable localUsdc;
 
@@ -65,7 +79,8 @@ contract MinterStub {
 }
 
 /// @title DeployV2CoreScopedEntrypointsTest
-/// @notice Fresh-instance regressions for BOTH scoped deploy entrypoints (`runRelayAdapterV2`, `runCCTPAdapter`):
+/// @notice Fresh-instance regressions for the scoped deploy entrypoints (`runRelayAdapterV2`, `runCCTPAdapter`,
+///         `runCircleGatewayAdapter`):
 ///         check resolves the executor from the output JSON and counts one contract, an unconfigured chain skips
 ///         cleanly, deploy lands at the checked CREATE2 address and writes its key while keeping the existing ones,
 ///         and a further fresh check sees it deployed.
@@ -85,6 +100,7 @@ contract DeployV2CoreScopedEntrypointsTest is Test {
     address internal constant TRANSMITTER = 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64;
     address internal constant MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
     address internal constant MINTER = 0xfd78EE919681417d192449715b2594ab58f5D002;
+    address internal constant GATEWAY_MINTER = 0x2222222d7164433c4C09B0b0D809a9b52C04C205;
     address internal constant EXECUTOR = 0xd0B5d200a6B136D619Dd1c7BBA30b004b4773C40;
     address internal constant VALIDATOR = 0xCA9bB3fcDfB455962ee284A189CbFc2262970b39;
     address internal constant RELAY_ADAPTER_V1 = 0xaf57cEF9EFA4dcEAdDA843C00E02b4F108416361;
@@ -126,9 +142,10 @@ contract DeployV2CoreScopedEntrypointsTest is Test {
         vm.removeDir(root, true);
     }
 
-    function test_ScopedEntrypoints_FreshInstances_Relay_Then_CCTP() public {
+    function test_ScopedEntrypoints_FreshInstances_Relay_Then_CCTP_Then_Gateway() public {
         _relayScenario();
         _cctpScenario();
+        _gatewayScenario();
     }
 
     /// @notice R2-F2 / R2-F3 / R2-F4 in ONE sequential test. `vm.setEnv` is process-global, so separate tests
@@ -170,6 +187,66 @@ contract DeployV2CoreScopedEntrypointsTest is Test {
         (deployed,) = recheck.status(BASE, "RelayAdapterV2");
         assertTrue(deployed, "fresh check sees the deployment");
         tearDown();
+    }
+
+    /// @notice `runCircleGatewayAdapter`: same four steps as the CCTP scenario against a GatewayMinter stub.
+    function _gatewayScenario() internal {
+        root = string.concat(vm.projectRoot(), "/test/.tmp-scoped-deploy-gateway");
+        string memory dir = string.concat(root, "/script/output/staging/", vm.toString(uint256(BASE)));
+        vm.createDir(dir, true);
+        outputPath = string.concat(dir, "/Base-latest.json");
+        vm.writeFile(
+            outputPath,
+            string.concat(
+                '{"CCTPAdapter":"',
+                vm.toString(address(0xCC7)),
+                '","SuperDestinationExecutor":"',
+                vm.toString(EXECUTOR),
+                '"}'
+            )
+        );
+        vm.setEnv("SUPERFORM_PROJECT_ROOT", root);
+        vm.setEnv("CI", "true");
+        vm.setEnv("GITHUB_REF_NAME", "staging");
+        vm.etch(DETERMINISTIC_DEPLOYER, DEPLOYER_CODE);
+        vm.etch(EXECUTOR, address(new ExecStub(VALIDATOR)).code);
+        vm.chainId(BASE);
+
+        string memory before = vm.readFile(outputPath);
+
+        // 1. fresh check: executor from the output JSON, exactly one contract checked, nothing written
+        CCTPScopedHarness check = new CCTPScopedHarness();
+        check.runCircleGatewayAdapter(true, ENV_STAGING, BASE);
+        (bool deployed, address expected) = check.status(BASE, "CircleGatewayAdapter");
+        assertFalse(deployed, "not deployed yet");
+        assertTrue(expected != address(0), "CREATE2 address computed");
+        assertEq(check.checkedNames(BASE), 1, "exactly one contract checked");
+        assertEq(vm.readFile(outputPath), before, "check pass does not touch the output JSON");
+
+        // 2. unconfigured chain: clean skip
+        vm.chainId(FLARE);
+        CCTPScopedHarness skip = new CCTPScopedHarness();
+        skip.runCircleGatewayAdapter(true, ENV_STAGING, FLARE);
+        assertEq(skip.checkedNames(FLARE), 0, "nothing checked on a skipped chain");
+        vm.chainId(BASE);
+
+        // 3. fresh deploy: the minter stub satisfies the sanity check and the adapter constructor
+        vm.etch(GATEWAY_MINTER, address(new GatewayMinterStub(check.usdc(BASE))).code);
+        CCTPScopedHarness deployer = new CCTPScopedHarness();
+        deployer.runCircleGatewayAdapter(false, ENV_STAGING, BASE);
+        assertGt(expected.code.length, 0, "adapter deployed at the checked CREATE2 address");
+        string memory json = vm.readFile(outputPath);
+        assertEq(vm.parseJsonAddress(json, ".CircleGatewayAdapter"), expected, "CircleGatewayAdapter key written");
+        assertEq(vm.parseJsonAddress(json, ".SuperDestinationExecutor"), EXECUTOR, "executor key retained");
+        assertEq(vm.parseJsonAddress(json, ".CCTPAdapter"), address(0xCC7), "CCTP key retained");
+
+        // 4. a further fresh check sees the deployment
+        CCTPScopedHarness recheck = new CCTPScopedHarness();
+        recheck.runCircleGatewayAdapter(true, ENV_STAGING, BASE);
+        (deployed,) = recheck.status(BASE, "CircleGatewayAdapter");
+        assertTrue(deployed, "fresh check sees the deployment");
+
+        vm.removeDir(root, true);
     }
 
     function _cctpScenario() internal {

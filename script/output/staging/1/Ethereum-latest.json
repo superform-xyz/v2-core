@@ -45,6 +45,7 @@
   "CancelDepositRequestWithId7540Hook": "0x648AD688C0b88f9Bac954Bae899050F090455507",
   "CancelRedeemRequest7540Hook": "0x7DdE29ADA5ff2F64DBe092a0a643f8faa70a877E",
   "CancelRedeemRequestWithId7540Hook": "0x320FD6E2A38c4af9F7d91816223038F90041A76C",
+  "CircleGatewayAdapter": "0x1009f244117B971F984FA643f244d2C46a702732",
   "CircleGatewayAddDelegateHook": "0x1a9421e7BC1C579e2Fd09fB7c12bcF033862918F",
   "CircleGatewayMinterHook": "0x0eb2222f95EBE7aD93dDdF1c1cB186385f1dD64A",
   "CircleGatewayRemoveDelegateHook": "0x003783058CED0D0d7748B92c340e85aCd6420140",

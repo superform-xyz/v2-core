@@ -930,6 +930,91 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" CCTPAdapter deployed and validated:", cctpAdapter);
     }
 
+    /// @notice Deploy (or check) ONLY CircleGatewayAdapter on this chain.
+    /// @dev Scoped entrypoint, same shape as `runCCTPAdapter`: the generic `run()` would also deploy any OTHER
+    ///      contract missing on the chain; this keeps the blast radius to the one adapter. The executor is read
+    ///      from the chain's output JSON (the status map is only filled by __checkContract), only the adapter is
+    ///      checked, the wrapper's summary line is printed ("0 out of 0" on chains without a Gateway minter), and
+    ///      the address is merged into <Chain>-latest.json after validation.
+    /// @param check true = verification only (no broadcast), false = deploy
+    /// @param env 0 = prod, 1 = dev, 2 = staging
+    /// @param chainId must equal block.chainid
+    function runCircleGatewayAdapter(bool check, uint256 env, uint64 chainId) public broadcast(env) {
+        require(block.chainid == chainId, "CIRCLE_GATEWAY_ADAPTER_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        if (!availability.circleGatewayAdapter) {
+            console2.log(
+                "SKIPPED CircleGatewayAdapter: Gateway minter or native USDC not configured for chain", chainId
+            );
+            console2.log(
+                "=====> On this chain we have", uint256(0), "contracts already deployed out of", uint256(0)
+            );
+            return;
+        }
+
+        string memory existing = _readCoreContractsFromOutput(chainId, env);
+        address superDestExecutor =
+            _safeParseJsonAddress(existing, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        require(superDestExecutor != address(0), "CIRCLE_GATEWAY_ADAPTER_DEST_EXECUTOR_NOT_IN_OUTPUT");
+        require(superDestExecutor.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_DEST_EXECUTOR_NO_CODE");
+        require(__checkBytecodeExists("CircleGatewayAdapter", env), "CIRCLE_GATEWAY_ADAPTER_BYTECODE_MISSING");
+
+        // The same encoder the generic check/deploy passes use (parity pinned by
+        // test/script/DeployV2CoreCircleGatewayAdapterArgs.t.sol).
+        bytes memory ctorArgs = _circleGatewayCtorArgs(chainId, superDestExecutor);
+        __checkContract(CIRCLE_GATEWAY_ADAPTER_KEY, __getSalt(CIRCLE_GATEWAY_ADAPTER_KEY), ctorArgs, env);
+
+        _logDeploymentSummary(chainId);
+        console2.log(
+            "=====> On this chain we have",
+            _countDeployedContracts(chainId),
+            "contracts already deployed out of",
+            _getAllContractNames(chainId).length
+        );
+        if (check) return;
+
+        // Deploy-time sanity, identical to the generic deploy block: the Gateway minter must be live here and must
+        // mint the configured USDC (the adapter delivers only USDC and rejects everything else pre-mint).
+        address gatewayMinter = configuration.gatewayMinters[chainId];
+        require(gatewayMinter.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_MINTER_NOT_DEPLOYED");
+        require(
+            IGatewayMinter(gatewayMinter).isTokenSupported(configuration.usdcs[chainId]),
+            "CIRCLE_GATEWAY_ADAPTER_USDC_NOT_MINTER_SUPPORTED"
+        );
+
+        address circleGatewayAdapter = __deployContractIfNeeded(
+            CIRCLE_GATEWAY_ADAPTER_KEY,
+            chainId,
+            __getSalt(CIRCLE_GATEWAY_ADAPTER_KEY),
+            abi.encodePacked(__getBytecode("CircleGatewayAdapter", env), ctorArgs)
+        );
+
+        require(circleGatewayAdapter != address(0), "CIRCLE_GATEWAY_ADAPTER_DEPLOYMENT_FAILED");
+        require(circleGatewayAdapter.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_NO_CODE");
+        require(
+            address(CircleGatewayAdapter(circleGatewayAdapter).SUPER_DESTINATION_EXECUTOR()) == superDestExecutor,
+            "CIRCLE_GATEWAY_ADAPTER_EXECUTOR_MISMATCH"
+        );
+        require(
+            address(CircleGatewayAdapter(circleGatewayAdapter).GATEWAY_MINTER()) == gatewayMinter,
+            "CIRCLE_GATEWAY_ADAPTER_MINTER_MISMATCH"
+        );
+        require(
+            address(CircleGatewayAdapter(circleGatewayAdapter).USDC()) == configuration.usdcs[chainId],
+            "CIRCLE_GATEWAY_ADAPTER_USDC_MISMATCH"
+        );
+        require(
+            CircleGatewayAdapter(circleGatewayAdapter).SUPER_DESTINATION_VALIDATOR() != address(0),
+            "CIRCLE_GATEWAY_ADAPTER_VALIDATOR_NOT_CACHED"
+        );
+
+        _writeExportedContracts(chainId);
+        console2.log(" CircleGatewayAdapter deployed and validated:", circleGatewayAdapter);
+    }
+
     /// @notice CircleGatewayAdapter constructor args `(gatewayMinter, usdc, superDestinationExecutor)` — ONE encoder
     ///         shared by the check pass and the deploy pass so the two CREATE2 addresses can never diverge (the
     ///         CCTPAdapter check/deploy encodings once drifted 3 vs 4 args; parity is also pinned by
