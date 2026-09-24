@@ -17,6 +17,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
         mapping(uint64 chainId => address relayDepository) relayDepositories;
         mapping(uint64 chainId => address messageTransmitterV2) messageTransmittersV2;
+        mapping(uint64 chainId => address gatewayMinter) gatewayMinters;
         mapping(uint64 chainId => address usdc) usdcs;
         mapping(uint64 chainId => address debridgeSrcDln) debridgeSrcDln;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;

@@ -89,6 +89,7 @@ CORE_CONTRACTS=(
     "AcrossV3AdapterV2"
     "RelayAdapter"
     "CCTPAdapter"
+    "CircleGatewayAdapter"
     "RelayAdapterV2"
     "SuperLedger"
     "FlatFeeLedger"

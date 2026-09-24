@@ -81,6 +81,31 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.messageTransmittersV2[STABLE_CHAIN_ID] = address(0); // CCTP not live
         configuration.messageTransmittersV2[ROBINHOOD_CHAIN_ID] = address(0); // CCTP not live
 
+        // ===== CIRCLE GATEWAY MINTER =====
+        // Enablement is a deploy-time decision: BOTH the Gateway minter and native USDC must be set for a chain
+        // to deploy the CircleGatewayAdapter there. The minter is the same address on every Gateway chain
+        // (https://developers.circle.com/gateway). address(0) = disabled/skipped. Verified on-chain 2026-09-23:
+        // code present at GATEWAY_MINTER and isTokenSupported(native USDC) == true on every enabled chain; Linea
+        // has NO code at the minter address.
+        configuration.gatewayMinters[MAINNET_CHAIN_ID] = GATEWAY_MINTER; // domain 0
+        configuration.gatewayMinters[BASE_CHAIN_ID] = GATEWAY_MINTER; // domain 6
+        configuration.gatewayMinters[ARBITRUM_CHAIN_ID] = GATEWAY_MINTER; // domain 3
+        configuration.gatewayMinters[OPTIMISM_CHAIN_ID] = GATEWAY_MINTER; // domain 2
+        configuration.gatewayMinters[POLYGON_CHAIN_ID] = GATEWAY_MINTER; // domain 7
+        configuration.gatewayMinters[AVALANCHE_CHAIN_ID] = GATEWAY_MINTER; // domain 1
+        configuration.gatewayMinters[UNICHAIN_CHAIN_ID] = GATEWAY_MINTER; // domain 10
+        configuration.gatewayMinters[SONIC_CHAIN_ID] = GATEWAY_MINTER; // domain 13
+        configuration.gatewayMinters[WORLDCHAIN_CHAIN_ID] = GATEWAY_MINTER; // domain 14
+        configuration.gatewayMinters[LINEA_CHAIN_ID] = address(0); // Gateway not live (no code at minter)
+        configuration.gatewayMinters[BNB_CHAIN_ID] = address(0); // No native USDC / Gateway
+        configuration.gatewayMinters[BERACHAIN_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[GNOSIS_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[HYPEREVM_CHAIN_ID] = address(0); // Verify before enabling
+        configuration.gatewayMinters[FLARE_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[STABLE_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[ROBINHOOD_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[ARC_CHAIN_ID] = address(0); // Verify before enabling
+
         // Native USDC (the token CCTP V2 mints on each chain)
         configuration.usdcs[MAINNET_CHAIN_ID] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         configuration.usdcs[BASE_CHAIN_ID] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
