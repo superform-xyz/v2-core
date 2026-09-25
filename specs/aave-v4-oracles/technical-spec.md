@@ -95,6 +95,7 @@ Identity shape, fee view bypassed (REVISED per PR #997 review F1):
 
 - `decimals` / `getPricePerShare` / identity passthroughs: as debt oracle.
 - `getBalanceOfOwner(key, owner)` = `getTVLByOwnerOfShares(key, owner)` = `spoke.getUserSuppliedAssets(reserveId, owner)` (asset units; V4 rounds down at source — conservative for claims; NatSpec).
+- **Supply round-trip is asymmetric by 1 wei** (measured on Base 2026-09-25): supplying exactly `1000e6` USDC returns `assets = 1000e6` from `spoke.supply()`, but `getUserSuppliedAssets` immediately reads `999_999_999` — V4 converts assets→shares→assets rounding DOWN (`toAddedAssetsDown`). The oracle passes the source value through unmodified, so it never over-reports what the supplier can claim. Consumers MUST NOT assume `supply()`'s return equals the next position read; hook-side and oracle-side agree only because both call `getUserSuppliedAssets`. Under identity PPS this surfaces as a 1-wei phantom loss per deposit — inert today (no hook wiring), but it must be tolerated by any future accounting wiring rather than asserted away.
 - `getTVL(key)` = `spoke.getReserveSuppliedAssets(reserveId)`.
 - **`getAssetOutputWithFees` override: fee BYPASS for the standalone phase** (REVISED per PR #997 review F1, superseding interview decision #6's fee-capable-view shape): with no hook wiring, supply positions never take cost-basis snapshots, so the inherited fee view would treat the entire principal as profit and inflate quoted outputs. Both oracles now bypass the fee view identically; **feePercent = 0 is an operational invariant for BOTH oracles** until accounting hooks exist. The ledger path (`BaseLedger._processOutflow`) remains unguarded on-chain (documented) and, once wired, fees measured asset-delta profit only (yield, never principal — pinned by the real-ledger tests). Re-enabling the fee view requires a new oracle version, not a config change.
 - Cost-basis desync via direct spoke withdrawal (self-calls allowed by `onlyPositionManager`) is the existing SECURITY.md trade-off — restate.
@@ -111,6 +112,8 @@ Identity shape, fee view bypassed (REVISED per PR #997 review F1):
 
 ### Token / RWA risks
 - [x] No token transfers occur in any of the three contracts — fee-on-transfer/rebasing/pausable classes N/A to the oracles (10.x). B20 equity tokens: freely transferable, corporate actions via internal multiplier (no rebase drift on spoke reads). Confirm B20 transfer hooks with Aave (residual read-only-reentrancy surface — hook layer, not oracle).
+
+- [x] **Base equity tokens are node-native and NOT fork-executable** (verified 2026-09-25). Their account code on Base is a single `0xEF` byte — the value EIP-3541 reserves — so the live chain answers `decimals()`/`symbol()`/`balanceOf` but a standard EVM raises `OpcodeNotFound` on any direct call. This is INERT for all three contracts, precisely because none of them touches the underlying: the registry binds `decimals` from the spoke's `Reserve` struct at registration, and both oracles read only spoke views. Consequences elsewhere: (a) any future hook doing `approve`/`transferFrom` on an equity token cannot be fork-tested without `vm.etch`-ing a standard ERC20 at the token address, and `deal()` will not work either; (b) a defensive `IERC20Metadata(underlying).decimals()` cross-check at registration would work in production but would break fork-based registration for these reserves — deliberately NOT added.
 
 ### Reentrancy
 - [x] View-only oracles; registry writes are role-gated with no external calls after state writes (CEI trivial) (1.1).
@@ -151,11 +154,12 @@ Identity shape, fee view bypassed (REVISED per PR #997 review F1):
 - [ ] T8: known-issue test — one reverting key poisons `getPricePerShareMultiple`/`getTVLMultiple` (documented inherited limitation).
 - [ ] T9: hook/oracle consistency — oracle debt read equals `_totalDebt`-style read on the same mock state (anchors Finding C's unit analysis).
 
-### Tests (fork — pinned block; Ethereum spoke `0x94e7A5dCbE816e498b89ab752661904E2F56c485` now, Base spoke when address known)
+### Tests (fork — pinned block; Ethereum spoke `0x94e7A5dCbE816e498b89ab752661904E2F56c485` + Base equities spoke `0x17905Db0e4A3514467539956c084180616AE7B8D`)
 - [ ] F1: `getUserDebt` accrual visible in-view after warp with no state touch; premium included same-block after borrow.
 - [ ] F2: repay-to-zero via V2 hooks → oracle reads exactly 0 (consistent with SUP-20842 zero-debt-skip; baseline dev+#990+#996).
 - [ ] F3: view liveness under paused/frozen flags (mock flags if pause can't be induced) — pins the Aave-side assumption.
-- [ ] F4: real-market registration + all views on USDC (6) and WETH (18) reserves; equity reserve added when live.
+- [ ] F4: real-market registration + all views on USDC (6) and WETH (18) reserves.
+- [x] F5 (Base equities — `test/integration/oracles/AaveV4BaseEquitiesFork.t.sol`, 14 tests, closes review F2): registration of 8-decimal equity reserves + USDC against the live MAG7 spoke; both oracles read a real leveraged position (equities collateral + live USDC debt); identity converters at 8 decimals; a real withdrawal tracked with the equity token `vm.etch`-ed; a real USDC supply pinning the 1-wei round-down; debt accrual in-view; equity reserves read zero debt; the node-native token proven inert for the oracles; tokenization spoke rejected by the registry; unregistered keys revert.
 
 ### Tooling / deployment
 - [ ] All three contracts appended to `regenerate_bytecode.sh` ORACLE_CONTRACTS; generated + locked-bytecode-dev twins committed fresh (no stale ABI/selectors — PR #990 R1 precedent); prod locked-bytecode only at lock time (`__checkBytecodeExists` guard covers absence).

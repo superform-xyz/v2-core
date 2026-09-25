@@ -40,9 +40,22 @@ Registry storage: `mapping(address key => ReserveInfo{spoke, reserveId, underlyi
 
 ## Implementation Plan
 
-### Phase 0: Gate (question list: [joao-call-sheet.md](./joao-call-sheet.md); PR #997 review F2 blocks on these)
-- [ ] Joao call: confirm Base equities use plain `ISpoke`, NOT `TokenizationSpoke` (if TokenizationSpoke → existing `ERC4626YieldSourceOracle` covers it, deliverable shrinks)
-- [ ] Collect Base equities spoke address + reserve ids
+### Phase 0: Gate (question list: [joao-call-sheet.md](./joao-call-sheet.md); PR #997 review F2 blocked on these)
+- [x] **Base equities use a plain `ISpoke`** — CLOSED by on-chain verification 2026-09-25, no call needed. The MAG7 equities spoke registers through `AaveV4ReserveRegistry` and both oracles read it correctly; the vendored `Reserve` struct decodes it unchanged. The separate `EQUITIES_USDC_TOKENIZATION_SPOKE` (`0x7081CE7EB1282c53CF38EA9B622f6269cb8FeFDc`, `waEquitiesUSDC`) is an ERC4626-shaped wrapper over USDC — it reverts on `getReserve`, so the registry cannot bind it and the existing `ERC4626YieldSourceOracle` is what covers it. The deliverable does NOT shrink.
+- [x] **Base equities spoke address + reserve ids** — collected below; pinned by `test/integration/oracles/AaveV4BaseEquitiesFork.t.sol`.
+
+#### Base equities configuration (aave-address-book `AaveV4Base.sol`, verified on-chain 2026-09-25)
+| Item | Value |
+|---|---|
+| Spoke (`MAG7_SPOKE`) | `0x17905Db0e4A3514467539956c084180616AE7B8D` |
+| Hub (`EQUITIES_HUB`) | `0xa4d5947Eb727A052bae69C593FfC84247EC9864E` |
+| Reserve ids 0-6 | AAPLc, AMZNc, GOOGLc, METAc, MSFTc, NVDAc, TSLAc — **8 decimals** |
+| Reserve id 7 | USDC — 6 decimals |
+| Reserve id 8 | unlisted (reverts; registration validation relies on this) |
+| Borrowable | **USDC only** — borrowing an equity reserve reverts `0xaac43c92`, so equities are collateral-only and the debt oracle reads a clean zero for them |
+| Price feeds | per-spoke `MAG7_SPOKE_ORACLE` `0xaBaf048fD7675Ea34a84332371ffd5D55E322A47`, NOT a global Aave oracle, and it does not expose `getAssetPrice(address)` |
+
+Consequence for consumers: one leveraged position spans an 8-decimal equity leg and a 6-decimal USDC leg, so the two oracles report in different assets AND different decimal bases. Conversion stays external, and the correct price source must be resolved per spoke.
 
 ### Phase 1: Contracts
 - [ ] Extend `IAaveV4Spoke`; write registry + both oracles per technical spec
@@ -84,9 +97,12 @@ Registry storage: `mapping(address key => ReserveInfo{spoke, reserveId, underlyi
 | Supply fees | REVISED per PR #997 review F1: fee view bypassed on both oracles; feePercent = 0 invariant (config does NOT decide); fee capability = new oracle version + hook wiring | PR #997 review (supersedes interview) |
 | Valuation | Own-asset units, no price feeds | Cosmin (interview) |
 | Chains | All chains with live V4 spokes; Base first | Cosmin (interview) |
+| Base equities shape | Plain `ISpoke` (MAG7 spoke); TokenizationSpoke is a separate ERC4626 wrapper covered by the existing oracle | On-chain verification 2026-09-25 (PR #997 review F2) |
 | RWA caveats | Documented risks only; hook-layer | Cosmin (interview) |
 
-**Still open (Joao call 2026-09-03):** plain-Spoke-vs-TokenizationSpoke (gate); Base spoke address/ids; premium rounding; bad-debt socialization in supply reads; view liveness under pause; B20 transfer hooks; reserveId permanence guarantees; incentive mechanism.
+**Closed on-chain 2026-09-25 (no call needed):** plain-Spoke-vs-TokenizationSpoke (gate) and Base spoke address/ids — see Phase 0 above.
+
+**Still open (Joao call):** premium rounding; bad-debt socialization in supply reads; view liveness under pause; B20 transfer hooks; reserveId permanence guarantees; incentive mechanism. None of these block the oracle contracts: all are Aave-layer semantics that the oracles pass through unmodified.
 
 ## Interview Notes
 See: [interview-notes.md](./interview-notes.md)
