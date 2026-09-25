@@ -66,7 +66,7 @@ Consequence for consumers: one leveraged position spans an 8-decimal equity leg 
 
 ### Phase 3: Tooling & review
 - [ ] Bytecode regeneration + locked-dev twins; Constants keys/salts; DeployV2Core wiring; verification records; per-chain outputs
-- [ ] Ledger-config runbook (debt id feePercent = 0); deployment matrix of live-spoke chains
+- [ ] Ledger-config runbook (**BOTH oracle ids** feePercent = 0, or left unregistered — REVISED per PR #997 review F1; supply fees are NOT a per-market decision during the standalone phase); deployment matrix of live-spoke chains
 - [ ] 3-agent security review → `specs/security-reports/`
 
 ## Test Plan
