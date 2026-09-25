@@ -4,21 +4,24 @@
 # Verifies all contracts listed in deployment JSON files are actually deployed on-chain
 #
 # Usage:
-#   ./script/run/smoke_test_deployment.sh prod              # Test all production networks
-#   ./script/run/smoke_test_deployment.sh staging            # Test all staging networks
-#   ./script/run/smoke_test_deployment.sh prod -n 56         # Test only BSC (prod)
-#   ./script/run/smoke_test_deployment.sh prod --verbose     # Verbose output
+#   ./script/run/test/smoke_test_deployment.sh prod              # Test all production networks
+#   ./script/run/test/smoke_test_deployment.sh staging           # Test all staging networks
+#   ./script/run/test/smoke_test_deployment.sh prod -n 56        # Test only BSC (prod)
+#   ./script/run/test/smoke_test_deployment.sh prod --verbose    # Verbose output
 
 set -e
 
-# Get the directory where this script is located
+# Get the directory where this script is located (script/run/test), the shared utils dir
+# (script/run/utils, where the networks-*.sh files live) and the repo root.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+UTILS_DIR="$(cd "$SCRIPT_DIR/../utils" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Default values
 ENVIRONMENT="prod"
 FORGE_ENV=0
 SPECIFIC_NETWORK=""
+SKIP_NETWORKS="${SMOKE_SKIP_NETWORKS:-}" # comma-separated chain ids, reported as SKIPPED
 VERBOSE=false
 DRY_RUN=false
 
@@ -39,6 +42,7 @@ usage() {
     echo ""
     echo "OPTIONS:"
     echo "  -n, --network CHAIN_ID  Test specific network only"
+    echo "  -s, --skip IDS          Comma-separated chain ids to report as SKIPPED (or env SMOKE_SKIP_NETWORKS)"
     echo "  -v, --verbose          Enable verbose output"
     echo "  -d, --dry-run          Show what would be tested without running"
     echo "  -h, --help             Show this help message"
@@ -62,11 +66,11 @@ parse_args() {
     case "$ENVIRONMENT" in
         prod)
             FORGE_ENV=0
-            source "$SCRIPT_DIR/networks-production.sh"
+            source "$UTILS_DIR/networks-production.sh"
             ;;
         staging)
             FORGE_ENV=2
-            source "$SCRIPT_DIR/networks-staging.sh"
+            source "$UTILS_DIR/networks-staging.sh"
             ;;
         *)
             echo "Invalid environment: $ENVIRONMENT (must be 'staging' or 'prod')"
@@ -78,6 +82,10 @@ parse_args() {
         case $1 in
             -n|--network)
                 SPECIFIC_NETWORK="$2"
+                shift 2
+                ;;
+            -s|--skip)
+                SKIP_NETWORKS="$2"
                 shift 2
                 ;;
             -v|--verbose)
@@ -124,25 +132,42 @@ log() {
 run_network_test() {
     local network_id=$1
     local network_name=$(get_network_name "$network_id")
+
+    # Explicit skip list (CI keeps known-broken RPC endpoints here; still reported, never hidden)
+    if [[ -n "$SKIP_NETWORKS" && ",$SKIP_NETWORKS," == *",$network_id,"* ]]; then
+        log "WARNING" "SKIPPED $network_name (Chain ID: $network_id) — in the skip list"
+        return 2
+    fi
+
     local rpc_url=$(get_rpc_url "$network_id")
 
     log "INFO" "Testing $network_name (Chain ID: $network_id)"
 
-    if [[ -z "$rpc_url" ]]; then
+    # Dry runs do not load RPC URLs, so only enforce the RPC presence when actually executing.
+    # In CI the RPC set comes from repository secrets; a network whose secret is not configured is
+    # reported as SKIPPED (exit code 2) rather than FAILED, so the job only goes red for real failures.
+    if [[ -z "$rpc_url" && "$DRY_RUN" != "true" ]]; then
+        if [[ "${CI:-}" == "true" ]]; then
+            log "WARNING" "SKIPPED $network_name — no RPC URL secret configured in CI"
+            return 2
+        fi
         log "ERROR" "No RPC URL configured for $network_name"
         return 1
     fi
 
-    local forge_cmd="forge script script/SmokeTestDeployment.s.sol:SmokeTestDeployment"
-    forge_cmd="$forge_cmd --sig \"run(uint256,uint64)\" $FORGE_ENV $network_id"
-    forge_cmd="$forge_cmd --rpc-url \"$rpc_url\""
+    # Build forge command as an array (safer than eval on a string)
+    local forge_cmd=(
+        forge script script/SmokeTestDeployment.s.sol:SmokeTestDeployment
+        --sig "run(uint256,uint64)" "$FORGE_ENV" "$network_id"
+        --rpc-url "$rpc_url"
+    )
 
     if [[ "$VERBOSE" == "true" ]]; then
-        forge_cmd="$forge_cmd -vv"
+        forge_cmd+=(-vv)
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log "INFO" "Would run: $forge_cmd"
+        log "INFO" "Would run: ${forge_cmd[*]}"
         return 0
     fi
 
@@ -150,7 +175,7 @@ run_network_test() {
 
     set +e
     local output
-    output=$(eval "$forge_cmd" 2>&1)
+    output=$("${forge_cmd[@]}" 2>&1)
     local forge_exit_code=$?
     set -e
 
@@ -218,12 +243,21 @@ main() {
     local total_networks=${#networks_to_test[@]}
     local passed_tests=0
     local failed_tests=0
+    local skipped_tests=0
     local failed_networks=()
+    local skipped_networks=()
 
     for network_id in "${networks_to_test[@]}"; do
         echo "----------------------------------------"
-        if run_network_test "$network_id"; then
+        set +e
+        run_network_test "$network_id"
+        local rc=$?
+        set -e
+        if [[ $rc -eq 0 ]]; then
             passed_tests=$((passed_tests + 1))
+        elif [[ $rc -eq 2 ]]; then
+            skipped_tests=$((skipped_tests + 1))
+            skipped_networks+=("$(get_network_name "$network_id") (ID: $network_id)")
         else
             failed_tests=$((failed_tests + 1))
             failed_networks+=("$(get_network_name "$network_id") (ID: $network_id)")
@@ -236,6 +270,12 @@ main() {
     echo "========================================"
     log "INFO" "Total Networks: $total_networks"
     log "SUCCESS" "Passed: $passed_tests"
+    if [[ $skipped_tests -gt 0 ]]; then
+        log "WARNING" "Skipped (no RPC secret in CI or in the skip list): $skipped_tests"
+        for skipped_network in "${skipped_networks[@]}"; do
+            echo "  • $skipped_network"
+        done
+    fi
 
     if [[ $failed_tests -gt 0 ]]; then
         log "ERROR" "Failed: $failed_tests"

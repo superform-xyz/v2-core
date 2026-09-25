@@ -43,6 +43,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoSupplyAndBorrowHookV2;
         address morphoRepayHookV2;
         address morphoRepayAndWithdrawHookV2;
+        address morphoSupplyHookV2;
+        address morphoBorrowHookV2;
+        address morphoWithdrawCollateralHookV2;
     }
 
     struct AaveV3V2HookAddresses {
@@ -187,6 +190,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runFeeSplitting(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying FeeSplittingHook on chainId: ", chainId);
+
+        _deployFeeSplittingHook(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runRFLR(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying rFLR Hooks on chainId: ", chainId);
@@ -200,6 +211,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("Deploying rFLR V2 Hooks on chainId: ", chainId);
 
         _deployRFLRV2Hooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    function runSuperVaultCapBridgeHooks(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying SuperVault cap-bridge hooks on chainId: ", chainId);
+
+        _deploySuperVaultCapBridgeHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -264,6 +283,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploy all applicable hooks for the given chain
     function _deployAllHooks(uint64 chainId, uint256 env) internal {
+        // FeeSplittingHook — chain-agnostic (native-token sentinel constructor arg)
+        _deployFeeSplittingHook(chainId, env);
+
         // Morpho hooks — only on chains where Morpho is deployed
         if (otherHooksConfiguration.morphos[chainId] != address(0)) {
             console2.log("Deploying Morpho Hooks on chainId: ", chainId);
@@ -343,6 +365,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
             _deployOdosV3Hooks(chainId, env);
         }
+
+        // SuperVault cap-bridge hooks — self-gated on superVaultGovernors (skips until configured)
+        _deploySuperVaultCapBridgeHooks(chainId, env);
     }
 
     /// @notice Get bytecode directory based on environment
@@ -477,7 +502,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoV2HookAddresses memory hookAddresses)
     {
-        uint256 len = 3;
+        uint256 len = 6;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -496,6 +521,21 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             "",
             abi.encodePacked(__getOtherHooksBytecode("MorphoRepayAndWithdrawHookV2", env), morphoArg)
         );
+        hooks[3] = HookDeployment(
+            MORPHO_SUPPLY_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoSupplyHookV2", env), morphoArg)
+        );
+        hooks[4] = HookDeployment(
+            MORPHO_BORROW_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoBorrowHookV2", env), morphoArg)
+        );
+        hooks[5] = HookDeployment(
+            MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoWithdrawCollateralHookV2", env), morphoArg)
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -506,10 +546,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.morphoSupplyAndBorrowHookV2 = addresses[0];
         hookAddresses.morphoRepayHookV2 = addresses[1];
         hookAddresses.morphoRepayAndWithdrawHookV2 = addresses[2];
+        hookAddresses.morphoSupplyHookV2 = addresses[3];
+        hookAddresses.morphoBorrowHookV2 = addresses[4];
+        hookAddresses.morphoWithdrawCollateralHookV2 = addresses[5];
 
         require(hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned");
         require(hookAddresses.morphoRepayHookV2 != address(0), "MorphoRepayHookV2 not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHookV2 != address(0), "MorphoRepayAndWithdrawHookV2 not assigned");
+        require(hookAddresses.morphoSupplyHookV2 != address(0), "MorphoSupplyHookV2 not assigned");
+        require(hookAddresses.morphoBorrowHookV2 != address(0), "MorphoBorrowHookV2 not assigned");
+        require(
+            hookAddresses.morphoWithdrawCollateralHookV2 != address(0), "MorphoWithdrawCollateralHookV2 not assigned"
+        );
 
         console2.log("All Morpho V2 hooks deployed and validated successfully.");
 
@@ -951,6 +999,118 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All DETH hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                SUPERVAULT CAP-BRIDGE HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy the SuperVault cap-bridge hooks (Across / deBridge / Stargate senders with a
+    ///         SuperGovernor-managed outflow cap; PRs #987/#993/#995).
+    /// @dev Family-gated on otherHooksConfiguration.superVaultGovernors: SuperGovernor is a
+    ///      v2-periphery deployment that has not reached staging/prod yet, so the gate table is
+    ///      empty and this family is skipped on every chain until governance addresses are
+    ///      configured (see ConfigOtherHooks). Each hook additionally gates on its bridge
+    ///      endpoint; the SuperValidator address is read from the chain's deployment output.
+    function _deploySuperVaultCapBridgeHooks(uint64 chainId, uint256 env) internal {
+        address superGovernor = otherHooksConfiguration.superVaultGovernors[chainId];
+        if (superGovernor == address(0)) {
+            console2.log("SuperVault cap-bridge hooks skipped (no SuperGovernor configured) on chainId: ", chainId);
+            return;
+        }
+
+        address validator = _readDeployedCoreAddress(chainId, env, SUPER_VALIDATOR_KEY);
+        require(validator != address(0), "CAP_BRIDGE_SUPER_VALIDATOR_NOT_FOUND");
+
+        address acrossSpokePool = configuration.acrossSpokePoolV3s[chainId];
+        if (acrossSpokePool != address(0)) {
+            address hook = __deployContract(
+                SUPERVAULT_ACROSS_CAP_BRIDGE_HOOK_KEY,
+                chainId,
+                __getSalt(SUPERVAULT_ACROSS_CAP_BRIDGE_HOOK_KEY),
+                abi.encodePacked(
+                    __getOtherHooksBytecode("SuperVaultAcrossCapBridgeHook", env),
+                    abi.encode(acrossSpokePool, validator, superGovernor)
+                )
+            );
+            require(hook != address(0), "SuperVaultAcrossCapBridgeHook not assigned");
+        }
+
+        address dlnSource = configuration.debridgeSrcDln[chainId];
+        if (dlnSource != address(0)) {
+            address hook = __deployContract(
+                SUPERVAULT_DEBRIDGE_CAP_BRIDGE_HOOK_KEY,
+                chainId,
+                __getSalt(SUPERVAULT_DEBRIDGE_CAP_BRIDGE_HOOK_KEY),
+                abi.encodePacked(
+                    __getOtherHooksBytecode("SuperVaultDeBridgeCapBridgeHook", env),
+                    abi.encode(dlnSource, validator, superGovernor)
+                )
+            );
+            require(hook != address(0), "SuperVaultDeBridgeCapBridgeHook not assigned");
+        }
+
+        if (
+            configuration.lzEndpointV2s[chainId] != address(0)
+                && configuration.stargateTokenMessagings[chainId] != address(0)
+        ) {
+            address hook = __deployContract(
+                SUPERVAULT_STARGATE_CAP_BRIDGE_HOOK_KEY,
+                chainId,
+                __getSalt(SUPERVAULT_STARGATE_CAP_BRIDGE_HOOK_KEY),
+                abi.encodePacked(
+                    __getOtherHooksBytecode("SuperVaultStargateCapBridgeHook", env),
+                    abi.encode(validator, superGovernor)
+                )
+            );
+            require(hook != address(0), "SuperVaultStargateCapBridgeHook not assigned");
+        }
+
+        console2.log("SuperVault cap-bridge hooks deployed on chainId: ", chainId);
+    }
+
+    /// @notice Read a deployed core contract address from the environment output file
+    /// @dev Only prod (0) and staging (2) have canonical output dirs; returns address(0) when the
+    ///      file or key is absent so callers decide the fallback
+    function _readDeployedCoreAddress(uint64 chainId, uint256 env, string memory key) internal view returns (address) {
+        if (env != 0 && env != 2) return address(0);
+        string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
+        string memory outputPath = string(
+            abi.encodePacked(
+                root,
+                "/script/output/",
+                env == 0 ? "prod" : "staging",
+                "/",
+                vm.toString(uint256(chainId)),
+                "/",
+                chainNames[chainId],
+                "-latest.json"
+            )
+        );
+        if (!vm.exists(outputPath)) return address(0);
+        try vm.parseJsonAddress(vm.readFile(outputPath), string.concat(".", key)) returns (address addr) {
+            return addr;
+        } catch {
+            return address(0);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    FEE SPLITTING HOOK DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploy FeeSplittingHook (takes the canonical native-token sentinel as its only
+    ///         constructor arg; chain-uniform per ConfigCore's nativeTokens mapping)
+    function _deployFeeSplittingHook(uint64 chainId, uint256 env) internal returns (address feeSplittingHook) {
+        feeSplittingHook = __deployContract(
+            FEE_SPLITTING_HOOK_KEY,
+            chainId,
+            __getSalt(FEE_SPLITTING_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("FeeSplittingHook", env), abi.encode(NATIVE_TOKEN_DEFAULT))
+        );
+
+        require(feeSplittingHook != address(0), "FeeSplittingHook not assigned");
+        console2.log("FeeSplittingHook deployed:", feeSplittingHook);
     }
 
     /*//////////////////////////////////////////////////////////////

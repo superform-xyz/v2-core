@@ -14,6 +14,8 @@ NETWORKS=(
     "999:HyperEVM:HYPEREVM_MAINNET"
     "14:Flare:FLARE_MAINNET"
     "4663:RH:RH_MAINNET"
+    "5042:Arc:ARC_MAINNET"
+    "7091047534:Plataberget:PLATABERGET_TESTNET"
 )
 
 # Network name mapping function
@@ -43,6 +45,15 @@ get_network_name() {
             ;;
         4663)
             echo "RH"
+            ;;
+        5042)
+            echo "Arc"
+            ;;
+        11155111)
+            echo "Sepolia"
+            ;;
+        7091047534)
+            echo "Plataberget"
             ;;
         *)
             echo "ERROR: Unknown staging network ID: $network_id" >&2
@@ -79,6 +90,15 @@ get_rpc_var() {
         4663)
             echo "RH_MAINNET"
             ;;
+        5042)
+            echo "ARC_MAINNET"
+            ;;
+        11155111)
+            echo "SEPOLIA_TESTNET"
+            ;;
+        7091047534)
+            echo "PLATABERGET_TESTNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -114,6 +134,15 @@ get_rpc_url() {
         4663)
             echo "$RH_MAINNET"
             ;;
+        5042)
+            echo "$ARC_MAINNET"
+            ;;
+        11155111)
+            echo "$SEPOLIA_TESTNET"
+            ;;
+        7091047534)
+            echo "$PLATABERGET_TESTNET"
+            ;;
         *)
             echo "ERROR: Unknown staging network ID for RPC: $network_id" >&2
             return 1
@@ -141,6 +170,25 @@ get_supported_networks() {
     done
 }
 
+
+# Read a 1Password secret with one retry and a same-named environment-variable fallback.
+# Burst reads can transiently fail against the desktop-app integration (authorization race),
+# and `export VAR=$(op read ...)` masks failures (export always exits 0) — so detect emptiness
+# explicitly, retry once, then fall back to an already-exported env var of the same name (.env).
+op_read_rpc() {
+    local item=$1
+    local val
+    val=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/${item}/credential" 2>/dev/null | tr -d '\n') || val=""
+    if [[ -z "$val" ]]; then
+        sleep 2
+        val=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/${item}/credential" 2>/dev/null | tr -d '\n') || val=""
+    fi
+    if [[ -z "$val" ]]; then
+        val=$(printenv "$item" 2>/dev/null || true)
+    fi
+    printf '%s' "$val"
+}
+
 # Load RPC URLs from credential manager for staging networks
 load_rpc_urls() {
     echo "Loading staging RPC URLs from credential manager..."
@@ -148,44 +196,48 @@ load_rpc_urls() {
     local failed_rpcs=()
 
     echo "  • Loading Ethereum RPC..."
-    if ! export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("ETHEREUM_RPC_URL")
-    fi
+    export ETH_MAINNET="$(op_read_rpc ETHEREUM_RPC_URL)"
+        [[ -z "${ETH_MAINNET}" ]] && failed_rpcs+=("ETHEREUM_RPC_URL")
 
     echo "  • Loading Base RPC..."
-    if ! export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BASE_RPC_URL")
-    fi
+    export BASE_MAINNET="$(op_read_rpc BASE_RPC_URL)"
+        [[ -z "${BASE_MAINNET}" ]] && failed_rpcs+=("BASE_RPC_URL")
 
     echo "  • Loading BSC RPC..."
-    if ! export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("BSC_RPC_URL")
-    fi
+    export BSC_MAINNET="$(op_read_rpc BSC_RPC_URL)"
+        [[ -z "${BSC_MAINNET}" ]] && failed_rpcs+=("BSC_RPC_URL")
 
     echo "  • Loading Arbitrum RPC..."
-    if ! export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("ARBITRUM_RPC_URL")
-    fi
+    export ARBITRUM_MAINNET="$(op_read_rpc ARBITRUM_RPC_URL)"
+        [[ -z "${ARBITRUM_MAINNET}" ]] && failed_rpcs+=("ARBITRUM_RPC_URL")
 
     echo "  • Loading Avalanche RPC..."
-    if ! export AVALANCHE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/AVALANCHE_RPC_URL/credential 2>/dev/null); then
-        failed_rpcs+=("AVALANCHE_RPC_URL")
-    fi
+    export AVALANCHE_MAINNET="$(op_read_rpc AVALANCHE_RPC_URL)"
+        [[ -z "${AVALANCHE_MAINNET}" ]] && failed_rpcs+=("AVALANCHE_RPC_URL")
 
     echo "  • Loading HyperEVM RPC..."
-    if ! export HYPEREVM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/HYPEREVM_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("HYPEREVM_RPC_URL")
-    fi
+    export HYPEREVM_MAINNET="$(op_read_rpc HYPEREVM_RPC_URL)"
+        [[ -z "${HYPEREVM_MAINNET}" ]] && failed_rpcs+=("HYPEREVM_RPC_URL")
 
     echo "  • Loading Flare RPC..."
-    if ! export FLARE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/FLARE_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("FLARE_RPC_URL")
-    fi
+    export FLARE_MAINNET="$(op_read_rpc FLARE_RPC_URL)"
+        [[ -z "${FLARE_MAINNET}" ]] && failed_rpcs+=("FLARE_RPC_URL")
 
     echo "  • Loading RH RPC..."
-    if ! export RH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/RH_RPC_URL/credential 2>/dev/null | tr -d '\n'); then
-        failed_rpcs+=("RH_RPC_URL")
-    fi
+    export RH_MAINNET="$(op_read_rpc RH_RPC_URL)"
+        [[ -z "${RH_MAINNET}" ]] && failed_rpcs+=("RH_RPC_URL")
+
+    echo "  • Loading Arc RPC..."
+    export ARC_MAINNET="$(op_read_rpc ARC_RPC_URL)"
+        [[ -z "${ARC_MAINNET}" ]] && failed_rpcs+=("ARC_RPC_URL")
+
+    # Testnets (Glamsterdam compatibility) — public endpoints, hardcoded; no 1Password items needed.
+    # An exported SEPOLIA_RPC_URL / PLATABERGET_RPC_URL env var overrides the default.
+    echo "  • Loading Sepolia RPC (public default)..."
+    export SEPOLIA_TESTNET="${SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}"
+
+    echo "  • Loading Plataberget RPC (public default)..."
+    export PLATABERGET_TESTNET="${PLATABERGET_RPC_URL:-https://rpc.plataberget.ethpandaops.io}"
 
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"

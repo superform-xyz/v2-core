@@ -57,11 +57,11 @@ After each sub agent finishes the work, make sure you read the related documenta
 - Uses `./script/run/tooling/retrieve-abis.sh` and `./script/run/tooling/generate-contract-bindings.sh`
 
 ### Dependencies
-Install dependencies in submodules:
+Install dependencies in submodules (pnpm 9.15.9 pinned — lockfiles are v9; frozen installs match CI):
 ```bash
-cd lib/modulekit && pnpm install
-cd lib/safe7579 && pnpm install  
-cd lib/nexus && yarn
+cd lib/modulekit && pnpm install --frozen-lockfile
+cd lib/safe7579 && pnpm install --frozen-lockfile
+cd lib/nexus && yarn --frozen-lockfile
 ```
 
 ## Architecture

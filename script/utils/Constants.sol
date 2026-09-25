@@ -22,7 +22,9 @@ abstract contract Constants {
     string internal constant FLARE_KEY = "Flare";
     string internal constant STABLE_KEY = "Stable";
     string internal constant ROBINHOOD_KEY = "RH";
+    string internal constant ARC_KEY = "Arc";
     string internal constant SEPOLIA_KEY = "Sepolia";
+    string internal constant PLATABERGET_KEY = "Plataberget";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
     string internal constant OP_SEPOLIA_KEY = "OP_Sepolia";
@@ -33,6 +35,9 @@ abstract contract Constants {
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_V2_KEY = "AcrossV3AdapterV2";
     string internal constant RELAY_ADAPTER_KEY = "RelayAdapter";
+    string internal constant CCTP_ADAPTER_KEY = "CCTPAdapter";
+    string internal constant CIRCLE_GATEWAY_ADAPTER_KEY = "CircleGatewayAdapter";
+    string internal constant RELAY_ADAPTER_V2_KEY = "RelayAdapterV2";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant STARGATE_ADAPTER_KEY = "StargateAdapter";
     string internal constant STARGATE_ADAPTER_V2_KEY = "StargateAdapterV2";
@@ -68,8 +73,10 @@ abstract contract Constants {
     uint64 internal constant FLARE_CHAIN_ID = 14;
     uint64 internal constant STABLE_CHAIN_ID = 988;
     uint64 internal constant ROBINHOOD_CHAIN_ID = 4663; // Robinhood Chain (Arbitrum Orbit L2)
+    uint64 internal constant ARC_CHAIN_ID = 5042; // Circle Arc L1 (USDC-native gas); testnet is 5_042_002
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
+    uint64 internal constant PLATABERGET_CHAIN_ID = 7_091_047_534; // Glamsterdam devnet-class testnet
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
     uint64 internal constant BASE_SEPOLIA_CHAIN_ID = 84_532;
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
@@ -300,6 +307,9 @@ abstract contract Constants {
     string internal constant MORPHO_SUPPLY_AND_BORROW_HOOK_V2_KEY = "MorphoSupplyAndBorrowHookV2";
     string internal constant MORPHO_REPAY_HOOK_V2_KEY = "MorphoRepayHookV2";
     string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "MorphoRepayAndWithdrawHookV2";
+    string internal constant MORPHO_SUPPLY_HOOK_V2_KEY = "MorphoSupplyHookV2";
+    string internal constant MORPHO_BORROW_HOOK_V2_KEY = "MorphoBorrowHookV2";
+    string internal constant MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY = "MorphoWithdrawCollateralHookV2";
     string internal constant AAVE_V3_SUPPLY_AND_BORROW_HOOK_V2_KEY = "AaveV3SupplyAndBorrowHookV2";
     string internal constant AAVE_V3_REPAY_HOOK_V2_KEY = "AaveV3RepayHookV2";
     string internal constant AAVE_V3_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "AaveV3RepayAndWithdrawHookV2";
@@ -349,6 +359,12 @@ abstract contract Constants {
 
     // CCTP V2 Token Messenger (same address on all EVM chains via CREATE2)
     address internal constant CCTP_V2_TOKEN_MESSENGER = 0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d;
+    /// @dev Circle CCTP domain ids (NOT EVM chain ids) for the canonical USDC pairs the deploy sanity check uses
+    uint32 internal constant CCTP_DOMAIN_ETHEREUM = 0;
+    uint32 internal constant CCTP_DOMAIN_BASE = 6;
+
+    // CCTP V2 Message Transmitter (same address on all EVM chains via CREATE2)
+    address internal constant CCTP_V2_MESSAGE_TRANSMITTER = 0x81D40F21F12A8F0E3252Bccb954D722d4c464B64;
 
     // Firelight Hook Keys
     string internal constant REDEEM_FIRELIGHT_VAULT_HOOK_KEY = "RedeemFirelightVaultHook";
@@ -388,6 +404,7 @@ abstract contract Constants {
     string internal constant UNIV3_CLP_YIELD_SOURCE_ORACLE_KEY = "UniV3CLPYieldSourceOracle";
     string internal constant EULER_DEBT_ORACLE_KEY = "EulerDebtOracle";
     string internal constant MORPHO_BLUE_DEBT_ORACLE_KEY = "MorphoBlueDebtOracle";
+    string internal constant ERC20_YIELD_SOURCE_ORACLE_KEY = "ERC20YieldSourceOracle";
     string internal constant AAVE_V4_RESERVE_REGISTRY_KEY = "AaveV4ReserveRegistry";
     string internal constant AAVE_V4_DEBT_ORACLE_KEY = "AaveV4DebtOracle";
     string internal constant AAVE_V4_SUPPLY_YIELD_SOURCE_ORACLE_KEY = "AaveV4SupplyYieldSourceOracle";

@@ -33,6 +33,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.acrossSpokePoolV3s[HYPEREVM_CHAIN_ID] = ACROSS_SPOKE_POOL_HYPEREVM;
         configuration.acrossSpokePoolV3s[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[STABLE_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.acrossSpokePoolV3s[ARC_CHAIN_ID] = address(0); // Across not deployed on Arc yet
 
         // ===== RELAY DEPOSITORY ADDRESSES =====
         // Enablement is a deploy-time decision: set a chain to RELAY_DEPOSITORY_CANONICAL (after
@@ -55,6 +56,67 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.relayDepositories[HYPEREVM_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL;
         configuration.relayDepositories[FLARE_CHAIN_ID] = address(0); // Relay not deployed on Flare
         configuration.relayDepositories[STABLE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Stable (988) deployed
+        configuration.relayDepositories[ARC_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Relay live on Arc (chain 5042)
+
+        // ===== CCTP V2 MESSAGE TRANSMITTER + NATIVE USDC ADDRESSES =====
+        // Enablement is a deploy-time decision: BOTH the transmitter and native USDC must be set for a
+        // chain to deploy the CCTPAdapter there (verify against Circle's official CCTP V2 chain list and
+        // USDC contract addresses — https://developers.circle.com/stablecoins/usdc-on-main-networks).
+        // address(0) = disabled/skipped. The transmitter is the same CREATE2 address on every CCTP V2 chain.
+        configuration.messageTransmittersV2[MAINNET_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[BASE_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[ARBITRUM_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[OPTIMISM_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[POLYGON_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[AVALANCHE_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[UNICHAIN_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[LINEA_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[SONIC_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[WORLDCHAIN_CHAIN_ID] = CCTP_V2_MESSAGE_TRANSMITTER;
+        configuration.messageTransmittersV2[BNB_CHAIN_ID] = address(0); // No native USDC / CCTP
+        configuration.messageTransmittersV2[BERACHAIN_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[GNOSIS_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[HYPEREVM_CHAIN_ID] = address(0); // Verify before enabling
+        configuration.messageTransmittersV2[FLARE_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[STABLE_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[ROBINHOOD_CHAIN_ID] = address(0); // CCTP not live
+
+        // ===== CIRCLE GATEWAY MINTER =====
+        // Enablement is a deploy-time decision: BOTH the Gateway minter and native USDC must be set for a chain
+        // to deploy the CircleGatewayAdapter there. The minter is the same address on every Gateway chain
+        // (https://developers.circle.com/gateway). address(0) = disabled/skipped. Verified on-chain 2026-09-23:
+        // code present at GATEWAY_MINTER and isTokenSupported(native USDC) == true on every enabled chain; Linea
+        // has NO code at the minter address.
+        configuration.gatewayMinters[MAINNET_CHAIN_ID] = GATEWAY_MINTER; // domain 0
+        configuration.gatewayMinters[BASE_CHAIN_ID] = GATEWAY_MINTER; // domain 6
+        configuration.gatewayMinters[ARBITRUM_CHAIN_ID] = GATEWAY_MINTER; // domain 3
+        configuration.gatewayMinters[OPTIMISM_CHAIN_ID] = GATEWAY_MINTER; // domain 2
+        configuration.gatewayMinters[POLYGON_CHAIN_ID] = GATEWAY_MINTER; // domain 7
+        configuration.gatewayMinters[AVALANCHE_CHAIN_ID] = GATEWAY_MINTER; // domain 1
+        configuration.gatewayMinters[UNICHAIN_CHAIN_ID] = GATEWAY_MINTER; // domain 10
+        configuration.gatewayMinters[SONIC_CHAIN_ID] = GATEWAY_MINTER; // domain 13
+        configuration.gatewayMinters[WORLDCHAIN_CHAIN_ID] = GATEWAY_MINTER; // domain 14
+        configuration.gatewayMinters[LINEA_CHAIN_ID] = address(0); // Gateway not live (no code at minter)
+        configuration.gatewayMinters[BNB_CHAIN_ID] = address(0); // No native USDC / Gateway
+        configuration.gatewayMinters[BERACHAIN_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[GNOSIS_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[HYPEREVM_CHAIN_ID] = address(0); // Verify before enabling
+        configuration.gatewayMinters[FLARE_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[STABLE_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[ROBINHOOD_CHAIN_ID] = address(0); // Gateway not live
+        configuration.gatewayMinters[ARC_CHAIN_ID] = address(0); // Verify before enabling
+
+        // Native USDC (the token CCTP V2 mints on each chain)
+        configuration.usdcs[MAINNET_CHAIN_ID] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        configuration.usdcs[BASE_CHAIN_ID] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        configuration.usdcs[ARBITRUM_CHAIN_ID] = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+        configuration.usdcs[OPTIMISM_CHAIN_ID] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
+        configuration.usdcs[POLYGON_CHAIN_ID] = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;
+        configuration.usdcs[AVALANCHE_CHAIN_ID] = 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E;
+        configuration.usdcs[UNICHAIN_CHAIN_ID] = 0x078D782b760474a361dDA0AF3839290b0EF57AD6;
+        configuration.usdcs[LINEA_CHAIN_ID] = 0x176211869cA2b568f2A7D4EE941E073a821EE1ff;
+        configuration.usdcs[SONIC_CHAIN_ID] = 0x29219dd400f2Bf60E5a23d13Be72B486D4038894;
+        configuration.usdcs[WORLDCHAIN_CHAIN_ID] = 0x79A02482A880bCE3F13e09Da970dC34db4CD24d1;
 
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
@@ -74,6 +136,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.debridgeSrcDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_SRC;
         configuration.debridgeSrcDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeSrcDln[STABLE_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeSrcDln[ARC_CHAIN_ID] = DEBRIDGE_DLN_SRC; // deBridge live on Arc (chain 5042)
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
@@ -93,6 +156,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.debridgeDstDln[HYPEREVM_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeDstDln[STABLE_CHAIN_ID] = address(0); // Not deployed yet
+        configuration.debridgeDstDln[ARC_CHAIN_ID] = DEBRIDGE_DLN_DST; // deBridge live on Arc (chain 5042)
 
         // ===== LAYERZERO V2 ENDPOINT ADDRESSES =====
         // Standard EndpointV2 address on most chains
@@ -114,6 +178,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.lzEndpointV2s[STABLE_CHAIN_ID] = LZ_ENDPOINT_V2_ALT;
         // HyperEVM has its own EndpointV2 address
         configuration.lzEndpointV2s[HYPEREVM_CHAIN_ID] = LZ_ENDPOINT_V2_HYPEREVM;
+        configuration.lzEndpointV2s[ARC_CHAIN_ID] = LZ_ENDPOINT_V2_ALT; // LZ V2 (alt) endpoint present on Arc
 
         // ===== STARGATE V2 TOKEN MESSAGING ADDRESSES =====
         configuration.stargateTokenMessagings[MAINNET_CHAIN_ID] = 0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980;
@@ -131,6 +196,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.stargateTokenMessagings[SONIC_CHAIN_ID] = 0x2086f755A6d9254045C257ea3d382ef854849B0f;
         configuration.stargateTokenMessagings[STABLE_CHAIN_ID] = 0xd027aFcc69ffA2bCB288BA68da6B71EC90d7B1d2;
         configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
+        configuration.stargateTokenMessagings[ARC_CHAIN_ID] = address(0); // Stargate token messaging not configured on Arc
 
         // ===== STARGATE ALLOWED OFTs (non-pool OFT contracts that use LZ compose) =====
         _setStargateOFTConfiguration();
@@ -153,6 +219,11 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.permit2s[FLARE_CHAIN_ID] = PERMIT2;
         configuration.permit2s[STABLE_CHAIN_ID] = PERMIT2;
         configuration.permit2s[ROBINHOOD_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[SEPOLIA_CHAIN_ID] = PERMIT2; // canonical Permit2 exists on Sepolia
+        // Plataberget: canonical Permit2 must be replayed via the Arachnid deployer BEFORE the
+        // fleet deploy (permissionless; original mainnet calldata reproduces 0x…BA3 exactly)
+        configuration.permit2s[PLATABERGET_CHAIN_ID] = PERMIT2;
+        configuration.permit2s[ARC_CHAIN_ID] = PERMIT2; // canonical Permit2 present on Arc
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -172,6 +243,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.merklDistributors[HYPEREVM_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.merklDistributors[STABLE_CHAIN_ID] = MERKL_DISTRIBUTOR;
+        configuration.merklDistributors[ARC_CHAIN_ID] = MERKL_DISTRIBUTOR; // Merkl live on Arc (chain 5042)
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
@@ -192,6 +264,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.aggregationRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
         configuration.aggregationRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.aggregationRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.aggregationRouters[ARC_CHAIN_ID] = address(0); // 1inch not deployed on Arc
 
         // Aerodrome is a Base-only integration. Unset chains are intentionally unsupported.
         configuration.aerodromeUniversalRouters[BASE_CHAIN_ID] = AERODROME_UNIVERSAL_ROUTER_BASE;
@@ -212,6 +285,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.odosRouters[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouters[ARC_CHAIN_ID] = address(0); // Odos v2 not deployed on Arc
 
         // ===== ODOS V3 ROUTER ADDRESSES =====
         // Same CREATE2 address on all EVM chains where deployed
@@ -230,6 +304,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.odosRouterV3s[WORLDCHAIN_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouterV3s[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouterV3s[FLARE_CHAIN_ID] = address(0); // Not deployed
+        configuration.odosRouterV3s[ARC_CHAIN_ID] = address(0); // Odos v3 not deployed on Arc
 
         // ===== KYBERSWAP ROUTER AND SCALE HELPER ADDRESSES =====
         // Same address across all supported chains
@@ -250,6 +325,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.kyberSwapRouters[HYPEREVM_CHAIN_ID] = KYBER_ROUTER;
         configuration.kyberSwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.kyberSwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapRouters[ARC_CHAIN_ID] = KYBER_ROUTER; // KyberSwap live on Arc (chain 5042)
 
         configuration.kyberSwapScaleHelpers[MAINNET_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[BASE_CHAIN_ID] = KYBER_SCALE_HELPER;
@@ -268,6 +344,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.kyberSwapScaleHelpers[HYPEREVM_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.kyberSwapScaleHelpers[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.kyberSwapScaleHelpers[ARC_CHAIN_ID] = KYBER_SCALE_HELPER; // KyberSwap scale helper present on Arc
 
         // ===== OPENOCEAN SPARKDEX V4 ADDRESSES =====
         // OpenOcean V4 SparkDexV4 routing is used only on Flare.
@@ -291,6 +368,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pendleRouters[HYPEREVM_CHAIN_ID] = PENDLE_ROUTER_HYPEREVM;
         configuration.pendleRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.pendleRouters[ARC_CHAIN_ID] = address(0); // Pendle not deployed on Arc
 
         // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES (V1) =====
         // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
@@ -313,6 +391,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pendlePTAmortizedOracles[WORLDCHAIN_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[FLARE_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[STABLE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOracles[ARC_CHAIN_ID] = address(0); // deployed dynamically
 
         // ===== PENDLE PT AMORTIZED ORACLE V2 ADDRESSES =====
         // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
@@ -335,6 +414,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pendlePTAmortizedOraclesV2[WORLDCHAIN_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[FLARE_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[STABLE_CHAIN_ID] = address(0);
+        configuration.pendlePTAmortizedOraclesV2[ARC_CHAIN_ID] = address(0); // deployed dynamically
 
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
@@ -354,6 +434,9 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.nativeTokens[FLARE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[STABLE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.nativeTokens[ROBINHOOD_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.nativeTokens[SEPOLIA_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // testnet
+        configuration.nativeTokens[PLATABERGET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // testnet (no Permit2 on chain)
+        configuration.nativeTokens[ARC_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // USDC-native gas; sentinel native token
 
         // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
         configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
@@ -373,6 +456,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV4PoolManagers[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV4PoolManagers[ARC_CHAIN_ID] = address(0); // Uniswap v4 not deployed on Arc
 
         // ===== UNISWAP V3 SWAP ROUTER ADDRESSES =====
         // Using SwapRouter (exactInputSingle with deadline in struct)
@@ -392,6 +476,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV3SwapRouters[HYPEREVM_CHAIN_ID] = 0x1EbDFC75FfE3ba3de61E7138a3E8706aC841Af9B;
         configuration.uniswapV3SwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV3SwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV3SwapRouters[ARC_CHAIN_ID] = address(0); // Uniswap v3 not deployed on Arc
 
         // ===== UNISWAP V3 SWAP ROUTER 02 ADDRESSES =====
         // Using SwapRouter02 (exactInputSingle WITHOUT deadline in struct)
@@ -411,6 +496,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV3SwapRouter02s[HYPEREVM_CHAIN_ID] = address(0); // Uses HyperSwap v1 router
         configuration.uniswapV3SwapRouter02s[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV3SwapRouter02s[STABLE_CHAIN_ID] = 0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a;
+        configuration.uniswapV3SwapRouter02s[ARC_CHAIN_ID] = address(0); // Uniswap v3 router02 not deployed on Arc
 
         // ===== UNISWAP V2 SWAP ROUTER ADDRESSES =====
         // SparkDex on Flare is a Uniswap V2 fork
@@ -430,6 +516,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV2SwapRouters[HYPEREVM_CHAIN_ID] = address(0);
         configuration.uniswapV2SwapRouters[FLARE_CHAIN_ID] = SPARKDEX_V2_ROUTER_FLARE;
         configuration.uniswapV2SwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
+        configuration.uniswapV2SwapRouters[ARC_CHAIN_ID] = address(0); // Uniswap v2 not deployed on Arc
 
         // ===== SPARK PSM3 ADDRESSES =====
         // PSM3 is only deployed on Base

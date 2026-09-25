@@ -41,6 +41,9 @@ compatibleProtocols:
   MorphoSupplyAndBorrowHookV2: [morpho]
   MorphoRepayHookV2: [morpho]
   MorphoRepayAndWithdrawHookV2: [morpho]
+  MorphoSupplyHookV2: [morpho]
+  MorphoBorrowHookV2: [morpho]
+  MorphoWithdrawCollateralHookV2: [morpho]
   MetaMorphoReallocateHook: [morpho-metamorpho]
   ForceDeallocateMorphoHook: [morpho-metamorpho]
   # Aave V4
@@ -114,6 +117,7 @@ compatibleProtocols:
   # Across
   AcrossSendFundsAndExecuteOnDstHook: [across]
   ApproveAndAcrossSendFundsAndExecuteOnDstHook: [across]
+  SuperVaultAcrossCapBridgeHook: [across]
   AcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   ApproveAndAcrossSendFundsAndExecuteOnDstHookV2: [across-v2]
   # Relay
@@ -122,10 +126,12 @@ compatibleProtocols:
   # Stargate
   StargateSendHook: [stargate]
   ApproveAndStargateSendHook: [stargate]
+  SuperVaultStargateCapBridgeHook: [stargate]
   StargateSendHookV2: [stargate-v2]
   ApproveAndStargateSendHookV2: [stargate-v2]
   # deBridge
   DeBridgeSendOrderAndExecuteOnDstHook: [debridge]
+  SuperVaultDeBridgeCapBridgeHook: [debridge]
   DeBridgeCancelOrderHook: [debridge]
   # CCTP / Circle
   CCTPSendHook: [circle-cctp]
@@ -354,19 +360,18 @@ amountMeta:
   AaveV3RepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   MorphoSupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   MorphoRepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  MorphoBorrowHookV2: [{direction: OUT, denomination: TOKEN}]
+  MorphoWithdrawCollateralHookV2: [{direction: OUT, denomination: TOKEN}]
   AaveV3SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV3RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   EulerDepositCollateralAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   EulerRepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
-  # MorphoLendHook: input is loan-token amount (TOKEN denomination is correct).
-  # outAmount is Morpho supply shares — non-transferable internal accounting units distinct from
-  # ERC-4626 vault shares. A "UNITS" denomination for output is deferred because amountRoles()
-  # expresses input denomination only; there is no denom field on outAmount in ISuperHookResult.
-  # Note: SHARES does exist in the Denomination enum (ISuperHook.sol) and is used by Redeem hooks;
-  # the deferral of UNITS is not because SHARES is absent, but because UNITS would describe outAmount
-  # semantics that amountRoles does not expose.
+  # MorphoLendHook (MONEY_MARKET lend, SUP-21005): slot @132 is loan-token ASSETS supplied to the
+  # market — same value-flow as ERC-4626 deposit. outAmount is the supply-share delta (share side);
+  # no SHARES input slot. Mirrors the on-chain amountRoles override; keep in sync.
+  MorphoLendHook: [{direction: IN, denomination: ASSETS}]
 
   # MorphoWithdraw: dual-slot with XOR invariant
   MorphoWithdrawHook: [{direction: IN, denomination: ASSETS}, {direction: IN, denomination: SHARES}]
@@ -378,6 +383,11 @@ loanInterfaceHooks:
   - MorphoSupplyAndBorrowHookV2
   - MorphoRepayHookV2
   - MorphoRepayAndWithdrawHookV2
+  # NOTE: MorphoSupplyHookV2 / MorphoBorrowHookV2 / MorphoWithdrawCollateralHookV2 deliberately
+  # omitted — like every loan hook they return false for supportsInterface(ISuperHookLoans)
+  # on-chain (BaseHook.supportsInterface never advertises it; asserted in the unit tests), so the
+  # manifest must not claim the ERC-165 loan interface for them. The three shipped V2 entries
+  # above carry the same on-chain/manifest contradiction and should be cleaned up separately.
   - AaveV3SupplyAndBorrowHookV2
   - AaveV3RepayHookV2
   - AaveV3RepayAndWithdrawHookV2

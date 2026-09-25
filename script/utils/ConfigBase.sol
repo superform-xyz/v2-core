@@ -16,6 +16,9 @@ abstract contract ConfigBase is Constants {
         // Core contract dependencies
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
         mapping(uint64 chainId => address relayDepository) relayDepositories;
+        mapping(uint64 chainId => address messageTransmitterV2) messageTransmittersV2;
+        mapping(uint64 chainId => address gatewayMinter) gatewayMinters;
+        mapping(uint64 chainId => address usdc) usdcs;
         mapping(uint64 chainId => address debridgeSrcDln) debridgeSrcDln;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address permit2) permit2s;
@@ -101,6 +104,9 @@ abstract contract ConfigBase is Constants {
         chainNames[FLARE_CHAIN_ID] = FLARE_KEY;
         chainNames[STABLE_CHAIN_ID] = STABLE_KEY;
         chainNames[ROBINHOOD_CHAIN_ID] = ROBINHOOD_KEY;
+        chainNames[ARC_CHAIN_ID] = ARC_KEY; // Circle Arc L1 (chain 5042)
+        chainNames[SEPOLIA_CHAIN_ID] = SEPOLIA_KEY; // testnet (Glamsterdam compatibility)
+        chainNames[PLATABERGET_CHAIN_ID] = PLATABERGET_KEY; // Glamsterdam testnet (live post-fork rules)
 
         // ===== COMMON CONFIGURATION =====
         if (env_ == 0 || env_ == 2) {

@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import { MorphoBalancesLib } from "../../../src/vendor/morpho/MorphoBalancesLib.sol";
+import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
 import { Id, IMorpho, IMorphoStaticTyping, MarketParams } from "../../../src/vendor/morpho/IMorpho.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
@@ -17,6 +18,9 @@ import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol"
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
 import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHookV2.sol";
+import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
+import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
+import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/MorphoWithdrawCollateralHookV2.sol";
 import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 
@@ -41,6 +45,9 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
     MorphoSupplyAndBorrowHookV2 public openHook;
     MorphoRepayHookV2 public repayHook;
     MorphoRepayAndWithdrawHookV2 public closeHook;
+    MorphoSupplyHookV2 public pledgeHook;
+    MorphoBorrowHookV2 public borrowHook;
+    MorphoWithdrawCollateralHookV2 public releaseHook;
     ISuperNativePaymaster public superNativePaymaster;
 
     address public loanToken; // USDC
@@ -69,6 +76,9 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         openHook = new MorphoSupplyAndBorrowHookV2(MORPHO);
         repayHook = new MorphoRepayHookV2(MORPHO);
         closeHook = new MorphoRepayAndWithdrawHookV2(MORPHO);
+        pledgeHook = new MorphoSupplyHookV2(MORPHO);
+        borrowHook = new MorphoBorrowHookV2(MORPHO);
+        releaseHook = new MorphoWithdrawCollateralHookV2(MORPHO);
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
 
         _getTokens(collateralToken, accountEth, 1e8);
@@ -81,8 +91,8 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Canonical 230-byte Morpho V2 layout:
-    ///      52-byte strategy header (bytes32(0) + address(0)), then loanToken (offset 52),
-    ///      collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
+    ///      52-byte strategy header (MORPHO_YS_ORACLE_ID at offset 0 + Morpho singleton at offset 32), then loanToken
+    /// (offset 52), collateralToken (72), oracle (92), irm (112), amount1 (132), amount2 (164),
     ///      usePrevHookAmount (196), lltv (197), reserved zero byte (229).
     function _morphoV2Data(
         uint256 amount1,
@@ -94,8 +104,8 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         returns (bytes memory data)
     {
         data = abi.encodePacked(
-            bytes32(0),
-            address(0),
+            MORPHO_YS_ORACLE_ID,
+            morphoMarketKey(loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv),
             loanToken,
             collateralToken,
             MORPHO_ORACLE_WBTC_USDC,
@@ -274,7 +284,9 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         (, uint128 borrowSharesAfter, uint128 collateralAfter) = _position();
         assertLt(uint256(borrowSharesAfter), uint256(borrowSharesBefore), "debt reduced");
         assertGt(uint256(borrowSharesAfter), 0, "residual debt remains");
-        assertEq(uint256(collateralAfter), COLLATERAL_WBTC - PARTIAL_WITHDRAW_WBTC, "collateral reduced by exact amount");
+        assertEq(
+            uint256(collateralAfter), COLLATERAL_WBTC - PARTIAL_WITHDRAW_WBTC, "collateral reduced by exact amount"
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -413,5 +425,194 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         assertEq(uint256(collateral), COLLATERAL_WBTC, "collateral untouched by repay");
         assertEq(loanBefore - IERC20(loanToken).balanceOf(accountEth), expectedDebt, "spend equals accrued debt");
         assertEq(IERC20(loanToken).allowance(accountEth, MORPHO), 0, "loan token allowance reset");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    8. STANDALONE PLEDGE (MorphoSupplyHookV2)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Supply exact collateral without borrowing; wallet delta exact, allowance reset.
+    function test_V2_StandalonePledge_Exact() external {
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+
+        assertEq(
+            collateralBefore - IERC20(collateralToken).balanceOf(accountEth),
+            COLLATERAL_WBTC,
+            "collateral spent must equal exact amount"
+        );
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "position collateral == pledged");
+        assertEq(uint256(borrowShares), 0, "no debt created");
+        assertEq(IERC20(collateralToken).allowance(accountEth, MORPHO), 0, "allowance reset to zero");
+    }
+
+    /// @notice A previous hook producing the collateral token feeds the pledge via
+    ///         usePrevHookAmount; the placeholder amount word is ignored.
+    function test_V2_StandalonePledge_Chained_UsesPrevHookOutput() external {
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = approveHook;
+        hooks[1] = address(pledgeHook);
+        bytes[] memory data = new bytes[](2);
+        data[0] = _createApproveHookData(collateralToken, MORPHO, COLLATERAL_WBTC, false);
+        data[1] = _morphoV2Data(1, 0, true);
+
+        _exec(hooks, data);
+
+        assertEq(
+            collateralBefore - IERC20(collateralToken).balanceOf(accountEth),
+            COLLATERAL_WBTC,
+            "collateral spent must equal prev hook output"
+        );
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "position collateral == prev hook output");
+    }
+
+    /// @notice A previous hook producing the WRONG token (loan token) reverts the pledge.
+    function test_V2_StandalonePledge_Chained_WrongPrevToken_Reverts() external {
+        address[] memory hooks = new address[](2);
+        hooks[0] = approveHook;
+        hooks[1] = address(pledgeHook);
+        bytes[] memory data = new bytes[](2);
+        data[0] = _createApproveHookData(loanToken, MORPHO, BORROW_USDC, false);
+        data[1] = _morphoV2Data(1, 0, true);
+
+        _execExpectUserOpRevert(hooks, data);
+
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), 0, "no collateral posted");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    9. STANDALONE BORROW (MorphoBorrowHookV2)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Borrow exact loan assets against already-posted collateral; wallet delta exact.
+    function test_V2_StandaloneBorrow_AfterPledge_Exact() external {
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        _execSingle(address(borrowHook), _morphoV2Data(BORROW_USDC, 0, false));
+
+        assertEq(
+            IERC20(loanToken).balanceOf(accountEth) - loanBefore,
+            BORROW_USDC,
+            "loan token received must equal exact borrow amount"
+        );
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO), marketParams, accountEth);
+        assertGe(debt, BORROW_USDC, "debt covers the borrow");
+        assertLt(debt, BORROW_USDC + 1e6, "debt approx equals the borrow");
+    }
+
+    /// @notice Pledge and borrow chained in one userOp — composability parity with the open hook.
+    function test_V2_StandalonePledgeThenBorrow_OneUserOp() external {
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        bytes[] memory data = new bytes[](2);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, 0, false);
+        data[1] = _morphoV2Data(BORROW_USDC, 0, false);
+
+        _exec(hooks, data);
+
+        assertEq(collateralBefore - IERC20(collateralToken).balanceOf(accountEth), COLLATERAL_WBTC, "collateral spent");
+        assertEq(IERC20(loanToken).balanceOf(accountEth) - loanBefore, BORROW_USDC, "loan received");
+
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "position collateral");
+        assertGt(uint256(borrowShares), 0, "borrow shares created");
+    }
+
+    /// @notice Zero borrow amount reverts before any Morpho call.
+    function test_V2_StandaloneBorrow_ZeroAmount_Reverts() external {
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+        _execSingleExpectUserOpRevert(address(borrowHook), _morphoV2Data(0, 0, false));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                 10. STANDALONE RELEASE (MorphoWithdrawCollateralHookV2)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Withdraw an exact partial collateral amount; wallet delta exact, no repay leg.
+    function test_V2_StandaloneRelease_ExactPartial() external {
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        _execSingle(address(releaseHook), _morphoV2Data(PARTIAL_WITHDRAW_WBTC, 0, false));
+
+        assertEq(
+            IERC20(collateralToken).balanceOf(accountEth) - collateralBefore,
+            PARTIAL_WITHDRAW_WBTC,
+            "collateral received must equal exact amount"
+        );
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC - PARTIAL_WITHDRAW_WBTC, "position reduced exactly");
+    }
+
+    /// @notice The max sentinel on a debt-free position withdraws ALL posted collateral.
+    function test_V2_StandaloneRelease_MaxSentinel_FullCollateral() external {
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        _execSingle(address(releaseHook), _morphoV2Data(type(uint256).max, 0, false));
+
+        assertEq(
+            IERC20(collateralToken).balanceOf(accountEth) - collateralBefore,
+            COLLATERAL_WBTC,
+            "full posted collateral received"
+        );
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), 0, "position fully released");
+    }
+
+    /// @notice The max sentinel on an empty position reverts before any Morpho call.
+    function test_V2_StandaloneRelease_MaxSentinel_EmptyPosition_Reverts() external {
+        _execSingleExpectUserOpRevert(address(releaseHook), _morphoV2Data(type(uint256).max, 0, false));
+    }
+
+    /// @notice Withdrawing too much collateral with debt open fails Morpho's own health check —
+    ///         the hook adds no LTV logic of its own.
+    function test_V2_StandaloneRelease_Undercollateralized_MorphoHealthCheckReverts() external {
+        _open(COLLATERAL_WBTC, BORROW_USDC);
+
+        _execSingleExpectUserOpRevert(address(releaseHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "collateral untouched after failed release");
+    }
+
+    /// @notice Full lifecycle via the standalone trio + existing repay hook:
+    ///         pledge -> borrow -> repay(full) -> release(max).
+    function test_V2_StandaloneTrio_FullLifecycleParity() external {
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        bytes[] memory data = new bytes[](2);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, 0, false);
+        data[1] = _morphoV2Data(BORROW_USDC, 0, false);
+        _exec(hooks, data);
+
+        // repay everything via the shipped standalone repay (max cap = shares-path full clear)
+        _execSingle(address(repayHook), _morphoV2Data(type(uint256).max, 0, false));
+
+        // release everything via the max sentinel
+        _execSingle(address(releaseHook), _morphoV2Data(type(uint256).max, 0, false));
+
+        (uint256 supplyShares, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(supplyShares, 0, "no supply shares");
+        assertEq(uint256(borrowShares), 0, "debt cleared");
+        assertEq(uint256(collateral), 0, "collateral fully released");
+        assertEq(IERC20(collateralToken).balanceOf(accountEth), collateralBefore, "all collateral back in the wallet");
     }
 }

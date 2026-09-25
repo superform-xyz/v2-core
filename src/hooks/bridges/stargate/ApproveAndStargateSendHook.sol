@@ -98,15 +98,14 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @notice Human-readable name for UI display
-    function name() external pure override returns (string memory) {
+    function name() external pure virtual override returns (string memory) {
         return "Approve and Stargate Bridge";
     }
 
     /// @notice One-sentence description of what this hook does
-    function description() external pure override returns (string memory) {
+    function description() external pure virtual override returns (string memory) {
         return "Approves and bridges tokens via Stargate";
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -221,9 +220,16 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
@@ -246,7 +252,9 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    /// @dev view + virtual so cap-aware subclasses can extend the leaf with governance-resolved
+    ///      cap dimensions (mutability/virtuality only — no behavior change for this hook).
+    function inspect(bytes calldata data) external view virtual override returns (bytes memory) {
         return abi.encodePacked(
             BytesLib.toAddress(data, 84), // stargatePool
             BytesLib.toAddress(data, 104), // inputToken
@@ -297,8 +305,7 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware, ISuperH
                 composeMsg: s.composeMsg,
                 oftCmd: bytes("")
             });
-            IOFT.MessagingFee memory messagingFee =
-                IOFT.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
+            IOFT.MessagingFee memory messagingFee = IOFT.MessagingFee({ nativeFee: s.lzNativeFee, lzTokenFee: 0 });
             sendCallData = abi.encodeCall(IOFT.send, (sendParam, messagingFee, account));
         } else {
             // lzMulticall mode (mode=3): forward pre-built calldata
@@ -310,30 +317,20 @@ contract ApproveAndStargateSendHook is BaseHook, ISuperHookContextAware, ISuperH
 
         // Execution 0: Reset approval to 0 (prevents approval race conditions)
         executions[0] = Execution({
-            target: s.inputToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+            target: s.inputToken, value: 0, callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
         });
 
         // Execution 1: Approve exact amount
         executions[1] = Execution({
-            target: s.inputToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
+            target: s.inputToken, value: 0, callData: abi.encodeCall(IERC20.approve, (s.stargatePool, s.amountLD))
         });
 
         // Execution 2: Bridge call (value = lzNativeFee only for ERC20)
-        executions[2] = Execution({
-            target: s.stargatePool,
-            value: s.lzNativeFee,
-            callData: sendCallData
-        });
+        executions[2] = Execution({ target: s.stargatePool, value: s.lzNativeFee, callData: sendCallData });
 
         // Execution 3: Cleanup approval to 0
         executions[3] = Execution({
-            target: s.inputToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
+            target: s.inputToken, value: 0, callData: abi.encodeCall(IERC20.approve, (s.stargatePool, 0))
         });
     }
 }

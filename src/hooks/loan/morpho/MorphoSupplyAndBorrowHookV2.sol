@@ -15,8 +15,8 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @title MorphoSupplyAndBorrowHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -65,6 +65,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         vars.amount1 = _resolveOpenAmount1(
             prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
         );
@@ -123,7 +124,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectMorphoV2(_decodeMorphoV2(data, false));
     }
 
@@ -134,6 +135,7 @@ contract MorphoSupplyAndBorrowHookV2 is BaseMorphoLoanHookV2 {
     /// @inheritdoc BaseHook
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         vars.amount1 = _resolveOpenAmount1(
             prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
         );

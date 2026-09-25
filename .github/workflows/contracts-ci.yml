@@ -25,6 +25,15 @@ env:
   SONIC_RPC_URL: ${{ secrets.SONIC_RPC_URL }} 
   GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL }} 
   WORLDCHAIN_RPC_URL: ${{ secrets.WORLDCHAIN_RPC_URL }} 
+  # Smoke-test skip list (reported as SKIPPED in the job summary, never hidden). Berachain (80094) and
+  # Gnosis (100): configured RPC secrets are unreachable ("error sending request for url") — remove
+  # each id once its secret is repaired.
+  SMOKE_SKIP_NETWORKS: "80094,100"
+  # Prod networks NOT yet configured (Linea, HyperEVM, Stable, RH, Arc): do NOT reference their secrets
+  # here until they exist — a missing secret yields an EMPTY variable, which breaks fork suites that
+  # default on an unset var (HyperCoreHooksFork: vm.createFork(envOr("HYPEREVM_RPC_URL", <public>))).
+  # The smoke tests report networks without an RPC var as SKIPPED. When a secret is added, add its
+  # `<NAME>_RPC_URL: ${{ secrets.<NAME>_RPC_URL }}` line here.
   TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
   TENDERLY_PROJECT_SLUG: "v2"
   TENDERLY_ACCOUNT_ID: "superform"
@@ -67,7 +76,7 @@ jobs:
       - name: "Install node"
         uses: "actions/setup-node@v3"
         with:
-          node-version: "latest"
+          node-version: "22"
 
       - name: Print ulimits
         run: ulimit -Sa && ulimit -Ha
@@ -84,22 +93,22 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Check pnpm version"
         run: pnpm --version
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Build the contracts and print their size"
         run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
@@ -127,7 +136,7 @@ jobs:
       - name: "Install node"
         uses: "actions/setup-node@v3"
         with:
-          node-version: "latest"
+          node-version: "22"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
@@ -138,19 +147,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Show the Foundry config"
         run: "forge config"
@@ -209,19 +218,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Install Tenderly CLI"
         run: curl https://raw.githubusercontent.com/Tenderly/tenderly-cli/master/scripts/install-linux.sh | sudo sh
@@ -356,6 +365,10 @@ jobs:
   treasury-config-smoke-test:
     runs-on: SuperformCore3
     needs: ["test"]
+    # Informational: must not fail the run, but a failure must be visible — the step exits with the
+    # script's real exit code (job shows failed in the run graph) and emits an ::error annotation that
+    # surfaces in the PR checks regardless of how job-level continue-on-error is rendered.
+    continue-on-error: true
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -371,19 +384,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Make smoke test script executable"
         run: chmod +x ./script/run/test/smoke_test_treasury_config.sh
@@ -396,7 +409,7 @@ jobs:
           
           # Run the smoke test and capture output
           set +e
-          ./script/run/test/smoke_test_treasury_config.sh > treasury_test_output.log 2>&1
+          ./script/run/test/smoke_test_treasury_config.sh prod > treasury_test_output.log 2>&1
           EXIT_CODE=$?
           set -e
           
@@ -407,9 +420,8 @@ jobs:
           if [ $EXIT_CODE -eq 0 ]; then
             echo "✅ **All networks passed treasury configuration validation**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️  **Some networks failed treasury configuration validation**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This is expected for networks where treasury configuration is not yet complete." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Treasury configuration smoke test FAILED (exit $EXIT_CODE)** — see the job log. This job is informational (continue-on-error), so the run is not blocked, but the failure is real." >> $GITHUB_STEP_SUMMARY
+            echo "::error title=Treasury configuration smoke test failed::exit $EXIT_CODE — see the treasury-config-smoke-test job log (networks without an RPC secret are skipped, not failed)"
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -418,17 +430,16 @@ jobs:
           tail -20 treasury_test_output.log >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           
-          # Don't fail the CI for this - it's informational
-          exit 0
-
-      - name: "Add treasury test summary"
-        run: |
-          echo "## Treasury Configuration Test" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Smoke test completed (informational)" >> $GITHUB_STEP_SUMMARY
+          # Propagate the real result (continue-on-error keeps the run green; the annotation above flags it).
+          exit $EXIT_CODE
 
   deployment-smoke-test:
     runs-on: SuperformCore3
     needs: ["test"]
+    # Informational: must not fail the run, but a failure must be visible — the step exits with the
+    # script's real exit code (job shows failed in the run graph) and emits an ::error annotation that
+    # surfaces in the PR checks regardless of how job-level continue-on-error is rendered.
+    continue-on-error: true
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -444,19 +455,19 @@ jobs:
         run: forge install
 
       - name: "Install pnpm"
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@9.15.9
 
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Safe7579"
         working-directory: ./lib/safe7579
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: "Install Nexus"
         working-directory: ./lib/nexus
-        run: yarn
+        run: yarn --frozen-lockfile
 
       - name: "Make deployment smoke test script executable"
         run: chmod +x ./script/run/test/smoke_test_deployment.sh
@@ -480,9 +491,8 @@ jobs:
           if [ $EXIT_CODE -eq 0 ]; then
             echo "✅ **All contracts verified on-chain**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️  **Some contracts missing on-chain**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "This may be expected for networks with partial deployments." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Deployment smoke test FAILED (exit $EXIT_CODE)** — see the job log. This job is informational (continue-on-error), so the run is not blocked, but the failure is real." >> $GITHUB_STEP_SUMMARY
+            echo "::error title=Deployment smoke test failed::exit $EXIT_CODE — see the deployment-smoke-test job log (networks without an RPC secret are skipped, not failed)"
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -491,10 +501,5 @@ jobs:
           tail -30 deployment_test_output.log >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-          # Don't fail the CI for this - it's informational
-          exit 0
-
-      - name: "Add deployment test summary"
-        run: |
-          echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Smoke test completed (informational)" >> $GITHUB_STEP_SUMMARY
+          # Propagate the real result (continue-on-error keeps the run green; the annotation above flags it).
+          exit $EXIT_CODE

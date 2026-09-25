@@ -7,6 +7,11 @@ import { ConfigCore } from "./utils/ConfigCore.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossV3AdapterV2 } from "../src/adapters/AcrossV3AdapterV2.sol";
 import { RelayAdapter } from "../src/adapters/RelayAdapter.sol";
+import { CCTPAdapter, ITokenMessengerV2MinterSource } from "../src/adapters/CCTPAdapter.sol";
+import { ITokenMinterV2 } from "../src/vendor/bridges/cctp/ITokenMinterV2.sol";
+import { RelayAdapterV2 } from "../src/adapters/RelayAdapterV2.sol";
+import { CircleGatewayAdapter } from "../src/adapters/CircleGatewayAdapter.sol";
+import { IGatewayMinter } from "../src/vendor/bridges/circle/IGatewayMinter.sol";
 import {
     AcrossSendFundsAndExecuteOnDstHookV2
 } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHookV2.sol";
@@ -27,6 +32,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superExecutor;
         address acrossV3AdapterV2;
         address relayAdapter;
+        address cctpAdapter;
+        address relayAdapterV2;
+        address circleGatewayAdapter;
         address debridgeAdapter;
         address stargateAdapter;
         address stargateAdapterV2;
@@ -278,6 +286,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     struct ContractAvailability {
         bool acrossV3AdapterV2;
         bool relayAdapter;
+        bool cctpAdapter;
+        bool relayAdapterV2;
+        bool circleGatewayAdapter;
         bool debridgeAdapter;
         bool stargateAdapter;
         bool stargateAdapterV2;
@@ -348,11 +359,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](46);
+        string[] memory potentialSkips = new string[](49);
         uint256 skipCount = 0;
-        // Adapter contracts (5 contracts - conditionally deployed)
-        string[5] memory adapterContracts =
-            ["AcrossV3AdapterV2", "RelayAdapter", "DebridgeAdapter", "StargateAdapter", "StargateAdapterV2"];
+        // Adapter contracts (8 contracts - conditionally deployed)
+        string[8] memory adapterContracts = [
+            "AcrossV3AdapterV2",
+            "RelayAdapter",
+            "RelayAdapterV2",
+            "CCTPAdapter",
+            "CircleGatewayAdapter",
+            "DebridgeAdapter",
+            "StargateAdapter",
+            "StargateAdapterV2"
+        ];
 
         // Start with all adapters, then decrement for missing configurations
         uint256 expectedAdapters = adapterContracts.length;
@@ -371,6 +390,32 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         } else {
             expectedAdapters -= 1;
             potentialSkips[skipCount++] = "RelayAdapter";
+        }
+
+        // CCTPAdapter (permissionless — availability keyed on CCTP V2 transmitter + native USDC being enabled)
+        if (configuration.messageTransmittersV2[chainId] != address(0) && configuration.usdcs[chainId] != address(0)) {
+            availability.cctpAdapter = true;
+        } else {
+            expectedAdapters -= 1;
+            potentialSkips[skipCount++] = "CCTPAdapter";
+        }
+
+        // CircleGatewayAdapter (permissionless — availability keyed on the Gateway minter + native USDC being enabled)
+        if (configuration.gatewayMinters[chainId] != address(0) && configuration.usdcs[chainId] != address(0)) {
+            availability.circleGatewayAdapter = true;
+        } else {
+            expectedAdapters -= 1;
+            potentialSkips[skipCount++] = "CircleGatewayAdapter";
+        }
+
+        // RelayAdapterV2 — same gate as V1. V2 is deployed ALONGSIDE V1, not as a replacement: V1 is
+        // live on 17 chains with locked bytecode and keeps serving in-flight fills and any escrowed
+        // failedTransfers, which cannot be migrated. See RelayAdapterV2 NatSpec.
+        if (configuration.relayDepositories[chainId] != address(0)) {
+            availability.relayAdapterV2 = true;
+        } else {
+            expectedAdapters -= 1;
+            potentialSkips[skipCount++] = "RelayAdapterV2";
         }
 
         // DebridgeAdapter
@@ -723,7 +768,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (always check these; count must track the array below)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[23] memory oracleContracts = [
+        string[24] memory oracleContracts = [
             "ERC4626YieldSourceOracle", // [0]
             "ERC5115YieldSourceOracle", // [1]
             "PendlePTYieldSourceOracle", // [2]
@@ -744,9 +789,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "UniV3CLPYieldSourceOracle", // [17]
             "EulerDebtOracle", // [18]
             "MorphoBlueDebtOracle", // [19]
-            "AaveV4ReserveRegistry", // [20]
-            "AaveV4DebtOracle", // [21]
-            "AaveV4SupplyYieldSourceOracle" // [22]
+            "ERC20YieldSourceOracle", // [20]
+            "AaveV4ReserveRegistry", // [21]
+            "AaveV4DebtOracle", // [22]
+            "AaveV4SupplyYieldSourceOracle" // [23]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -794,7 +840,264 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
     }
 
+    /// @notice Deploy (or check) ONLY CCTPAdapter on this chain.
+    /// @dev Scoped entrypoint, same shape as `runRelayAdapterV2`: the generic `run()` would also deploy any
+    ///      OTHER contract missing on the chain; this keeps the blast radius to the one adapter. The executor
+    ///      is read from the chain's output JSON (the status map is only filled by __checkContract), only the
+    ///      adapter is checked, the wrapper's summary line is printed ("0 out of 0" on chains without CCTP V2
+    ///      config), and the address is merged into <Chain>-latest.json after validation.
+    /// @param check true = verification only (no broadcast), false = deploy
+    /// @param env 0 = prod, 1 = dev, 2 = staging
+    /// @param chainId must equal block.chainid
+    function runCCTPAdapter(bool check, uint256 env, uint64 chainId) public broadcast(env) {
+        require(block.chainid == chainId, "CCTP_ADAPTER_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        if (!availability.cctpAdapter) {
+            console2.log("SKIPPED CCTPAdapter: CCTP V2 transmitter or native USDC not configured for chain", chainId);
+            console2.log(
+                "=====> On this chain we have", uint256(0), "contracts already deployed out of", uint256(0)
+            );
+            return;
+        }
+
+        string memory existing = _readCoreContractsFromOutput(chainId, env);
+        address superDestExecutor =
+            _safeParseJsonAddress(existing, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        require(superDestExecutor != address(0), "CCTP_ADAPTER_DEST_EXECUTOR_NOT_IN_OUTPUT");
+        require(superDestExecutor.code.length > 0, "CCTP_ADAPTER_DEST_EXECUTOR_NO_CODE");
+        require(__checkBytecodeExists("CCTPAdapter", env), "CCTP_ADAPTER_BYTECODE_MISSING");
+
+        // Same constructor args as the generic check/deploy passes (parity is pinned by
+        // test/script/DeployV2CoreCCTPAdapterArgs.t.sol).
+        bytes memory ctorArgs = abi.encode(
+            configuration.messageTransmittersV2[chainId],
+            CCTP_V2_TOKEN_MESSENGER,
+            configuration.usdcs[chainId],
+            superDestExecutor
+        );
+        __checkContract(CCTP_ADAPTER_KEY, __getSalt(CCTP_ADAPTER_KEY), ctorArgs, env);
+
+        _logDeploymentSummary(chainId);
+        console2.log(
+            "=====> On this chain we have",
+            _countDeployedContracts(chainId),
+            "contracts already deployed out of",
+            _getAllContractNames(chainId).length
+        );
+        if (check) return;
+
+        // Deploy-time sanity, identical to the generic deploy block: Circle's messenger must be live here and
+        // its minter must resolve the canonical remote USDC pair to the configured local USDC (otherwise the
+        // adapter would escrow every USDC intent as "non-USDC").
+        require(CCTP_V2_TOKEN_MESSENGER.code.length > 0, "CCTP_ADAPTER_TOKEN_MESSENGER_NOT_DEPLOYED");
+        {
+            (uint32 remoteDomain, address remoteUsdc) = chainId == MAINNET_CHAIN_ID
+                ? (CCTP_DOMAIN_BASE, configuration.usdcs[BASE_CHAIN_ID])
+                : (CCTP_DOMAIN_ETHEREUM, configuration.usdcs[MAINNET_CHAIN_ID]);
+            address minter = ITokenMessengerV2MinterSource(CCTP_V2_TOKEN_MESSENGER).localMinter();
+            require(minter != address(0), "CCTP_ADAPTER_MINTER_NOT_SET");
+            require(
+                ITokenMinterV2(minter).getLocalToken(remoteDomain, bytes32(uint256(uint160(remoteUsdc))))
+                    == configuration.usdcs[chainId],
+                "CCTP_ADAPTER_USDC_NOT_MINTER_LOCAL_TOKEN"
+            );
+        }
+
+        address cctpAdapter = __deployContractIfNeeded(
+            CCTP_ADAPTER_KEY,
+            chainId,
+            __getSalt(CCTP_ADAPTER_KEY),
+            abi.encodePacked(__getBytecode("CCTPAdapter", env), ctorArgs)
+        );
+
+        require(cctpAdapter != address(0), "CCTP_ADAPTER_DEPLOYMENT_FAILED");
+        require(cctpAdapter.code.length > 0, "CCTP_ADAPTER_NO_CODE");
+        require(
+            address(CCTPAdapter(cctpAdapter).SUPER_DESTINATION_EXECUTOR()) == superDestExecutor,
+            "CCTP_ADAPTER_EXECUTOR_MISMATCH"
+        );
+        require(
+            address(CCTPAdapter(cctpAdapter).MESSAGE_TRANSMITTER()) == configuration.messageTransmittersV2[chainId],
+            "CCTP_ADAPTER_TRANSMITTER_MISMATCH"
+        );
+        require(address(CCTPAdapter(cctpAdapter).USDC()) == configuration.usdcs[chainId], "CCTP_ADAPTER_USDC_MISMATCH");
+        require(
+            address(CCTPAdapter(cctpAdapter).TOKEN_MESSENGER()) == CCTP_V2_TOKEN_MESSENGER,
+            "CCTP_ADAPTER_TOKEN_MESSENGER_MISMATCH"
+        );
+
+        _writeExportedContracts(chainId);
+        console2.log(" CCTPAdapter deployed and validated:", cctpAdapter);
+    }
+
+    /// @notice Deploy (or check) ONLY CircleGatewayAdapter on this chain.
+    /// @dev Scoped entrypoint, same shape as `runCCTPAdapter`: the generic `run()` would also deploy any OTHER
+    ///      contract missing on the chain; this keeps the blast radius to the one adapter. The executor is read
+    ///      from the chain's output JSON (the status map is only filled by __checkContract), only the adapter is
+    ///      checked, the wrapper's summary line is printed ("0 out of 0" on chains without a Gateway minter), and
+    ///      the address is merged into <Chain>-latest.json after validation.
+    /// @param check true = verification only (no broadcast), false = deploy
+    /// @param env 0 = prod, 1 = dev, 2 = staging
+    /// @param chainId must equal block.chainid
+    function runCircleGatewayAdapter(bool check, uint256 env, uint64 chainId) public broadcast(env) {
+        require(block.chainid == chainId, "CIRCLE_GATEWAY_ADAPTER_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        if (!availability.circleGatewayAdapter) {
+            console2.log(
+                "SKIPPED CircleGatewayAdapter: Gateway minter or native USDC not configured for chain", chainId
+            );
+            console2.log(
+                "=====> On this chain we have", uint256(0), "contracts already deployed out of", uint256(0)
+            );
+            return;
+        }
+
+        string memory existing = _readCoreContractsFromOutput(chainId, env);
+        address superDestExecutor =
+            _safeParseJsonAddress(existing, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        require(superDestExecutor != address(0), "CIRCLE_GATEWAY_ADAPTER_DEST_EXECUTOR_NOT_IN_OUTPUT");
+        require(superDestExecutor.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_DEST_EXECUTOR_NO_CODE");
+        require(__checkBytecodeExists("CircleGatewayAdapter", env), "CIRCLE_GATEWAY_ADAPTER_BYTECODE_MISSING");
+
+        // The same encoder the generic check/deploy passes use (parity pinned by
+        // test/script/DeployV2CoreCircleGatewayAdapterArgs.t.sol).
+        bytes memory ctorArgs = _circleGatewayCtorArgs(chainId, superDestExecutor);
+        __checkContract(CIRCLE_GATEWAY_ADAPTER_KEY, __getSalt(CIRCLE_GATEWAY_ADAPTER_KEY), ctorArgs, env);
+
+        _logDeploymentSummary(chainId);
+        console2.log(
+            "=====> On this chain we have",
+            _countDeployedContracts(chainId),
+            "contracts already deployed out of",
+            _getAllContractNames(chainId).length
+        );
+        if (check) return;
+
+        // Deploy-time sanity, identical to the generic deploy block: the Gateway minter must be live here and must
+        // mint the configured USDC (the adapter delivers only USDC and rejects everything else pre-mint).
+        address gatewayMinter = configuration.gatewayMinters[chainId];
+        require(gatewayMinter.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_MINTER_NOT_DEPLOYED");
+        require(
+            IGatewayMinter(gatewayMinter).isTokenSupported(configuration.usdcs[chainId]),
+            "CIRCLE_GATEWAY_ADAPTER_USDC_NOT_MINTER_SUPPORTED"
+        );
+
+        address circleGatewayAdapter = __deployContractIfNeeded(
+            CIRCLE_GATEWAY_ADAPTER_KEY,
+            chainId,
+            __getSalt(CIRCLE_GATEWAY_ADAPTER_KEY),
+            abi.encodePacked(__getBytecode("CircleGatewayAdapter", env), ctorArgs)
+        );
+
+        require(circleGatewayAdapter != address(0), "CIRCLE_GATEWAY_ADAPTER_DEPLOYMENT_FAILED");
+        require(circleGatewayAdapter.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_NO_CODE");
+        require(
+            address(CircleGatewayAdapter(circleGatewayAdapter).SUPER_DESTINATION_EXECUTOR()) == superDestExecutor,
+            "CIRCLE_GATEWAY_ADAPTER_EXECUTOR_MISMATCH"
+        );
+        require(
+            address(CircleGatewayAdapter(circleGatewayAdapter).GATEWAY_MINTER()) == gatewayMinter,
+            "CIRCLE_GATEWAY_ADAPTER_MINTER_MISMATCH"
+        );
+        require(
+            address(CircleGatewayAdapter(circleGatewayAdapter).USDC()) == configuration.usdcs[chainId],
+            "CIRCLE_GATEWAY_ADAPTER_USDC_MISMATCH"
+        );
+        require(
+            CircleGatewayAdapter(circleGatewayAdapter).SUPER_DESTINATION_VALIDATOR() != address(0),
+            "CIRCLE_GATEWAY_ADAPTER_VALIDATOR_NOT_CACHED"
+        );
+
+        _writeExportedContracts(chainId);
+        console2.log(" CircleGatewayAdapter deployed and validated:", circleGatewayAdapter);
+    }
+
+    /// @notice CircleGatewayAdapter constructor args `(gatewayMinter, usdc, superDestinationExecutor)` — ONE encoder
+    ///         shared by the check pass and the deploy pass so the two CREATE2 addresses can never diverge (the
+    ///         CCTPAdapter check/deploy encodings once drifted 3 vs 4 args; parity is also pinned by
+    ///         test/script/DeployV2CoreCircleGatewayAdapterArgs.t.sol).
+    function _circleGatewayCtorArgs(uint64 chainId, address superDestExecutor) internal view returns (bytes memory) {
+        return abi.encode(configuration.gatewayMinters[chainId], configuration.usdcs[chainId], superDestExecutor);
+    }
+
     /// @notice Check or deploy only the Across V2 contracts required on Avalanche.
+    /// @notice Deploy (or check) ONLY RelayAdapterV2 on this chain.
+    /// @dev Scoped entrypoint for the V2 rollout: RelayAdapterV2 ships ALONGSIDE the existing
+    ///      RelayAdapter, which is live on 17 chains with locked bytecode and must keep serving
+    ///      in-flight fills plus any escrowed failedTransfers (those cannot be migrated). Running the
+    ///      full `run()` would be idempotent but touches every core contract; this keeps the blast
+    ///      radius to the one new adapter.
+    /// @param check true = verification only (no broadcast), false = deploy
+    /// @param env 0 = prod, 1 = dev, 2 = staging
+    /// @param chainId must equal block.chainid
+    function runRelayAdapterV2(bool check, uint256 env, uint64 chainId) public broadcast(env) {
+        require(block.chainid == chainId, "RELAY_ADAPTER_V2_CHAIN_ID_MISMATCH");
+
+        _setConfiguration(env, "");
+
+        ContractAvailability memory availability = _getContractAvailability(chainId, env);
+        if (!availability.relayAdapterV2) {
+            console2.log("SKIPPED RelayAdapterV2: Relay depository not configured for chain", chainId);
+            // lib_deploy.sh parses this exact line; "0 out of 0" makes a configured skip read as
+            // "nothing to do" rather than as a failed check.
+            console2.log(
+                "=====> On this chain we have", uint256(0), "contracts already deployed out of", uint256(0)
+            );
+            return;
+        }
+
+        // The deployment-status map is only populated by __checkContract, and this entrypoint deliberately
+        // checks nothing but the adapter — so the executor is read from this chain's output JSON (same
+        // pattern as runAcrossV2Avalanche) rather than re-derived by checking the whole core set.
+        string memory existing = _readCoreContractsFromOutput(chainId, env);
+        address superDestExecutor =
+            _safeParseJsonAddress(existing, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
+        require(superDestExecutor != address(0), "RELAY_ADAPTER_V2_DEST_EXECUTOR_NOT_IN_OUTPUT");
+        require(superDestExecutor.code.length > 0, "RELAY_ADAPTER_V2_DEST_EXECUTOR_NO_CODE");
+        require(__checkBytecodeExists("RelayAdapterV2", env), "RELAY_ADAPTER_V2_BYTECODE_MISSING");
+
+        // Records status + address for the summary, the counters and the exported JSON.
+        __checkContract(RELAY_ADAPTER_V2_KEY, __getSalt(RELAY_ADAPTER_V2_KEY), abi.encode(superDestExecutor), env);
+
+        _logDeploymentSummary(chainId);
+        console2.log(
+            "=====> On this chain we have",
+            _countDeployedContracts(chainId),
+            "contracts already deployed out of",
+            _getAllContractNames(chainId).length
+        );
+        if (check) return;
+
+        address relayAdapterV2 = __deployContractIfNeeded(
+            RELAY_ADAPTER_V2_KEY,
+            chainId,
+            __getSalt(RELAY_ADAPTER_V2_KEY),
+            abi.encodePacked(__getBytecode("RelayAdapterV2", env), abi.encode(superDestExecutor))
+        );
+
+        require(relayAdapterV2 != address(0), "RELAY_ADAPTER_V2_DEPLOYMENT_FAILED");
+        require(relayAdapterV2.code.length > 0, "RELAY_ADAPTER_V2_NO_CODE");
+        require(
+            address(RelayAdapterV2(payable(relayAdapterV2)).SUPER_DESTINATION_EXECUTOR()) == superDestExecutor,
+            "RELAY_ADAPTER_V2_EXECUTOR_MISMATCH"
+        );
+        require(
+            RelayAdapterV2(payable(relayAdapterV2)).SUPER_DESTINATION_VALIDATOR() != address(0),
+            "RELAY_ADAPTER_V2_VALIDATOR_NOT_CACHED"
+        );
+
+        // Merges the new address into the existing <chain>-latest.json (keys already present are kept).
+        _writeExportedContracts(chainId);
+
+        console2.log(" RelayAdapterV2 deployed and validated:", relayAdapterV2);
+    }
+
     function runAcrossV2Avalanche(bool check, uint256 env, uint64 chainId) public {
         require(env == 0 || env == 2, "ACROSS_V2_AVALANCHE_INVALID_ENV");
         require(chainId == AVALANCHE_CHAIN_ID, "ACROSS_V2_AVALANCHE_INVALID_CHAIN");
@@ -1830,6 +2133,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("ACROSS_V3_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
 
+        // RelayAdapterV2 (same constructor shape as V1: executor only)
+        if (availability.relayAdapterV2 && superDestExecutor != address(0)) {
+            __checkContract(
+                RELAY_ADAPTER_V2_KEY, __getSalt(RELAY_ADAPTER_V2_KEY), abi.encode(superDestExecutor), env
+            );
+        } else if (!availability.relayAdapterV2) {
+            console2.log("SKIPPED RelayAdapterV2: Relay depository not configured for chain", chainId);
+        } else {
+            revert("RELAY_ADAPTER_V2_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
         // RelayAdapter (permissionless destination adapter — constructor takes only the executor)
         if (availability.relayAdapter && superDestExecutor != address(0)) {
             __checkContract(RELAY_ADAPTER_KEY, __getSalt(RELAY_ADAPTER_KEY), abi.encode(superDestExecutor), env);
@@ -1837,6 +2151,41 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED RelayAdapter: Relay depository not configured for chain", chainId);
         } else {
             revert("RELAY_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
+        // CCTPAdapter (permissionless destination adapter — transmitter + native USDC + executor)
+        if (availability.cctpAdapter && superDestExecutor != address(0)) {
+            __checkContract(
+                CCTP_ADAPTER_KEY,
+                __getSalt(CCTP_ADAPTER_KEY),
+                abi.encode(
+                    configuration.messageTransmittersV2[chainId],
+                    CCTP_V2_TOKEN_MESSENGER,
+                    configuration.usdcs[chainId],
+                    superDestExecutor
+                ),
+                env
+            );
+        } else if (!availability.cctpAdapter) {
+            console2.log("SKIPPED CCTPAdapter: CCTP V2 transmitter or native USDC not configured for chain", chainId);
+        } else {
+            revert("CCTP_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
+        }
+
+        // CircleGatewayAdapter (permissionless destination adapter — Gateway minter + native USDC + executor)
+        if (availability.circleGatewayAdapter && superDestExecutor != address(0)) {
+            __checkContract(
+                CIRCLE_GATEWAY_ADAPTER_KEY,
+                __getSalt(CIRCLE_GATEWAY_ADAPTER_KEY),
+                _circleGatewayCtorArgs(chainId, superDestExecutor),
+                env
+            );
+        } else if (!availability.circleGatewayAdapter) {
+            console2.log(
+                "SKIPPED CircleGatewayAdapter: Gateway minter or native USDC not configured for chain", chainId
+            );
+        } else {
+            revert("CIRCLE_GATEWAY_ADAPTER_CHECK_FAILED_MISSING_SUPER_DEST_EXECUTOR");
         }
     }
 
@@ -2614,6 +2963,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __checkContract(
                 EULER_DEBT_ORACLE_KEY, __getSalt(EULER_DEBT_ORACLE_KEY), abi.encode(superLedgerConfig), env
             );
+            __checkContract(
+                ERC20_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(ERC20_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig),
+                env
+            );
             // DETHYieldSourceOracle (superLedgerConfig + foundation) - only if foundation is configured
             if (configuration.dethFoundation != address(0)) {
                 __checkContract(
@@ -2738,6 +3093,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, RELAY_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.relayAdapter = status.contractAddress;
 
+        status = _getContractStatus(chainId, CCTP_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.cctpAdapter = status.contractAddress;
+
+        status = _getContractStatus(chainId, CIRCLE_GATEWAY_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.circleGatewayAdapter = status.contractAddress;
+
+        status = _getContractStatus(chainId, RELAY_ADAPTER_V2_KEY);
+        if (status.isDeployed) coreContracts.relayAdapterV2 = status.contractAddress;
+
         status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
         if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
 
@@ -2815,6 +3179,30 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" Relay Depository:", configuration.relayDepositories[chainId]);
         } else {
             console2.log(" SKIPPED Relay Depository validation: Not available on chain", chainId);
+        }
+
+        // Only validate the CCTP V2 transmitter + native USDC if the adapter is enabled on this chain
+        if (availability.cctpAdapter) {
+            require(configuration.messageTransmittersV2[chainId] != address(0), "CCTP_MESSAGE_TRANSMITTER_ADDRESS_ZERO");
+            require(configuration.messageTransmittersV2[chainId].code.length > 0, "CCTP_MESSAGE_TRANSMITTER_NOT_DEPLOYED");
+            require(configuration.usdcs[chainId] != address(0), "CCTP_USDC_ADDRESS_ZERO");
+            require(configuration.usdcs[chainId].code.length > 0, "CCTP_USDC_NOT_DEPLOYED");
+            console2.log(" CCTP V2 Message Transmitter:", configuration.messageTransmittersV2[chainId]);
+            console2.log(" CCTP Native USDC:", configuration.usdcs[chainId]);
+        } else {
+            console2.log(" SKIPPED CCTP V2 transmitter/USDC validation: Not available on chain", chainId);
+        }
+
+        // Only validate the Gateway minter + native USDC if the adapter is enabled on this chain
+        if (availability.circleGatewayAdapter) {
+            require(configuration.gatewayMinters[chainId] != address(0), "GATEWAY_MINTER_ADDRESS_ZERO");
+            require(configuration.gatewayMinters[chainId].code.length > 0, "GATEWAY_MINTER_NOT_DEPLOYED");
+            require(configuration.usdcs[chainId] != address(0), "GATEWAY_USDC_ADDRESS_ZERO");
+            require(configuration.usdcs[chainId].code.length > 0, "GATEWAY_USDC_NOT_DEPLOYED");
+            console2.log(" Circle Gateway Minter:", configuration.gatewayMinters[chainId]);
+            console2.log(" Gateway Native USDC:", configuration.usdcs[chainId]);
+        } else {
+            console2.log(" SKIPPED Gateway minter/USDC validation: Not available on chain", chainId);
         }
 
         // Only validate DeBridge if it's available on this chain
@@ -2995,6 +3383,36 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" SKIPPED AcrossV3AdapterV2 deployment: Not available on chain", chainId);
         }
 
+        // Deploy RelayAdapterV2 only if the Relay depository is enabled on this chain
+        if (availability.relayAdapterV2) {
+            require(configuration.relayDepositories[chainId] != address(0), "RELAY_ADAPTER_V2_DEPOSITORY_PARAM_ZERO");
+            require(coreContracts.superDestinationExecutor != address(0), "RELAY_ADAPTER_V2_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.relayAdapterV2 = __deployContractIfNeeded(
+                RELAY_ADAPTER_V2_KEY,
+                chainId,
+                __getSalt(RELAY_ADAPTER_V2_KEY),
+                abi.encodePacked(
+                    __getBytecode("RelayAdapterV2", env), abi.encode(coreContracts.superDestinationExecutor)
+                )
+            );
+
+            // Validate RelayAdapterV2 was deployed
+            require(coreContracts.relayAdapterV2 != address(0), "RELAY_ADAPTER_V2_DEPLOYMENT_FAILED");
+            require(coreContracts.relayAdapterV2.code.length > 0, "RELAY_ADAPTER_V2_NO_CODE");
+            require(
+                address(RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_EXECUTOR())
+                    == coreContracts.superDestinationExecutor,
+                "RELAY_ADAPTER_V2_EXECUTOR_MISMATCH"
+            );
+            // V2 caches the validator from the executor at construction — verify the wiring took.
+            require(
+                RelayAdapterV2(payable(coreContracts.relayAdapterV2)).SUPER_DESTINATION_VALIDATOR() != address(0),
+                "RELAY_ADAPTER_V2_VALIDATOR_NOT_CACHED"
+            );
+            console2.log(" RelayAdapterV2 deployed and validated");
+        }
+
         // Deploy RelayAdapter only if the Relay depository is enabled on this chain
         if (availability.relayAdapter) {
             require(configuration.relayDepositories[chainId] != address(0), "RELAY_ADAPTER_DEPOSITORY_PARAM_ZERO");
@@ -3020,6 +3438,123 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" RelayAdapter deployed and validated");
         } else {
             console2.log(" SKIPPED RelayAdapter deployment: Not available on chain", chainId);
+        }
+
+        // Deploy CCTPAdapter only if CCTP V2 (transmitter + native USDC) is enabled on this chain
+        if (availability.cctpAdapter) {
+            require(configuration.messageTransmittersV2[chainId] != address(0), "CCTP_ADAPTER_TRANSMITTER_PARAM_ZERO");
+            require(configuration.usdcs[chainId] != address(0), "CCTP_ADAPTER_USDC_PARAM_ZERO");
+            require(CCTP_V2_TOKEN_MESSENGER.code.length > 0, "CCTP_ADAPTER_TOKEN_MESSENGER_NOT_DEPLOYED");
+            // The adapter routes every message through TokenMinterV2.getLocalToken(sourceDomain, burnToken) and
+            // treats anything that does not resolve to `USDC` as a non-USDC mint (escrowed, never executed). A
+            // wrong `configuration.usdcs[chainId]` would therefore silently park every USDC intent in escrow.
+            // Pin it to what Circle's registry actually mints for the canonical remote USDC pair.
+            {
+                (uint32 remoteDomain, address remoteUsdc) = chainId == MAINNET_CHAIN_ID
+                    ? (CCTP_DOMAIN_BASE, configuration.usdcs[BASE_CHAIN_ID])
+                    : (CCTP_DOMAIN_ETHEREUM, configuration.usdcs[MAINNET_CHAIN_ID]);
+                address minter = ITokenMessengerV2MinterSource(CCTP_V2_TOKEN_MESSENGER).localMinter();
+                require(minter != address(0), "CCTP_ADAPTER_MINTER_NOT_SET");
+                require(
+                    ITokenMinterV2(minter).getLocalToken(remoteDomain, bytes32(uint256(uint160(remoteUsdc))))
+                        == configuration.usdcs[chainId],
+                    "CCTP_ADAPTER_USDC_NOT_MINTER_LOCAL_TOKEN"
+                );
+            }
+            require(coreContracts.superDestinationExecutor != address(0), "CCTP_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
+
+            coreContracts.cctpAdapter = __deployContractIfNeeded(
+                CCTP_ADAPTER_KEY,
+                chainId,
+                __getSalt(CCTP_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("CCTPAdapter", env),
+                    abi.encode(
+                        configuration.messageTransmittersV2[chainId],
+                        CCTP_V2_TOKEN_MESSENGER,
+                        configuration.usdcs[chainId],
+                        coreContracts.superDestinationExecutor
+                    )
+                )
+            );
+
+            // Validate CCTPAdapter was deployed
+            require(coreContracts.cctpAdapter != address(0), "CCTP_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.cctpAdapter.code.length > 0, "CCTP_ADAPTER_NO_CODE");
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).SUPER_DESTINATION_EXECUTOR())
+                    == coreContracts.superDestinationExecutor,
+                "CCTP_ADAPTER_EXECUTOR_MISMATCH"
+            );
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).MESSAGE_TRANSMITTER())
+                    == configuration.messageTransmittersV2[chainId],
+                "CCTP_ADAPTER_TRANSMITTER_MISMATCH"
+            );
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).USDC()) == configuration.usdcs[chainId],
+                "CCTP_ADAPTER_USDC_MISMATCH"
+            );
+            require(
+                address(CCTPAdapter(coreContracts.cctpAdapter).TOKEN_MESSENGER()) == CCTP_V2_TOKEN_MESSENGER,
+                "CCTP_ADAPTER_TOKEN_MESSENGER_MISMATCH"
+            );
+            console2.log(" CCTPAdapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED CCTPAdapter deployment: Not available on chain", chainId);
+        }
+
+        // Deploy CircleGatewayAdapter only if Circle Gateway (minter + native USDC) is enabled on this chain
+        if (availability.circleGatewayAdapter) {
+            require(configuration.gatewayMinters[chainId] != address(0), "CIRCLE_GATEWAY_ADAPTER_MINTER_PARAM_ZERO");
+            require(configuration.usdcs[chainId] != address(0), "CIRCLE_GATEWAY_ADAPTER_USDC_PARAM_ZERO");
+            require(
+                configuration.gatewayMinters[chainId].code.length > 0, "CIRCLE_GATEWAY_ADAPTER_MINTER_NOT_DEPLOYED"
+            );
+            // The adapter delivers ONLY `USDC` and rejects every other destinationToken pre-mint, so a wrong
+            // `configuration.usdcs[chainId]` would reject every real intent. Pin it to what the live minter mints.
+            require(
+                IGatewayMinter(configuration.gatewayMinters[chainId]).isTokenSupported(configuration.usdcs[chainId]),
+                "CIRCLE_GATEWAY_ADAPTER_USDC_NOT_MINTER_SUPPORTED"
+            );
+            require(
+                coreContracts.superDestinationExecutor != address(0), "CIRCLE_GATEWAY_ADAPTER_DEST_EXECUTOR_PARAM_ZERO"
+            );
+
+            coreContracts.circleGatewayAdapter = __deployContractIfNeeded(
+                CIRCLE_GATEWAY_ADAPTER_KEY,
+                chainId,
+                __getSalt(CIRCLE_GATEWAY_ADAPTER_KEY),
+                abi.encodePacked(
+                    __getBytecode("CircleGatewayAdapter", env),
+                    _circleGatewayCtorArgs(chainId, coreContracts.superDestinationExecutor)
+                )
+            );
+
+            // Validate CircleGatewayAdapter was deployed
+            require(coreContracts.circleGatewayAdapter != address(0), "CIRCLE_GATEWAY_ADAPTER_DEPLOYMENT_FAILED");
+            require(coreContracts.circleGatewayAdapter.code.length > 0, "CIRCLE_GATEWAY_ADAPTER_NO_CODE");
+            require(
+                address(CircleGatewayAdapter(coreContracts.circleGatewayAdapter).SUPER_DESTINATION_EXECUTOR())
+                    == coreContracts.superDestinationExecutor,
+                "CIRCLE_GATEWAY_ADAPTER_EXECUTOR_MISMATCH"
+            );
+            require(
+                address(CircleGatewayAdapter(coreContracts.circleGatewayAdapter).GATEWAY_MINTER())
+                    == configuration.gatewayMinters[chainId],
+                "CIRCLE_GATEWAY_ADAPTER_MINTER_MISMATCH"
+            );
+            require(
+                address(CircleGatewayAdapter(coreContracts.circleGatewayAdapter).USDC()) == configuration.usdcs[chainId],
+                "CIRCLE_GATEWAY_ADAPTER_USDC_MISMATCH"
+            );
+            require(
+                CircleGatewayAdapter(coreContracts.circleGatewayAdapter).SUPER_DESTINATION_VALIDATOR() != address(0),
+                "CIRCLE_GATEWAY_ADAPTER_VALIDATOR_NOT_CACHED"
+            );
+            console2.log(" CircleGatewayAdapter deployed and validated");
+        } else {
+            console2.log(" SKIPPED CircleGatewayAdapter deployment: Not available on chain", chainId);
         }
 
         // Deploy DebridgeAdapter only if available on this chain
@@ -4821,7 +5356,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 23;
+        uint256 len = 24;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -4951,13 +5486,17 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superLedgerConfig, morphoRegistry)
             );
         }
-        // AaveV4ReserveRegistry is deployed above (not via oracle array) — slot 20 stays empty
+        // ERC20YieldSourceOracle (superLedgerConfig) — identity oracle for plain ERC20 yield sources
+        oracles[20] = _createSafeOracleDeploymentWithArgs(
+            ERC20_YIELD_SOURCE_ORACLE_KEY, "ERC20YieldSourceOracle", env, abi.encode(superLedgerConfig)
+        );
+        // AaveV4ReserveRegistry is deployed above (not via oracle array) — slot 21 stays empty
         // AaveV4DebtOracle + AaveV4SupplyYieldSourceOracle (superLedgerConfig + registry)
         if (aaveV4Registry != address(0)) {
-            oracles[21] = _createSafeOracleDeploymentWithArgs(
+            oracles[22] = _createSafeOracleDeploymentWithArgs(
                 AAVE_V4_DEBT_ORACLE_KEY, "AaveV4DebtOracle", env, abi.encode(superLedgerConfig, aaveV4Registry)
             );
-            oracles[22] = _createSafeOracleDeploymentWithArgs(
+            oracles[23] = _createSafeOracleDeploymentWithArgs(
                 AAVE_V4_SUPPLY_YIELD_SOURCE_ORACLE_KEY,
                 "AaveV4SupplyYieldSourceOracle",
                 env,

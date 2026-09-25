@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+/// @dev File-level twins of the Morpho Blue identity constants so helpers that do not inherit
+///      `Constants` (e.g. InternalHelpers) can share one source of truth. A contract's `constant`
+///      state variables are not reachable through the contract type, but free constants import by name.
+address constant MORPHO_BLUE = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+bytes32 constant MORPHO_BLUE_YS_ORACLE_ID = keccak256("SUPERFORM_MORPHO_BLUE_YS");
+
 abstract contract Constants {
     // amounts
     uint256 public constant SMALL = 1 ether;
@@ -33,6 +39,8 @@ abstract contract Constants {
     uint64 public constant BASE = 8453;
 
     uint256 public constant ETH_BLOCK = 21_929_476;
+    /// @dev Pin for suites that exercise the LIVE SuperUSDC strategy / aggregator (deployed after ETH_BLOCK)
+    uint256 public constant ETH_BLOCK_SUPERVAULT = 26_000_000;
     uint256 public constant OP_BLOCK = 132_481_010;
     uint256 public constant BASE_BLOCK = 26_885_730;
 
@@ -206,7 +214,11 @@ abstract contract Constants {
 
     // morpho
     string public constant MORPHO_KEY = "Morpho";
-    address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    address public constant MORPHO = MORPHO_BLUE;
+
+    /// @dev Superform Morpho Blue yield-source oracle id carried in the 52-byte hook header (offset 0).
+    ///      The yield source (offset 32) is the Morpho Blue singleton `MORPHO`.
+    bytes32 public constant MORPHO_YS_ORACLE_ID = MORPHO_BLUE_YS_ORACLE_ID;
 
     // Base USDC-WETH Market Constants
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;

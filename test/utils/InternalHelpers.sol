@@ -20,6 +20,9 @@ import { TransferSpecLib, TransferSpec } from "evm-gateway/lib/TransferSpecLib.s
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 
+import { MORPHO_BLUE, MORPHO_BLUE_YS_ORACLE_ID } from "./Constants.sol";
+import { morphoMarketKey } from "./MorphoMarketKey.sol";
+
 abstract contract InternalHelpers is Test {
     using ModuleKitHelpers for *;
 
@@ -119,7 +122,7 @@ abstract contract InternalHelpers is Test {
         uint128 paymasterVerificationGasLimit = 2e6;
         uint128 postOpGasLimit = 1e6;
         bytes memory paymasterData = abi.encode(uint128(2e6), uint128(10), uint256(1e5)); // paymasterData {
-            // maxGasLimit = 200000, nodeOperatorPremium = 10 %, postOpGas = 100000 }
+        // maxGasLimit = 200000, nodeOperatorPremium = 10 %, postOpGas = 100000 }
         userOpData.userOp.paymasterAndData =
             abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
         return userOpData;
@@ -180,10 +183,8 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes memory payload = abi.encode(dstReceiver, calldata_);
-        return bytes.concat(
-            _swapHookLayer1(inputToken, outputToken, 0, 0, 0, usePrevHookAmount, payload.length),
-            payload
-        );
+        return
+            bytes.concat(_swapHookLayer1(inputToken, outputToken, 0, 0, 0, usePrevHookAmount, payload.length), payload);
     }
 
     function _create1InchGenericRouterSwapHookData(
@@ -200,7 +201,9 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory _calldata =
             abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
-        return _1inchHookData(address(desc.srcToken), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata);
+        return _1inchHookData(
+            address(desc.srcToken), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata
+        );
     }
 
     function _create1InchUnoswapToHookData(
@@ -218,9 +221,16 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.unoswapTo.selector, receiverUint256, fromTokenUint256, decodedFromAmount, minReturn, dex
+            I1InchAggregationRouterV6.unoswapTo.selector,
+            receiverUint256,
+            fromTokenUint256,
+            decodedFromAmount,
+            minReturn,
+            dex
         );
-        return _1inchHookData(AddressLib.get(fromTokenUint256), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata);
+        return _1inchHookData(
+            AddressLib.get(fromTokenUint256), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata
+        );
     }
 
     function _create1InchClipperSwapToHookData(
@@ -237,9 +247,19 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory _calldata = abi.encodeWithSelector(
             I1InchAggregationRouterV6.clipperSwapTo.selector,
-            exchange, payable(dstReceiver), srcToken, dstToken, amount, amount, 0, bytes32(0), bytes32(0)
+            exchange,
+            payable(dstReceiver),
+            srcToken,
+            dstToken,
+            amount,
+            amount,
+            0,
+            bytes32(0),
+            bytes32(0)
         );
-        return _1inchHookData(AddressLib.get(srcToken), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata);
+        return _1inchHookData(
+            AddressLib.get(srcToken), dstToken, usePrevHookAmount, 20 + _calldata.length, dstReceiver, _calldata
+        );
     }
 
     function _createOdosSwapHookData(
@@ -260,8 +280,9 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode);
         hookData = bytes.concat(
-            _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
-                payload.length),
+            _swapHookLayer1(
+                inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount, payload.length
+            ),
             payload
         );
     }
@@ -284,10 +305,12 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory hookData)
     {
-        bytes memory payload = abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
+        bytes memory payload =
+            abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
         hookData = bytes.concat(
-            _swapHookLayer1(inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount,
-                payload.length),
+            _swapHookLayer1(
+                inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount, payload.length
+            ),
             payload
         );
     }
@@ -700,7 +723,17 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false
+            MORPHO_BLUE_YS_ORACLE_ID,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount,
+            ltvRatio,
+            usePrevHookAmount,
+            lltv,
+            false
         );
     }
 
@@ -719,7 +752,17 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false
+            MORPHO_BLUE_YS_ORACLE_ID,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount,
+            ltvRatio,
+            usePrevHookAmount,
+            lltv,
+            false
         );
     }
 
@@ -738,7 +781,16 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
+            MORPHO_BLUE_YS_ORACLE_ID,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount,
+            lltv,
+            usePrevHookAmount,
+            isFullRepayment
         );
     }
 
@@ -757,7 +809,16 @@ abstract contract InternalHelpers is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
+            MORPHO_BLUE_YS_ORACLE_ID,
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount,
+            lltv,
+            usePrevHookAmount,
+            isFullRepayment
         );
     }
 
@@ -941,10 +1002,7 @@ abstract contract InternalHelpers is Test {
     }
 
     // Helper function to combine the data parts
-    function _combineOrderCancellationData(
-        bytes memory part1,
-        bytes memory part2
-    )
+    function _combineOrderCancellationData(bytes memory part1, bytes memory part2)
         internal
         pure
         returns (bytes memory)
@@ -979,7 +1037,7 @@ abstract contract InternalHelpers is Test {
         // Use default fee parameters for backwards compatibility
         return _createMerklClaimRewardHookData(address(0x1), 0, tokens, amounts, proofs);
     }
-    
+
     function _createMerklClaimRewardHookData(
         address feeReceiver,
         uint256 feePercent,
@@ -993,7 +1051,7 @@ abstract contract InternalHelpers is Test {
     {
         // Encode 52-byte placeholder prefix, then feeReceiver and feePercent
         data = bytes.concat(bytes(new bytes(52)), bytes20(feeReceiver), abi.encodePacked(feePercent));
-        
+
         // Then encode the array length
         data = bytes.concat(data, abi.encodePacked(uint256(tokens.length)));
 
@@ -1013,7 +1071,7 @@ abstract contract InternalHelpers is Test {
 
         for (uint256 i = 0; i < proofsToFlatten.length; i++) {
             flattenedProofs = bytes.concat(flattenedProofs, abi.encodePacked(uint256(proofsToFlatten[i].length))); // inner
-                // array length
+            // array length
 
             for (uint256 j; j < proofsToFlatten[i].length; ++j) {
                 flattenedProofs = bytes.concat(flattenedProofs, proofsToFlatten[i][j]);

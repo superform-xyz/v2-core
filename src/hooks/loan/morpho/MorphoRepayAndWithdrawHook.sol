@@ -7,7 +7,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
-import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
+import {
+    IMorpho,
+    IMorphoBase,
+    IMorphoStaticTyping,
+    MarketParams,
+    Id,
+    Market
+} from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -18,8 +25,8 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -72,7 +79,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         return "Repays borrowed assets and withdraws collateral from a Morpho market";
     }
 
-
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -92,6 +98,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
 
         BuildExecutionContext memory ctx;
         ctx.marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        _requireHeaderIsMarketKey(vars.marketKey, ctx.marketParams);
         ctx.id = ctx.marketParams.id();
 
         executions = new Execution[](5);
@@ -133,9 +140,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 deriveCollateralForPartialRepayment(ctx.id, account, vars.amount, ctx.fullCollateral);
 
             executions[1] = Execution({
-                target: vars.loanToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+                target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
             });
             executions[2] = Execution({
                 target: morpho,
@@ -160,7 +165,12 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
+            vars.marketKey,
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            marketParams.oracle,
+            marketParams.irm,
+            marketParams.lltv
         );
     }
 
@@ -251,6 +261,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         BuildHookLocalVars memory vars = _decodeHookData(data);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        _requireHeaderIsMarketKey(vars.marketKey, marketParams);
         IMorpho(morpho).accrueInterest(marketParams);
 
         // store current balance

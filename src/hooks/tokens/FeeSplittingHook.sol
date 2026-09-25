@@ -26,6 +26,12 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @notice         bytes transfersArr = BytesLib.slice(data, 52, data.length - 52);
 /// @notice         // transfersArr = abi.encode(address[] tokens, uint256[] amounts, address[] receivers)
 contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
+    /// @notice Emitted after a native-token fee has been successfully paid
+    /// @param payer The smart account that paid the fee
+    /// @param recipient The address that received the native-token fee
+    /// @param amount The native-token amount sent to the recipient
+    event NativeFeePaid(address indexed payer, address indexed recipient, uint256 amount);
+
     /// @notice Thrown when tokens, amounts and receivers arrays have different lengths
     error LENGTH_MISMATCH();
 
@@ -90,9 +96,7 @@ contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
                 if (tokens[i].code.length == 0) revert ADDRESS_NOT_VALID();
                 // For ERC20 tokens, use the standard transfer
                 executions[i] = Execution({
-                    target: tokens[i],
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.transfer, (receivers[i], amounts[i]))
+                    target: tokens[i], value: 0, callData: abi.encodeCall(IERC20.transfer, (receivers[i], amounts[i]))
                 });
             }
         }
@@ -125,7 +129,12 @@ contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](0);
     }
 
@@ -135,8 +144,7 @@ contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
         if (interfaceId == type(ISuperHookInflowOutflow).interfaceId) return true;
         if (interfaceId == type(ISuperHookOutflow).interfaceId) return false;
         return interfaceId == type(IERC165).interfaceId || interfaceId == type(ISuperHook).interfaceId
-            || interfaceId == type(ISuperHookResult).interfaceId
-            || interfaceId == type(ISuperHookInspector).interfaceId;
+            || interfaceId == type(ISuperHookResult).interfaceId || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -197,7 +205,9 @@ contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
             address token = tokens[i];
             _tstore(_expectedKey(nonce, token), _tload(_expectedKey(nonce, token)) + amounts[i]);
             // Pre-transfer balance is identical across duplicate legs of the same token, so overwriting is safe.
-            _tstore(_balanceKey(nonce, token), token == NATIVE_TOKEN ? account.balance : IERC20(token).balanceOf(account));
+            _tstore(
+                _balanceKey(nonce, token), token == NATIVE_TOKEN ? account.balance : IERC20(token).balanceOf(account)
+            );
         }
     }
 
@@ -207,17 +217,20 @@ contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
     ///      even for fee-on-transfer tokens). (2) Subtracts fees paid in the forwarded (flow) token from
     ///      the forwarded outAmount so a downstream usePrevHookAmount consumer sees the post-fee remainder
     ///      rather than the stale pre-fee amount (prevents native/token overspend). (3) Publishes this
-    ///      hook's final output for a possible adjacent same-address successor.
+    ///      hook's final output for a possible adjacent same-address successor. (4) Emits a receipt log
+    ///      for each successfully paid native-token leg.
     function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         uint256 nonce = executionNonce;
+        (address[] memory tokens, uint256[] memory amounts, address[] memory receivers) = _decodeTransfers(data);
 
         // Fees paid in the forwarded token (native-aware). Read before the verification loop consumes it.
         address flowToken = getOutToken(account);
-        uint256 spent =
-            _tload(_expectedKey(nonce, (flowToken == address(0) || flowToken == NATIVE_TOKEN) ? NATIVE_TOKEN : flowToken));
+        uint256 spent = _tload(
+            _expectedKey(nonce, (flowToken == address(0) || flowToken == NATIVE_TOKEN) ? NATIVE_TOKEN : flowToken)
+        );
 
         // (1) Verify every transfer leg actually left the account.
-        _verifyTransfers(nonce, account, data);
+        _verifyTransfers(nonce, account, tokens);
 
         // (2) Decrement forwarded amount by fees paid in the flow token (clamp at 0).
         if (prevHook != address(0) && spent != 0) {
@@ -228,13 +241,22 @@ contract FeeSplittingHook is BaseHook, ISuperHookInflowOutflow {
         // (3) Publish final output for an adjacent same-address successor.
         _tstore(_cacheAmountKey(account), getOutAmount(account));
         _tstore(_cacheTokenKey(account), uint256(uint160(getOutToken(account))));
+
+        // Standards-compliant ERC-20 fees already expose payer, recipient, token, and amount through
+        // Transfer logs emitted by the token contract. Native value transfers have no equivalent
+        // standard log, so this explicitly native-only event needs only the payer, recipient, and amount.
+        uint256 len = tokens.length;
+        for (uint256 i; i < len; ++i) {
+            if (tokens[i] == NATIVE_TOKEN) {
+                emit NativeFeePaid(account, receivers[i], amounts[i]);
+            }
+        }
     }
 
     /// @dev For each distinct token, asserts the account was debited at least the expected total —
     ///      catching tokens that return false without reverting (the sender is debited the full amount
     ///      even for fee-on-transfer tokens). Consumes the expected accumulator to dedupe repeated tokens.
-    function _verifyTransfers(uint256 nonce, address account, bytes calldata data) private {
-        (address[] memory tokens,,) = _decodeTransfers(data);
+    function _verifyTransfers(uint256 nonce, address account, address[] memory tokens) private {
         uint256 len = tokens.length;
         for (uint256 i; i < len; ++i) {
             address token = tokens[i];

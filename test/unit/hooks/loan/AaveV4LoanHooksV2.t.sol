@@ -189,7 +189,8 @@ contract AaveV4LoanHooksV2Test is Helpers {
     function test_SupportsInterface_AllHooks() public view {
         BaseHook[3] memory hooks = [BaseHook(openHook), BaseHook(repayHook), BaseHook(closeHook)];
         for (uint256 i = 0; i < hooks.length; i++) {
-            assertTrue(hooks[i].supportsInterface(type(ISuperHookLoans).interfaceId));
+            // ISuperHookLoans is implemented but deliberately not advertised via ERC-165
+            assertFalse(hooks[i].supportsInterface(type(ISuperHookLoans).interfaceId));
             assertTrue(hooks[i].supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
             assertTrue(hooks[i].supportsInterface(type(ISuperHookOutflow).interfaceId));
         }

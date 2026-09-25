@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IMorpho, IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -15,8 +15,8 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @title MorphoRepayHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -75,6 +75,7 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, true);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         MarketParams memory marketParams = _marketParams(vars);
         (uint256 repayAssets, uint256 borrowShares, bool fullRepay) =
             _resolveRepayLeg(prevHook, account, vars, marketParams);
@@ -99,7 +100,7 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectMorphoV2(_decodeMorphoV2(data, true));
     }
 
@@ -114,8 +115,9 @@ contract MorphoRepayHookV2 is BaseMorphoLoanHookV2 {
     ///      materialized once and reused across accrual and resolution.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, true);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         MarketParams memory marketParams = _marketParams(vars);
-        IMorpho(morpho).accrueInterest(marketParams);
+        _accrueInterest(vars);
 
         (uint256 repayAssets,,) = _resolveRepayLeg(prevHook, account, vars, marketParams);
         expectedPrimaryAmount = repayAssets;

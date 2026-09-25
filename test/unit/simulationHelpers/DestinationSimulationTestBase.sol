@@ -16,6 +16,20 @@ abstract contract DestinationSimulationTestBase is Test {
         internal
         pure
     {
+        uint256[] memory dynamicOffsets = new uint256[](2);
+        dynamicOffsets[0] = offsets[0];
+        dynamicOffsets[1] = offsets[1];
+        _assertAndPatchImmutableReferences(runtime, dynamicOffsets, value);
+    }
+
+    function _assertAndPatchImmutableReferences(
+        bytes memory runtime,
+        uint256[] memory offsets,
+        address value
+    )
+        internal
+        pure
+    {
         bytes32 encodedValue = bytes32(uint256(uint160(value)));
 
         for (uint256 i; i < offsets.length; ++i) {
@@ -47,6 +61,25 @@ abstract contract DestinationSimulationTestBase is Test {
         pure
         returns (bytes memory)
     {
+        return _signatureData(
+            account, executor, address(0xFACE), dstTokens, intentAmounts, executorCalldata, chainId, merkleRoot
+        );
+    }
+
+    function _signatureData(
+        address account,
+        address executor,
+        address validator,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
+        bytes memory executorCalldata,
+        uint64 chainId,
+        bytes32 merkleRoot
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         ISuperValidator.DstProof[] memory dstProofs = new ISuperValidator.DstProof[](1);
         dstProofs[0] = ISuperValidator.DstProof({
             proof: new bytes32[](0),
@@ -56,7 +89,7 @@ abstract contract DestinationSimulationTestBase is Test {
                 executor: executor,
                 dstTokens: dstTokens,
                 intentAmounts: intentAmounts,
-                validator: address(0xFACE),
+                validator: validator,
                 data: executorCalldata
             })
         });
@@ -120,6 +153,11 @@ contract RecordingDestinationExecutor is ISuperDestinationExecutor {
 
     function isMerkleRootUsed(address, bytes32) external pure returns (bool) {
         return false;
+    }
+
+    /// @dev Matches the default validator used by _signatureData
+    function SUPER_DESTINATION_VALIDATOR() external pure returns (address) {
+        return address(0xFACE);
     }
 
     function markRootsAsUsed(bytes32[] memory) external { }

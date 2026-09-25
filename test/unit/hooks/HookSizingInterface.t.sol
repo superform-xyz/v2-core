@@ -682,7 +682,6 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_AmountRoles_TOKEN_MorphoLoanHooks() public view {
         _assertSingleMeta(morphoSupply.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
-        _assertSingleMeta(morphoLend.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(morphoBorrow.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(morphoRepay.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(morphoSupplyAndBorrow.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
@@ -699,6 +698,11 @@ contract HookSizingInterfaceTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                     AMOUNT ROLES: ASSETS denomination
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev SUP-21005: MONEY_MARKET lend sizes as ASSETS (same value-flow as 4626 deposit)
+    function test_AmountRoles_ASSETS_MorphoLend() public view {
+        _assertSingleMeta(morphoLend.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS);
+    }
 
     function test_AmountRoles_ASSETS_VaultDeposits() public view {
         _assertSingleMeta(deposit4626.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS);

@@ -15,8 +15,8 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @title MorphoRepayAndWithdrawHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -74,6 +74,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
         returns (Execution[] memory executions)
     {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         MarketParams memory marketParams = _marketParams(vars);
         (uint256 repayAssets, uint256 borrowShares, bool fullRepay) =
             _resolveRepayLeg(prevHook, account, vars, marketParams);
@@ -134,7 +135,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectMorphoV2(_decodeMorphoV2(data, false));
     }
 
@@ -167,6 +168,7 @@ contract MorphoRepayAndWithdrawHookV2 is BaseMorphoLoanHookV2 {
     /// @dev Accrues interest, then stores the exact expected legs and snapshots wallet balances
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         MorphoV2Vars memory vars = _decodeMorphoV2(data, false);
+        _requireHeaderIsMarketKey(vars.marketKey, _marketParams(vars));
         _accrueInterest(vars);
 
         MarketParams memory marketParams = _marketParams(vars);

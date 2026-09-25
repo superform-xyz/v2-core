@@ -42,7 +42,7 @@ deployed_networks=0
 skipped_networks=0
 
 # Chains where forge doesn't support --chain (not in forge's internal registry)
-FORGE_UNSUPPORTED_CHAINS=("988")
+FORGE_UNSUPPORTED_CHAINS=("988" "7091047534" "5042")
 
 # Cached deployer address (populated after keystore password is provided)
 DEPLOYER_ADDRESS=""
@@ -558,7 +558,7 @@ check_v2_addresses() {
         chain_flag=""
     fi
     check_output=$(forge script "$forge_script" \
-        --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
+        --sig "${DEPLOY_SIG:-run(bool,uint256,uint64)}" true $FORGE_ENV $network_id \
         --rpc-url "${!rpc_url_var}" \
         $chain_flag \
         -vv 2>&1)
@@ -1059,7 +1059,7 @@ deploy_to_network() {
     local chain_verify_flag="$VERIFY_FLAG"
     local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
     case $network_id in
-        14|999|988) # Flare, HyperEVM, Stable - no etherscan support or rate limiting
+        14|999|988|7091047534|5042) # Flare, HyperEVM, Stable, Plataberget, Arc - no etherscan support or rate limiting
             chain_verify_flag=""
             chain_etherscan_flags=""
             echo -e "${CYAN}   Verification: ${WHITE}Skipped (rate-limited explorer, use verify script separately)${NC}"
@@ -1096,7 +1096,7 @@ deploy_to_network() {
         fi
 
         forge script "$forge_script" \
-            --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
+            --sig "${DEPLOY_SIG:-run(bool,uint256,uint64)}" false $FORGE_ENV $network_id \
             --account "$ACCOUNT" \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url "${!rpc_var}" \
@@ -1109,6 +1109,7 @@ deploy_to_network() {
             $RESUME_FLAG \
             $LEGACY_FLAG \
             $GAS_PRICE_FLAG \
+            ${GAS_ESTIMATE_MULTIPLIER:+--gas-estimate-multiplier $GAS_ESTIMATE_MULTIPLIER} \
             --timeout 300 \
             -vv
         deploy_exit_code=$?

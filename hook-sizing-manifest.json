@@ -432,6 +432,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "FEE_SPLITTING_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
     "hookKey": "FETCH_NATIVE_FEE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "passthrough"
@@ -529,6 +534,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "MORPHO_BORROW_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "MORPHO_LEND_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -577,6 +587,16 @@
     "pipeMode": "transform",
     "amountPosition": 132,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "MORPHO_SUPPLY_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "MORPHO_WITHDRAW_HOOK_KEY",
@@ -727,6 +747,21 @@
     "pipeMode": "transform",
     "amountPosition": 160,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SUPERVAULT_ACROSS_CAP_BRIDGE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "SUPERVAULT_DEBRIDGE_CAP_BRIDGE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "SUPERVAULT_STARGATE_CAP_BRIDGE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "SWAP_1INCH_HOOK_KEY",

@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Helpers } from "../../../utils/Helpers.sol";
+import { morphoMarketKey } from "../../../utils/MorphoMarketKey.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -10,6 +11,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
+import { BaseMorphoLoanHookV2 } from "../../../../src/hooks/loan/morpho/BaseMorphoLoanHookV2.sol";
 import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 import {
     ISuperHook,
@@ -19,14 +21,7 @@ import {
 } from "../../../../src/interfaces/ISuperHook.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 import { MorphoBalancesLib } from "../../../../src/vendor/morpho/MorphoBalancesLib.sol";
-import {
-    Id,
-    IMorpho,
-    IMorphoBase,
-    MarketParams,
-    Market,
-    Position
-} from "../../../../src/vendor/morpho/IMorpho.sol";
+import { Id, IMorpho, IMorphoBase, MarketParams, Market, Position } from "../../../../src/vendor/morpho/IMorpho.sol";
 
 // Hooks
 import { MorphoSupplyAndBorrowHookV2 } from "../../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
@@ -169,11 +164,7 @@ contract MorphoLoanHooksV2Test is Helpers {
         amount2 = 2e18;
 
         marketParams = MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
+            loanToken: loanToken, collateralToken: collateralToken, oracle: oracle, irm: irm, lltv: lltv
         });
         marketId = marketParams.id();
 
@@ -211,12 +202,12 @@ contract MorphoLoanHooksV2Test is Helpers {
         uint256 lltv_
     )
         internal
-        pure
+        view
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            MORPHO_YS_ORACLE_ID,
+            morphoMarketKey(loanToken_, collateralToken_, oracle_, irm_, lltv_),
             loanToken_,
             collateralToken_,
             oracle_,
@@ -271,9 +262,10 @@ contract MorphoLoanHooksV2Test is Helpers {
         bytes4 inflowOutflowId = type(ISuperHookInflowOutflow).interfaceId;
         bytes4 outflowId = type(ISuperHookOutflow).interfaceId;
 
-        assertTrue(openHook.supportsInterface(loansId));
-        assertTrue(repayHook.supportsInterface(loansId));
-        assertTrue(closeHook.supportsInterface(loansId));
+        // ISuperHookLoans is implemented but deliberately not advertised via ERC-165
+        assertFalse(openHook.supportsInterface(loansId));
+        assertFalse(repayHook.supportsInterface(loansId));
+        assertFalse(closeHook.supportsInterface(loansId));
 
         assertTrue(openHook.supportsInterface(inflowOutflowId));
         assertTrue(repayHook.supportsInterface(inflowOutflowId));
@@ -365,7 +357,9 @@ contract MorphoLoanHooksV2Test is Helpers {
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         openHook.build(
-            address(0), address(this), _encode(loanToken, collateralToken, address(0), irm, amount1, amount2, false, lltv)
+            address(0),
+            address(this),
+            _encode(loanToken, collateralToken, address(0), irm, amount1, amount2, false, lltv)
         );
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -393,6 +387,55 @@ contract MorphoLoanHooksV2Test is Helpers {
         // The amount2 word is reserved (must be zero) for the standalone repay hook
         vm.expectRevert(BaseLoanHookV2.RESERVED_FIELD_NOT_ZERO.selector);
         repayHook.build(address(0), address(this), _data(amount1, 1, false));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        3b. HEADER YIELD-SOURCE IDENTITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Encodes the canonical layout with an explicit header yield source (offset 32)
+    function _encodeHeaderYieldSource(address yieldSource_) internal view returns (bytes memory) {
+        return abi.encodePacked(
+            MORPHO_YS_ORACLE_ID,
+            yieldSource_,
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            amount1,
+            amount2,
+            false,
+            lltv,
+            uint8(0)
+        );
+    }
+
+    function test_Build_RevertIf_ZeroYieldSource() public {
+        bytes memory data = _encodeHeaderYieldSource(address(0));
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        openHook.build(address(0), address(this), data);
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        openHook.preExecute(address(0), address(this), data);
+    }
+
+    function test_Build_RevertIf_YieldSourceMismatch() public {
+        // A well-formed header pointing at a DIFFERENT Morpho than the one this hook was deployed for
+        address otherMorpho = address(new MockMorpho());
+        bytes memory data = _encodeHeaderYieldSource(otherMorpho);
+
+        vm.expectRevert(BaseMorphoLoanHookV2.MARKET_KEY_MISMATCH.selector);
+        openHook.build(address(0), address(this), data);
+
+        vm.expectRevert(BaseMorphoLoanHookV2.MARKET_KEY_MISMATCH.selector);
+        openHook.preExecute(address(0), address(this), data);
+    }
+
+    function test_Inspect_PacksHeaderYieldSource() public view {
+        // inspect must pack the header-derived yield source as the first field
+        bytes memory expected = abi.encodePacked(address(mockMorpho), loanToken, collateralToken, oracle, irm, lltv);
+        assertEq(openHook.inspect(_encodeHeaderYieldSource(address(mockMorpho))), expected);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -752,8 +795,7 @@ contract MorphoLoanHooksV2Test is Helpers {
         uint256 expectedAssets =
             MorphoBalancesLib.expectedBorrowAssets(IMorpho(address(mockMorpho)), marketParams, address(this));
 
-        Execution[] memory executions =
-            repayHook.build(address(0), address(this), _data(type(uint256).max, 0, false));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _data(type(uint256).max, 0, false));
         assertEq(executions.length, 6);
 
         // Approval covers the accrued debt resolved via MorphoBalancesLib
@@ -762,9 +804,7 @@ contract MorphoLoanHooksV2Test is Helpers {
         // Full repay is shares-denominated with assets == 0
         assertEq(
             executions[3].callData,
-            abi.encodeCall(
-                IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), "")
-            )
+            abi.encodeCall(IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), ""))
         );
     }
 
@@ -779,9 +819,7 @@ contract MorphoLoanHooksV2Test is Helpers {
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (address(mockMorpho), expectedAssets)));
         assertEq(
             executions[3].callData,
-            abi.encodeCall(
-                IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), "")
-            )
+            abi.encodeCall(IMorphoBase.repay, (marketParams, 0, uint256(POSITION_BORROW_SHARES), address(this), ""))
         );
 
         // The max sentinel on the withdraw leg resolves to the position's full collateral
@@ -925,7 +963,14 @@ contract MorphoLoanHooksV2Test is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_Inspect_MarketIdentityOnly() public view {
-        bytes memory expected = abi.encodePacked(address(mockMorpho), loanToken, collateralToken, oracle, irm, lltv);
+        bytes memory expected = abi.encodePacked(
+            morphoMarketKey(loanToken, collateralToken, oracle, irm, lltv),
+            loanToken,
+            collateralToken,
+            oracle,
+            irm,
+            lltv
+        );
 
         assertEq(openHook.inspect(_data(amount1, amount2, false)), expected);
         assertEq(repayHook.inspect(_data(amount1, 0, false)), expected);

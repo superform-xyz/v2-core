@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { Test } from "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import { FeeSplittingHook } from "../../../../src/hooks/tokens/FeeSplittingHook.sol";
@@ -45,6 +46,8 @@ contract FalseERC20 {
 ///      the account role (preExecute/postExecute callers + the token holder that performs transfers).
 contract FeeSplittingHookForwardingTest is Test {
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    bytes32 constant NATIVE_FEE_PAID_TOPIC = keccak256("NativeFeePaid(address,address,uint256)");
+    bytes32 constant TRANSFER_TOPIC = keccak256("Transfer(address,address,uint256)");
 
     FeeSplittingHook hook;
     address account;
@@ -78,7 +81,13 @@ contract FeeSplittingHookForwardingTest is Test {
     }
 
     /// @dev Performs the transfers the executor would run between preExecute and postExecute, as the account.
-    function _performTransfers(address[] memory tokens, uint256[] memory amounts, address[] memory receivers) internal {
+    function _performTransfers(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        address[] memory receivers
+    )
+        internal
+    {
         for (uint256 i; i < tokens.length; ++i) {
             if (tokens[i] == NATIVE) {
                 (bool s,) = payable(receivers[i]).call{ value: amounts[i] }("");
@@ -106,7 +115,11 @@ contract FeeSplittingHookForwardingTest is Test {
         hook.resetExecutionState(account);
     }
 
-    function _one(address token, uint256 amount, address receiver)
+    function _one(
+        address token,
+        uint256 amount,
+        address receiver
+    )
         internal
         pure
         returns (address[] memory t, uint256[] memory a, address[] memory r)
@@ -119,9 +132,93 @@ contract FeeSplittingHookForwardingTest is Test {
         r[0] = receiver;
     }
 
+    function _topicAddress(bytes32 topic) internal pure returns (address) {
+        return address(uint160(uint256(topic)));
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 TESTS
     //////////////////////////////////////////////////////////////*/
+
+    function test_NativeFeePaid_EmitsPayerRecipientAndAmountForEachNativeLeg() public {
+        address[] memory tokens = new address[](2);
+        tokens[0] = NATIVE;
+        tokens[1] = NATIVE;
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+
+        address[] memory receivers = new address[](2);
+        receivers[0] = r1;
+        receivers[1] = r2;
+
+        uint256 r1BalanceBefore = r1.balance;
+        uint256 r2BalanceBefore = r2.balance;
+
+        vm.recordLogs();
+        _cycle(address(0), tokens, amounts, receivers);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 nativeFeeLogCount;
+        for (uint256 i; i < logs.length; ++i) {
+            Vm.Log memory entry = logs[i];
+            if (entry.emitter != address(hook) || entry.topics.length == 0 || entry.topics[0] != NATIVE_FEE_PAID_TOPIC) continue;
+
+            assertEq(entry.topics.length, 3, "native fee log topic count");
+            assertEq(_topicAddress(entry.topics[1]), account, "payer topic");
+
+            if (nativeFeeLogCount == 0) {
+                assertEq(_topicAddress(entry.topics[2]), r1, "first recipient topic");
+                assertEq(abi.decode(entry.data, (uint256)), amounts[0], "first native fee amount");
+            } else if (nativeFeeLogCount == 1) {
+                assertEq(_topicAddress(entry.topics[2]), r2, "second recipient topic");
+                assertEq(abi.decode(entry.data, (uint256)), amounts[1], "second native fee amount");
+            }
+
+            ++nativeFeeLogCount;
+        }
+
+        assertEq(nativeFeeLogCount, 2, "one native fee event per native leg");
+        assertEq(r1.balance, r1BalanceBefore + amounts[0], "first recipient native balance");
+        assertEq(r2.balance, r2BalanceBefore + amounts[1], "second recipient native balance");
+    }
+
+    function test_NativeFeePaid_NotEmittedForErc20Fee() public {
+        MockERC20 token = new MockERC20("Token", "TKN", 18);
+        uint256 amount = 10 ether;
+        token.mint(account, amount);
+
+        (address[] memory tokens, uint256[] memory amounts, address[] memory receivers) =
+            _one(address(token), amount, r1);
+
+        vm.recordLogs();
+        _cycle(address(0), tokens, amounts, receivers);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 nativeFeeLogCount;
+        uint256 transferLogCount;
+        for (uint256 i; i < logs.length; ++i) {
+            Vm.Log memory entry = logs[i];
+            if (entry.topics.length == 0) continue;
+
+            if (entry.emitter == address(hook) && entry.topics[0] == NATIVE_FEE_PAID_TOPIC) {
+                ++nativeFeeLogCount;
+            }
+
+            if (entry.emitter == address(token) && entry.topics[0] == TRANSFER_TOPIC) {
+                assertEq(entry.topics.length, 3, "ERC-20 transfer log topic count");
+                assertEq(_topicAddress(entry.topics[1]), account, "ERC-20 payer topic");
+                assertEq(_topicAddress(entry.topics[2]), r1, "ERC-20 recipient topic");
+                assertEq(abi.decode(entry.data, (uint256)), amount, "ERC-20 fee amount");
+                ++transferLogCount;
+            }
+        }
+
+        assertEq(nativeFeeLogCount, 0, "ERC-20 fee must not emit native fee event");
+        assertEq(transferLogCount, 1, "ERC-20 fee keeps its standard Transfer event");
+        assertEq(token.balanceOf(r1), amount, "ERC-20 recipient balance");
+    }
 
     /// @notice Fix #1 + #3 (native): two consecutive same-address FeeSplits forward the post-fee remainder.
     ///         Pre-fix, the 2nd instance read the fresh context and forwarded 0.

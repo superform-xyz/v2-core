@@ -17,6 +17,7 @@ import { MorphoRepayHook } from "../../../src/hooks/loan/morpho/MorphoRepayHook.
 import { MorphoWithdrawHook } from "../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 import { Constants } from "../../utils/Constants.sol";
+import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
 
 import "forge-std/console2.sol";
 
@@ -101,7 +102,7 @@ contract MorphoBorrowerE2E is Test, Constants {
 
     function setUp() public {
         // Fork mainnet
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK_SUPERVAULT);
 
         // Deploy hooks
         supplyHook = new MorphoSupplyHook(MORPHO);
@@ -121,39 +122,25 @@ contract MorphoBorrowerE2E is Test, Constants {
 
         // Mock: hook registration
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(supplyHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(supplyHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(borrowHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(borrowHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(repayHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(repayHook))), abi.encode(true)
         );
         vm.mockCall(
-            superGovernor,
-            abi.encodeCall(ISuperGovernor.isHookRegistered, (address(withdrawHook))),
-            abi.encode(true)
+            superGovernor, abi.encodeCall(ISuperGovernor.isHookRegistered, (address(withdrawHook))), abi.encode(true)
         );
 
         // Mock: manager authorization
         vm.mockCall(
-            aggregator,
-            abi.encodeCall(ISuperVaultAggregator.isAnyManager, (MANAGER, STRATEGY)),
-            abi.encode(true)
+            aggregator, abi.encodeCall(ISuperVaultAggregator.isAnyManager, (MANAGER, STRATEGY)), abi.encode(true)
         );
 
         // Mock: hook validation (merkle proof check)
-        vm.mockCall(
-            aggregator,
-            abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector),
-            abi.encode(true)
-        );
+        vm.mockCall(aggregator, abi.encodeWithSelector(ISuperVaultAggregator.validateHook.selector), abi.encode(true));
 
         // Build market params
         marketParams = MarketParams({
@@ -173,11 +160,21 @@ contract MorphoBorrowerE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Build hook data for MorphoSupplyHook
-    function _buildSupplyHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
-        return abi.encodePacked(
+    /// @dev Registry market key the header carries at offset 32
+    function _mktKey() internal view returns (address) {
+        return morphoMarketKey(
             marketParams.loanToken,
             marketParams.collateralToken,
-            bytes12(0),
+            marketParams.oracle,
+            marketParams.irm,
+            marketParams.lltv
+        );
+    }
+
+    function _buildSupplyHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
+        return abi.encodePacked(
+            MORPHO_YS_ORACLE_ID, // header: Superform Morpho Blue YS oracle id (offset 0)
+            _mktKey(), // header: registry market key of the body MarketParams (offset 32)
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -191,9 +188,8 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Build hook data for MorphoBorrowHook
     function _buildBorrowHookData(uint256 amount, bool usePrevHookAmount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID, // header: Superform Morpho Blue YS oracle id (offset 0)
+            _mktKey(), // header: registry market key of the body MarketParams (offset 32)
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -217,9 +213,8 @@ contract MorphoBorrowerE2E is Test, Constants {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID, // header: Superform Morpho Blue YS oracle id (offset 0)
+            _mktKey(), // header: registry market key of the body MarketParams (offset 32)
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -233,18 +228,11 @@ contract MorphoBorrowerE2E is Test, Constants {
 
     /// @notice Build hook data for MorphoWithdrawHook
     /// @dev onBehalf and recipient are always set to account by the hook itself
-    function _buildWithdrawHookData(
-        uint256 assets,
-        uint256 shares
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _buildWithdrawHookData(uint256 assets, uint256 shares) internal view returns (bytes memory) {
+        // MONEY_MARKET hook: offset 32 = registry market key (SuperLedger / PPS key), not the singleton
         return abi.encodePacked(
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            bytes12(0),
+            MORPHO_YS_ORACLE_ID,
+            address(uint160(uint256(Id.unwrap(marketParams.id())))),
             marketParams.loanToken,
             marketParams.collateralToken,
             marketParams.oracle,
@@ -440,8 +428,7 @@ contract MorphoBorrowerE2E is Test, Constants {
         // Full repay
         _executeRepay(0, true);
 
-        (, uint128 borrowSharesAfter, uint128 collateral) =
-            IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
+        (, uint128 borrowSharesAfter, uint128 collateral) = IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
 
         assertEq(uint256(borrowSharesAfter), 0, "Should have no borrow shares after full repay");
         assertEq(uint256(collateral), COLLATERAL_AMOUNT, "Collateral should remain (repay doesn't withdraw)");
@@ -475,8 +462,7 @@ contract MorphoBorrowerE2E is Test, Constants {
         deal(CHAIN_1_USDC, STRATEGY, borrowed + 50e6);
         _executeRepay(0, true);
 
-        (, uint128 borrowShares5, uint128 collateral5) =
-            IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
+        (, uint128 borrowShares5, uint128 collateral5) = IMorphoStaticTyping(MORPHO).position(marketId, STRATEGY);
 
         assertEq(uint256(borrowShares5), 0, "Step 5: No borrow shares");
         assertEq(uint256(collateral5), COLLATERAL_AMOUNT, "Step 5: Collateral intact");
@@ -619,9 +605,8 @@ contract MorphoBorrowerE2E is Test, Constants {
     /// @notice Test: Revert when supply address is zero
     function test_Supply_RevertsWhenAddressZero() public {
         bytes memory hookData = abi.encodePacked(
-            address(0), // header: loanToken = zero (offset 0)
-            marketParams.collateralToken, // header: collateralToken (offset 20)
-            bytes12(0), // header padding (offset 40)
+            MORPHO_YS_ORACLE_ID, // header: oracle id (offset 0)
+            _mktKey(), // header: registry market key (offset 32)
             address(0), // loanToken = zero (offset 52)
             marketParams.collateralToken,
             marketParams.oracle,

@@ -21,6 +21,8 @@ import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaste
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { ERC7540YieldSourceOracle } from "../../mocks/unused-oracles/ERC7540YieldSourceOracle.sol";
+import { MorphoBlueMarketRegistry } from "../../../src/accounting/oracles/MorphoBlueMarketRegistry.sol";
+import { MorphoBlueYieldSourceOracle } from "../../../src/accounting/oracles/MorphoBlueYieldSourceOracle.sol";
 
 // Morpho hooks
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
@@ -70,6 +72,7 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
     AccountInstance public instanceOnBase;
     ISuperExecutor public superExecutorOnBase;
     ISuperLedgerConfiguration public ledgerConfig;
+    bytes32 internal morphoOracleId; // derived SuperLedgerConfiguration id carried at header offset 0
     ISuperLedger public ledger;
     ISuperNativePaymaster public superNativePaymaster;
 
@@ -99,11 +102,7 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
         lltvRatio = 660_000_000_000_000_000; // 66% target LTV used by the borrow hook
 
         marketParams = MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: MORPHO_ORACLE,
-            irm: MORPHO_IRM,
-            lltv: lltv
+            loanToken: loanToken, collateralToken: collateralToken, oracle: MORPHO_ORACLE, irm: MORPHO_IRM, lltv: lltv
         });
         marketId = marketParams.id();
 
@@ -114,14 +113,22 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
         accountBase = instanceOnBase.account;
 
         superExecutorOnBase = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
-        instanceOnBase.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnBase), data: "" });
+        instanceOnBase.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnBase), data: ""
+        });
 
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(superExecutorOnBase);
         ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
 
+        // SUP-21024: lend/withdraw are INFLOW/OUTFLOW — register the Base WETH/USDC market and wire
+        // the Superform Morpho Blue YS oracle so the executor can post per-market accounting.
+        MorphoBlueMarketRegistry registry = new MorphoBlueMarketRegistry(address(this));
+        registry.setIrmApproval(MORPHO_IRM, true);
+        registry.registerMarket(MORPHO, loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, lltv);
+
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: address(new ERC4626YieldSourceOracle(address(ledgerConfig))),
             feePercent: 100,
@@ -140,11 +147,19 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(new FlatFeeLedger(address(ledgerConfig), allowedExecutors))
         });
-        bytes32[] memory salts = new bytes32[](3);
+        configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(new MorphoBlueYieldSourceOracle(address(ledgerConfig), address(registry))),
+            feePercent: 100,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+        bytes32[] memory salts = new bytes32[](4);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
         salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
         salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+        salts[3] = MORPHO_YS_ORACLE_ID;
         ledgerConfig.setYieldSourceOracles(salts, configs);
+        morphoOracleId = _getYieldSourceOracleId(MORPHO_YS_ORACLE_ID, address(this));
 
         // ----- Hooks + paymaster -----
         lendHook = new MorphoLendHook(MORPHO);
@@ -166,28 +181,61 @@ contract MorphoBaseChainHooksFork is Helpers, RhinestoneModuleKit, InternalHelpe
     // Supply and Lend share the same data layout (supply-collateral vs supply-loan differ only by hook).
     function _supplyData(uint256 amount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
+            MORPHO_YS_ORACLE_ID,
+            _marketKey(),
+            loanToken,
+            collateralToken,
+            MORPHO_ORACLE,
+            MORPHO_IRM,
+            amount,
+            lltv,
+            false
         );
     }
 
+    // MONEY_MARKET (lend / withdraw): offset 32 = registry market key of the body MarketParams — the
+    // SuperLedger / PPS key; the Morpho singleton is fixed in the hook.
     function _lendData(uint256 amount) internal view returns (bytes memory) {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
+            morphoOracleId, _marketKey(), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false
         );
     }
 
     function _withdrawData(uint256 assets, uint256 shares) internal view returns (bytes memory) {
         return abi.encodePacked(
-            loanToken, collateralToken, bytes12(0), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, lltv, assets, shares
+            morphoOracleId, _marketKey(), loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, lltv, assets, shares
+        );
+    }
+
+    /// @dev == MorphoBlueMarketRegistry.computeMarketKey for the suite's market
+    function _marketKey() internal view returns (address) {
+        return address(
+            uint160(
+                uint256(
+                    Id.unwrap(
+                        MarketParams({
+                                loanToken: loanToken,
+                                collateralToken: collateralToken,
+                                oracle: MORPHO_ORACLE,
+                                irm: MORPHO_IRM,
+                                lltv: lltv
+                            }).id()
+                    )
+                )
+            )
         );
     }
 
     function _borrowData(uint256 amount) internal view returns (bytes memory) {
-        return _createMorphoBorrowHookData(loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltvRatio, false, lltv);
+        return _createMorphoBorrowHookData(
+            loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltvRatio, false, lltv
+        );
     }
 
     function _repayData(uint256 amount, bool isFullRepayment) internal view returns (bytes memory) {
-        return _createMorphoRepayHookData(loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false, isFullRepayment);
+        return _createMorphoRepayHookData(
+            loanToken, collateralToken, MORPHO_ORACLE, MORPHO_IRM, amount, lltv, false, isFullRepayment
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

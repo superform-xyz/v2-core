@@ -5,35 +5,49 @@ pragma solidity 0.8.30;
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 import { MorphoBalancesLib } from "../../../vendor/morpho/MorphoBalancesLib.sol";
-import { IMorpho, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { Id, IMorpho, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { BaseLoanHookV2 } from "../BaseLoanHookV2.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title BaseMorphoLoanHookV2
 /// @author Superform Labs
 /// @notice Base abstract hook for the V2 Morpho Blue loan hooks (open / close / standalone repay)
-/// @dev One canonical 230-byte layout is shared by all three Morpho V2 hooks
-///      (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @dev One canonical 230-byte layout is shared by all Morpho V2 hooks. The 52-byte strategy
+///      header carries the Superform yield-source oracle id at offset 0 and, at offset 32, the
+///      registry MARKET KEY of the body MarketParams — the Morpho market id truncated to an address,
+///      identical to `MorphoBlueMarketRegistry.computeMarketKey`. Morpho Blue is ONE singleton
+///      hosting MANY markets, so the singleton cannot identify a position; the key can, and it is
+///      what the debt oracle and off-chain indexing key by. The key is asserted against the body via
+///      `_requireHeaderIsMarketKey` on every build and preExecute path (MARKET_KEY_MISMATCH), which
+///      validates all five MarketParams fields at once. The Morpho Blue singleton is the `morpho`
+///      immutable: the sole call target and approve spender, never taken from calldata.
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address yieldSource = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
-/// @notice         address oracle = BytesLib.toAddress(data, 92); // market identity only — never priced
+/// @notice         address oracle = BytesLib.toAddress(data, 92); // Morpho IOracle — identity only, never priced
 /// @notice         address irm = BytesLib.toAddress(data, 112);
 /// @notice         uint256 amount1 = BytesLib.toUint256(data, 132); // open: collateral; close/repay: repay CAP
 /// @notice         uint256 amount2 = BytesLib.toUint256(data, 164); // open: borrow; close: withdraw; repay: 0
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 196); // canonical 0x00/0x01
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 197); // market identity
 /// @notice         byte reserved = data[229]; // must be 0x00
-/// @dev Standalone repay reserves the amount2 word as zero, keeping one canonical provider layout
+/// @dev Every Morpho call (approve/supply/borrow/repay/withdraw*/accrueInterest) targets the
+///      `morpho` immutable, never a calldata-derived address — the singleton is fixed per chain, so
+///      there is no call-target attack surface here at all. The header's role is identity: offset 32
+///      is the market key, pinned to the body by `_requireHeaderIsMarketKey` on every build and
+///      preExecute path, so a crafted header can never name a different market than the one acted on.
+///      Standalone repay reserves the amount2 word as zero, keeping one canonical provider layout
 ///      without advertising a second active leg.
 ///      SECURITY INVARIANT: All Morpho calls MUST use empty callback data ("") to prevent
 ///      reentrancy through Morpho's callback mechanism (onMorphoSupply, onMorphoRepay, etc.).
 ///      No amount is ever derived from the oracle or an LTV ratio inside the hook.
 abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     using MarketParamsLib for MarketParams;
+    using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -65,10 +79,19 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     IMorphoStaticTyping public immutable morphoStaticTyping;
 
     /*//////////////////////////////////////////////////////////////
+                               ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Thrown when the header yield source (offset 32) is not the registry market key of the
+    ///         body MarketParams
+    error MARKET_KEY_MISMATCH();
+
+    /*//////////////////////////////////////////////////////////////
                                STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     struct MorphoV2Vars {
+        address marketKey; // header offset 32 — registry market key of the body MarketParams
         address loanToken;
         address collateralToken;
         address oracle;
@@ -125,14 +148,19 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
     {
         if (data.length != MORPHO_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        // Header identity: offset 32 is the registry market key of the body MarketParams. The pin
+        // (_requireHeaderIsMarketKey) is asserted in the execution path, keeping this decode pure so
+        // the sizing views (decodeAmounts / replaceCalldataAmounts) can reuse it.
+        vars.marketKey = data.extractYieldSource();
+
         vars.loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         vars.collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         vars.oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         vars.irm = BytesLib.toAddress(data, IRM_OFFSET);
 
         if (
-            vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
-                || vars.irm == address(0)
+            vars.marketKey == address(0) || vars.loanToken == address(0) || vars.collateralToken == address(0)
+                || vars.oracle == address(0) || vars.irm == address(0)
         ) {
             revert ADDRESS_NOT_VALID();
         }
@@ -146,6 +174,25 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
 
         // Reuse the already-decoded word instead of re-reading it
         if (secondaryReserved && vars.amount2 != 0) revert RESERVED_FIELD_NOT_ZERO();
+    }
+
+    /// @dev The registry market key for a market: the Morpho market id truncated to an address.
+    ///      Must stay identical to `MorphoBlueMarketRegistry.computeMarketKey`.
+    /// @param marketParams The body MarketParams
+    /// @return The address the debt oracle and off-chain indexing identify this market by
+    function _marketKey(MarketParams memory marketParams) internal pure returns (address) {
+        return address(uint160(uint256(Id.unwrap(marketParams.id()))));
+    }
+
+    /// @dev Primary header pin: the header yield source (offset 32) must equal the market key derived
+    ///      from the body MarketParams, so a crafted header can never name a different market than the
+    ///      one the body acts on. MUST run on every path (build AND preExecute). `pure` on purpose —
+    ///      it reads nothing from storage, keeping `_decodeMorphoV2` and `inspect()` pure for the
+    ///      sizing views (`decodeAmounts`/`replaceCalldataAmounts`).
+    /// @param headerKey The header-derived market key (offset 32)
+    /// @param marketParams The body MarketParams
+    function _requireHeaderIsMarketKey(address headerKey, MarketParams memory marketParams) internal pure {
+        if (headerKey != _marketKey(marketParams)) revert MARKET_KEY_MISMATCH();
     }
 
     /// @dev Generates the Morpho Blue market params from decoded vars
@@ -212,12 +259,14 @@ abstract contract BaseMorphoLoanHookV2 is BaseLoanHookV2 {
             _resolveRepayCap(prevHook, account, vars.loanToken, vars.amount1, vars.usePrevHookAmount, debt);
     }
 
-    /// @dev Full market-identity inspector payload: Morpho singleton, loan token, collateral
-    ///      token, oracle, IRM and LLTV. Amount fields, usePrevHookAmount and the strategy header
-    ///      are intentionally excluded.
+    /// @dev Full market-identity inspector payload: the header market key (offset 32, pinned to the
+    ///      body), loan token, collateral token, Morpho IOracle, IRM and LLTV — 132 bytes, key first,
+    ///      the same shape as the money-market hooks so every Morpho leaf hashes identically. Amount
+    ///      fields, usePrevHookAmount and the strategy header are intentionally excluded. The Morpho
+    ///      singleton is NOT packed — it is the `morpho` immutable, fixed per chain.
     /// @param vars The decoded hook parameters
     /// @return The packed inspector payload
-    function _inspectMorphoV2(MorphoV2Vars memory vars) internal view returns (bytes memory) {
-        return abi.encodePacked(morpho, vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+    function _inspectMorphoV2(MorphoV2Vars memory vars) internal pure returns (bytes memory) {
+        return abi.encodePacked(vars.marketKey, vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
     }
 }

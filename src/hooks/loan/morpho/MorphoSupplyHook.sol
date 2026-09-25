@@ -11,13 +11,14 @@ import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoSupplyHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Morpho Blue YS id
+/// @notice         address marketKey = data.extractYieldSource(); // registry market key of the body MarketParams
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address oracle = BytesLib.toAddress(data, 92);
@@ -26,11 +27,14 @@ import { ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISupe
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 164);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 196);
 contract MorphoSupplyHook is BaseMorphoLoanHook {
+    using HookDataDecoder for bytes;
+
     /*//////////////////////////////////////////////////////////////
                                STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     struct SupplyHookLocalVars {
+        address marketKey; // header offset 32 — registry market key of the body MarketParams
         address loanToken;
         address collateralToken;
         address oracle;
@@ -57,7 +61,6 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
         return "Supplies collateral to a Morpho market";
     }
 
-
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -74,6 +77,9 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
         returns (Execution[] memory executions)
     {
         SupplyHookLocalVars memory vars = _decodeSupplyHookData(data);
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        _requireHeaderIsMarketKey(vars.marketKey, marketParams);
 
         if (vars.usePrevHookAmount) {
             vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
@@ -81,16 +87,12 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-
         executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[0] = Execution({
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))
+        });
         executions[1] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
         });
         executions[2] = Execution({
             target: morpho,
@@ -98,8 +100,9 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
             callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount, account, ""))
         });
         // P1-1: Reset approval after supply to prevent dangling allowance
-        executions[3] =
-            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[3] = Execution({
+            target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))
+        });
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -110,7 +113,12 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         return abi.encodePacked(
-            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
+            vars.marketKey,
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            marketParams.oracle,
+            marketParams.irm,
+            marketParams.lltv
         );
     }
 
@@ -124,12 +132,16 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
     function _decodeSupplyHookData(bytes memory data) internal pure returns (SupplyHookLocalVars memory vars) {
         if (data.length < SUPPLY_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        address marketKey = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         address irm = BytesLib.toAddress(data, IRM_OFFSET);
 
-        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+        if (
+            marketKey == address(0) || loanToken == address(0) || collateralToken == address(0) || oracle == address(0)
+                || irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
         }
 
@@ -138,6 +150,7 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         return SupplyHookLocalVars({
+            marketKey: marketKey,
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,
@@ -150,6 +163,10 @@ contract MorphoSupplyHook is BaseMorphoLoanHook {
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
+        SupplyHookLocalVars memory vars = _decodeSupplyHookData(data);
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        _requireHeaderIsMarketKey(vars.marketKey, marketParams);
         _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 

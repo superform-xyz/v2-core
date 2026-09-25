@@ -321,6 +321,14 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "5042") # Circle Arc (USDC-native L1) — mirrors ConfigCore Arc entries
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="" # 1inch not deployed on Arc
+            odos_router="" # Odos not deployed on Arc
+            across_spoke_pool_v3="" # Across not deployed on Arc
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
 
     # Generate constructor arguments based on contract type
@@ -489,6 +497,9 @@ generate_constructor_args() {
             local native_fee_sponsorship=$(get_contract_address "$chain_id" "NativeFeeSponsorship")
             echo "$(cast abi-encode "constructor(address)" "$native_fee_sponsorship")"
             ;;
+        "FeeSplittingHook")
+            echo "$(cast abi-encode "constructor(address)" "$native_token")"
+            ;;
         "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
@@ -547,6 +558,9 @@ generate_constructor_args() {
             ;;
         "MorphoBlueMarketRegistry")
             echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "ERC20YieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
         "MorphoBlueYieldSourceOracle"|"MorphoBlueDebtOracle")
             local morpho_registry_addr
@@ -729,6 +743,7 @@ get_contract_source() {
         "SuperSponsorshipPaymaster") echo "src/paymaster/SuperSponsorshipPaymaster.sol" ;;
         "NativeFeeSponsorship") echo "src/sponsorship/NativeFeeSponsorship.sol" ;;
         "FetchNativeFeeHook") echo "src/hooks/sponsorship/FetchNativeFeeHook.sol" ;;
+        "FeeSplittingHook") echo "src/hooks/tokens/FeeSplittingHook.sol" ;;
 
         # Adapters
         "StargateAdapter") echo "src/adapters/StargateAdapter.sol" ;;
@@ -754,6 +769,7 @@ get_contract_source() {
         "MorphoBlueMarketRegistry") echo "src/accounting/oracles/MorphoBlueMarketRegistry.sol" ;;
         "MorphoBlueYieldSourceOracle") echo "src/accounting/oracles/MorphoBlueYieldSourceOracle.sol" ;;
         "MorphoBlueDebtOracle") echo "src/accounting/oracles/MorphoBlueDebtOracle.sol" ;;
+        "ERC20YieldSourceOracle") echo "src/accounting/oracles/ERC20YieldSourceOracle.sol" ;;
         "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
         "AaveV4DebtOracle") echo "src/accounting/oracles/AaveV4DebtOracle.sol" ;;
         "AaveV4SupplyYieldSourceOracle") echo "src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol" ;;
@@ -819,6 +835,18 @@ verify_contract() {
                 --etherscan-api-key "$ETHERSCANV2_API_KEY" \
                 --verifier etherscan \
                 --verifier-url "https://api.etherscan.io/v2/api?chainid=${chain_id}"
+            verify_exit_code=$?
+            ;;
+        "5042")
+            # Circle Arc: not on Etherscan V2. The exploreme.pro explorer exposes a legacy
+            # Etherscan-compatible /api endpoint (Blockscout v2 REST is absent). Best-effort —
+            # confirm the explorer accepts contract-verification submissions; if not, verify
+            # manually. Set ARC_VERIFIER_URL to override the endpoint.
+            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+                --constructor-args "$constructor_args" \
+                --verifier etherscan \
+                --verifier-url "${ARC_VERIFIER_URL:-https://arc.exploreme.pro/api}" \
+                --skip-is-verified-check
             verify_exit_code=$?
             ;;
         *)

@@ -3,49 +3,63 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { Id, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 
-// superform
+// Superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title BaseMorphoLoanHook
 /// @author Superform Labs
 /// @notice Base abstract hook for Morpho Blue lending protocol integrations
 /// @dev All Morpho hooks inherit from this contract. It stores the Morpho Blue protocol address
 ///      and provides shared data decoding and market parameter generation utilities.
+///      HEADER IDENTITY (uniform across the whole Morpho family, borrower and money-market alike):
+///      the 52-byte strategy header carries the Superform yield-source oracle id at offset 0 and, at
+///      offset 32, the registry MARKET KEY of the body MarketParams — the Morpho market id truncated
+///      to an address, identical to `MorphoBlueMarketRegistry.computeMarketKey`. Morpho Blue is ONE
+///      singleton hosting MANY markets, so the singleton cannot identify a position; the key can, and
+///      it is what the ledger, the yield-source / debt oracles and off-chain indexing key by. The
+///      shared decoders below extract it (reverting `ADDRESS_NOT_VALID` on zero) and every leaf
+///      asserts it against the body via `_requireHeaderIsMarketKey` on each build and preExecute path
+///      (`MARKET_KEY_MISMATCH`) — which validates all five MarketParams fields at once, since the key
+///      is a hash over all of them. The Morpho Blue singleton is the `morpho` immutable: the sole
+///      call target and approve spender, never taken from calldata.
 ///      SECURITY INVARIANT: All Morpho calls MUST use empty callback data ("") to prevent reentrancy
 ///      through Morpho's callback mechanism (onMorphoSupply, onMorphoRepay, etc.).
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using MarketParamsLib for MarketParams;
+    using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Common data layout byte offsets (shared across all Morpho hooks)
+    /// @notice Common data layout byte offsets (borrower + lend layouts; MorphoWithdrawHook keeps its
+    ///         own lltv/assets/shares offsets)
     uint256 internal constant LOAN_TOKEN_OFFSET = 52;
     uint256 internal constant COLLATERAL_TOKEN_OFFSET = 72;
     uint256 internal constant ORACLE_OFFSET = 92;
     uint256 internal constant IRM_OFFSET = 112;
-    // AMOUNT_POSITION = 80 inherited from BaseLoanHook
+    // AMOUNT_POSITION = 132 inherited from BaseLoanHook
     uint256 internal constant LLTV_OFFSET = 164;
-    // USE_PREV_HOOK_AMOUNT_POSITION = 144 inherited from BaseLoanHook
+    // USE_PREV_HOOK_AMOUNT_POSITION = 196 inherited from BaseLoanHook
     uint256 internal constant IS_FULL_REPAYMENT_OFFSET = 197;
 
-    /// @notice Byte offset for LLTV in borrow hook data (178-byte layout)
+    /// @notice Byte offset for LLTV in borrow hook data (230-byte layout)
     /// @dev Same numeric offset as IS_FULL_REPAYMENT_OFFSET but different semantic meaning:
-    ///      - Repay layout (146 bytes): byte 145 = isFullRepayment (bool)
-    ///      - Borrow layout (178 bytes): byte 145 = lltv (uint256, 32 bytes)
+    ///      - Repay layout (198 bytes): byte 197 = isFullRepayment (bool)
+    ///      - Borrow layout (230 bytes): bytes 197..228 = lltv (uint256, 32 bytes)
     uint256 internal constant BORROW_LLTV_OFFSET = 197;
 
-    /// @notice Minimum data length for repay hooks (146 bytes)
+    /// @notice Minimum data length for repay hooks (198 bytes)
     uint256 internal constant REPAY_MIN_DATA_LENGTH = 198;
 
-    /// @notice Minimum data length for borrow hooks (178 bytes)
+    /// @notice Minimum data length for borrow hooks (230 bytes)
     uint256 internal constant BORROW_MIN_DATA_LENGTH = 230;
 
-    /// @notice Minimum data length for supply/lend hooks (145 bytes)
+    /// @notice Minimum data length for supply/lend hooks (197 bytes)
     uint256 internal constant SUPPLY_MIN_DATA_LENGTH = 197;
 
     /*//////////////////////////////////////////////////////////////
@@ -60,6 +74,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     //////////////////////////////////////////////////////////////*/
 
     struct BuildHookLocalVars {
+        address marketKey; // header offset 32 — registry market key of the body MarketParams
         address loanToken;
         address collateralToken;
         address oracle;
@@ -71,6 +86,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     }
 
     struct BorrowHookLocalVars {
+        address marketKey; // header offset 32 — registry market key of the body MarketParams
         address loanToken;
         address collateralToken;
         address oracle;
@@ -97,6 +113,10 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /// @notice Thrown when the oracle returns a zero price
     error ORACLE_PRICE_NOT_VALID();
 
+    /// @notice Thrown when the header yield source (offset 32) is not the registry market key of the
+    ///         body MarketParams
+    error MARKET_KEY_MISMATCH();
+
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -112,18 +132,40 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Decodes the hook data for repay operations (146-byte layout)
+    /// @dev The registry market key for a market: the Morpho market id truncated to an address.
+    ///      Must stay identical to `MorphoBlueMarketRegistry.computeMarketKey`.
+    /// @param marketParams The body MarketParams (loan, collateral, oracle, irm, lltv)
+    /// @return The address the ledger, the oracles and off-chain indexing identify this market by
+    function _marketKey(MarketParams memory marketParams) internal pure returns (address) {
+        return address(uint160(uint256(Id.unwrap(marketParams.id()))));
+    }
+
+    /// @dev Primary header pin: the header yield source (offset 32) must equal the market key derived
+    ///      from the body MarketParams, so a crafted header can never name a different market than the
+    ///      one the body acts on. Runs on every build and preExecute path. `pure` on purpose — it reads
+    ///      nothing from storage, which is what keeps the decoders and `inspect()` pure.
+    /// @param headerKey The header-derived market key (offset 32)
+    /// @param marketParams The body MarketParams
+    function _requireHeaderIsMarketKey(address headerKey, MarketParams memory marketParams) internal pure {
+        if (headerKey != _marketKey(marketParams)) revert MARKET_KEY_MISMATCH();
+    }
+
+    /// @dev Decodes the hook data for repay operations (198-byte layout)
     /// @param data The hook data
     /// @return vars The decoded hook data
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
         if (data.length < REPAY_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        address marketKey = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         address irm = BytesLib.toAddress(data, IRM_OFFSET);
 
-        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+        if (
+            marketKey == address(0) || loanToken == address(0) || collateralToken == address(0) || oracle == address(0)
+                || irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
         }
 
@@ -133,6 +175,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         bool isFullRepayment = _decodeBool(data, IS_FULL_REPAYMENT_OFFSET);
 
         vars = BuildHookLocalVars({
+            marketKey: marketKey,
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,
@@ -144,18 +187,22 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         });
     }
 
-    /// @dev Decodes the hook data for borrow operations (178-byte layout)
+    /// @dev Decodes the hook data for borrow operations (230-byte layout)
     /// @param data The hook data
     /// @return vars The decoded borrow hook parameters
     function _decodeBorrowHookData(bytes memory data) internal pure returns (BorrowHookLocalVars memory vars) {
         if (data.length < BORROW_MIN_DATA_LENGTH) revert INVALID_DATA_LENGTH();
 
+        address marketKey = data.extractYieldSource();
         address loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         address collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         address oracle = BytesLib.toAddress(data, ORACLE_OFFSET);
         address irm = BytesLib.toAddress(data, IRM_OFFSET);
 
-        if (loanToken == address(0) || collateralToken == address(0) || oracle == address(0) || irm == address(0)) {
+        if (
+            marketKey == address(0) || loanToken == address(0) || collateralToken == address(0) || oracle == address(0)
+                || irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
         }
 
@@ -165,6 +212,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         uint256 lltv = BytesLib.toUint256(data, BORROW_LLTV_OFFSET);
 
         return BorrowHookLocalVars({
+            marketKey: marketKey,
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,
@@ -194,12 +242,9 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         pure
         returns (MarketParams memory)
     {
-        return MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
+        return
+            MarketParams({
+                loanToken: loanToken, collateralToken: collateralToken, oracle: oracle, irm: irm, lltv: lltv
+            });
     }
 }

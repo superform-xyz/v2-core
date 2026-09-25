@@ -12,8 +12,8 @@ import { DestinationSimulationTestBase, RecordingDestinationExecutor } from "./D
 contract AcrossV3AdapterV2SimulationsTest is DestinationSimulationTestBase {
     uint256 internal constant AMOUNT = 1_000_000;
     bytes32 internal constant ROOT = keccak256("across-root");
-    uint256 internal constant RUNTIME_LENGTH = 4016;
-    bytes32 internal constant RUNTIME_HASH = 0x55e0abd65f7eb9796556faafd0e0e76775019bc053c737ee686a1306d2d5caf9;
+    uint256 internal constant RUNTIME_LENGTH = 3634;
+    bytes32 internal constant RUNTIME_HASH = 0xcd775047072e13a5b980916a95b77c8029f8a43d4485732007a249f5d32fbc80;
 
     address internal spokePool;
     address internal account;
@@ -50,8 +50,17 @@ contract AcrossV3AdapterV2SimulationsTest is DestinationSimulationTestBase {
         assertEq(runtime.length, RUNTIME_LENGTH);
         assertEq(keccak256(runtime), RUNTIME_HASH);
 
-        _assertAndPatchImmutableReferences(runtime, [uint256(195), uint256(303)], spokePool);
-        _assertAndPatchImmutableReferences(runtime, [uint256(258), uint256(627)], address(executor));
+        _assertAndPatchImmutableReferences(runtime, [uint256(171), uint256(255)], spokePool);
+
+        uint256[] memory executorOffsets = new uint256[](4);
+        executorOffsets[0] = 210;
+        executorOffsets[1] = 431;
+        executorOffsets[2] = 722;
+        executorOffsets[3] = 834;
+        _assertAndPatchImmutableReferences(runtime, executorOffsets, address(executor));
+
+        // Validator immutable — RecordingDestinationExecutor wires 0xFACE
+        _assertAndPatchImmutableReferences(runtime, [uint256(104), uint256(517)], address(0xFACE));
 
         assertEq(runtime, address(implementation).code);
     }
@@ -100,16 +109,76 @@ contract AcrossV3AdapterV2SimulationsTest is DestinationSimulationTestBase {
         adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
     }
 
-    function test_HandleV3AcrossMessage_ProofExecutorDoesNotChangeConfiguredCallTarget() public {
+    function test_HandleV3AcrossMessage_RevertIf_NoDstProofForChain() public {
+        (bytes memory message,) = _message(account, address(executor), hex"01", uint64(block.chainid) + 1);
+
+        vm.prank(spokePool);
+        vm.expectRevert(AcrossV3AdapterV2Simulations.NO_DST_PROOF_FOR_CHAIN.selector);
+        adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
+    }
+
+    function test_HandleV3AcrossMessage_RevertIf_AccountIsZero() public {
+        (bytes memory message,) = _message(address(0), address(executor), hex"01", uint64(block.chainid));
+
+        vm.prank(spokePool);
+        vm.expectRevert(AcrossV3AdapterV2Simulations.ACCOUNT_NOT_VALID.selector);
+        adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
+    }
+
+    function test_HandleV3AcrossMessage_ExecutorEmptyRevertBecomesStrictError() public {
+        (bytes memory message,) = _message(account, address(executor), hex"01", uint64(block.chainid));
+        token.mint(adapterAddress, AMOUNT);
+        vm.mockCallRevert(
+            address(executor), abi.encodeWithSelector(RecordingDestinationExecutor.processBridgedExecution.selector), ""
+        );
+
+        vm.prank(spokePool);
+        vm.expectRevert(AcrossV3AdapterV2Simulations.DESTINATION_EXECUTION_FAILED.selector);
+        adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
+        vm.clearMockedCalls();
+    }
+
+    function test_HandleV3AcrossMessage_RevertIf_ProofValidatorMismatch() public {
+        bytes memory sigData = _signatureData(
+            account,
+            address(executor),
+            makeAddr("wrongValidator"),
+            _singleAddress(address(token)),
+            _singleUint(AMOUNT),
+            hex"01",
+            uint64(block.chainid),
+            ROOT
+        );
+        token.mint(adapterAddress, AMOUNT);
+
+        vm.prank(spokePool);
+        vm.expectRevert(AcrossV3AdapterV2Simulations.VALIDATOR_NOT_VALID.selector);
+        adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), abi.encode(bytes(""), sigData));
+
+        assertEq(token.balanceOf(adapterAddress), AMOUNT);
+        assertEq(executor.callCount(), 0);
+    }
+
+    function test_HandleV3AcrossMessage_RevertIf_ProofExecutorMismatch() public {
         (bytes memory message,) = _message(account, makeAddr("wrongExecutor"), hex"01", uint64(block.chainid));
         token.mint(adapterAddress, AMOUNT);
 
         vm.prank(spokePool);
+        vm.expectRevert(AcrossV3AdapterV2Simulations.EXECUTOR_NOT_VALID.selector);
         adapter.handleV3AcrossMessage(address(token), AMOUNT, address(0), message);
 
-        assertEq(token.balanceOf(adapterAddress), 0);
-        assertEq(token.balanceOf(account), AMOUNT);
-        assertEq(executor.callCount(), 1);
+        assertEq(token.balanceOf(adapterAddress), AMOUNT);
+        assertEq(token.balanceOf(account), 0);
+        assertEq(executor.callCount(), 0);
+    }
+
+    function test_HandleV3AcrossMessage_RevertIf_TokenHasNoCode() public {
+        // Parity with production trySafeTransfer: a code-less token must fail, not silently succeed
+        (bytes memory message,) = _message(account, address(executor), hex"01", uint64(block.chainid));
+
+        vm.prank(spokePool);
+        vm.expectRevert(AcrossV3AdapterV2Simulations.TRANSFER_FAILED.selector);
+        adapter.handleV3AcrossMessage(makeAddr("noCodeToken"), AMOUNT, address(0), message);
     }
 
     function test_HandleV3AcrossMessage_TransferRevertRollsBack() public {
