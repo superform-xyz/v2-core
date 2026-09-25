@@ -63,6 +63,7 @@ Consequence for consumers: one leveraged position spans an 8-decimal equity leg 
 ### Phase 2: Tests
 - [ ] Unit suite (T1–T9: fee-misconfig demo, zero edges, unregistered-key, registry lifecycle/validation, decimals independence, batch known-issue, hook-consistency anchor)
 - [ ] Fork suite (F1–F4: in-view accrual, repay-to-zero consistency with SUP-20842, pause-liveness, real-market registration; Ethereum spoke now, Base when known)
+- [x] Base equities suites: `AaveV4BaseEquitiesFork.t.sol` (14 — registration, both oracles, 8-decimal identity, node-native token, 1-wei round-down) and `AaveV4BaseEquitiesE2EFork.t.sol` (10 — BOTH oracles together: shared-key netting, no phantom debt on equity reserves, non-additive reserve TVL, batch parity, ledger-accumulator collision + mitigation, leveraged lifecycle leg isolation, one-sided accrual)
 
 ### Phase 3: Tooling & review
 - [ ] Bytecode regeneration + locked-dev twins; Constants keys/salts; DeployV2Core wiring; verification records; per-chain outputs
