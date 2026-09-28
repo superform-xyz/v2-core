@@ -3003,7 +3003,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             if (__checkBytecodeExists("MorphoBlueMarketRegistry", env)) {
                 address morphoRegistryAddr =
                     __computeContractAddress(MORPHO_BLUE_MARKET_REGISTRY_KEY, abi.encode(DEPLOYER), env);
-                if (morphoRegistryAddr != address(0) && morphoRegistryAddr.code.length > 0) {
+                // Gate on the deterministic CREATE2 address only: the deploy phase creates the
+                // registry and both oracles in one run, so requiring live registry code here
+                // made the check phase under-report on a fresh chain.
+                if (morphoRegistryAddr != address(0)) {
                     __checkContract(
                         MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY,
                         __getSalt(MORPHO_BLUE_YIELD_SOURCE_ORACLE_KEY),
@@ -3029,7 +3032,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             if (__checkBytecodeExists("AaveV4ReserveRegistry", env)) {
                 address aaveV4RegistryAddr =
                     __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_KEY, abi.encode(DEPLOYER), env);
-                if (aaveV4RegistryAddr != address(0) && aaveV4RegistryAddr.code.length > 0) {
+                // Gate on the deterministic CREATE2 address only: the deploy phase creates the
+                // registry and both oracles in one run, so requiring live registry code here
+                // made the check phase under-report on a fresh chain.
+                if (aaveV4RegistryAddr != address(0)) {
                     __checkContract(
                         AAVE_V4_DEBT_ORACLE_KEY,
                         __getSalt(AAVE_V4_DEBT_ORACLE_KEY),

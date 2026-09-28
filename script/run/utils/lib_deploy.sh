@@ -557,10 +557,18 @@ check_v2_addresses() {
     if is_unsupported_chain "$network_id"; then
         chain_flag=""
     fi
+    # --offline: after the script runs, forge's trace decoder resolves every address against
+    # Sourcify / api.openchain.xyz. Those endpoints rate-limit (HTTP 429) and forge retries them
+    # indefinitely, so the process parks at 0% CPU with one idle socket and never returns — it
+    # looks exactly like an RPC hang but the RPC is idle and the script has already finished.
+    # --disable-labels only hides labels in the trace; it does NOT skip the lookup. This run
+    # neither broadcasts nor verifies, so skipping the network entirely is free.
     check_output=$(forge script "$forge_script" \
         --sig "${DEPLOY_SIG:-run(bool,uint256,uint64)}" true $FORGE_ENV $network_id \
         --rpc-url "${!rpc_url_var}" \
         $chain_flag \
+        --disable-labels \
+        --offline \
         -vv 2>&1)
     forge_exit_code=$?
 
@@ -1084,6 +1092,13 @@ deploy_to_network() {
         cp "$output_json" "$backup_json"
     fi
 
+    # Same Sourcify/openchain trace-decoder hang as the check run above. --offline skips it, but
+    # it is applied ONLY where inline verification is already disabled, so it can never interfere
+    # with --verify. Verifying chains can still park here; if that happens, verify separately
+    # (chain_verify_flag="") rather than adding --offline alongside --verify.
+    local offline_flag=""
+    [[ -z "$chain_verify_flag" ]] && offline_flag="--offline"
+
     # Retry logic: attempt deployment up to DEPLOY_MAX_RETRIES times for transient failures
     local max_retries=${DEPLOY_MAX_RETRIES:-1}
     local attempt=1
@@ -1111,6 +1126,8 @@ deploy_to_network() {
             $GAS_PRICE_FLAG \
             ${GAS_ESTIMATE_MULTIPLIER:+--gas-estimate-multiplier $GAS_ESTIMATE_MULTIPLIER} \
             --timeout 300 \
+            --disable-labels \
+            $offline_flag \
             -vv
         deploy_exit_code=$?
 

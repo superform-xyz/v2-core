@@ -1,4 +1,7 @@
 {
+  "AaveV4DebtOracle": "0x075a9A8Df2B78b5689B27D0d7eBB8aa47BcA82e3",
+  "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+  "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
   "AcrossSendFundsAndExecuteOnDstHook": "0x64Fae9811E4357Bbc2276C4435e70e2e1a2E88ac",
   "AcrossSendFundsAndExecuteOnDstHookV2": "0xc68E8c87bf828Ed6633Bfd7F1343b7c245Cc3893",
   "AcrossV3Adapter": "0x96A56f1f3113eCaDC5848E7B538C800B5dCb68C1",
