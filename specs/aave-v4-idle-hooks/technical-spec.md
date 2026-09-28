@@ -1,7 +1,7 @@
 # Aave V4 Idle MONEY_MARKET Lend/Redeem Hooks — Technical Specification
 
 Ticket: SUP-21142. Branch: `cosmin-sup-21142-feature-add-aave-v4-idle-money_market-lendredeem-hooks`.
-Plan of record: `.claude/sessions/context_session_sup21142.md` (superform-hook-master plan + implementation log).
+Planning notes: `.claude/sessions/context_session_sup21142.md` (local, git-ignored; not part of the PR).
 
 ## Overview & scope
 
@@ -93,7 +93,12 @@ has enabled as collateral (LOAN pledge, position manager, or direct call) is ref
 (`RESERVE_IS_COLLATERAL`, one staticcall to `getUserReserveStatus`): otherwise an idle supply would become seizable collateral,
 the redeem could hit the Spoke's health-factor check, and the oracle balance would mix NONACCOUNTING LOAN supply with
 ledger-tracked idle supply. Added in the security review (P2-1); `getUserReserveStatus` was added to the vendored interface
-(LOAN bytecode unchanged — proven by test).
+(LOAN bytecode unchanged — proven by test). **Direction:** this guard is idle-side. The reverse is guarded by the SUP-21141
+standalone hooks (`AaveV4SupplyHookV2` refuses an un-flagged position, `AaveV4WithdrawHookV2` requires the flag); the frozen V1
+`AaveV4SupplyHook` and the composite V2 OPEN are not, so the OMS allow-list must never pair an idle leaf with a V1 supply / OPEN
+leaf for one (account, spoke, reserveId) (PR #1018 review P3-1). **Debt:** lend additionally refuses a reserve the account already
+borrows (`RESERVE_IS_BORROWED`, same staticcall) — same-asset supply + debt is pointless and, under SUP-21148 keying, would put a
+ledger-tracked supply and a debt on one key; redeem keeps only the collateral rule so an exit is never trapped (review P3-2).
 
 ### Accounting (identity PPS)
 
@@ -164,7 +169,9 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
   `_updateAccounting`, so the userOp reverts (fail-closed allowlist; registration is an ops precondition —
   Base staging already has all 8 MAG7-spoke reserves registered).
 - Collateral-flagged reserve: refused outright by both hooks (`RESERVE_IS_COLLATERAL`, see Design); neither hook ever
-  toggles the flag.
+  toggles the flag. Borrowed reserve: lend refused (`RESERVE_IS_BORROWED`), redeem allowed.
+- Ledger shares are not NAV: once yield accrues, a redeem above the ledger principal clears the accumulator while the
+  remainder stays supplied; pricing / NAV read `getUserSuppliedAssets` (oracle NatSpec, review P3-3).
 - Node-native equity tokens (Base ids 0-6, `0xEF` code): asset-agnostic hooks, but tests and registration target
   USDC only.
 - `ISuperHookLoans` getters (non-virtual on BaseLoanHook): `getLoanTokenAddress` (offset 52) is the underlying;

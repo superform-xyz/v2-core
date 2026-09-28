@@ -102,6 +102,9 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @notice Thrown when the reserve is flagged as collateral for the account (LOAN mode, not idle)
     error RESERVE_IS_COLLATERAL();
 
+    /// @notice Thrown on lend when the account already borrows the same reserve (supply + debt on one key)
+    error RESERVE_IS_BORROWED();
+
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -197,11 +200,30 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     ///      could hit the Spoke's health-factor check, and `getUserSuppliedAssets` — the oracle's
     ///      balance — would mix NONACCOUNTING LOAN supply with ledger-tracked idle supply. Both idle
     ///      hooks therefore refuse a collateral-flagged reserve on build and preExecute (one staticcall).
+    ///      The reverse direction is guarded by the SUP-21141 standalone hooks (PLEDGE refuses an
+    ///      un-flagged position, RELEASE requires the flag); the frozen V1 supply and composite V2 OPEN
+    ///      hooks are not, which the OMS allow-list rule covers (never an idle leaf and a V1 / OPEN leaf
+    ///      for one (account, spoke, reserveId)).
     /// @param vars The decoded idle parameters
     /// @param account The executing smart account
     function _requireNotCollateral(IdleVars memory vars, address account) internal view {
         (bool isUsingAsCollateral,) = IAaveV4Spoke(vars.spoke).getUserReserveStatus(vars.reserveId, account);
         if (isUsingAsCollateral) revert RESERVE_IS_COLLATERAL();
+    }
+
+    /// @dev Lend-side guard: the collateral rule above PLUS no open debt on the same reserve. Supplying
+    ///      the asset the account already borrows is economically pointless (pay the borrow rate, earn
+    ///      the lower supply rate) and, once BORROW / REPAY are keyed by the same reserve key
+    ///      (SUP-21148), would put a ledger-tracked supply and a debt on one yield-source address.
+    ///      Redeem deliberately keeps only the collateral rule, so an exit is never trapped behind a
+    ///      debt taken later. Same single staticcall (PR #1018 review, P3-2).
+    /// @param vars The decoded idle parameters
+    /// @param account The executing smart account
+    function _requireIdleLendable(IdleVars memory vars, address account) internal view {
+        (bool isUsingAsCollateral, bool isBorrowing) =
+            IAaveV4Spoke(vars.spoke).getUserReserveStatus(vars.reserveId, account);
+        if (isUsingAsCollateral) revert RESERVE_IS_COLLATERAL();
+        if (isBorrowing) revert RESERVE_IS_BORROWED();
     }
 
     /// @dev The account's supplied assets on the reserve — the SAME read

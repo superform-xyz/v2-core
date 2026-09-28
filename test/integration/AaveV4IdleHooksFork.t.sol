@@ -295,6 +295,32 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0);
     }
 
+    /// @notice A reserve the account already borrows is refused by lend (RESERVE_IS_BORROWED) while
+    ///         redeem still exits the idle position: the same-asset supply + debt state is never trapped.
+    function test_BorrowedReserve_LendRefused_RedeemAllowed() public {
+        uint256 credited = _lend();
+
+        // Take USDC debt on reserve 7 against 1 WETH pledged on reserve 0 (direct self-calls)
+        _getTokens(CHAIN_1_WETH, accountEth, 1 ether);
+        vm.startPrank(accountEth);
+        IERC20(CHAIN_1_WETH).approve(SPOKE, 1 ether);
+        IAaveV4Spoke(SPOKE).supply(0, 1 ether, accountEth);
+        IAaveV4Spoke(SPOKE).setUsingAsCollateral(0, true, accountEth);
+        IAaveV4Spoke(SPOKE).borrow(USDC_RESERVE_ID, 100e6, accountEth);
+        vm.stopPrank();
+        (bool isColl, bool isBorrowing) = IAaveV4Spoke(SPOKE).getUserReserveStatus(USDC_RESERVE_ID, accountEth);
+        assertTrue(!isColl && isBorrowing, "USDC: un-flagged supply with debt");
+
+        _executeExpectFailure(
+            address(lendHook), _lendData(LEND), BaseAaveV4MoneyMarketHook.RESERVE_IS_BORROWED.selector
+        );
+        assertEq(_supplied(), credited, "nothing moved");
+
+        _execute(address(redeemHook), _redeemData(type(uint256).max, false));
+        assertEq(_supplied(), 0, "idle position exited despite the debt");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0, "ledger nets");
+    }
+
     function test_Lend_RevertIf_HeaderKeyMismatch() public {
         bytes memory data = abi.encodePacked(
             oracleId,

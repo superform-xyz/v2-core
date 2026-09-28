@@ -39,6 +39,7 @@ contract MockAaveV4IdleSpoke {
     mapping(uint256 reserveId => address underlying) public reserveUnderlying;
     mapping(uint256 reserveId => mapping(address user => uint256 supplied)) public suppliedAssets;
     mapping(uint256 reserveId => mapping(address user => bool)) public isCollateral;
+    mapping(uint256 reserveId => mapping(address user => bool)) public isBorrowing;
 
     function setReserveUnderlying(uint256 reserveId, address underlying) external {
         reserveUnderlying[reserveId] = underlying;
@@ -56,6 +57,10 @@ contract MockAaveV4IdleSpoke {
         isCollateral[reserveId][user] = flag;
     }
 
+    function setBorrowing(uint256 reserveId, address user, bool flag) external {
+        isBorrowing[reserveId][user] = flag;
+    }
+
     function getReserve(uint256 reserveId) external view returns (IAaveV4Spoke.Reserve memory reserve) {
         reserve.underlying = reserveUnderlying[reserveId];
         reserve.decimals = 6;
@@ -70,7 +75,7 @@ contract MockAaveV4IdleSpoke {
     }
 
     function getUserReserveStatus(uint256 reserveId, address user) external view returns (bool, bool) {
-        return (isCollateral[reserveId][user], false);
+        return (isCollateral[reserveId][user], isBorrowing[reserveId][user]);
     }
 
     function supply(uint256 reserveId, uint256 amount, address onBehalfOf) external returns (uint256, uint256) {
@@ -265,6 +270,12 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         assertTrue(_key(spoke, RESERVE_ID) != _key(address(otherSpoke), RESERVE_ID), "spokes diverge");
     }
 
+    /// @dev The hook's local key must equal the deployed registry's formula for every (spoke, reserveId)
+    function testFuzz_ReserveKey_MatchesRegistryFormula(address spoke_, uint256 reserveId) public {
+        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        assertEq(_key(spoke_, reserveId), registry.computeReserveKey(spoke_, reserveId));
+    }
+
     /*//////////////////////////////////////////////////////////////
                            STRICT DECODING
     //////////////////////////////////////////////////////////////*/
@@ -387,6 +398,28 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         // Another account on the same reserve is unaffected (flag is per user)
         address other = makeAddr("other");
         assertEq(lendHook.build(address(0), other, data).length, 6);
+    }
+
+    /// @dev Lend refuses a reserve the account already borrows (supply + debt on one key); redeem keeps
+    ///      only the collateral rule so an exit is never trapped behind a debt taken later (P3-2).
+    function test_Lend_RevertIf_ReserveIsBorrowed_RedeemStillAllowed() public {
+        mockSpoke.setBorrowing(RESERVE_ID, account, true);
+        mockSpoke.setSupplied(RESERVE_ID, account, AMOUNT);
+        bytes memory data = _data(AMOUNT, false);
+        bytes4 err = BaseAaveV4MoneyMarketHook.RESERVE_IS_BORROWED.selector;
+
+        vm.expectRevert(err);
+        lendHook.build(address(0), account, data);
+        vm.expectRevert(err);
+        lendHook.preExecute(address(0), account, data);
+        assertEq(redeemHook.build(address(0), account, data).length, 3, "redeem unaffected by debt");
+        redeemHook.preExecute(address(0), account, data);
+        assertEq(lendHook.inspect(data).length, 92, "inspect is pure");
+
+        // Collateral still wins the error ordering when both are set
+        mockSpoke.setCollateral(RESERVE_ID, account, true);
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector);
+        lendHook.build(address(0), account, data);
     }
 
     function test_Build_RevertIf_AmountZero() public {

@@ -174,3 +174,16 @@ exactly the pre-read `getUserSuppliedAssets` (same virtual index in the same blo
   (Apr 2026), Aave CAPO (Mar 2026), Safe7579 H2, SIR (EIP-1153)
 - **Live probes:** Base MAG7 Spoke — outsider `supply`/`withdraw` onBehalfOf revert `Unauthorized()`; self-call `withdraw(7, 1e6)` pays
   `(999999 shares, 1e6 assets)`; `getUserReserveStatus` ordering pinned on three live positions
+
+
+## Addendum — external review of PR #1018 (2026-09-28)
+
+| Item | Disposition |
+|---|---|
+| P3-1 one-mode guard is idle-side only | (a) reciprocal guard shipped in SUP-21141 (`RESERVE_HAS_IDLE_POSITION` on PLEDGE, `RESERVE_NOT_COLLATERAL` on RELEASE); (b) OMS allow-list rule still needed for the frozen V1 supply / composite OPEN; (c) spec Design paragraph now states the direction |
+| P3-2 `isBorrowing` ignored | Fixed: lend refuses a reserve the account borrows (`RESERVE_IS_BORROWED`), redeem unchanged; unit + Ethereum-fork tests |
+| P3-3 supply-oracle NatSpec stale | Fixed (NatSpec only, bytecode-neutral): hooks now drive the oracle; fees are structurally zero under identity PPS; consumer warning that ledger shares are not NAV |
+| P4 `_computeReserveKey` duplicate | Kept test-pinned; `testFuzz_ReserveKey_MatchesRegistryFormula` over (spoke, reserveId) added |
+| P4 spec cites uncommitted session file | Reworded as local planning notes |
+| P4 stale `getUserReserveStatus` follow-up | Removed |
+| Risk gate before Base go-live | Not code: MAG7 USDC-7 idle key stays off the allow-list until the lender gates close; OMS sizes redeems against Hub liquidity; production target (MAG7 reserve 7 vs the ERC-4626 `EQUITIES_USDC_TOKENIZATION_SPOKE` 0x7081CE7E…FeFDc, same Base Hub) to be decided on the ticket |

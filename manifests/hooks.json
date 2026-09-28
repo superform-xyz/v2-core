@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-09-21T09:49:58Z",
+  "generatedAt": "2026-09-28T19:27:44Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1943,6 +1943,46 @@
         {
           "direction": "IN",
           "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
+    },
+    "AaveV4RedeemHook": {
+      "name": "Aave V4 Redeem",
+      "description": "Redeems idle supply from an Aave V4 reserve",
+      "hookType": "OUTFLOW",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "SHARES"
         }
       ],
       "sized": true,
@@ -7488,6 +7528,46 @@
         {
           "direction": "IN",
           "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
+      ]
+    },
+    "AaveV4LendHook": {
+      "name": "Aave V4 Lend",
+      "description": "Lends assets to an Aave V4 reserve without enabling collateral",
+      "hookType": "INFLOW",
+      "subtype": "LOAN",
+      "actionTypes": [
+        {
+          "intent": "lend",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
         }
       ],
       "sized": true,

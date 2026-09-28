@@ -23,8 +23,11 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 156);
 /// @dev MONEY_MARKET / INFLOW. Idle supply into an Aave V4 reserve: `supply` only — this hook NEVER
 ///      calls `setUsingAsCollateral`, so the reserve stays a plain deposit (no collateral bit, no
-///      debt). For a collateral pledge use AaveV4SupplyHook (LOAN). See BaseAaveV4MoneyMarketHook for
-///      the header identity (reserve key at offset 32) and the fail-closed allowlist.
+///      debt). For a collateral pledge use the standalone AaveV4SupplyHookV2 (LOAN, SUP-21141). See
+///      BaseAaveV4MoneyMarketHook for the header identity (reserve key at offset 32), the fail-closed
+///      allowlist and the mode guards: a reserve the account has flagged as collateral OR already
+///      borrows is refused (RESERVE_IS_COLLATERAL / RESERVE_IS_BORROWED); the redeem hook applies only
+///      the collateral rule so an exit is never trapped.
 /// @dev Accounting: V4 spokes have no share token and the Superform supply oracle is identity PPS, so
 ///      outAmount is the SUPPLIED-ASSETS DELTA read from the Spoke (`getUserSuppliedAssets`), i.e. the
 ///      exact units the oracle prices — a later redeem's `usedShares` (the same read) nets the ledger to
@@ -73,7 +76,7 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
     {
         IdleVars memory vars = _decodeIdle(data);
         _requireUnderlyingMatchesReserve(vars);
-        _requireNotCollateral(vars, account);
+        _requireIdleLendable(vars, account);
 
         uint256 amount = _resolveIdleAmount(prevHook, account, vars, vars.underlying);
         if (amount == 0 || amount == type(uint256).max) revert AMOUNT_NOT_VALID();
@@ -128,7 +131,7 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         IdleVars memory vars = _decodeIdle(data);
         _requireUnderlyingMatchesReserve(vars);
-        _requireNotCollateral(vars, account);
+        _requireIdleLendable(vars, account);
 
         uint256 amount = _resolveIdleAmount(prevHook, account, vars, vars.underlying);
         if (amount == 0 || amount == type(uint256).max) revert AMOUNT_NOT_VALID();
