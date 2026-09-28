@@ -5,6 +5,9 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { AaveV4ReserveRegistry } from "../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
 import { AaveV4SupplyYieldSourceOracle } from "../../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
 import { AaveV4DebtOracle } from "../../../src/accounting/oracles/AaveV4DebtOracle.sol";
@@ -83,6 +86,44 @@ contract AaveV4BaseEquitiesFork is Test {
 
     /// @notice The tokenization spoke (waEquitiesUSDC) is NOT a plain spoke: registration reverts.
     function test_Registry_TokenizationSpokeUnsupported() public {
+        vm.expectRevert();
+        registry.registerReserve(TOKENIZATION_SPOKE, 0);
+    }
+
+    /// @notice Proves the other half of that claim (review R3 N5): the tokenization spoke IS covered by the
+    ///         existing `ERC4626YieldSourceOracle`. It is a live ERC4626 over USDC, so the whole view surface
+    ///         works on it — including after a real deposit, which is fully fork-executable because USDC is an
+    ///         ordinary contract. This is the SuperStocksUSDC lending route; no new oracle is needed for it.
+    function test_TokenizationSpoke_CoveredByErc4626Oracle() public {
+        ERC4626YieldSourceOracle erc4626Oracle = new ERC4626YieldSourceOracle(address(0xC0FFEE));
+        IERC4626 vault = IERC4626(TOKENIZATION_SPOKE);
+
+        assertEq(vault.asset(), USDC, "wrapper over USDC");
+        assertEq(erc4626Oracle.decimals(TOKENIZATION_SPOKE), 6);
+        assertEq(
+            erc4626Oracle.getPricePerShare(TOKENIZATION_SPOKE), vault.convertToAssets(1e6), "PPS via convertToAssets"
+        );
+        assertEq(erc4626Oracle.getTVL(TOKENIZATION_SPOKE), vault.totalAssets(), "TVL == totalAssets");
+
+        address user = makeAddr("stocksUsdcLender");
+        uint256 amount = 1000e6;
+        assertEq(erc4626Oracle.getBalanceOfOwner(TOKENIZATION_SPOKE, user), 0, "no position yet");
+
+        uint256 tvlBefore = erc4626Oracle.getTVL(TOKENIZATION_SPOKE);
+        deal(USDC, user, amount);
+        vm.startPrank(user);
+        IERC20(USDC).approve(TOKENIZATION_SPOKE, amount);
+        uint256 shares = vault.deposit(amount, user);
+        vm.stopPrank();
+
+        assertGt(shares, 0, "real deposit minted shares");
+        assertEq(erc4626Oracle.getBalanceOfOwner(TOKENIZATION_SPOKE, user), shares, "oracle sees the share balance");
+        assertApproxEqAbs(
+            erc4626Oracle.getTVLByOwnerOfShares(TOKENIZATION_SPOKE, user), amount, 1, "owner TVL in USDC terms"
+        );
+        assertApproxEqAbs(erc4626Oracle.getTVL(TOKENIZATION_SPOKE), tvlBefore + amount, 1, "reserve TVL grew");
+
+        // and the Aave registry still refuses it, so the two routes can never be confused
         vm.expectRevert();
         registry.registerReserve(TOKENIZATION_SPOKE, 0);
     }

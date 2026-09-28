@@ -168,6 +168,7 @@ Identity shape, fee view bypassed (REVISED per PR #997 review F1):
 - [ ] All three contracts appended to `regenerate_bytecode.sh` ORACLE_CONTRACTS; generated + locked-bytecode-dev twins committed fresh (no stale ABI/selectors — PR #990 R1 precedent); prod locked-bytecode only at lock time (`__checkBytecodeExists` guard covers absence).
 - [ ] `*_KEY` constants + versioned salt strings in `script/utils/Constants.sol`; registry-first deploy wiring + verification records in `DeployV2Core.s.sol`; per-chain output JSONs + `DeployV2CoreVerificationRecords.t.sol`.
 - [ ] Ledger-config runbook: **BOTH oracle ids registered with feePercent = 0 (or left unregistered)** — supply-side fees are NOT a per-market decision during the standalone phase (REVISED per PR #997 review F1); fee capability requires a new oracle version plus hook wiring; governance-review checklist line item.
+- [ ] Ledger-config runbook, second rule (PR #997 review R3 N2): **never register the supply-side and debt-side oracle ids of the same registry key against the same ledger.** `BaseLedger` accumulators are keyed `(user, yieldSource)` with no oracle-id component, so the two legs would sum into one slot. Family-wide, not Aave-specific: `MorphoBlueDebtOracle` shares `MorphoBlueMarketRegistry` keys with its supply-side counterpart, and since dev #1010 Morpho lend/withdraw are ledger-driven on that same market key. Pinned by `test_E2E_SharedKey_LedgerAccumulatorsCollide` (collision) and `test_E2E_SeparateLedgers_NoCollision` (mitigation).
 - [ ] Deployment matrix: enumerate chains with live Aave V4 spokes (Ethereum confirmed; Base pending equities spoke address; others per Aave governance) — "all V4 chains day one" scoped to chains where a spoke actually exists.
 - [ ] Security-review report at `specs/security-reports/<date>-aave-v4-oracles.md` (3-agent flow, MorphoBlue precedent).
 
@@ -240,12 +241,12 @@ function registerReserve(address spoke, uint256 reserveId) external onlyRole(MAR
 // + propose/execute/cancelDeregistration with DEREGISTER_DELAY = 2 days (Morpho verbatim)
 ```
 
-Supply oracle mirrors the debt oracle with `getUserSuppliedAssets`/`getReserveSuppliedAssets` and no fee override.
+Supply oracle mirrors the debt oracle with `getUserSuppliedAssets`/`getReserveSuppliedAssets`, **including the `getAssetOutputWithFees` fee-bypass override** (REVISED per PR #997 review F1 — this sentence previously said "no fee override"; review R3 nit D1).
 
 ## Future Considerations
 - **Live ledger wiring** (follow-up ticket): accounting-typed single-leg hooks or a two-position settle interface; a shares-PPS supply-oracle variant becomes viable then.
 - **Euler fee-bypass backport**: `EulerDebtOracle` lacks the `getAssetOutputWithFees` override — candidate hardening PR.
-- **TokenizationSpoke markets**: covered by existing `ERC4626YieldSourceOracle` — no new work if Aave routes future markets through it.
+- **TokenizationSpoke markets**: covered by existing `ERC4626YieldSourceOracle` — no new work if Aave routes future markets through it. Proven on the live Base wrapper (`waEquitiesUSDC`, the SuperStocksUSDC lending route) by `test_TokenizationSpoke_CoveredByErc4626Oracle`, which runs the full view surface across a real deposit (review R3 N5).
 - **Aave V3 oracles**: explicitly out of scope; the V3 aToken/variableDebtToken model would use plain token-address keys (no registry needed) if ever wanted.
 
 ## References & Research

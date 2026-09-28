@@ -57,6 +57,15 @@ Registry storage: `mapping(address key => ReserveInfo{spoke, reserveId, underlyi
 
 Consequence for consumers: one leveraged position spans an 8-decimal equity leg and a 6-decimal USDC leg, so the two oracles report in different assets AND different decimal bases. Conversion stays external, and the correct price source must be resolved per spoke.
 
+**B20 multiplier caveat (review R3 N4).** The supply oracle returns RAW B20 units. One B20 token is not permanently one share: corporate actions update an internal multiplier instantly, and the price feed holds its last value while paused. Convert with the **same per-reserve price basis Aave uses for that reserve**, never a per-share equity price, and keep the basis multiplier-consistent. See the corporate-action convention language in SECURITY.md #15, which applies to this family as well.
+
+**Activation prerequisite — do NOT attach an Aave V4 key to a live strategy until these are done (review R3 N1).** The oracles are on-chain-correct, but the off-chain stack does not know them yet; the 24-26 Sep SuperUSDC Base PPS-expiry incident is the live precedent for attaching a registry-keyed yield source whose oracle the resolver cannot map. Blocking checklist, same spirit as the F3 role-handoff task:
+- [ ] `oracle_kinds.json` entries for BOTH oracle addresses, per chain
+- [ ] snapshotd / pricing support carrying the netting sign convention (debt is SUBTRACTED, never summed) and the per-reserve price basis above
+- [ ] staging dry run on a non-user strategy
+- [ ] alerting BEFORE PPS expiry, not at it
+- [ ] add "off-chain validator/pricing catalog" as a 7th wiring point in the deploy-wiring knowledge doc
+
 ### Phase 1: Contracts
 - [ ] Extend `IAaveV4Spoke`; write registry + both oracles per technical spec
 
@@ -68,6 +77,7 @@ Consequence for consumers: one leveraged position spans an 8-decimal equity leg 
 ### Phase 3: Tooling & review
 - [ ] Bytecode regeneration + locked-dev twins; Constants keys/salts; DeployV2Core wiring; verification records; per-chain outputs
 - [ ] Ledger-config runbook (**BOTH oracle ids** feePercent = 0, or left unregistered — REVISED per PR #997 review F1; supply fees are NOT a per-market decision during the standalone phase); deployment matrix of live-spoke chains
+- [ ] Ledger-config runbook, second rule (review R3 N2): **never register the supply-side and debt-side oracle ids of the same registry key against the same ledger** — `BaseLedger` accumulators are keyed `(user, yieldSource)` only, so the legs collide in one slot. Family-wide (Morpho shares the same shape). Pinned by the collision + mitigation tests.
 - [ ] 3-agent security review → `specs/security-reports/`
 
 ## Test Plan
