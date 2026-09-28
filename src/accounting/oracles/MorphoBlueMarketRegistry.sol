@@ -74,6 +74,8 @@ contract MorphoBlueMarketRegistry is AccessControl {
                                 ROLES
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Role allowed to register markets, manage IRM approvals, and propose/execute/cancel
+    ///         deregistrations
     bytes32 public constant MARKET_MANAGER_ROLE = keccak256("MARKET_MANAGER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
