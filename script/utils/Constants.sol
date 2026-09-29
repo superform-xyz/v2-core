@@ -294,6 +294,9 @@ abstract contract Constants {
     string internal constant AAVE_V4_REPAY_HOOK_KEY = "AaveV4RepayHook";
     string internal constant AAVE_V4_SUPPLY_AND_BORROW_HOOK_KEY = "AaveV4SupplyAndBorrowHook";
     string internal constant AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY = "AaveV4RepayAndWithdrawHook";
+    // Aave V4 idle MONEY_MARKET lend / redeem hooks (SUP-21142) — vault-main accounted, reserve-keyed
+    string internal constant AAVE_V4_LEND_HOOK_KEY = "AaveV4LendHook";
+    string internal constant AAVE_V4_REDEEM_HOOK_KEY = "AaveV4RedeemHook";
 
     string internal constant AAVE_V3_SUPPLY_HOOK_KEY = "AaveV3SupplyHook";
     string internal constant AAVE_V3_WITHDRAW_HOOK_KEY = "AaveV3WithdrawHook";
@@ -316,6 +319,10 @@ abstract contract Constants {
     string internal constant AAVE_V4_SUPPLY_AND_BORROW_HOOK_V2_KEY = "AaveV4SupplyAndBorrowHookV2";
     string internal constant AAVE_V4_REPAY_HOOK_V2_KEY = "AaveV4RepayHookV2";
     string internal constant AAVE_V4_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "AaveV4RepayAndWithdrawHookV2";
+    // Aave V4 standalone V2 loan hooks — PLEDGE / BORROW / RELEASE (SUP-21141)
+    string internal constant AAVE_V4_SUPPLY_HOOK_V2_KEY = "AaveV4SupplyHookV2";
+    string internal constant AAVE_V4_BORROW_HOOK_V2_KEY = "AaveV4BorrowHookV2";
+    string internal constant AAVE_V4_WITHDRAW_HOOK_V2_KEY = "AaveV4WithdrawHookV2";
 
     // Euler EVK loan hook keys (SUP-20797) — protocol-labelled, no V2 suffix
     string internal constant EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY = "EulerDepositCollateralAndBorrowHook";

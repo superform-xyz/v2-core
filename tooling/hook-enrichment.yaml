@@ -58,6 +58,9 @@ compatibleProtocols:
   AaveV4RepayAndWithdrawHookV2: [aave-v4]
   AaveV4LendHook: [aave-v4]
   AaveV4RedeemHook: [aave-v4]
+  AaveV4SupplyHookV2: [aave-v4]
+  AaveV4BorrowHookV2: [aave-v4]
+  AaveV4WithdrawHookV2: [aave-v4]
   # Aave V3
   AaveV3SupplyHook: [aave-v3]
   AaveV3WithdrawHook: [aave-v3]
@@ -368,6 +371,10 @@ amountMeta:
   AaveV3RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  # Aave V4 standalone V2 (SUP-21141): BORROW / RELEASE produce the token they name; PLEDGE keeps the
+  # loan default [IN/TOKEN]. Mirrors the on-chain amountRoles overrides; keep in sync.
+  AaveV4BorrowHookV2: [{direction: OUT, denomination: TOKEN}]
+  AaveV4WithdrawHookV2: [{direction: OUT, denomination: TOKEN}]
   # Aave V4 idle MONEY_MARKET (SUP-21142): lend takes ASSETS (INFLOW), redeem takes SHARES (OUTFLOW, identity
   # PPS so shares == assets). Mirrors the on-chain amountRoles overrides; keep in sync.
   AaveV4LendHook: [{direction: IN, denomination: ASSETS}]
@@ -394,7 +401,8 @@ loanInterfaceHooks:
   # on-chain (BaseHook.supportsInterface never advertises it; asserted in the unit tests), so the
   # manifest must not claim the ERC-165 loan interface for them. The three shipped V2 entries
   # above carry the same on-chain/manifest contradiction and should be cleaned up separately.
-  # The idle pair (AaveV4LendHook / AaveV4RedeemHook) is omitted for the same reason.
+  # The Aave V4 standalone trio (AaveV4SupplyHookV2 / AaveV4BorrowHookV2 / AaveV4WithdrawHookV2) and the
+  # idle pair (AaveV4LendHook / AaveV4RedeemHook) are omitted for the same reason.
   - AaveV3SupplyAndBorrowHookV2
   - AaveV3RepayHookV2
   - AaveV3RepayAndWithdrawHookV2

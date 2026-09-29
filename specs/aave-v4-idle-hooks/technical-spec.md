@@ -22,9 +22,10 @@ Not modified: SuperExecutor / SuperDestinationExecutor / SuperExecutorBase, ever
 below). `src/vendor/aave-v4/IAaveV4Spoke.sol` gained one view (`getUserReserveStatus`) for the collateral-mode guard;
 unused interface members do not reach LOAN bytecode (proven by the same test).
 
-**Deployment wiring is deferred** (user decision during implementation): no `DeployV2OtherHooks` set, no
-`Constants` keys, no `regenerate_bytecode.sh` entries, no locked artifacts, no `hook-enrichment.yaml` entries.
-Section "Deployment (deferred)" records what the follow-up must do.
+**Deployment wiring** was deferred during implementation (PR #1018 as opened has none) and added on 2026-09-28 on
+request: `DeployV2OtherHooks` set + entrypoint, `Constants` keys, `regenerate_bytecode.sh` / deploy-script entries,
+locked artifacts, `hook-enrichment.yaml` / `hook-classification.yaml` entries, regenerated manifests. See "Deployment"
+below. The hooks are not yet deployed.
 
 ## Problem statement
 
@@ -193,22 +194,29 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
 | Fork tests on a supply-only reserve + collateral bitmap proof | `AaveV4IdleHooksFork.t.sol` (Ethereum Main Spoke USDC 7, block 24_884_274, 9 tests), `AaveV4IdleHooksBaseFork.t.sol` (Base MAG7 USDC 7, block 51_778_000, 3 tests) — real SuperExecutor + SuperLedger + oracle at the reserve key; security report `specs/security-reports/2026-09-28-aave-v4-idle-hooks.md` |
 | Ledger nets with identity PPS, fee 0 | fork `test_Lend_Then_RedeemFull_LedgerNets`, `_RedeemPartial_ExactAmount`, `_Warp_RedeemFull_YieldNotTaxed`, `test_Chain_Lend_Then_Redeem_UsePrev` |
 | Unregistered key fails closed | fork `test_UnregisteredKey_FailsClosed` (GHO reserve 13 → `RESERVE_NOT_REGISTERED`) |
-| Deploy keys for Ethereum and Base; `latest.json` after deploy | **deferred** (see below) |
+| Deploy keys for Ethereum and Base; `latest.json` after deploy | wired (see below); deploy + `latest.json` pending |
 
-## Deployment (deferred)
+## Deployment (wired 2026-09-28, not yet deployed)
 
-When wiring is approved: `AAVE_V4_LEND_HOOK_KEY` / `AAVE_V4_REDEEM_HOOK_KEY` in `script/utils/Constants.sol`; an
-`AaveV4IdleHookAddresses` set + `runAaveV4Idle(uint256,uint64)` entrypoint in `DeployV2OtherHooks.s.sol` gated on
-`MAINNET_CHAIN_ID || BASE_CHAIN_ID` (LOAN sets stay mainnet-only), plus the same gate in `_deployAllHooks`; both
-names appended to `AAVE_V4_HOOK_CONTRACTS` in `regenerate_bytecode.sh`; artifacts in `script/generated-bytecode/`,
-`script/locked-bytecode/` (read for every env by `__getOtherHooksBytecode`) and `script/locked-bytecode-dev/`;
-`tooling/hook-enrichment.yaml` tags `[aave-v4]` and `amountMeta` (`Lend: [{IN, ASSETS}]`, `Redeem: [{IN, SHARES}]`);
-`TARGET_FAMILY=AaveV4Idle ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh …` on networks 1 and 8453;
-commit the resulting `…-latest.json` keys. Per-chain prerequisites: reserve keys registered in the chain's
+`AAVE_V4_LEND_HOOK_KEY` / `AAVE_V4_REDEEM_HOOK_KEY` in `script/utils/Constants.sol`; `AaveV4IdleHookAddresses` set,
+`_deployAaveV4IdleHooksSet` and the `runAaveV4Idle(uint256,uint64)` entrypoint in `DeployV2OtherHooks.s.sol`. **No chain
+gate** (user decision 2026-09-28): the hooks have no constructor args (Spoke from calldata), so `_deployAllHooks` deploys them
+on every configured network for uniform addresses; they are inert on chains without an Aave V4 spoke, its oracles and a seeded
+reserve registry. The Aave V4 V2 composite set (OPEN / REPAY / CLOSE) is now deployed on every network too (was mainnet-only), so
+REPAY exists wherever BORROW does; the V1 set stays mainnet-only (legacy). Both names in `AAVE_V4_HOOK_CONTRACTS` (`regenerate_bytecode.sh`) and `AAVE_V4_HOOKS`
+(`deploy_v2_other_hooks_staging_prod.sh`); artifacts in `script/generated-bytecode/`, `script/locked-bytecode/` (read for
+every env by `__getOtherHooksBytecode`) and `script/locked-bytecode-dev/`, pinned by `test_IdleHooks_BytecodePinned`;
+`tooling/hook-enrichment.yaml` tags `[aave-v4]` + `amountMeta` (`Lend: [{IN, ASSETS}]`, `Redeem: [{IN, SHARES}]`);
+`tooling/hook-classification.yaml` (`lend` / `withdraw`, instant, `[sized]`); `manifests/hooks.json` and
+`hook-sizing-manifest.json` regenerated (generator now defaults subtype LOAN for `BaseAaveV4MoneyMarketHook` leaves).
+Fork simulation (staging salt, env 2) on Ethereum, Base and Optimism: `AaveV4LendHook` 0xeC6d1e26DcD3e7D9cB04B65326cF9Ffc7f3EB537,
+`AaveV4RedeemHook` 0x0eCA8E92Bf9D20CE11a1b193BFdD6D54172F1c05 (same CREATE2 address on every chain).
+Deploy: `TARGET_FAMILY=AaveV4Idle ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <staging|prod> deploy v2-supervaults`
+(all configured networks), then commit the resulting `…-latest.json` keys. Per-chain prerequisites: reserve keys registered in the chain's
 `AaveV4ReserveRegistry`; `AaveV4SupplyYieldSourceOracle` registered in `SuperLedgerConfiguration` with feePercent 0
 on its own ledger; the header oracle id is the derived config id `keccak256(abi.encodePacked(salt, configSetter))`.
 
 ## Follow-ups (not this ticket)
 
 Erebor YS type `aave_v4`, CreateHook, Superbundler natspec/S3, snapshotd kind, pricing idle PPS / lifting the
-fail-closed gate, manifest regeneration, adding `getUserReserveStatus` to the vendored interface in a later cycle.
+fail-closed gate, the deploy itself (see Deployment).

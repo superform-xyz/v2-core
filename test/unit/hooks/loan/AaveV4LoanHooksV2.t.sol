@@ -31,6 +31,7 @@ contract MockAaveV4SpokeV2 {
     mapping(uint256 reserveId => mapping(address user => uint256 drawn)) public drawnDebt;
     mapping(uint256 reserveId => mapping(address user => uint256 premium)) public premiumDebt;
     mapping(uint256 reserveId => mapping(address user => uint256 supplied)) public suppliedAssets;
+    mapping(uint256 reserveId => mapping(address user => bool flag)) public usingAsCollateral;
 
     /*//////////////////////////////////////////////////////////////
                               SETTERS
@@ -85,7 +86,13 @@ contract MockAaveV4SpokeV2 {
         return (amount, 0);
     }
 
-    function setUsingAsCollateral(uint256, bool, address) external { }
+    function setUsingAsCollateral(uint256 reserveId, bool flag, address user) external {
+        usingAsCollateral[reserveId][user] = flag;
+    }
+
+    function getUserReserveStatus(uint256 reserveId, address user) external view returns (bool, bool) {
+        return (usingAsCollateral[reserveId][user], false);
+    }
 }
 
 /// @dev Previous-hook stub with settable output amount and output token
@@ -228,8 +235,9 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     function test_Build_RevertIf_InvalidBoolValue() public {
-        bytes memory data =
-            _encode(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x02), borrowAmount);
+        bytes memory data = _encode(
+            loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x02), borrowAmount
+        );
 
         vm.expectRevert(BaseLoanHookV2.INVALID_BOOL_VALUE.selector);
         openHook.build(address(0), address(this), data);
@@ -241,8 +249,9 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     function test_Build_RevertIf_ZeroLoanToken() public {
-        bytes memory data =
-            _encode(address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount);
+        bytes memory data = _encode(
+            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount
+        );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         openHook.build(address(0), address(this), data);
     }
@@ -503,9 +512,11 @@ contract AaveV4LoanHooksV2Test is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_OpenHook_Build_Shape() public view {
-        Execution[] memory executions = openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount));
+        Execution[] memory executions =
+            openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount));
 
-        // preExecute + approve(0) + approve(amount1) + supply + setUsingAsCollateral + borrow + approve(0) + postExecute
+        // preExecute + approve(0) + approve(amount1) + supply + setUsingAsCollateral + borrow + approve(0) +
+        // postExecute
         assertEq(executions.length, 8);
         assertEq(executions[0].target, address(openHook));
         assertEq(executions[1].target, collateralToken);
@@ -780,8 +791,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_Inspect_Payload_AllHooks() public view {
-        bytes memory expected =
-            abi.encodePacked(spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId);
+        bytes memory expected = abi.encodePacked(spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId);
 
         assertEq(openHook.inspect(_defaultData(amount, false, borrowAmount)), expected);
         assertEq(repayHook.inspect(_defaultData(amount, false, 0)), expected);
@@ -812,19 +822,39 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
         // spoke
         changed = openHook.inspect(
-            _encode(loanToken, collateralToken, other, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount)
+            _encode(
+                loanToken, collateralToken, other, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount
+            )
         );
         assertTrue(keccak256(changed) != keccak256(base));
 
         // supply reserve id
         changed = openHook.inspect(
-            _encode(loanToken, collateralToken, spoke, supplyReserveId + 10, borrowReserveId, amount, bytes1(0x00), borrowAmount)
+            _encode(
+                loanToken,
+                collateralToken,
+                spoke,
+                supplyReserveId + 10,
+                borrowReserveId,
+                amount,
+                bytes1(0x00),
+                borrowAmount
+            )
         );
         assertTrue(keccak256(changed) != keccak256(base));
 
         // borrow reserve id
         changed = openHook.inspect(
-            _encode(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId + 10, amount, bytes1(0x00), borrowAmount)
+            _encode(
+                loanToken,
+                collateralToken,
+                spoke,
+                supplyReserveId,
+                borrowReserveId + 10,
+                amount,
+                bytes1(0x00),
+                borrowAmount
+            )
         );
         assertTrue(keccak256(changed) != keccak256(base));
     }

@@ -121,7 +121,13 @@ def parse_hook_source(path: Path) -> dict:
         result["hookType"] = explicit_type_match.group(1)
     else:
         # Check if it extends BaseLoanHook (always NONACCOUNTING)
-        if "BaseLoanHook" in content or "BaseAaveV4LoanHook" in content or "BaseMorphoLoanHook" in content:
+        # Standalone V2 loan hooks inherit BaseLoanHookV2 through Base<Protocol>StandaloneLoanHookV2
+        if (
+            "BaseLoanHook" in content
+            or "BaseAaveV4LoanHook" in content
+            or "BaseMorphoLoanHook" in content
+            or "StandaloneLoanHookV2" in content
+        ):
             result["hookType"] = "NONACCOUNTING"
         # Check BaseClaimRewardHook
         elif "BaseClaimRewardHook" in content:
