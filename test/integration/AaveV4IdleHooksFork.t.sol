@@ -20,6 +20,7 @@ import { AaveV4SupplyYieldSourceOracle } from "../../src/accounting/oracles/Aave
 import { AaveV4LendHook } from "../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4RedeemHook } from "../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { BaseAaveV4MoneyMarketHook } from "../../src/hooks/loan/aave-v4/BaseAaveV4MoneyMarketHook.sol";
+import { AaveV4ReserveKey } from "../../src/libraries/AaveV4ReserveKey.sol";
 import { BaseHook } from "../../src/hooks/BaseHook.sol";
 import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
@@ -331,7 +332,7 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
             LEND,
             false // LOAN-style: spoke in the header
         );
-        _executeExpectFailure(address(lendHook), data, BaseAaveV4MoneyMarketHook.RESERVE_KEY_MISMATCH.selector);
+        _executeExpectFailure(address(lendHook), data, AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
     }
 
     function test_Lend_RevertIf_UnderlyingMismatch() public {

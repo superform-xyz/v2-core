@@ -8,6 +8,8 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { AaveV4ReserveRegistry } from "../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveKey } from "../../../src/libraries/AaveV4ReserveKey.sol";
+import { AAVE_V4_SUPPLY_YS_ORACLE_ID } from "../../utils/Constants.sol";
 import { AaveV4DebtOracle } from "../../../src/accounting/oracles/AaveV4DebtOracle.sol";
 import { AaveV4SupplyYieldSourceOracle } from "../../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
 import { IAaveV4Spoke } from "../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
@@ -183,9 +185,43 @@ contract AaveV4OraclesE2EForkTest is Test {
         pure
         returns (bytes memory)
     {
+        return _hookDataKeyed(
+            supplyReserveId, loanToken, collateralToken, supplyReserveId, borrowReserveId, amount1, amount2
+        );
+    }
+
+    /// @dev Standalone REPAY payload: header keyed to the BORROW reserve (SUP-21143 primary for REPAY)
+    function _repayHookData(
+        address loanToken,
+        address collateralToken,
+        uint256 supplyReserveId,
+        uint256 borrowReserveId,
+        uint256 cap
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return _hookDataKeyed(borrowReserveId, loanToken, collateralToken, supplyReserveId, borrowReserveId, cap, 0);
+    }
+
+    /// @dev SUP-21143 header: opaque oracle id + AaveV4ReserveKey(spoke, primaryReserveId) at offset 32
+    function _hookDataKeyed(
+        uint256 primaryReserveId,
+        address loanToken,
+        address collateralToken,
+        uint256 supplyReserveId,
+        uint256 borrowReserveId,
+        uint256 amount1,
+        uint256 amount2
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            AAVE_V4_SUPPLY_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE, primaryReserveId),
             loanToken,
             collateralToken,
             SPOKE,
@@ -487,7 +523,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         deal(USDC, user1, repayAmount);
         uint256 debtBefore = debtOracle.getBalanceOfOwner(keys[7], user1);
 
-        bytes memory data = _hookData(USDC, WETH, 0, 7, repayAmount, 0);
+        bytes memory data = _repayHookData(USDC, WETH, 0, 7, repayAmount);
         _executeAs(user1, repayHook.build(address(0), user1, data));
 
         assertApproxEqAbs(
@@ -538,7 +574,7 @@ contract AaveV4OraclesE2EForkTest is Test {
 
         // Stage 3: partial hook repay
         deal(USDC, user1, 1000e6);
-        _executeAs(user1, repayHook.build(address(0), user1, _hookData(USDC, WETH, 0, 7, 1000e6, 0)));
+        _executeAs(user1, repayHook.build(address(0), user1, _repayHookData(USDC, WETH, 0, 7, 1000e6)));
         (d, p) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
         assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), d + p);
         assertGt(d + p, 0, "residual debt");

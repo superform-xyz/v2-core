@@ -22,6 +22,7 @@ import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 // Hooks under test + LOAN siblings (type-flip isolation)
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { BaseAaveV4MoneyMarketHook } from "../../../../src/hooks/loan/aave-v4/BaseAaveV4MoneyMarketHook.sol";
+import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
 import { AaveV4LendHook } from "../../../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4RedeemHook } from "../../../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { AaveV4SupplyHook } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyHook.sol";
@@ -346,7 +347,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     /// @dev The header must be computeReserveKey(spoke, reserveId): another reserve's key, another
     ///      spoke's key, or the LOAN-style "spoke in the header" all fail — on build AND on inspect.
     function test_Decode_RevertIf_HeaderKeyMismatch() public {
-        bytes4 err = BaseAaveV4MoneyMarketHook.RESERVE_KEY_MISMATCH.selector;
+        bytes4 err = AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector;
         bytes memory otherReserve = _dataRaw(ORACLE_ID, _key(spoke, 0), underlying, spoke, RESERVE_ID, AMOUNT, 0x00);
         bytes memory otherSpokeKey =
             _dataRaw(ORACLE_ID, _key(address(otherSpoke), RESERVE_ID), underlying, spoke, RESERVE_ID, AMOUNT, 0x00);
@@ -757,7 +758,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         assertTrue(keyUsdc != keyOth, "distinct accounting keys per reserve");
         assertTrue(keccak256(lendHook.inspect(usdcData)) != keccak256(lendHook.inspect(othData)));
         // each header pinned to its own reserve: swapping keys fails closed
-        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
         lendHook.build(address(0), account, _dataRaw(ORACLE_ID, keyOth, underlying, spoke, RESERVE_ID, AMOUNT, 0x00));
     }
 }

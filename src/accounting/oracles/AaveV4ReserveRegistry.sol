@@ -6,6 +6,7 @@ import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol"
 
 // aave-v4 vendor
 import { IAaveV4Spoke } from "../../vendor/aave-v4/IAaveV4Spoke.sol";
+import { AaveV4ReserveKey } from "../../libraries/AaveV4ReserveKey.sol";
 
 /// @title AaveV4ReserveRegistry
 /// @author Superform Labs
@@ -274,6 +275,6 @@ contract AaveV4ReserveRegistry is AccessControl {
     /// @param reserveId_ The reserve identifier within the spoke
     /// @return The pseudo-address reserve key
     function computeReserveKey(address spoke_, uint256 reserveId_) public pure returns (address) {
-        return address(uint160(uint256(keccak256(abi.encode(spoke_, reserveId_)))));
+        return AaveV4ReserveKey.computeReserveKey(spoke_, reserveId_);
     }
 }

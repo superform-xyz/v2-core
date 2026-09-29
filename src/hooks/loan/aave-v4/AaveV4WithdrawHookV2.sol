@@ -14,8 +14,8 @@ import { ISuperHookInspector, ISuperHookInflowOutflow } from "../../../interface
 /// @title AaveV4WithdrawHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 YS oracle id
+/// @notice         address yieldSource = data.extractYieldSource(); // AaveV4ReserveKey(spoke, supplyReserveId)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
@@ -34,20 +34,24 @@ import { ISuperHookInspector, ISuperHookInflowOutflow } from "../../../interface
 ///      type(uint256).max resolves to the full supplied position and is passed through so the Spoke
 ///      withdraws everything natively (the pre-read is the exact expected receipt); an exact word or
 ///      previous-hook output above the position reverts — Aave would otherwise silently convert it
-///      into a full withdrawal. Note the supply credit rounds down (≤ 1 wei of the pledge), so an
-///      exact word equal to the pledged amount is above the position in the same block: size an
-///      exact release from getUserSuppliedAssets or use the sentinel. With usePrevHookAmount the
+///      into a full withdrawal. Note the supply credit sits BELOW the pledge by the provider's share
+///      round-trip rounding (assets → shares rounds down, shares → assets rounds down again; the gap
+///      depends on the exchange rate — 1 wei for 1 WETH and 2 wei for ~1.0000000000000019 WETH were
+///      observed on the live Main Spoke, so it is NOT a fixed 1-wei bound), so an exact word equal to
+///      the pledged amount is above the position in the same block: size an exact release from
+///      getUserSuppliedAssets or use the sentinel. With usePrevHookAmount the
 ///      calldata word (max or otherwise) is ignored and the previous hook's output (denominated in
 ///      the collateral token) becomes the amount, so the sentinel is only reachable with
 ///      usePrevHookAmount = false. Publishes the measured collateral-token wallet delta with
 ///      outToken = collateralToken.
-/// @dev Mode marker caveat: "flag true" is taken as LOAN mode. The flag can also be set over an
-///      un-flagged idle position by the composite AaveV4SupplyAndBorrowHookV2, the legacy V1 supply
-///      hooks (both bytecode-locked, no idle guard) or a direct setUsingAsCollateral(true) self-call;
-///      after that a RELEASE(max) pays the merged position out with no ledger outflow. Those entry
-///      points are signed intents of the same account, never third parties, so the guard stays an
-///      OMS routing rule: never route OPEN / V1 supply / PLEDGE onto an (account, spoke, reserveId)
-///      that carries an idle position.
+/// @dev Mode marker caveat: "flag true" is taken as LOAN mode. Every recompiled Superform hook that sets the
+///      flag (PLEDGE, composite OPEN V2, V1 Supply / SupplyAndBorrow) refuses an un-flagged idle position
+///      (RESERVE_HAS_IDLE_POSITION), but the flag can still be set over one by a direct
+///      setUsingAsCollateral(true) self-call or by the pre-SUP-21143 deployed OPEN V2 / V1 addresses; after that
+///      a RELEASE(max) pays the merged position out with no ledger outflow. Those paths are the account's own
+///      signed intents, never third parties, so the remaining guard is the OMS routing rule: never route a
+///      flag-setting supply onto an (account, spoke, reserveId) that carries an idle position, and evict the
+///      pre-SUP-21143 addresses.
 contract AaveV4WithdrawHookV2 is BaseAaveV4StandaloneLoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -63,6 +67,12 @@ contract AaveV4WithdrawHookV2 is BaseAaveV4StandaloneLoanHookV2 {
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Withdraws an exact or full collateral amount from an Aave V4 spoke without repaying";
+    }
+
+    /// @dev Header pin target (BaseAaveV4LoanHookV2._primaryReserveId): the header yield source must be the
+    ///      reserve key of the supply reserve
+    function _primaryReserveId(AaveV4V2Vars memory vars) internal pure override returns (uint256) {
+        return vars.supplyReserveId;
     }
 
     /*//////////////////////////////////////////////////////////////

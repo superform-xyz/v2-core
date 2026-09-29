@@ -8,6 +8,7 @@ import { UserOpData } from "modulekit/ModuleKit.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { AaveV4ReserveKey } from "../../src/libraries/AaveV4ReserveKey.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
@@ -80,21 +81,42 @@ contract AaveV4MultiReserveHooksIntegrationTest is MinimalBaseIntegrationTest {
     ///      spoke(20) | supplyReserveId(32) | borrowReserveId(32) | amount(32) | usePrevHookAmount(1) [| extra]
     function _createSupplyData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WBTC, SPOKE_ADDR, WBTC_RESERVE_ID, USDC_RESERVE_ID, amount,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WBTC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WBTC,
+            SPOKE_ADDR,
+            WBTC_RESERVE_ID,
+            USDC_RESERVE_ID,
+            amount,
             usePrevHookAmount
         );
     }
 
     function _createWithdrawData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WBTC, SPOKE_ADDR, WBTC_RESERVE_ID, USDC_RESERVE_ID, amount,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WBTC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WBTC,
+            SPOKE_ADDR,
+            WBTC_RESERVE_ID,
+            USDC_RESERVE_ID,
+            amount,
             usePrevHookAmount
         );
     }
 
     function _createBorrowData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WBTC, SPOKE_ADDR, WBTC_RESERVE_ID, USDC_RESERVE_ID, amount,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WBTC,
+            SPOKE_ADDR,
+            WBTC_RESERVE_ID,
+            USDC_RESERVE_ID,
+            amount,
             usePrevHookAmount
         );
     }
@@ -109,7 +131,14 @@ contract AaveV4MultiReserveHooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WBTC, SPOKE_ADDR, WBTC_RESERVE_ID, USDC_RESERVE_ID, amount,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WBTC,
+            SPOKE_ADDR,
+            WBTC_RESERVE_ID,
+            USDC_RESERVE_ID,
+            amount,
             usePrevHookAmount, isFullRepayment
         );
     }
@@ -124,7 +153,13 @@ contract AaveV4MultiReserveHooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WBTC, SPOKE_ADDR, WBTC_RESERVE_ID, USDC_RESERVE_ID,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WBTC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WBTC,
+            SPOKE_ADDR,
+            WBTC_RESERVE_ID,
+            USDC_RESERVE_ID,
             supplyAmount, usePrevHookAmount, borrowAmount_
         );
     }
@@ -140,7 +175,13 @@ contract AaveV4MultiReserveHooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WBTC, SPOKE_ADDR, WBTC_RESERVE_ID, USDC_RESERVE_ID,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WBTC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WBTC,
+            SPOKE_ADDR,
+            WBTC_RESERVE_ID,
+            USDC_RESERVE_ID,
             repayAmount, usePrevHookAmount, isFullRepayment, withdrawAmount
         );
     }
