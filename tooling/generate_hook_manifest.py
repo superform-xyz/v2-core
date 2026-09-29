@@ -143,7 +143,9 @@ def parse_hook_source(path: Path) -> dict:
         result["subtype"] = "SWAP"
     # Money-market lend/redeem leaves inherit HookSubTypes.LOAN from BaseMorphoMoneyMarketHook and
     # no longer reference HookSubTypes themselves (SUP-21024)
-    if "subtype" not in result and "BaseMorphoMoneyMarketHook" in content:
+    if "subtype" not in result and (
+        "BaseMorphoMoneyMarketHook" in content or "BaseAaveV4MoneyMarketHook" in content
+    ):
         result["subtype"] = "LOAN"
 
     return result

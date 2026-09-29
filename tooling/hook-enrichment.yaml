@@ -56,6 +56,8 @@ compatibleProtocols:
   AaveV4SupplyAndBorrowHookV2: [aave-v4]
   AaveV4RepayHookV2: [aave-v4]
   AaveV4RepayAndWithdrawHookV2: [aave-v4]
+  AaveV4LendHook: [aave-v4]
+  AaveV4RedeemHook: [aave-v4]
   # Aave V3
   AaveV3SupplyHook: [aave-v3]
   AaveV3WithdrawHook: [aave-v3]
@@ -366,6 +368,10 @@ amountMeta:
   AaveV3RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4RepayAndWithdrawHookV2: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
+  # Aave V4 idle MONEY_MARKET (SUP-21142): lend takes ASSETS (INFLOW), redeem takes SHARES (OUTFLOW, identity
+  # PPS so shares == assets). Mirrors the on-chain amountRoles overrides; keep in sync.
+  AaveV4LendHook: [{direction: IN, denomination: ASSETS}]
+  AaveV4RedeemHook: [{direction: IN, denomination: SHARES}]
   EulerDepositCollateralAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   EulerRepayAndWithdrawHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   # MorphoLendHook (MONEY_MARKET lend, SUP-21005): slot @132 is loan-token ASSETS supplied to the
@@ -388,6 +394,7 @@ loanInterfaceHooks:
   # on-chain (BaseHook.supportsInterface never advertises it; asserted in the unit tests), so the
   # manifest must not claim the ERC-165 loan interface for them. The three shipped V2 entries
   # above carry the same on-chain/manifest contradiction and should be cleaned up separately.
+  # The idle pair (AaveV4LendHook / AaveV4RedeemHook) is omitted for the same reason.
   - AaveV3SupplyAndBorrowHookV2
   - AaveV3RepayHookV2
   - AaveV3RepayAndWithdrawHookV2

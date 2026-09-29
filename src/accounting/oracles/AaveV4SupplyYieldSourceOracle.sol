@@ -26,26 +26,23 @@ import { AaveV4ReserveRegistry } from "./AaveV4ReserveRegistry.sol";
 ///      getUserSuppliedShares / hub.previewRemoveByShares) would require hooks that read spoke share
 ///      state — a different settle architecture and explicit future work.
 ///
-///      IMPORTANT — Fee configuration (standalone phase):
-///      This oracle MUST NOT be configured with feePercent > 0 in SuperLedgerConfiguration until
-///      real hook-to-ledger wiring exists. No loan hook currently drives updateAccounting, so no
-///      cost-basis snapshot is ever taken for supply positions; the inherited fee view would then
-///      treat the ENTIRE principal as profit and inflate the quoted output. getAssetOutputWithFees
-///      is therefore overridden to bypass fee math entirely (mirroring AaveV4DebtOracle). NOTE:
-///      the override only protects the view path — BaseLedger._processOutflow() computes fees
-///      directly from config.feePercent and is NOT guarded on-chain; correct behavior depends on
-///      the operational invariant that this oracle's yieldSourceOracleId is configured with
-///      feePercent = 0 (or not registered at all).
-///      Once accounting hooks exist and inflows snapshot cost basis, the ledger path charges fees
-///      on measured asset-delta profit only (yield, never principal — identity PPS makes a plain
-///      principal round trip read zero profit); re-enabling the fee view then requires removing
-///      the override in a new oracle version, not a config change.
+///      IMPORTANT — Fee configuration:
+///      Configure this oracle with feePercent = 0 on its own ledger. The idle MONEY_MARKET hooks
+///      (AaveV4LendHook INFLOW / AaveV4RedeemHook OUTFLOW, SUP-21142) drive updateAccounting with
+///      the supplied-assets delta as "shares", so under identity PPS cost basis == shares at every
+///      snapshot and the ledger's outflow profit is structurally zero: a partial redeem re-prices to
+///      its own cost basis, and a full redeem after accrual reports usedShares above the accumulator,
+///      which BaseLedger caps and re-prices to the accumulator. A non-zero feePercent would
+///      therefore charge nothing (no fee leak, no FEE_NOT_SET DoS) — the ledger can never observe
+///      accrued yield for these keys. getAssetOutputWithFees is overridden to bypass fee math
+///      (mirroring AaveV4DebtOracle); enabling performance fees needs a shares-PPS oracle version
+///      (over getUserSuppliedShares / hub.previewRemoveByShares), not a config change. The loan
+///      (NONACCOUNTING) hooks never call updateAccounting.
 ///
-///      STANDALONE ORACLE — accounting-wiring scope:
-///      No loan hook currently drives this oracle through SuperLedger: every loan hook is
-///      HookType.NONACCOUNTING, so SuperExecutorBase never calls updateAccounting for loan positions
-///      (identical to the deployed MorphoBlueYieldSourceOracle, which is equally hook-unwired). This
-///      oracle serves monitoring, periphery, and off-chain accounting consumers.
+///      CONSUMER WARNING — ledger shares are not NAV for these keys: once yield has accrued, a redeem
+///      larger than the ledger principal clears the accumulator for the key while the remainder stays
+///      supplied on the Spoke. Pricing, NAV and monitoring must read getUserSuppliedAssets (this
+///      oracle's getBalanceOfOwner), never usersAccumulatorShares.
 ///
 ///      Semantic notes for downstream consumers:
 ///      - getBalanceOfOwner() returns supplied balance in asset units (via getUserSuppliedAssets),

@@ -137,6 +137,11 @@ hooks:
     actionTypes: [{intent: withdraw, stage: instant}]
     legSizing: [sized]
 
+  # Aave V4 idle MONEY_MARKET redeem (SUP-21142)
+  AaveV4RedeemHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]
+
   # withdraw / request (5)
   RequestRedeem7540VaultHook:
     actionTypes: [{intent: withdraw, stage: request}]
@@ -518,6 +523,11 @@ hooks:
     legSizing: [sized]
 
   AaveV4SupplyHook:
+    actionTypes: [{intent: lend, stage: instant}]
+    legSizing: [sized]
+
+  # Aave V4 idle MONEY_MARKET lend (SUP-21142)
+  AaveV4LendHook:
     actionTypes: [{intent: lend, stage: instant}]
     legSizing: [sized]
 

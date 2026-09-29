@@ -78,6 +78,17 @@ interface IAaveV4Spoke {
     /// @param onBehalfOf The address whose collateral setting is being changed
     function setUsingAsCollateral(uint256 reserveId, bool useAsCollateral, address onBehalfOf) external;
 
+    /// @notice Returns whether a reserve is flagged as collateral and/or borrowed for a user
+    /// @dev The collateral flag is per (user, reserve), not per deposit; it is toggled only through
+    ///      setUsingAsCollateral (self-call or an approved position manager). Verified against the live
+    ///      Spoke implementation: `(false, false)` for a plain idle supply, `(true, false)` for a
+    ///      pledged reserve, `(false, true)` for a reserve with drawn debt.
+    /// @param reserveId The identifier of the reserve
+    /// @param user The address of the user
+    /// @return isUsingAsCollateral True when the reserve backs the user's borrows
+    /// @return isBorrowing True when the user has debt on the reserve
+    function getUserReserveStatus(uint256 reserveId, address user) external view returns (bool, bool);
+
     /// @notice Returns the reserve data for a given reserve identifier
     /// @dev Reverts if the reserve is not listed
     /// @param reserveId The identifier of the reserve
