@@ -252,6 +252,11 @@ AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4SupplyAndBorrowHookV2"
     "AaveV4RepayHookV2"
     "AaveV4RepayAndWithdrawHookV2"
+    "AaveV4LendHook"
+    "AaveV4RedeemHook"
+    "AaveV4SupplyHookV2"
+    "AaveV4BorrowHookV2"
+    "AaveV4WithdrawHookV2"
 )
 
 # Aave V3 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
