@@ -42,8 +42,11 @@ import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../..
 ///      AaveV4SupplyYieldSourceOracle resolves the same key through the registry (identity PPS, asset
 ///      units). Keying by the Spoke would collide every reserve of a spoke, and every LOAN position on
 ///      it, onto one accounting slot. The key is recomputed locally (pure) and pinned against the body
-///      in the decoder, so build, preExecute AND inspect all fail closed on a mismatch. The Spoke stays
-///      on the hook as the only call target and approve spender.
+///      in the decoder, so build, preExecute AND inspect all fail closed on a mismatch. The sizing views
+///      (`decodeAmounts`, `replaceCalldataAmounts`, `decodeUsePrevHookAmount`) check the exact length and
+///      the canonical bool only — they are transformation APIs and do not authenticate the header; a
+///      template that sizes must also pass inspect() / build(). The Spoke stays on the hook as the only
+///      call target and approve spender.
 ///
 ///      FAIL-CLOSED ALLOWLIST: the hooks never consult the registry; a reserve whose key is not
 ///      registered reverts at accounting (`RESERVE_NOT_REGISTERED` from the oracle), so the whole
@@ -128,7 +131,8 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    /// @dev Single slot at offset 124 (lend: underlying assets in; redeem: 1:1 share wei in)
+    /// @dev Single slot at offset 124 (lend: underlying assets in; redeem: 1:1 share wei in). Exact length only —
+    ///      the header is not authenticated here (inspect / build do)
     function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
         if (data.length != IDLE_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         amounts = new uint256[](1);
@@ -136,6 +140,8 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookOutflow
+    /// @dev Exact length only; the header passes through unchecked — a mis-keyed template still fails at inspect /
+    /// build
     function replaceCalldataAmounts(
         bytes memory data,
         uint256[] memory amounts

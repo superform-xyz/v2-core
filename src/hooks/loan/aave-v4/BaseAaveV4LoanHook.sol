@@ -25,6 +25,11 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 ///      an idle position (RESERVE_HAS_IDLE_POSITION) and withdraw legs refuse an un-flagged one
 ///      (RESERVE_NOT_COLLATERAL). The Spoke (offset 92) stays the only call target. `yieldSourceOracleId` (offset 0)
 ///      is identity only (LOAN is NONACCOUNTING).
+///      SIZING APIs ARE TRANSFORMATION-ONLY (V1): `decodeAmounts` / `replaceCalldataAmounts` /
+///      `decodeUsePrevHookAmount` read or rewrite the amount word(s) and do not run the header decoder
+///      (unlike the V2 hooks, whose sizing views run the strict decoder). A template that sizes here has NOT
+///      passed identity validation — it must also pass inspect() / build(). The V1 decoders keep their
+///      inherited minimum-length and nonzero-byte-is-true boolean rules; V2 is exact-length / canonical-bool.
 ///      V1 hooks are not used for new roots; their bytecode changed with this bind (accepted).
 ///      SECURITY INVARIANT: onBehalfOf is always hardcoded to `account` — never arbitrary.
 abstract contract BaseAaveV4LoanHook is BaseLoanHook {
@@ -168,6 +173,7 @@ abstract contract BaseAaveV4LoanHook is BaseLoanHook {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Transformation-only: reads the amount word, does not authenticate the header (inspect / build do)
     function decodeAmounts(bytes memory data) external pure virtual override returns (uint256[] memory amounts) {
         amounts = new uint256[](1);
         amounts[0] = BytesLib.toUint256(data, AAVE_V4_AMOUNT_OFFSET);
@@ -186,6 +192,8 @@ abstract contract BaseAaveV4LoanHook is BaseLoanHook {
     }
 
     /// @inheritdoc ISuperHookOutflow
+    /// @dev Transformation-only: rewrites the amount word and returns the rest of the payload — header included —
+    ///      untouched and unchecked; a mis-keyed template still fails at inspect / build
     function replaceCalldataAmounts(
         bytes memory data,
         uint256[] memory amounts

@@ -57,7 +57,14 @@ untouched by construction at the time of SUP-21141 (`AaveV4LoanBytecodeUnchanged
 
 Any other length → `INVALID_DATA_LENGTH` on build, inspect, `decodeAmounts`, `replaceCalldataAmounts`,
 `decodeUsePrevHookAmount`. The sizing views run the full strict decode (since SUP-21143 every V2 sizing view — base one-slot defaults and composite two-slot overrides — runs the
-strict decoder), so no payload the builder rejects can be sized or rewritten.
+strict decoder), so no payload the builder rejects can be sized or rewritten. **Scope of that claim: the six V2 LOAN hooks only.**
+The V1 sizing APIs (`decodeAmounts` / `replaceCalldataAmounts` / `decodeUsePrevHookAmount`) and the idle pair's are transformation
+APIs: V1 reads / rewrites the amount word(s) with the inherited minimum-length and nonzero-byte-is-true boolean rules, the idle pair
+checks exact length and canonical bool only; neither runs the header decoder, so a mis-keyed V1 / idle template sizes and rewrites
+successfully (wrong key preserved) and is refused only at `inspect()` / `build()` / `preExecute()` — templates must pass those too
+(PR #1020 review P3-1; pinned by `test_V1_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader` and
+`test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`). Sizing success on any hook is not execution viability:
+reserve / token binding, balances, mode, health and amount semantics are checked at build / execution.
 
 `inspect()` = `reserveKey ‖ spoke ‖ loanToken ‖ collateralToken ‖ supplyReserveId ‖ borrowReserveId` (144 bytes, key first — the oracle / indexing key, same rule as Morpho and the idle Aave hooks) — identical shape to the composite V2 hooks and, since SUP-21143, to the V1 hooks. The Spoke @92 remains the only call target and approve spender; the key is never called.
 
@@ -255,7 +262,8 @@ run, not by this PR). The previously deployed Ethereum addresses stay live for o
 Bundler / Erebor / OMS allow-lists must be repointed to the new addresses after deploy (out of scope).
 
 **Also from the final review (all approved):** composite OPEN V2 and the V1 Supply / SupplyAndBorrow hooks now carry the idle-position
-guard; every V2 sizing view (composite included) runs the strict decoder, so no payload build() refuses can be sized or rewritten;
+guard; every V2 sizing view (composite included) runs the strict decoder, so no V2 payload build() refuses can be sized or rewritten
+(V1 / idle sizing stays transformation-only — §3.2);
 RELEASE's and CLOSE's over-position refusal is the typed `WITHDRAW_EXCEEDS_SUPPLIED(requested, supplied)`; CLOSE's withdraw leg and
 the V1 Withdraw / RepayAndWithdraw share RELEASE's live-position / collateral-flag gate (`_requireCollateralPosition`, same check
 order — §3.3); the V1 six are still redeployed (ticket: publish new V1 addresses).

@@ -8,6 +8,7 @@ import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { ISuperHookInspector } from "../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../../src/interfaces/ISuperHook.sol";
 import { IAaveV4Spoke } from "../../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,6 +16,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Hooks
 import { BaseAaveV4LoanHook } from "../../../../src/hooks/loan/aave-v4/BaseAaveV4LoanHook.sol";
 import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
+import { HookDataDecoder } from "../../../../src/libraries/HookDataDecoder.sol";
 import { AaveV4SupplyHook } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyHook.sol";
 import { AaveV4WithdrawHook } from "../../../../src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol";
 import { AaveV4BorrowHook } from "../../../../src/hooks/loan/aave-v4/AaveV4BorrowHook.sol";
@@ -1933,6 +1935,38 @@ contract AaveV4LoanHooksTest is Helpers {
         ];
         primary =
             [supplyReserveId, supplyReserveId, borrowReserveId, borrowReserveId, supplyReserveId, supplyReserveId];
+    }
+
+    /// @dev PR #1020 review P3-1: the V1 sizing APIs are transformation-only. A mis-keyed template sizes and rewrites
+    ///      successfully (wrong key preserved) and is refused at inspect / build / preExecute; V1 also keeps its
+    ///      inherited minimum-length and nonzero-byte-is-true bool rules (V2 is exact-length / canonical-bool)
+    function test_V1_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader() public {
+        (bytes[6] memory goods, address[6] memory hooks,) = _v1Fixtures();
+        address wrongKey = AaveV4ReserveKey.computeReserveKey(spoke, 999);
+        for (uint256 i; i < 6; ++i) {
+            bytes memory bad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrongKey, _body(goods[i]));
+            uint256[] memory sized = ISuperHookInflowOutflow(hooks[i]).decodeAmounts(bad);
+            assertGt(sized.length, 0, "sizes a mis-keyed template");
+            uint256[] memory repl = new uint256[](sized.length);
+            for (uint256 j; j < repl.length; ++j) {
+                repl[j] = 7;
+            }
+            bytes memory rewritten = ISuperHookOutflow(hooks[i]).replaceCalldataAmounts(bad, repl);
+            assertEq(HookDataDecoder.extractYieldSource(rewritten), wrongKey, "wrong key preserved by the rewrite");
+            assertEq(ISuperHookInflowOutflow(hooks[i]).decodeAmounts(rewritten)[0], 7, "amount rewritten");
+            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            ISuperHook(hooks[i]).build(address(0), address(this), rewritten);
+            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            BaseHook(hooks[i]).preExecute(address(0), address(this), rewritten);
+            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            ISuperHookInspector(hooks[i]).inspect(rewritten);
+            // inherited V1 leniency, pinned: trailing bytes are accepted and any nonzero bool byte reads as true
+            bytes memory longer = abi.encodePacked(goods[i], hex"deadbeef");
+            assertGt(ISuperHook(hooks[i]).build(address(0), address(this), longer).length, 0, "min-length");
+            bytes memory oddBool = goods[i];
+            oddBool[208] = 0x02;
+            assertTrue(BaseAaveV4LoanHook(hooks[i]).decodeUsePrevHookAmount(oddBool), "nonzero byte is true");
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

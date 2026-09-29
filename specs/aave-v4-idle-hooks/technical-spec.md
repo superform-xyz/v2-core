@@ -78,7 +78,9 @@ would collapse every reserve of a spoke, and every LOAN position on it, onto one
 | 156 | `usePrevHookAmount` | strict `0x00` / `0x01`, else `INVALID_BOOL_VALUE` |
 
 Any other length → `INVALID_DATA_LENGTH` on every entry point (build, inspect, decodeAmounts,
-replaceCalldataAmounts, decodeUsePrevHookAmount).
+replaceCalldataAmounts, decodeUsePrevHookAmount). The sizing views authenticate nothing beyond exact length and canonical bool — they are transformation
+APIs; the header key is pinned at build / preExecute / inspect only (PR #1020 review P3-1,
+`test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`).
 
 `inspect()` = `reserveKey ‖ spoke ‖ underlying ‖ supplyReserveId` (92 bytes, key first — leaves are hashed over
 these raw bytes). Identical for lend and redeem; unchanged when only amount / flag / oracle id change.

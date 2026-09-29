@@ -123,8 +123,8 @@ follow-up outside this change set.
 
 ## Addendum (2026-09-29, SUP-21143 review decisions, owner-approved)
 1. Idle-position guard extended to composite OPEN V2 and V1 Supply / SupplyAndBorrow (see P3-A). 2. Every V2 sizing view — composite
-included — now runs the strict decoder (`_decodeAaveV4V2`), so an OMS can no longer size or rewrite a payload that build() refuses
-(previously length-only on OPEN / REPAY / CLOSE). 3. RELEASE over-position refusal is the typed
+included — now runs the strict decoder (`_decodeAaveV4V2`), so an OMS can no longer size or rewrite a V2 payload that build() refuses
+(previously length-only on OPEN / REPAY / CLOSE); V1 and idle sizing APIs stay transformation-only (see the PR #1020 P3-1 addendum). 3. RELEASE over-position refusal is the typed
 `WITHDRAW_EXCEEDS_SUPPLIED(requested, supplied)` (was `AMOUNT_NOT_VALID`), giving bundler dry-runs a distinct signal for the rounding
 footgun. 4. V1 six stay in `_deployAllHooks` (ticket: publish new V1 addresses). 5. Reserve-key hash and `RESERVE_KEY_MISMATCH`
 consolidated into `AaveV4ReserveKey`; `AaveV4ReserveRegistry.computeReserveKey` and the idle base delegate to it — idle pair and
@@ -156,3 +156,13 @@ classification; Morpho / Aave standalone helper duplication; Aave V3 placeholder
 - **L3:** precedence pinned (zero oracle id + wrong key → `ORACLE_ID_NOT_VALID`, composite + V1); V1 preExecute key pin for all six;
   fork CLOSE after a manual flag-off → `RESERVE_NOT_COLLATERAL` until re-enabled.
 - 12 LOAN artifacts re-pinned (V1 base changed); idle pair and registry unchanged. All suites green.
+
+## Addendum (2026-09-29, PR #1020 external review P3-1 — documentation)
+The claim that build, preExecute, inspect, `decodeAmounts` and `replaceCalldataAmounts` "all fail closed on a mis-keyed template"
+holds for the six V2 LOAN hooks only. The V1 sizing APIs read / rewrite the amount word(s) (inherited minimum-length and
+nonzero-byte-is-true bool) and the idle pair's check exact length + canonical bool; none runs the header decoder, so a mis-keyed V1 /
+idle template sizes and rewrites successfully with the wrong key preserved and is refused at inspect / build / preExecute. Not a new
+bypass (execution authenticates; V1 is excluded from new roots) — an over-broad documentation claim, corrected in the PR description,
+spec §3.2 / §8.1, idle spec and the V1 / idle base NatSpec, and pinned by `test_V1_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`
+and `test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`. Making V1 / idle sizing strict is optional hardening, not
+done here (V1 out of new roots; idle exactness is by length).

@@ -23,6 +23,8 @@ import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { BaseAaveV4MoneyMarketHook } from "../../../../src/hooks/loan/aave-v4/BaseAaveV4MoneyMarketHook.sol";
 import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
+import { HookDataDecoder } from "../../../../src/libraries/HookDataDecoder.sol";
+import { ISuperHookInspector } from "../../../../src/interfaces/ISuperHook.sol";
 import { AaveV4LendHook } from "../../../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4RedeemHook } from "../../../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { AaveV4SupplyHook } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyHook.sol";
@@ -760,5 +762,28 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         // each header pinned to its own reserve: swapping keys fails closed
         vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
         lendHook.build(address(0), account, _dataRaw(ORACLE_ID, keyOth, underlying, spoke, RESERVE_ID, AMOUNT, 0x00));
+    }
+
+    /// @dev PR #1020 review P3-1: the idle sizing APIs check exact length + canonical bool only. A mis-keyed template
+    ///      sizes and rewrites successfully (wrong key preserved) and is refused at inspect / build / preExecute
+    function test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader() public {
+        address wrongKey = _key(spoke, 0);
+        bytes memory bad = _dataRaw(ORACLE_ID, wrongKey, underlying, spoke, RESERVE_ID, AMOUNT, 0x00);
+        address[2] memory hooks = [address(lendHook), address(redeemHook)];
+        uint256[] memory repl = new uint256[](1);
+        repl[0] = 7;
+        for (uint256 i; i < 2; ++i) {
+            assertEq(ISuperHookInflowOutflow(hooks[i]).decodeAmounts(bad)[0], AMOUNT, "sizes a mis-keyed template");
+            assertFalse(BaseAaveV4MoneyMarketHook(hooks[i]).decodeUsePrevHookAmount(bad), "bool view is header-blind");
+            bytes memory rewritten = ISuperHookOutflow(hooks[i]).replaceCalldataAmounts(bad, repl);
+            assertEq(HookDataDecoder.extractYieldSource(rewritten), wrongKey, "wrong key preserved by the rewrite");
+            assertEq(ISuperHookInflowOutflow(hooks[i]).decodeAmounts(rewritten)[0], 7, "amount rewritten");
+            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            ISuperHook(hooks[i]).build(address(0), account, rewritten);
+            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            BaseHook(hooks[i]).preExecute(address(0), account, rewritten);
+            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            ISuperHookInspector(hooks[i]).inspect(rewritten);
+        }
     }
 }
