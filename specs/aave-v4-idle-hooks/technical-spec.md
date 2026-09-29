@@ -52,6 +52,11 @@ the previous-hook pipe (`_resolvePrevHookOutput`, `PREV_TOKEN_MISMATCH`) and the
 
 ### Header identity = reserve key
 
+Since SUP-21143 every Aave V4 LOAN hook (V1 six, composite V2, standalone V2) carries the same header rule through the shared
+`src/libraries/AaveV4ReserveKey.sol` (the single definition; the idle base and `AaveV4ReserveRegistry.computeReserveKey` now delegate to it, `RESERVE_KEY_MISMATCH` is
+declared there once; fuzz-pinned against the registry in the LOAN suites): `yieldSource` @32 = key of the op's primary reserve. The
+idle base was touched only to delegate (its own `_computeReserveKey` copy removed) — idle artifacts re-pinned before any deployment.
+
 Offset 32 carries `AaveV4ReserveRegistry.computeReserveKey(spoke, supplyReserveId)` =
 `address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))))`. The hooks recompute it locally (pure, no
 registry call) and pin it inside the decoder, so `build`, `preExecute` **and** `inspect` fail closed with
@@ -73,7 +78,9 @@ would collapse every reserve of a spoke, and every LOAN position on it, onto one
 | 156 | `usePrevHookAmount` | strict `0x00` / `0x01`, else `INVALID_BOOL_VALUE` |
 
 Any other length → `INVALID_DATA_LENGTH` on every entry point (build, inspect, decodeAmounts,
-replaceCalldataAmounts, decodeUsePrevHookAmount).
+replaceCalldataAmounts, decodeUsePrevHookAmount). The sizing views authenticate nothing beyond exact length and canonical bool — they are transformation
+APIs; the header key is pinned at build / preExecute / inspect only (PR #1020 review P3-1,
+`test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`).
 
 `inspect()` = `reserveKey ‖ spoke ‖ underlying ‖ supplyReserveId` (92 bytes, key first — leaves are hashed over
 these raw bytes). Identical for lend and redeem; unchanged when only amount / flag / oracle id change.
@@ -96,7 +103,8 @@ the redeem could hit the Spoke's health-factor check, and the oracle balance wou
 ledger-tracked idle supply. Added in the security review (P2-1); `getUserReserveStatus` was added to the vendored interface
 (LOAN bytecode unchanged — proven by test). **Direction:** this guard is idle-side. The reverse is guarded by the SUP-21141
 standalone hooks (`AaveV4SupplyHookV2` refuses an un-flagged position, `AaveV4WithdrawHookV2` requires the flag); the frozen V1
-`AaveV4SupplyHook` and the composite V2 OPEN are not, so the OMS allow-list must never pair an idle leaf with a V1 supply / OPEN
+`AaveV4SupplyHook` / `AaveV4SupplyAndBorrowHook` and the composite V2 OPEN carry the same guard since SUP-21143 (recompiled), and
+every recompiled LOAN withdraw leg (RELEASE, CLOSE, V1 Withdraw / RepayAndWithdraw) requires the flag (`RESERVE_NOT_COLLATERAL`); only the pre-SUP-21143 deployed addresses and a manual `setUsingAsCollateral(true)` do not, so the OMS allow-list must never pair an idle leaf with those old addresses or a manual flag toggle
 leaf for one (account, spoke, reserveId) (PR #1018 review P3-1). **Debt:** lend additionally refuses a reserve the account already
 borrows (`RESERVE_IS_BORROWED`, same staticcall) — same-asset supply + debt is pointless and, under SUP-21148 keying, would put a
 ledger-tracked supply and a debt on one key; redeem keeps only the collateral rule so an exit is never trapped (review P3-2).
@@ -190,7 +198,7 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
 | `extractYieldSource() == computeReserveKey(spoke, id)` or revert | unit `test_ReserveKey_MatchesRegistryFormula`, `test_Decode_RevertIf_HeaderKeyMismatch`; fork `test_Lend_RevertIf_HeaderKeyMismatch` |
 | `inspect()` = key + spoke + underlying + reserveId, stable under amount changes | unit `test_Inspect_ShapeAndStability`, `test_Inspect_ChangesWithReserveSpokeOrUnderlying` |
 | INFLOW / ASSETS-in lend, OUTFLOW / SHARES-in redeem; executor untouched | unit `test_HookTypes_IdleFlipsLoanStays`, `test_AmountRoles`; sizing `test_AmountRoles_*_AaveV4*`; `git diff` of `src/executors` is empty |
-| LOAN V1/V2 bytecode unchanged | `AaveV4LoanBytecodeUnchanged.t.sol` (creation code == `script/locked-bytecode/*.json` for all 9) |
+| LOAN V1/V2 bytecode unchanged by this ticket (SUP-21143 later re-pinned the 12 LOAN hooks and, via the shared `AaveV4ReserveKey` library, the idle pair as well) | `AaveV4LoanBytecodeUnchanged.t.sol` (`test_IdleHooks_BytecodePinned`; LOAN artifacts pinned) |
 | Fork tests on a supply-only reserve + collateral bitmap proof | `AaveV4IdleHooksFork.t.sol` (Ethereum Main Spoke USDC 7, block 24_884_274, 9 tests), `AaveV4IdleHooksBaseFork.t.sol` (Base MAG7 USDC 7, block 51_778_000, 3 tests) — real SuperExecutor + SuperLedger + oracle at the reserve key; security report `specs/security-reports/2026-09-28-aave-v4-idle-hooks.md` |
 | Ledger nets with identity PPS, fee 0 | fork `test_Lend_Then_RedeemFull_LedgerNets`, `_RedeemPartial_ExactAmount`, `_Warp_RedeemFull_YieldNotTaxed`, `test_Chain_Lend_Then_Redeem_UsePrev` |
 | Unregistered key fails closed | fork `test_UnregisteredKey_FailsClosed` (GHO reserve 13 → `RESERVE_NOT_REGISTERED`) |

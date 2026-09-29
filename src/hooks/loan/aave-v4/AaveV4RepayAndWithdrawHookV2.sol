@@ -15,8 +15,8 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @title AaveV4RepayAndWithdrawHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 YS oracle id
+/// @notice         address yieldSource = data.extractYieldSource(); // AaveV4ReserveKey(spoke, supplyReserveId)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
@@ -34,9 +34,11 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      own health check arbitrates whether releasing the collateral is valid. With
 ///      usePrevHookAmount the calldata cap word is ignored and the previous hook's output becomes
 ///      the cap; an output larger than the debt caps to the debt and the leftover stays in the
-///      wallet. The withdraw leg is exact and never derived from the repayment;
-///      type(uint256).max on the withdraw slot resolves to the full supplied balance
-///      (Spoke-native). Each reserve id must resolve to the declared token. outAmount publishes
+///      wallet. The withdraw leg is exact and never derived from the repayment; it is resolved against the
+///      live position before any provider execution (empty → AMOUNT_NOT_VALID, un-flagged idle position →
+///      RESERVE_NOT_COLLATERAL, above the position → WITHDRAW_EXCEEDS_SUPPLIED); type(uint256).max on the
+///      withdraw slot resolves to the full supplied balance (Spoke-native). Each reserve id must resolve to the
+///      declared token. outAmount publishes
 ///      the actual released collateral-token wallet delta with outToken = collateralToken.
 /// @dev Cap semantics close the third-party-repayment griefing vector: a partial third-party
 ///      repayment shrinks the resolved amount and a complete one skips the repay leg — neither
@@ -58,6 +60,12 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
         return "Repays debt up to a cap and withdraws an exact collateral amount from an Aave V4 spoke";
     }
 
+    /// @dev Header pin target (BaseAaveV4LoanHookV2._primaryReserveId): the header yield source must be the
+    ///      reserve key of the supply reserve
+    function _primaryReserveId(AaveV4V2Vars memory vars) internal pure override returns (uint256) {
+        return vars.supplyReserveId;
+    }
+
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -76,8 +84,8 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, false);
         _validateReserves(vars);
         (uint256 repayAssets, bool fullRepay) = _resolveRepayLeg(prevHook, account, vars);
-        // Validates the withdraw leg (zero amount / zero supplied balance under the sentinel)
-        // before any provider call; the sentinel itself is passed through so the Spoke resolves it
+        // Resolves the withdraw leg against the live position (empty / un-flagged / zero / above position all
+        // revert here) before any provider call; the sentinel itself is passed through so the Spoke resolves it
         // natively
         _resolveWithdrawLeg(account, vars);
 
@@ -112,7 +120,9 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Strict: full decode (length, addresses, header key, bool) before reading the two slots
     function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        _decodeAaveV4V2(data, false);
         return _decodeTwoAmounts(data, AMOUNT1_OFFSET, AMOUNT2_OFFSET);
     }
 
@@ -136,6 +146,7 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
         override
         returns (bytes memory)
     {
+        _decodeAaveV4V2(data, false);
         return _replaceTwoAmounts(data, amounts, AMOUNT1_OFFSET, AMOUNT2_OFFSET);
     }
 
@@ -148,16 +159,22 @@ contract AaveV4RepayAndWithdrawHookV2 is BaseAaveV4LoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Resolves the withdraw leg: exact amount, or the full supplied balance for the sentinel
+    /// @dev Resolves the withdraw leg against the account's live position, read BEFORE any provider execution (same
+    ///      gate and order as the standalone RELEASE): an empty position reverts (AMOUNT_NOT_VALID), an un-flagged
+    ///      position is the idle MONEY_MARKET side's and reverts (RESERVE_NOT_COLLATERAL), a zero word reverts
+    ///      (AMOUNT_NOT_VALID), the sentinel resolves to the full
+    ///      supplied balance (passed through so the Spoke withdraws everything natively), and an exact word above the
+    ///      position is refused with the typed WITHDRAW_EXCEEDS_SUPPLIED — Aave would otherwise silently convert it
+    ///      into a full withdrawal and the hook would fail late as DELTA_MISMATCH.
     /// @param account The executing smart account
     /// @param vars The decoded hook parameters
     /// @return The exact collateral amount the withdraw call will release
     function _resolveWithdrawLeg(address account, AaveV4V2Vars memory vars) internal view returns (uint256) {
+        uint256 supplied = _requireCollateralPosition(vars, account);
         if (vars.amount2 == 0) revert AMOUNT_NOT_VALID();
-        if (vars.amount2 != type(uint256).max) return vars.amount2;
-        uint256 supplied = _suppliedAssets(vars, account);
-        if (supplied == 0) revert AMOUNT_NOT_VALID();
-        return supplied;
+        if (vars.amount2 == type(uint256).max) return supplied;
+        if (vars.amount2 > supplied) revert WITHDRAW_EXCEEDS_SUPPLIED(vars.amount2, supplied);
+        return vars.amount2;
     }
 
     /// @inheritdoc BaseHook

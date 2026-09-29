@@ -6,6 +6,8 @@ pragma solidity 0.8.30;
 ///      state variables are not reachable through the contract type, but free constants import by name.
 address constant MORPHO_BLUE = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 bytes32 constant MORPHO_BLUE_YS_ORACLE_ID = keccak256("SUPERFORM_MORPHO_BLUE_YS");
+/// @dev Opaque Superform Aave V4 supply-YS oracle id for LOAN-hook headers (identity only; real ids are salt-derived)
+bytes32 constant AAVE_V4_SUPPLY_YS_ORACLE_ID = keccak256("SUPERFORM_AAVE_V4_YS");
 
 abstract contract Constants {
     // amounts
@@ -219,6 +221,9 @@ abstract contract Constants {
     /// @dev Superform Morpho Blue yield-source oracle id carried in the 52-byte hook header (offset 0).
     ///      The yield source (offset 32) is the Morpho Blue singleton `MORPHO`.
     bytes32 public constant MORPHO_YS_ORACLE_ID = MORPHO_BLUE_YS_ORACLE_ID;
+    /// @dev Aave V4 LOAN-hook header: this id is carried at offset 0 (must be nonzero; otherwise identity only);
+    ///      offset 32 is `AaveV4ReserveKey.computeReserveKey(spoke, primaryReserveId)`
+    bytes32 public constant AAVE_V4_YS_ORACLE_ID = AAVE_V4_SUPPLY_YS_ORACLE_ID;
 
     // Base USDC-WETH Market Constants
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;

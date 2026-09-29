@@ -68,7 +68,7 @@
   },
   {
     "hookKey": "AAVE_V4_BORROW_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -104,7 +104,7 @@
   },
   {
     "hookKey": "AAVE_V4_REPAY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -130,7 +130,7 @@
   },
   {
     "hookKey": "AAVE_V4_SUPPLY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -142,7 +142,7 @@
   },
   {
     "hookKey": "AAVE_V4_WITHDRAW_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -560,7 +560,7 @@
   },
   {
     "hookKey": "MORPHO_BORROW_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -591,7 +591,7 @@
   },
   {
     "hookKey": "MORPHO_REPAY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -615,12 +615,12 @@
   },
   {
     "hookKey": "MORPHO_SUPPLY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
     "hookKey": "MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {

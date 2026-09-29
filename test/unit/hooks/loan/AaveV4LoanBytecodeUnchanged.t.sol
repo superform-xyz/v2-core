@@ -2,6 +2,8 @@
 pragma solidity 0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 
 import { AaveV4SupplyHook } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyHook.sol";
 import { AaveV4WithdrawHook } from "../../../../src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol";
@@ -17,19 +19,32 @@ import { AaveV4RedeemHook } from "../../../../src/hooks/loan/aave-v4/AaveV4Redee
 import { AaveV4SupplyHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol";
 import { AaveV4BorrowHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol";
 import { AaveV4WithdrawHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol";
+import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
 
 /// @title AaveV4LoanBytecodeUnchangedTest
-/// @notice SUP-21142 acceptance: adding the idle MONEY_MARKET hooks must not change any LOAN V1/V2
-///         hook's bytecode. With `bytecode_hash = "none"` the creation code is a deterministic
-///         function of the sources, so equality against the locked artifact is an exact proof.
-///         The idle pair (SUP-21142) and the standalone trio (SUP-21141) are pinned to their locked
-///         artifacts the same way from the moment they are wired into deployment.
+/// @notice Every Aave V4 hook's creation code is pinned to its locked artifact. With `bytecode_hash = "none"`
+///         the creation code is a deterministic function of the sources, so equality is an exact proof.
+///         SUP-21143 (header = reserve key) deliberately re-pinned the 12 LOAN hooks (V1 six, composite V2
+///         trio, standalone V2 trio) to new artifacts — new deterministic addresses; the previously deployed
+///         Ethereum addresses stay live for old roots. Its final review then consolidated the reserve-key hash
+///         and `RESERVE_KEY_MISMATCH` into `AaveV4ReserveKey`, which the idle MONEY_MARKET pair (SUP-21142, not
+///         yet deployed) and `AaveV4ReserveRegistry` now share — so the idle pair is re-pinned as well.
 contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function _locked(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode/", name, ".json"))));
     }
 
-    function test_LoanV1_BytecodeUnchanged() public {
+    function _generated(string memory name) internal returns (bytes32) {
+        return keccak256(vm.getCode(string(abi.encodePacked("script/generated-bytecode/", name, ".json"))));
+    }
+
+    /// @dev The registry delegates its key derivation to `AaveV4ReserveKey` (SUP-21143 consolidation); it has no main
+    ///      locked artifact yet (the #1017 oracle set lives in generated + locked-dev), so pin the generated one
+    function test_ReserveRegistry_BytecodePinned() public {
+        assertEq(keccak256(type(AaveV4ReserveRegistry).creationCode), _generated("AaveV4ReserveRegistry"));
+    }
+
+    function test_LoanV1_BytecodePinned() public {
         assertEq(keccak256(type(AaveV4SupplyHook).creationCode), _locked("AaveV4SupplyHook"));
         assertEq(keccak256(type(AaveV4WithdrawHook).creationCode), _locked("AaveV4WithdrawHook"));
         assertEq(keccak256(type(AaveV4BorrowHook).creationCode), _locked("AaveV4BorrowHook"));
@@ -38,7 +53,7 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         assertEq(keccak256(type(AaveV4RepayAndWithdrawHook).creationCode), _locked("AaveV4RepayAndWithdrawHook"));
     }
 
-    function test_LoanV2_BytecodeUnchanged() public {
+    function test_LoanV2_BytecodePinned() public {
         assertEq(keccak256(type(AaveV4SupplyAndBorrowHookV2).creationCode), _locked("AaveV4SupplyAndBorrowHookV2"));
         assertEq(keccak256(type(AaveV4RepayHookV2).creationCode), _locked("AaveV4RepayHookV2"));
         assertEq(keccak256(type(AaveV4RepayAndWithdrawHookV2).creationCode), _locked("AaveV4RepayAndWithdrawHookV2"));
@@ -47,6 +62,32 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function test_IdleHooks_BytecodePinned() public {
         assertEq(keccak256(type(AaveV4LendHook).creationCode), _locked("AaveV4LendHook"));
         assertEq(keccak256(type(AaveV4RedeemHook).creationCode), _locked("AaveV4RedeemHook"));
+    }
+
+    /// @dev SUP-21143 guard: LOAN hooks do not validate `yieldSourceOracleId` because the executor never reads the
+    ///      header for NONACCOUNTING hooks. Re-typing any of the 12 to INFLOW / OUTFLOW would make the signed oracle
+    ///      id select the ledger + oracle and MUST come with the idle base's `ORACLE_ID_NOT_VALID` check — this test
+    ///      makes such a re-type a visible change. The idle pair is INFLOW / OUTFLOW by design.
+    function test_HookTypes_LoanNonAccounting_IdleAccounting() public {
+        address[12] memory loan = [
+            address(new AaveV4SupplyHook()),
+            address(new AaveV4WithdrawHook()),
+            address(new AaveV4BorrowHook()),
+            address(new AaveV4RepayHook()),
+            address(new AaveV4SupplyAndBorrowHook()),
+            address(new AaveV4RepayAndWithdrawHook()),
+            address(new AaveV4SupplyAndBorrowHookV2()),
+            address(new AaveV4RepayHookV2()),
+            address(new AaveV4RepayAndWithdrawHookV2()),
+            address(new AaveV4SupplyHookV2()),
+            address(new AaveV4BorrowHookV2()),
+            address(new AaveV4WithdrawHookV2())
+        ];
+        for (uint256 i; i < loan.length; ++i) {
+            assertEq(uint256(BaseHook(loan[i]).hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+        }
+        assertEq(uint256(new AaveV4LendHook().hookType()), uint256(ISuperHook.HookType.INFLOW));
+        assertEq(uint256(new AaveV4RedeemHook().hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
     function test_LoanV2Standalone_BytecodePinned() public {

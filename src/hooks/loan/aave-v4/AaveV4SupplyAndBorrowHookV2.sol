@@ -15,8 +15,8 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 /// @title AaveV4SupplyAndBorrowHookV2
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 YS oracle id
+/// @notice         address yieldSource = data.extractYieldSource(); // AaveV4ReserveKey(spoke, supplyReserveId)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
@@ -31,6 +31,9 @@ import { ISuperHookInspector, ISuperHookInflowOutflow, ISuperHookOutflow } from 
 ///      the collateral token. outAmount publishes the actual borrowed loan-token wallet delta with
 ///      outToken = loanToken, so downstream usePrevHookAmount consumers receive the token this
 ///      hook actually produced.
+/// @dev Idle-mode guard (SUP-21143 review): a reserve already carrying an un-flagged (idle MONEY_MARKET,
+///      ledger-tracked) position is refused (RESERVE_HAS_IDLE_POSITION) before any provider execution, so OPEN can
+///      never flip an idle position into LOAN mode — one mode per (account, reserve), same rule as PLEDGE.
 contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -46,6 +49,12 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Supplies an exact collateral amount and borrows an exact asset amount from an Aave V4 spoke";
+    }
+
+    /// @dev Header pin target (BaseAaveV4LoanHookV2._primaryReserveId): the header yield source must be the
+    ///      reserve key of the supply reserve
+    function _primaryReserveId(AaveV4V2Vars memory vars) internal pure override returns (uint256) {
+        return vars.supplyReserveId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -65,6 +74,7 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
     {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, false);
         _validateReserves(vars);
+        _requireNoIdlePosition(vars, account);
         vars.amount1 = _resolveOpenAmount1(
             prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
         );
@@ -100,7 +110,9 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
+    /// @dev Strict: full decode (length, addresses, header key, bool) before reading the two slots
     function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
+        _decodeAaveV4V2(data, false);
         return _decodeTwoAmounts(data, AMOUNT1_OFFSET, AMOUNT2_OFFSET);
     }
 
@@ -124,6 +136,7 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
         override
         returns (bytes memory)
     {
+        _decodeAaveV4V2(data, false);
         return _replaceTwoAmounts(data, amounts, AMOUNT1_OFFSET, AMOUNT2_OFFSET);
     }
 
@@ -140,6 +153,7 @@ contract AaveV4SupplyAndBorrowHookV2 is BaseAaveV4LoanHookV2 {
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         AaveV4V2Vars memory vars = _decodeAaveV4V2(data, false);
         _validateReserves(vars);
+        _requireNoIdlePosition(vars, account);
         vars.amount1 = _resolveOpenAmount1(
             prevHook, account, vars.collateralToken, vars.amount1, vars.amount2, vars.usePrevHookAmount
         );

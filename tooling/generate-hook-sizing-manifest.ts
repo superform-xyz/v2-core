@@ -259,6 +259,17 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   // Aerodrome hooks inherit sizing methods from BaseAerodromeUniversalRouterHook.
   SwapAerodromeUniversalRouterHook: { mode: "replaceCalldata" },
   ApproveAndSwapAerodromeUniversalRouterHook: { mode: "replaceCalldata" },
+  // Standalone / single-slot LOAN V2 hooks inherit decodeAmounts + replaceCalldataAmounts from their
+  // bases (BaseAaveV4StandaloneLoanHookV2 / BaseAaveV4LoanHookV2 / BaseMorphoStandaloneLoanHookV2 /
+  // BaseMorphoLoanHookV2), so the per-file grep above misses them: one sized word at the primary offset.
+  AaveV4SupplyHookV2: { mode: "replaceCalldata" },
+  AaveV4BorrowHookV2: { mode: "replaceCalldata" },
+  AaveV4WithdrawHookV2: { mode: "replaceCalldata" },
+  AaveV4RepayHookV2: { mode: "replaceCalldata" },
+  MorphoSupplyHookV2: { mode: "replaceCalldata" },
+  MorphoBorrowHookV2: { mode: "replaceCalldata" },
+  MorphoWithdrawCollateralHookV2: { mode: "replaceCalldata" },
+  MorphoRepayHookV2: { mode: "replaceCalldata" },
 
   // == offset hooks with inlined positions (no AMOUNT_POSITION constant) ==
   // All offset entries carry track: "deprecate->replaceCalldata" — offset is the legacy bridge

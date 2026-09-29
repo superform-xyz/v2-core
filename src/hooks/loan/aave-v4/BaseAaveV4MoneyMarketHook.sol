@@ -10,6 +10,7 @@ import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { BaseLoanHookV2 } from "../BaseLoanHookV2.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { AaveV4ReserveKey } from "../../../libraries/AaveV4ReserveKey.sol";
 import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 /// @title BaseAaveV4MoneyMarketHook
@@ -41,8 +42,11 @@ import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../..
 ///      AaveV4SupplyYieldSourceOracle resolves the same key through the registry (identity PPS, asset
 ///      units). Keying by the Spoke would collide every reserve of a spoke, and every LOAN position on
 ///      it, onto one accounting slot. The key is recomputed locally (pure) and pinned against the body
-///      in the decoder, so build, preExecute AND inspect all fail closed on a mismatch. The Spoke stays
-///      on the hook as the only call target and approve spender.
+///      in the decoder, so build, preExecute AND inspect all fail closed on a mismatch. The sizing views
+///      (`decodeAmounts`, `replaceCalldataAmounts`, `decodeUsePrevHookAmount`) check the exact length and
+///      the canonical bool only — they are transformation APIs and do not authenticate the header; a
+///      template that sizes must also pass inspect() / build(). The Spoke stays on the hook as the only
+///      call target and approve spender.
 ///
 ///      FAIL-CLOSED ALLOWLIST: the hooks never consult the registry; a reserve whose key is not
 ///      registered reverts at accounting (`RESERVE_NOT_REGISTERED` from the oracle), so the whole
@@ -93,9 +97,6 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @notice Thrown when the header yield-source oracle id (offset 0) is zero
     error ORACLE_ID_NOT_VALID();
 
-    /// @notice Thrown when the header yield source (offset 32) is not computeReserveKey(spoke, reserveId)
-    error RESERVE_KEY_MISMATCH();
-
     /// @notice Thrown when the calldata underlying is not the reserve's underlying on the Spoke
     error TOKEN_RESERVE_MISMATCH();
 
@@ -130,7 +131,8 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    /// @dev Single slot at offset 124 (lend: underlying assets in; redeem: 1:1 share wei in)
+    /// @dev Single slot at offset 124 (lend: underlying assets in; redeem: 1:1 share wei in). Exact length only —
+    ///      the header is not authenticated here (inspect / build do)
     function decodeAmounts(bytes memory data) external pure override returns (uint256[] memory amounts) {
         if (data.length != IDLE_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         amounts = new uint256[](1);
@@ -138,6 +140,8 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     }
 
     /// @inheritdoc ISuperHookOutflow
+    /// @dev Exact length only; the header passes through unchecked — a mis-keyed template still fails at inspect /
+    /// build
     function replaceCalldataAmounts(
         bytes memory data,
         uint256[] memory amounts
@@ -155,12 +159,6 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev Reserve key derivation. MUST stay byte-identical to
-    ///      `AaveV4ReserveRegistry.computeReserveKey` (pure keccak, documented in both places).
-    function _computeReserveKey(address spoke, uint256 reserveId) internal pure returns (address) {
-        return address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))));
-    }
 
     /// @dev Strictly decodes the idle layout: exact 157-byte length, nonzero oracle id, nonzero
     ///      addresses, canonical boolean, and the header reserve key pinned to the body. Pure, so
@@ -181,7 +179,7 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
         if (vars.reserveKey == address(0) || vars.underlying == address(0) || vars.spoke == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        if (vars.reserveKey != _computeReserveKey(vars.spoke, vars.reserveId)) revert RESERVE_KEY_MISMATCH();
+        AaveV4ReserveKey.requireHeaderKey(vars.reserveKey, vars.spoke, vars.reserveId);
     }
 
     /// @dev Binds the calldata underlying to the reserve through the Spoke's canonical
@@ -200,10 +198,13 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     ///      could hit the Spoke's health-factor check, and `getUserSuppliedAssets` — the oracle's
     ///      balance — would mix NONACCOUNTING LOAN supply with ledger-tracked idle supply. Both idle
     ///      hooks therefore refuse a collateral-flagged reserve on build and preExecute (one staticcall).
-    ///      The reverse direction is guarded by the SUP-21141 standalone hooks (PLEDGE refuses an
-    ///      un-flagged position, RELEASE requires the flag); the frozen V1 supply and composite V2 OPEN
-    ///      hooks are not, which the OMS allow-list rule covers (never an idle leaf and a V1 / OPEN leaf
-    ///      for one (account, spoke, reserveId)).
+    ///      The reverse direction is guarded by every recompiled flag-setting LOAN hook (SUP-21141 PLEDGE
+    ///      refuses an un-flagged position and RELEASE requires the flag; since SUP-21143 the composite
+    ///      V2 OPEN and the V1 Supply / SupplyAndBorrow carry the same `RESERVE_HAS_IDLE_POSITION` guard,
+    ///      and CLOSE / V1 Withdraw / V1 RepayAndWithdraw require the flag like RELEASE).
+    ///      Only the pre-SUP-21143 deployed OPEN / V1 addresses and a manual `setUsingAsCollateral(true)`
+    ///      are unguarded, which the OMS allow-list rule covers (never an idle leaf and one of those for
+    ///      one (account, spoke, reserveId)).
     /// @param vars The decoded idle parameters
     /// @param account The executing smart account
     function _requireNotCollateral(IdleVars memory vars, address account) internal view {

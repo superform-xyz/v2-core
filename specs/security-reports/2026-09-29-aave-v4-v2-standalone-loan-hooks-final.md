@@ -51,7 +51,7 @@ None found.
 - **SWC:** N/A · **Category:** Logic / accounting integrity (residual of prior P2-2)
 - **Description:** P2-2 closed PLEDGE→idle and RELEASE→un-flagged. RELEASE's mode marker is the Spoke flag alone; the flag can be set over an un-flagged idle position by OPEN V2, a V1 supply hook, or a direct `setUsingAsCollateral(true)`. After that RELEASE(max) pays the merged position with no ledger OUTFLOW. All paths are the account's own signed intents (Spoke `onlyPositionManager`), so this is a routing-policy residual, not an attacker path.
 - **Exploit Scenario:** OMS routes an OPEN V2 onto a (spoke, reserve) the same account idle-lends; the next RELEASE(max) moves ledger-tracked assets out and the idle accumulator goes stale.
-- **Resolution:** caveat added to `AaveV4WithdrawHookV2` NatSpec and spec §4; pinned by fork `test_AaveV4V2_Release_ManualFlagOverIdlePosition_PaysOut_Residual`; §9 follow-up to encode the rule in the manifest / OMS classifier. No change possible in the locked siblings; none needed in the three new hooks.
+- **Resolution:** caveat added to `AaveV4WithdrawHookV2` NatSpec and spec §4; pinned by fork `test_AaveV4V2_Release_ManualFlagOverIdlePosition_PaysOut_Residual`; §9 follow-up to encode the rule in the manifest / OMS classifier. **Narrowed after the SUP-21143 review (owner-approved):** composite OPEN V2 and the V1 Supply / SupplyAndBorrow hooks — recompiled anyway for the header bind — now carry `_requireNoIdlePosition`, so the residual is only the manual `setUsingAsCollateral(true)` self-call and the pre-SUP-21143 deployed addresses (fork `test_AaveV4V2_Open_OverIdlePosition_Refused_FlaggedPasses`, unit `test_OpenHook_Build_RevertIf_IdlePositionOnReserve`, V1 unit `test_V1_FlagSettingSupplies_RevertIf_IdlePositionOnReserve`).
 - **Reference:** vulnerabilities.md §22, §25.1; prior report P2-2.
 
 ### [P3-B] NatSpec accuracy — FIXED
@@ -60,8 +60,8 @@ None found.
 ### [P3-C] PLEDGE settles on wallet spend only; the credited position is unverified — OPTIONAL HARDENING (decision for the owner)
 - **File:** `BaseAaveV4StandaloneLoanHookV2.sol` `_settleSupplyCollateral`
 - **Category:** Logic (rounding / sparse-reserve index)
-- **Description:** `Hub.add` mints `toAddedSharesDown`, so the credited `getUserSuppliedAssets` is ≤ spend; on established reserves the loss is ≤ 1 index wei (spec §5 pins 1 wei on WETH). On a fresh or near-empty reserve with a manipulated index the round-down could be material (dTRINITY dLEND, 2026-03-17, ~$257K, six-day-old cbBTC market). Aave V4's Hub has no V3-style flash-premium index path, so the vector does not port directly; the current control is the OMS rule "only route to reserves with meaningful `getReserveSuppliedAssets`" (spec §6).
-- **Option (hooks are not yet deployed, so bytecode is still free):** snapshot `getUserSuppliedAssets` in PLEDGE `_preExecute` and require `suppliedAfter - suppliedBefore + 1 >= amount` in `_postExecute` (1-wei tolerance), converting a bad credit into a fail-closed revert. Cost: two extra Spoke staticcalls per pledge. Not required if the OMS rule is enforced. **Not applied** — left as a decision.
+- **Description:** `Hub.add` mints `toAddedSharesDown` and the position is read back via `toAddedAssetsDown`, so the credited `getUserSuppliedAssets` sits below the spend by an exchange-rate-dependent share round-trip (1 wei for 1 WETH, **2 wei** for 1_000_000_000_000_001_857 wei on the live Main Spoke at 24_884_274 — PR #1019 review P3-1; the earlier "≤ 1 wei" wording was wrong and has been corrected in the hook NatSpec and spec §5). On a fresh or near-empty reserve with a manipulated index the gap could be material (dTRINITY dLEND, 2026-03-17, ~$257K, six-day-old cbBTC market). Aave V4's Hub has no V3-style flash-premium index path, so the vector does not port directly; the current control is the OMS rule "only route to reserves with meaningful `getReserveSuppliedAssets`" (spec §6).
+- **Option (hooks are not yet deployed, so bytecode is still free):** snapshot `getUserSuppliedAssets` in PLEDGE `_preExecute` and assert the credit in `_postExecute` against a tolerance DERIVED from the provider's rounding semantics (e.g. recompute the expected credit through the Hub's `previewAddByAssets` → `previewRemoveByShares` pair, or bound the gap by one share's asset value rounded up), tested on both empty-position and top-up paths. **Do not apply a fixed `+ 1` (or `+ 2`) tolerance** — a fixed +1 would reject the ordinary 2-wei pledge above. Cost: extra Spoke/Hub reads per pledge. Not required if the OMS rule is enforced. **Not applied** — left as a decision.
 - **Reference:** vulnerabilities.md §22 / §28 analogues; evmresearch "low-decimal tokens reduce the minimum cost of inflation attacks".
 
 ### Informational (no action)
@@ -82,7 +82,7 @@ None found.
 | P2-2 RELEASE `RESERVE_NOT_COLLATERAL` after the empty-position check | base `_resolveReleaseAmount` | yes |
 | P2-3 / P3-4 off-chain pre-flight documented | spec §6 | yes |
 | P3-1 typed `HealthFactorBelowThreshold` (0x851aedc1), any-failure helper removed | fork suite | yes |
-| P3-2 over-position exact / PREV rejected; 1-wei sizing note | base; `AaveV4WithdrawHookV2` NatSpec; fork `_ExactAboveSupplied_Reverts` | yes |
+| P3-2 over-position exact / PREV rejected; round-down sizing note | base; `AaveV4WithdrawHookV2` NatSpec; fork `_ExactAboveSupplied_Reverts` | yes |
 | P3-3 PLEDGE `outAmount = 0`, `outToken = collateral` | base `_settleSupplyCollateral` | yes |
 | P3-5 / P3-6 NatSpec + test hygiene | base, sizing, fork, unit | yes |
 
@@ -112,3 +112,57 @@ Three P3 NatSpec items (P3-B), all fixed. Custom errors, explicit visibility, im
 - **Upstream sources:** `aave/aave-v4` `Spoke.sol` / `Hub.sol`; Trail of Bits 2025-11-06 (TOB-AAVE-1, -7); ChainSecurity 2026-01-28 / 2026-03-23; Aave docs (positions/withdraw, positions/managers)
 - **Historical exploits cross-referenced:** SIR.trading (EIP-1153, 2025-03), Aave ParaSwap Repay Adapter (2024-08), SwapNet/Aperture (2026-01), dTRINITY dLEND (2026-03), sAVAX rebalancer delegation (2026-04)
 - **OWASP SC Top 10 2025:** SC01/04/05/06/08 covered by design; SC02/09 N/A; SC03 residual = P3-A / P3-C; SC07 only via P3-C; SC10 whole-userOp revert on freeze/pause/caps/HF
+
+## Addendum (2026-09-29, PR #1019 external review P3-1)
+The reviewer reproduced a 2-wei credit shortfall on the live Main Spoke for a 1_000_000_000_000_001_857 wei pledge, disproving the
+"≤ 1 wei" wording used in the Withdraw hook NatSpec, spec §5 and the P3-C option above. Corrected in all three places; the fixed
+`+ 1` hardening is withdrawn in favour of a provider-derived tolerance; regression pinned by fork
+`test_AaveV4V2_Pledge_CreditRoundDown_CanExceedOneWei_Regression`. The hooks themselves were never affected (they assert the wallet
+spend, not the credit). The idle `AaveV4LendHook` NatSpec (#1018, bytecode locked) carries the same "up to 1 wei" wording — doc-only
+follow-up outside this change set.
+
+## Addendum (2026-09-29, SUP-21143 review decisions, owner-approved)
+1. Idle-position guard extended to composite OPEN V2 and V1 Supply / SupplyAndBorrow (see P3-A). 2. Every V2 sizing view — composite
+included — now runs the strict decoder (`_decodeAaveV4V2`), so an OMS can no longer size or rewrite a V2 payload that build() refuses
+(previously length-only on OPEN / REPAY / CLOSE); V1 and idle sizing APIs stay transformation-only (see the PR #1020 P3-1 addendum). 3. RELEASE over-position refusal is the typed
+`WITHDRAW_EXCEEDS_SUPPLIED(requested, supplied)` (was `AMOUNT_NOT_VALID`), giving bundler dry-runs a distinct signal for the rounding
+footgun. 4. V1 six stay in `_deployAllHooks` (ticket: publish new V1 addresses). 5. Reserve-key hash and `RESERVE_KEY_MISMATCH`
+consolidated into `AaveV4ReserveKey`; `AaveV4ReserveRegistry.computeReserveKey` and the idle base delegate to it — idle pair and
+registry artifacts re-pinned (none deployed). Remaining P3s (deploy run overwrites recorded live addresses; substring-based manifest
+classification; Morpho / Aave standalone helper duplication; Aave V3 placeholders) are follow-ups.
+
+## Addendum (2026-09-29, owner decisions after the second review round)
+- CLOSE's withdraw leg now runs the same live-position gate as RELEASE (`_requireCollateralPosition` in `BaseAaveV4LoanHookV2`: empty →
+  `AMOUNT_NOT_VALID`, un-flagged idle position → `RESERVE_NOT_COLLATERAL`, above position → typed `WITHDRAW_EXCEEDS_SUPPLIED`, sentinel →
+  full position). This also closes the CLOSE-side leg of the P3-A idle pay-out residual. `RELEASE_EXCEEDS_SUPPLIED` was renamed to
+  the shared `WITHDRAW_EXCEEDS_SUPPLIED`.
+- V1 hooks re-run the strict decode in `preExecute` (header pin; idle guard on Supply / SupplyAndBorrow), so the earlier "build-only"
+  caveat no longer applies.
+- `yieldSourceOracleId` must be nonzero on every Aave V4 LOAN hook (`ORACLE_ID_NOT_VALID`, matching the idle base and the ticket's
+  "revert on zero"); it is still not bound to a specific oracle id on-chain (NONACCOUNTING).
+- Aave V3 placeholder headers: out of scope, Aave V3 is not used.
+- 12 LOAN artifacts re-pinned again; idle pair and registry unchanged by this round.
+
+## Addendum (2026-09-29, third review round — all applied)
+- **M1 (medium):** the V1 `AaveV4WithdrawHook` / `AaveV4RepayAndWithdrawHook` were the last recompiled LOAN withdraw legs able to pay an
+  un-flagged idle (ledger-tracked) position out. `BaseAaveV4LoanHook._requireCollateralPosition(spoke, supplyReserveId, account)` now
+  gates both on build and preExecute (empty → `AMOUNT_NOT_VALID`, un-flagged → `RESERVE_NOT_COLLATERAL`). Unit
+  `test_V1_WithdrawLegs_RequireFlaggedPosition`, fork `test_AaveV4_V1_WithdrawLegs_OverIdlePosition_Refused`.
+- **L1:** CLOSE's withdraw leg checks the live position / flag before the zero word, matching RELEASE's order
+  (`test_CloseHook_WithdrawLeg_OrderMatchesRelease`); the repay leg / prev pipe is deliberately resolved first
+  (`test_CloseHook_RepayPipe_ResolvedBeforeWithdrawGate`).
+- **L2:** stale prose fixed (Constants oracle-id comment, CLOSE build comment, "OracleIdFree" test names → "AnyNonzeroOracleId",
+  spec §3.3 / §4 / §8.1, idle spec, idle base NatSpec).
+- **L3:** precedence pinned (zero oracle id + wrong key → `ORACLE_ID_NOT_VALID`, composite + V1); V1 preExecute key pin for all six;
+  fork CLOSE after a manual flag-off → `RESERVE_NOT_COLLATERAL` until re-enabled.
+- 12 LOAN artifacts re-pinned (V1 base changed); idle pair and registry unchanged. All suites green.
+
+## Addendum (2026-09-29, PR #1020 external review P3-1 — documentation)
+The claim that build, preExecute, inspect, `decodeAmounts` and `replaceCalldataAmounts` "all fail closed on a mis-keyed template"
+holds for the six V2 LOAN hooks only. The V1 sizing APIs read / rewrite the amount word(s) (inherited minimum-length and
+nonzero-byte-is-true bool) and the idle pair's check exact length + canonical bool; none runs the header decoder, so a mis-keyed V1 /
+idle template sizes and rewrites successfully with the wrong key preserved and is refused at inspect / build / preExecute. Not a new
+bypass (execution authenticates; V1 is excluded from new roots) — an over-broad documentation claim, corrected in the PR description,
+spec §3.2 / §8.1, idle spec and the V1 / idle base NatSpec, and pinned by `test_V1_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`
+and `test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`. Making V1 / idle sizing strict is optional hardening, not
+done here (V1 out of new roots; idle exactness is by length).

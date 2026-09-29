@@ -20,8 +20,8 @@ import {
 /// @title AaveV4RepayAndWithdrawHook
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 YS oracle id
+/// @notice         address yieldSource = data.extractYieldSource(); // AaveV4ReserveKey(spoke, supplyReserveId)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
@@ -71,6 +71,7 @@ contract AaveV4RepayAndWithdrawHook is BaseAaveV4LoanHook {
         returns (Execution[] memory executions)
     {
         RepayAndWithdrawHookLocalVars memory vars = _decodeRepayAndWithdrawHookData(data);
+        _requireCollateralPosition(vars.spoke, vars.supplyReserveId, account);
 
         executions = new Execution[](5);
         executions[0] = Execution({
@@ -172,7 +173,14 @@ contract AaveV4RepayAndWithdrawHook is BaseAaveV4LoanHook {
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         RepayAndWithdrawHookLocalVars memory vars = _decodeRepayAndWithdrawHookData(data);
-        return abi.encodePacked(vars.spoke);
+        return _inspectAaveV4(
+            vars.reserveKey,
+            vars.spoke,
+            vars.loanToken,
+            vars.collateralToken,
+            vars.supplyReserveId,
+            vars.borrowReserveId
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -181,6 +189,9 @@ contract AaveV4RepayAndWithdrawHook is BaseAaveV4LoanHook {
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
+        // Re-run the strict decode (header key pin) on the execution path, like the V2 hooks
+        RepayAndWithdrawHookLocalVars memory vars = _decodeRepayAndWithdrawHookData(data);
+        _requireCollateralPosition(vars.spoke, vars.supplyReserveId, account);
         _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 

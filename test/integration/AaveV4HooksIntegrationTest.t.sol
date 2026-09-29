@@ -9,6 +9,12 @@ import "forge-std/console2.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { AaveV4ReserveKey } from "../../src/libraries/AaveV4ReserveKey.sol";
+import { BaseAaveV4LoanHook } from "../../src/hooks/loan/aave-v4/BaseAaveV4LoanHook.sol";
+import { BaseHook } from "../../src/hooks/BaseHook.sol";
+import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
+import { VmSafe } from "forge-std/Vm.sol";
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { AaveV4SupplyHook } from "../../src/hooks/loan/aave-v4/AaveV4SupplyHook.sol";
 import { AaveV4WithdrawHook } from "../../src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol";
@@ -77,8 +83,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
     /// usePrevHookAmount(1)
     function _createSupplyData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), // yieldSourceOracleId (52-byte header: bytes 0-31)
-            address(0), // yieldSource (52-byte header: bytes 32-51)
+            AAVE_V4_YS_ORACLE_ID, // yieldSourceOracleId (identity only)
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), // yieldSource = primary reserve key
             CHAIN_1_USDC, // loanToken
             CHAIN_1_WETH, // collateralToken
             SPOKE_ADDR, // spoke
@@ -91,14 +97,28 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
 
     function _createWithdrawData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WETH,
+            SPOKE_ADDR,
+            WETH_RESERVE_ID,
+            USDC_RESERVE_ID,
+            amount,
             usePrevHookAmount
         );
     }
 
     function _createBorrowData(uint256 amount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            bytes32(0), address(0), CHAIN_1_USDC, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, amount,
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID),
+            CHAIN_1_USDC,
+            CHAIN_1_WETH,
+            SPOKE_ADDR,
+            WETH_RESERVE_ID,
+            USDC_RESERVE_ID,
+            amount,
             usePrevHookAmount
         );
     }
@@ -113,8 +133,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -136,8 +156,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -160,8 +180,8 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID),
             CHAIN_1_USDC,
             CHAIN_1_WETH,
             SPOKE_ADDR,
@@ -198,6 +218,38 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
+    }
+
+    /// @dev Executes and asserts the userOp execution phase reverted with `expectedSelector`
+    ///      (UserOperationRevertReason)
+    function _executeHookExpectFailure(address hook, bytes memory data, bytes4 expectedSelector) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = hook;
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = data;
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        ExecutionReturnData memory ret = executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
+        bytes32 revertTopic = keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)");
+        bool found;
+        for (uint256 i; i < ret.logs.length; ++i) {
+            VmSafe.Log memory log = ret.logs[i];
+            if (log.topics.length > 0 && log.topics[0] == revertTopic) {
+                bytes memory blob = log.data;
+                for (uint256 j; j + 4 <= blob.length; ++j) {
+                    if (
+                        blob[j] == expectedSelector[0] && blob[j + 1] == expectedSelector[1]
+                            && blob[j + 2] == expectedSelector[2] && blob[j + 3] == expectedSelector[3]
+                    ) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (found) break;
+        }
+        assertTrue(found, "expected UserOperationRevertReason with the given selector");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -552,5 +604,151 @@ contract AaveV4HooksIntegrationTest is MinimalBaseIntegrationTest {
 
         assertEq(wethBefore - wethAfter, newAmount, "Should spend exactly replaced amount");
         assertApproxEqAbs(supplied, newAmount, 1, "Supplied amount should match replaced amount");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                V1 HEADER BIND + IDLE GUARD ON THE LIVE SPOKE (SUP-21143)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice V1 inspect() now packs the same 144-byte key-first identity as V2 (supply key for Supply / Withdraw /
+    ///         SupplyAndBorrow / RepayAndWithdraw, borrow key for Borrow / Repay)
+    function test_AaveV4_V1_Inspect_KeyFirst_AllSixOps() external view {
+        bytes memory tail = abi.encodePacked(SPOKE_ADDR, CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        bytes memory expS = abi.encodePacked(AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), tail);
+        bytes memory expB = abi.encodePacked(AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID), tail);
+        assertEq(expS.length, 144);
+        assertEq(supplyHook.inspect(_createSupplyData(1 ether, false)), expS);
+        assertEq(withdrawHook.inspect(_createWithdrawData(1 ether, false)), expS);
+        assertEq(borrowHook.inspect(_createBorrowData(1e6, false)), expB);
+        assertEq(repayHook.inspect(_createRepayData(1e6, false, false)), expB);
+        assertEq(supplyAndBorrowHook.inspect(_createSupplyAndBorrowData(1 ether, false, 1e6)), expS);
+        assertEq(repayAndWithdrawHook.inspect(_createRepayAndWithdrawData(1e6, false, false, 1 ether)), expS);
+    }
+
+    /// @notice A wrong header key (borrow key on a Supply) is refused through the real userOp path before any Spoke
+    ///         call; the zero key is an address error
+    function test_AaveV4_V1_WrongHeaderKey_Reverts_StateUnchanged() external {
+        bytes memory good = _createSupplyData(1 ether, false);
+        bytes memory body = new bytes(good.length - 52);
+        for (uint256 i; i < body.length; ++i) {
+            body[i] = good[52 + i];
+        }
+        _executeHookExpectFailure(
+            address(supplyHook),
+            abi.encodePacked(
+                AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID), body
+            ),
+            AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector
+        );
+        _executeHookExpectFailure(
+            address(supplyHook),
+            abi.encodePacked(AAVE_V4_YS_ORACLE_ID, address(0), body),
+            BaseHook.ADDRESS_NOT_VALID.selector
+        );
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), 0, "nothing supplied");
+    }
+
+    /// @notice V1 flag-setting supplies refuse an un-flagged idle position (one mode per account / reserve); flagged or
+    ///         fresh reserves supply normally
+    function test_AaveV4_V1_Supply_OverIdlePosition_Refused() external {
+        vm.startPrank(accountEth);
+        IERC20(CHAIN_1_WETH).approve(SPOKE_ADDR, 1 ether);
+        IAaveV4Spoke(SPOKE_ADDR).supply(WETH_RESERVE_ID, 1 ether, accountEth); // idle-style, un-flagged
+        vm.stopPrank();
+        uint256 before = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+        _executeHookExpectFailure(
+            address(supplyHook),
+            _createSupplyData(1 ether, false),
+            BaseAaveV4LoanHook.RESERVE_HAS_IDLE_POSITION.selector
+        );
+        _executeHookExpectFailure(
+            address(supplyAndBorrowHook),
+            _createSupplyAndBorrowData(1 ether, false, 100e6),
+            BaseAaveV4LoanHook.RESERVE_HAS_IDLE_POSITION.selector
+        );
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), before, "idle position untouched");
+        vm.prank(accountEth);
+        IAaveV4Spoke(SPOKE_ADDR).setUsingAsCollateral(WETH_RESERVE_ID, true, accountEth);
+        _executeHook(address(supplyHook), _createSupplyData(1 ether, false));
+        assertApproxEqAbs(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), before + 1 ether, 2);
+    }
+
+    /// @notice V1 withdraw legs never pay an un-flagged idle position out on the live Spoke: Withdraw and
+    ///         RepayAndWithdraw are refused (RESERVE_NOT_COLLATERAL); once the account flags the reserve, Withdraw pays
+    function test_AaveV4_V1_WithdrawLegs_OverIdlePosition_Refused() external {
+        vm.startPrank(accountEth);
+        IERC20(CHAIN_1_WETH).approve(SPOKE_ADDR, 1 ether);
+        IAaveV4Spoke(SPOKE_ADDR).supply(WETH_RESERVE_ID, 1 ether, accountEth); // idle-style, un-flagged
+        vm.stopPrank();
+        uint256 before = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+        _executeHookExpectFailure(
+            address(withdrawHook),
+            _createWithdrawData(0.5 ether, false),
+            BaseAaveV4LoanHook.RESERVE_NOT_COLLATERAL.selector
+        );
+        _executeHookExpectFailure(
+            address(repayAndWithdrawHook),
+            _createRepayAndWithdrawData(1e6, false, false, 0.5 ether),
+            BaseAaveV4LoanHook.RESERVE_NOT_COLLATERAL.selector
+        );
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), before, "idle position untouched");
+        vm.prank(accountEth);
+        IAaveV4Spoke(SPOKE_ADDR).setUsingAsCollateral(WETH_RESERVE_ID, true, accountEth);
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        _executeHook(address(withdrawHook), _createWithdrawData(0.5 ether, false));
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth) - wethBefore, 0.5 ether, "flagged: withdraw pays");
+    }
+
+    /// @notice Real-life V1 lifecycle across the mode boundary: supply+borrow, repay in full, the account clears the
+    ///         collateral flag itself (allowed once debt is zero) — RepayAndWithdraw is now refused
+    ///         (RESERVE_NOT_COLLATERAL) and the position is untouched; re-flag, borrow again, then
+    ///         RepayAndWithdraw(full, max) unwinds everything
+    function test_AaveV4_V1_RepayAndWithdraw_ManualFlagOff_Refused_UntilReenabled() external {
+        _executeHook(
+            address(supplyAndBorrowHook), _createSupplyAndBorrowData(SUPPLY_AMOUNT, false, BORROW_AMOUNT)
+        );
+        _getTokens(CHAIN_1_USDC, accountEth, IERC20(CHAIN_1_USDC).balanceOf(accountEth) + 10e6);
+        _executeHook(address(repayHook), _createRepayData(0, false, true));
+        (uint256 debt,) = spoke.getUserDebt(USDC_RESERVE_ID, accountEth);
+        assertEq(debt, 0, "debt cleared");
+        vm.prank(accountEth);
+        IAaveV4Spoke(SPOKE_ADDR).setUsingAsCollateral(WETH_RESERVE_ID, false, accountEth);
+        uint256 supplied = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+        _executeHookExpectFailure(
+            address(repayAndWithdrawHook),
+            _createRepayAndWithdrawData(0, false, true, type(uint256).max),
+            BaseAaveV4LoanHook.RESERVE_NOT_COLLATERAL.selector
+        );
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), supplied, "un-flagged position untouched");
+        vm.prank(accountEth);
+        IAaveV4Spoke(SPOKE_ADDR).setUsingAsCollateral(WETH_RESERVE_ID, true, accountEth);
+        _executeHook(address(borrowHook), _createBorrowData(BORROW_AMOUNT, false));
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        _executeHook(address(repayAndWithdrawHook), _createRepayAndWithdrawData(0, false, true, type(uint256).max));
+        (debt,) = spoke.getUserDebt(USDC_RESERVE_ID, accountEth);
+        assertEq(debt, 0, "unwound: no debt");
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), 0, "unwound: no supply");
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth) - wethBefore, supplied, "full collateral returned");
+    }
+
+    /// @notice A zero `yieldSourceOracleId` is refused by the V1 hooks on the execution path (ORACLE_ID_NOT_VALID via
+    ///         userOp), both for a flag-setting supply and for a withdraw over a flagged position; the live position is
+    ///         untouched
+    function test_AaveV4_V1_ZeroOracleId_Refused_StateUnchanged() external {
+        bytes memory supplyZero = _zeroOracleId(_createSupplyData(SUPPLY_AMOUNT, false));
+        _executeHookExpectFailure(address(supplyHook), supplyZero, BaseAaveV4LoanHook.ORACLE_ID_NOT_VALID.selector);
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), 0, "nothing supplied");
+        _executeHook(address(supplyHook), _createSupplyData(SUPPLY_AMOUNT, false));
+        uint256 supplied = spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth);
+        bytes memory withdrawZero = _zeroOracleId(_createWithdrawData(0.5 ether, false));
+        _executeHookExpectFailure(address(withdrawHook), withdrawZero, BaseAaveV4LoanHook.ORACLE_ID_NOT_VALID.selector);
+        assertEq(spoke.getUserSuppliedAssets(WETH_RESERVE_ID, accountEth), supplied, "position untouched");
+    }
+
+    function _zeroOracleId(bytes memory data) internal pure returns (bytes memory out) {
+        out = data;
+        for (uint256 i; i < 32; ++i) {
+            out[i] = 0;
+        }
     }
 }
