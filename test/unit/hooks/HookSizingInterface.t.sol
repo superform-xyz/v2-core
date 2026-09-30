@@ -216,6 +216,9 @@ import { FetchNativeFeeHook } from "../../../src/hooks/sponsorship/FetchNativeFe
 // ═══════════════════════════════════════════════════════
 import { MorphoSupplyHook } from "../../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
 import { MorphoLendHook } from "../../../src/hooks/loan/morpho/MorphoLendHook.sol";
+import { AaveV4LendHook } from "../../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
+import { AaveV4RedeemHook } from "../../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
+import { BaseLoanHookV2 } from "../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { MorphoBorrowHook } from "../../../src/hooks/loan/morpho/MorphoBorrowHook.sol";
 import { MorphoRepayHook } from "../../../src/hooks/loan/morpho/MorphoRepayHook.sol";
 import { MorphoSupplyAndBorrowHook } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
@@ -337,6 +340,8 @@ contract HookSizingInterfaceTest is Helpers {
     // ──────── Loan hooks (TOKEN) ────────
     MorphoSupplyHook morphoSupply;
     MorphoLendHook morphoLend;
+    AaveV4LendHook aaveV4Lend;
+    AaveV4RedeemHook aaveV4Redeem;
     MorphoBorrowHook morphoBorrow;
     MorphoRepayHook morphoRepay;
     MorphoSupplyAndBorrowHook morphoSupplyAndBorrow;
@@ -488,6 +493,8 @@ contract HookSizingInterfaceTest is Helpers {
         // ── Loan hooks ──
         morphoSupply = new MorphoSupplyHook(DUMMY_MORPHO);
         morphoLend = new MorphoLendHook(DUMMY_MORPHO);
+        aaveV4Lend = new AaveV4LendHook();
+        aaveV4Redeem = new AaveV4RedeemHook();
         morphoBorrow = new MorphoBorrowHook(DUMMY_MORPHO);
         morphoRepay = new MorphoRepayHook(DUMMY_MORPHO);
         morphoSupplyAndBorrow = new MorphoSupplyAndBorrowHook(DUMMY_MORPHO);
@@ -3185,6 +3192,77 @@ contract HookSizingInterfaceTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                     HELPERS
     //////////////////////////////////////////////////////////////*/
+
+
+    /*//////////////////////////////////////////////////////////////
+           AAVE V4 IDLE MONEY_MARKET (SUP-21142): exact 157-byte layout
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev oracleId(32) + reserveKey(20) + underlying(20) + spoke(20) + reserveId(32) + amount@124(32) + bool@156 = 157
+    function _buildAaveV4IdleData(uint256 amt, bool usePrev) internal pure returns (bytes memory) {
+        address spoke = address(0xCC);
+        uint256 reserveId = 7;
+        address key = address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))));
+        return abi.encodePacked(bytes32(uint256(1)), key, address(0xAA), spoke, reserveId, amt, usePrev);
+    }
+
+    function test_AmountRoles_ASSETS_AaveV4Lend() public view {
+        _assertSingleMeta(aaveV4Lend.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.ASSETS);
+    }
+
+    function test_AmountRoles_SHARES_AaveV4Redeem() public view {
+        _assertSingleMeta(aaveV4Redeem.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.SHARES);
+    }
+
+    function test_DecodeReplace_Roundtrip_AaveV4Lend() public view {
+        bytes memory data = _buildAaveV4IdleData(2e6, false);
+        assertEq(data.length, 157);
+        uint256[] memory a = new uint256[](1);
+        a[0] = 8e6;
+        bytes memory replaced = aaveV4Lend.replaceCalldataAmounts(data, a);
+        assertEq(replaced.length, 157);
+        assertEq(aaveV4Lend.decodeAmounts(replaced)[0], 8e6);
+        assertEq(aaveV4Lend.inspect(replaced), aaveV4Lend.inspect(data), "identity survives sizing");
+    }
+
+    function test_DecodeReplace_Roundtrip_AaveV4Redeem() public view {
+        bytes memory data = _buildAaveV4IdleData(3e6, true);
+        uint256[] memory a = new uint256[](1);
+        a[0] = type(uint256).max; // full withdrawal sentinel survives replacement
+        bytes memory replaced = aaveV4Redeem.replaceCalldataAmounts(data, a);
+        assertEq(aaveV4Redeem.decodeAmounts(replaced)[0], type(uint256).max);
+        assertTrue(aaveV4Redeem.decodeUsePrevHookAmount(replaced), "flag preserved");
+    }
+
+    function test_DecodeUsePrevHookAmount_Strict_AaveV4Idle() public {
+        assertTrue(aaveV4Lend.decodeUsePrevHookAmount(_buildAaveV4IdleData(1, true)));
+        assertFalse(aaveV4Redeem.decodeUsePrevHookAmount(_buildAaveV4IdleData(1, false)));
+        bytes memory bad = _buildAaveV4IdleData(1, false);
+        bad[156] = 0x02;
+        vm.expectRevert(BaseLoanHookV2.INVALID_BOOL_VALUE.selector);
+        aaveV4Lend.decodeUsePrevHookAmount(bad);
+        vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+        aaveV4Redeem.decodeUsePrevHookAmount(abi.encodePacked(bad, bytes1(0)));
+    }
+
+    function test_ReplaceCalldataAmounts_RevertsWrongLength_AaveV4Idle() public {
+        uint256[] memory a = new uint256[](1);
+        bytes memory short = abi.encodePacked(bytes32(uint256(1)), address(0xAA));
+        vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+        aaveV4Lend.replaceCalldataAmounts(short, a);
+        vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+        aaveV4Redeem.decodeAmounts(short);
+        uint256[] memory two = new uint256[](2);
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        aaveV4Redeem.replaceCalldataAmounts(_buildAaveV4IdleData(1, false), two);
+    }
+
+    function test_SupportsInterface_AaveV4Idle() public view {
+        assertTrue(aaveV4Lend.supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
+        assertTrue(aaveV4Lend.supportsInterface(type(ISuperHookOutflow).interfaceId));
+        assertTrue(aaveV4Redeem.supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
+        assertTrue(aaveV4Redeem.supportsInterface(type(ISuperHookOutflow).interfaceId));
+    }
 
     function _assertSingleMeta(
         ISuperHookInflowOutflow.AmountMeta[] memory meta,

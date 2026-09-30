@@ -1759,6 +1759,9 @@ contract MorphoBlueMarketBaseFork is Test, Constants {
     MorphoBlueYieldSourceOracle public oracle;
     SuperLedgerConfiguration public ledgerConfig;
 
+    /// @dev Timestamp of BASE_BLOCK (26_885_730); the fork env is pinned to it in setUp
+    uint256 internal constant BASE_BLOCK_TIMESTAMP = 1_740_560_807;
+
     /// @dev Idle USDC market key (loanToken=USDC, collateralToken=0, oracle=0, irm=0, lltv=0)
     address public idleUsdcKey;
 
@@ -1770,6 +1773,10 @@ contract MorphoBlueMarketBaseFork is Test, Constants {
     function setUp() public {
         string memory rpcUrl = vm.envString("BASE_RPC_URL");
         vm.createSelectFork(rpcUrl, BASE_BLOCK);
+        // Morpho's accrual and the oracle both compute `block.timestamp - market.lastUpdate`; the idle markets
+        // below were last touched on-chain at 1740560791, 16s before BASE_BLOCK. CI (foundry 1.4.4, --jobs 10)
+        // has intermittently reported a fork timestamp earlier than the pinned block's, which underflows both.
+        if (block.timestamp < BASE_BLOCK_TIMESTAMP) vm.warp(BASE_BLOCK_TIMESTAMP);
 
         ledgerConfig = new SuperLedgerConfiguration();
         registry = new MorphoBlueMarketRegistry(address(this));

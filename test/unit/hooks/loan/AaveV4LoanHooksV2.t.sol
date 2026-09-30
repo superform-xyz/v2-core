@@ -16,6 +16,9 @@ import { IAaveV4Spoke } from "../../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { HookSubTypes } from "../../../../src/libraries/HookSubTypes.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
+import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
+import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
 // Hooks
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { BaseAaveV4LoanHookV2 } from "../../../../src/hooks/loan/aave-v4/BaseAaveV4LoanHookV2.sol";
@@ -31,6 +34,7 @@ contract MockAaveV4SpokeV2 {
     mapping(uint256 reserveId => mapping(address user => uint256 drawn)) public drawnDebt;
     mapping(uint256 reserveId => mapping(address user => uint256 premium)) public premiumDebt;
     mapping(uint256 reserveId => mapping(address user => uint256 supplied)) public suppliedAssets;
+    mapping(uint256 reserveId => mapping(address user => bool flag)) public usingAsCollateral;
 
     /*//////////////////////////////////////////////////////////////
                               SETTERS
@@ -85,7 +89,13 @@ contract MockAaveV4SpokeV2 {
         return (amount, 0);
     }
 
-    function setUsingAsCollateral(uint256, bool, address) external { }
+    function setUsingAsCollateral(uint256 reserveId, bool flag, address user) external {
+        usingAsCollateral[reserveId][user] = flag;
+    }
+
+    function getUserReserveStatus(uint256 reserveId, address user) external view returns (bool, bool) {
+        return (usingAsCollateral[reserveId][user], false);
+    }
 }
 
 /// @dev Previous-hook stub with settable output amount and output token
@@ -164,6 +174,8 @@ contract AaveV4LoanHooksV2Test is Helpers {
         // The test contract acts as the smart account and has debt + supplied assets
         mockSpoke.setUserDebt(borrowReserveId, address(this), drawnDebt, premiumDebt);
         mockSpoke.setUserSuppliedAssets(supplyReserveId, address(this), suppliedAssets);
+        // LOAN mode: the supplied position is flagged as collateral (OPEN refuses an un-flagged idle position)
+        mockSpoke.setUsingAsCollateral(supplyReserveId, true, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -228,8 +240,9 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     function test_Build_RevertIf_InvalidBoolValue() public {
-        bytes memory data =
-            _encode(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x02), borrowAmount);
+        bytes memory data = _encode(
+            loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x02), borrowAmount
+        );
 
         vm.expectRevert(BaseLoanHookV2.INVALID_BOOL_VALUE.selector);
         openHook.build(address(0), address(this), data);
@@ -241,8 +254,9 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     function test_Build_RevertIf_ZeroLoanToken() public {
-        bytes memory data =
-            _encode(address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount);
+        bytes memory data = _encode(
+            address(0), collateralToken, spoke, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount
+        );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         openHook.build(address(0), address(this), data);
     }
@@ -294,7 +308,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     function test_RepayHook_Build_RevertIf_BorrowReserveMismatch() public {
         mockSpoke.setReserveUnderlying(borrowReserveId, address(mockOtherToken));
         vm.expectRevert(BaseAaveV4LoanHookV2.TOKEN_RESERVE_MISMATCH.selector);
-        repayHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        repayHook.build(address(0), address(this), _repayData(amount, false));
     }
 
     function test_CloseHook_Build_RevertIf_SupplyReserveMismatch() public {
@@ -333,7 +347,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
         prevHook.setOutToken(loanToken);
         prevHook.setOutAmount(prevAmount);
 
-        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(MAX, true, 0));
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _repayData(MAX, true));
         assertEq(executions.length, 6);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, prevAmount)));
         assertEq(
@@ -357,7 +371,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
     function test_RepayHook_Build_RevertIf_ZeroAmount() public {
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        repayHook.build(address(0), address(this), _defaultData(0, false, 0));
+        repayHook.build(address(0), address(this), _repayData(0, false));
     }
 
     function test_CloseHook_Build_RevertIf_ZeroRepayAmount() public {
@@ -377,7 +391,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     function test_RepayHook_Build_ZeroDebt_Graceful_NoOps() public {
         // Zero total debt: the repay leg is skipped instead of reverting
         mockSpoke.setUserDebt(borrowReserveId, address(this), 0, 0);
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(amount, false));
         assertEq(executions.length, 2); // preExecute + postExecute only
     }
 
@@ -401,14 +415,14 @@ contract AaveV4LoanHooksV2Test is Helpers {
         prevHook.setOutToken(collateralToken); // wrong token for the repay slot
         prevHook.setOutAmount(1e18);
 
-        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _repayData(amount, true));
         assertEq(executions.length, 2);
     }
 
     function test_RepayHook_Build_PremiumOnlyDebt_DoesNotRevert() public {
         // drawn = 0 but premium > 0 → total debt = drawn + premium > 0
         mockSpoke.setUserDebt(borrowReserveId, address(this), 0, premiumDebt);
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(amount, false));
         assertEq(executions.length, 6);
     }
 
@@ -423,7 +437,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
     function test_RepayHook_Build_RevertIf_PrevHookZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        repayHook.build(address(0), address(this), _defaultData(amount, true, 0));
+        repayHook.build(address(0), address(this), _repayData(amount, true));
     }
 
     function test_OpenHook_Build_RevertIf_PrevTokenMismatch() public {
@@ -439,7 +453,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
         prevHook.setOutToken(collateralToken);
         prevHook.setOutAmount(2e18);
         vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
-        repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        repayHook.build(address(prevHook), address(this), _repayData(amount, true));
     }
 
     function test_CloseHook_Build_RevertIf_PrevTokenMismatch() public {
@@ -461,7 +475,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
         prevHook.setOutToken(loanToken);
         prevHook.setOutAmount(0);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        repayHook.build(address(prevHook), address(this), _repayData(amount, true));
     }
 
     function test_OpenHook_BuildWithPrevHook_HappyPath() public {
@@ -489,7 +503,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
         prevHook.setOutToken(loanToken);
         prevHook.setOutAmount(prevAmount);
 
-        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _repayData(amount, true));
 
         assertEq(executions.length, 6);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, prevAmount)));
@@ -503,9 +517,11 @@ contract AaveV4LoanHooksV2Test is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_OpenHook_Build_Shape() public view {
-        Execution[] memory executions = openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount));
+        Execution[] memory executions =
+            openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount));
 
-        // preExecute + approve(0) + approve(amount1) + supply + setUsingAsCollateral + borrow + approve(0) + postExecute
+        // preExecute + approve(0) + approve(amount1) + supply + setUsingAsCollateral + borrow + approve(0) +
+        // postExecute
         assertEq(executions.length, 8);
         assertEq(executions[0].target, address(openHook));
         assertEq(executions[1].target, collateralToken);
@@ -531,7 +547,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     function test_RepayHook_Build_Shape() public view {
         // Cap below the total debt (1e18) → exact assets-denominated repay of the cap
         uint256 partialCap = 7e17;
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(partialCap, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(partialCap, false));
 
         // preExecute + approve(0) + approve(cap) + repay + approve(0) + postExecute
         assertEq(executions.length, 6);
@@ -578,7 +594,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     function test_RepayHook_Build_FullRepay() public view {
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(MAX, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(MAX, false));
 
         assertEq(executions.length, 6);
         // approval is exactly the resolved total debt (drawn + premium), not the sentinel
@@ -601,7 +617,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
         // Behavior change vs pre-cap semantics: a non-sentinel cap == total debt is a predicted
         // clear and emits repay(max) so the Spoke clears the debt without rounding dust
         uint256 debt = drawnDebt + premiumDebt;
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(debt, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(debt, false));
         assertEq(executions.length, 6);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, debt)));
         assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
@@ -610,7 +626,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     function test_RepayHook_Build_CapAboveDebt_MinsWithDebt() public view {
         // cap > debt resolves to the debt; approval covers the debt, never the cap
         uint256 debt = drawnDebt + premiumDebt;
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(debt + 5e17, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(debt + 5e17, false));
         assertEq(executions.length, 6);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, debt)));
         assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
@@ -619,7 +635,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     function test_RepayHook_Build_CapBetweenDrawnAndTotal_ExactRepay() public view {
         // drawn < cap < drawn + premium: still a partial repay of the exact cap
         uint256 cap = drawnDebt + premiumDebt / 2;
-        Execution[] memory executions = repayHook.build(address(0), address(this), _defaultData(cap, false, 0));
+        Execution[] memory executions = repayHook.build(address(0), address(this), _repayData(cap, false));
         assertEq(executions.length, 6);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, cap)));
         assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, cap, address(this))));
@@ -631,7 +647,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
         prevHook.setOutToken(loanToken);
         prevHook.setOutAmount(debt * 2);
 
-        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _defaultData(amount, true, 0));
+        Execution[] memory executions = repayHook.build(address(prevHook), address(this), _repayData(amount, true));
         assertEq(executions.length, 6);
         assertEq(executions[2].callData, abi.encodeCall(IERC20.approve, (spoke, debt)));
         assertEq(executions[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (borrowReserveId, MAX, address(this))));
@@ -639,7 +655,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
     function test_RepayHook_SettleRoundTrip_ZeroDebt_Graceful() public {
         mockSpoke.setUserDebt(borrowReserveId, address(this), 0, 0);
-        bytes memory data = _defaultData(amount, false, 0);
+        bytes memory data = _repayData(amount, false);
         mockLoanToken.mint(address(this), amount);
 
         repayHook.preExecute(address(0), address(this), data);
@@ -724,11 +740,9 @@ contract AaveV4LoanHooksV2Test is Helpers {
     /// @dev AaveV4RepayHookV2 does NOT override the sizing interface, so it inherits
     ///      BaseLoanHook's single-slot implementation pinned to the legacy Morpho-shaped offset
     ///      132 — NOT the V2 layout's amount1 offset 176. This test documents the actual (buggy)
-    ///      behavior: decodeAmounts reads a garbage overlap of the two reserve-id words, and
-    ///      replaceCalldataAmounts leaves the real repay amount untouched while corrupting the
-    ///      reserve ids. See the accompanying report — a src fix should override these at 176.
+    /// @dev Single-slot views read / rewrite offset 176 (fixed long ago; kept as the regression pin).
     function test_RepayHook_SizingInterface_SingleSlotAtOffset176() public {
-        bytes memory data = _defaultData(amount, false, 0);
+        bytes memory data = _repayData(amount, false);
 
         // decodeAmounts reads the actual repay amount at the Aave V4 V2 offset 176
         uint256[] memory amounts = repayHook.decodeAmounts(data);
@@ -779,13 +793,110 @@ contract AaveV4LoanHooksV2Test is Helpers {
                              INSPECT TESTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev SUP-21143: reserve key FIRST (op primary: supply reserve for OPEN / CLOSE, borrow reserve for REPAY),
+    ///      then spoke, tokens and both reserve ids — 144 bytes
     function test_Inspect_Payload_AllHooks() public view {
-        bytes memory expected =
-            abi.encodePacked(spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId);
+        bytes memory expectedSupplyKeyed = abi.encodePacked(
+            _key(spoke, supplyReserveId), spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId
+        );
+        bytes memory expectedBorrowKeyed = abi.encodePacked(
+            _key(spoke, borrowReserveId), spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId
+        );
+        assertEq(expectedSupplyKeyed.length, 144);
+        assertEq(openHook.inspect(_defaultData(amount, false, borrowAmount)), expectedSupplyKeyed);
+        assertEq(repayHook.inspect(_repayData(amount, false)), expectedBorrowKeyed);
+        assertEq(closeHook.inspect(_defaultData(amount, false, withdrawAmount)), expectedSupplyKeyed);
+    }
 
-        assertEq(openHook.inspect(_defaultData(amount, false, borrowAmount)), expected);
-        assertEq(repayHook.inspect(_defaultData(amount, false, 0)), expected);
-        assertEq(closeHook.inspect(_defaultData(amount, false, withdrawAmount)), expected);
+    /*//////////////////////////////////////////////////////////////
+                    HEADER BIND (SUP-21143) — COMPOSITE OPS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The header yield source must be the reserve key of the op's primary reserve on the calldata Spoke; the
+    ///      oracle id is identity only. Wrong keys (other reserve, other spoke, spoke-as-key, unrelated) revert on
+    ///      build, preExecute, inspect AND the (now strict) composite sizing views.
+    function test_Header_KeyPinned_AnyNonzeroOracleId_AllHooks() public {
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            bool isRepay = i == 1;
+            uint256 primary = isRepay ? borrowReserveId : supplyReserveId;
+            uint256 other = isRepay ? supplyReserveId : borrowReserveId;
+            bytes memory good = isRepay ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
+            bytes memory body = BytesLib.slice(good, 52, good.length - 52);
+
+            // oracle id free: same executions, same identity
+            bytes memory tagged = abi.encodePacked(keccak256("any-oracle-id"), _key(spoke, primary), body);
+            Execution[] memory a = hooks[i].build(address(0), address(this), tagged);
+            Execution[] memory b = hooks[i].build(address(0), address(this), good);
+            assertEq(a.length, b.length);
+            for (uint256 j = 1; j + 1 < a.length; ++j) {
+                assertEq(a[j].target, b[j].target);
+                assertEq(a[j].callData, b[j].callData);
+            }
+            assertEq(hooks[i].inspect(tagged), hooks[i].inspect(good));
+
+            address[4] memory wrong = [_key(spoke, other), _key(address(0xBEEF), primary), spoke, address(0xBEEF)];
+            for (uint256 w; w < wrong.length; ++w) {
+                bytes memory bad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrong[w], body);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].build(address(0), address(this), bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].preExecute(address(0), address(this), bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].inspect(bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].decodeAmounts(bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].replaceCalldataAmounts(bad, new uint256[](isRepay ? 1 : 2));
+            }
+            bytes memory zeroKey = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, address(0), body);
+            vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+            hooks[i].build(address(0), address(this), zeroKey);
+        }
+    }
+
+    /// @dev Format errors surface before the identity error: a wrong key on a malformed payload still reports the
+    ///      format fault (length / bool / identical tokens / reserved word)
+    function test_Header_FormatErrorsPrecedeKeyMismatch() public {
+        bytes memory good = _defaultData(amount, false, borrowAmount);
+        bytes memory body = BytesLib.slice(good, 52, good.length - 52);
+        bytes memory bad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, address(0xBEEF), body);
+        bad[240] = 0x02;
+        vm.expectRevert(BaseLoanHookV2.INVALID_BOOL_VALUE.selector);
+        openHook.build(address(0), address(this), bad);
+        bytes memory badRepay = abi.encodePacked(
+            AAVE_V4_YS_ORACLE_ID, address(0xBEEF), BytesLib.slice(_defaultData(amount, false, 1), 52, 189)
+        );
+        vm.expectRevert(BaseLoanHookV2.RESERVED_FIELD_NOT_ZERO.selector);
+        repayHook.build(address(0), address(this), badRepay);
+        vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+        openHook.build(address(0), address(this), _truncate(bad, 240));
+    }
+
+    /// @dev The key is identity only: every non-ERC20 target and every approve spender is the calldata Spoke
+    function test_Header_SpokeIsCallTarget_NotKey() public view {
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        address key = _key(spoke, supplyReserveId);
+        address keyB = _key(spoke, borrowReserveId);
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory data = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
+            Execution[] memory ex = hooks[i].build(address(0), address(this), data);
+            for (uint256 j = 1; j + 1 < ex.length; ++j) {
+                assertTrue(ex[j].target != key && ex[j].target != keyB, "key is never a target");
+                if (ex[j].target == loanToken || ex[j].target == collateralToken) {
+                    (address spender,) = abi.decode(BytesLib.slice(ex[j].callData, 4, 64), (address, uint256));
+                    assertEq(spender, spoke, "approve spender is the Spoke");
+                } else {
+                    assertEq(ex[j].target, spoke, "provider target is the Spoke");
+                }
+            }
+        }
+    }
+
+    /// @dev The library the hooks pin against is byte-identical to the deployed registry's derivation
+    function testFuzz_ReserveKey_MatchesRegistry(address spoke_, uint256 reserveId) public {
+        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        assertEq(AaveV4ReserveKey.computeReserveKey(spoke_, reserveId), registry.computeReserveKey(spoke_, reserveId));
     }
 
     function test_Inspect_UnchangedWhenOnlyAmountsChange() public view {
@@ -812,19 +923,39 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
         // spoke
         changed = openHook.inspect(
-            _encode(loanToken, collateralToken, other, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount)
+            _encode(
+                loanToken, collateralToken, other, supplyReserveId, borrowReserveId, amount, bytes1(0x00), borrowAmount
+            )
         );
         assertTrue(keccak256(changed) != keccak256(base));
 
         // supply reserve id
         changed = openHook.inspect(
-            _encode(loanToken, collateralToken, spoke, supplyReserveId + 10, borrowReserveId, amount, bytes1(0x00), borrowAmount)
+            _encode(
+                loanToken,
+                collateralToken,
+                spoke,
+                supplyReserveId + 10,
+                borrowReserveId,
+                amount,
+                bytes1(0x00),
+                borrowAmount
+            )
         );
         assertTrue(keccak256(changed) != keccak256(base));
 
         // borrow reserve id
         changed = openHook.inspect(
-            _encode(loanToken, collateralToken, spoke, supplyReserveId, borrowReserveId + 10, amount, bytes1(0x00), borrowAmount)
+            _encode(
+                loanToken,
+                collateralToken,
+                spoke,
+                supplyReserveId,
+                borrowReserveId + 10,
+                amount,
+                bytes1(0x00),
+                borrowAmount
+            )
         );
         assertTrue(keccak256(changed) != keccak256(base));
     }
@@ -850,7 +981,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
     function test_RepayHook_Settle_RoundTrip() public {
         uint256 repayAmount = 4e17;
-        bytes memory data = _defaultData(repayAmount, false, 0);
+        bytes memory data = _repayData(repayAmount, false);
         mockLoanToken.mint(address(this), repayAmount);
 
         repayHook.preExecute(address(0), address(this), data);
@@ -897,7 +1028,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
     function test_RepayHook_Settle_RevertIf_DeltaMismatch() public {
         uint256 repayAmount = 4e17;
-        bytes memory data = _defaultData(repayAmount, false, 0);
+        bytes memory data = _repayData(repayAmount, false);
         mockLoanToken.mint(address(this), repayAmount);
 
         repayHook.preExecute(address(0), address(this), data);
@@ -926,13 +1057,206 @@ contract AaveV4LoanHooksV2Test is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+            CLOSE WITHDRAW LEG: LIVE-POSITION GATE (typed over-position)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev CLOSE resolves its withdraw word against the live position before any provider execution: above it →
+    ///      typed WITHDRAW_EXCEEDS_SUPPLIED (Aave would otherwise silently full-withdraw and the hook would fail late
+    /// as DELTA_MISMATCH); exactly the position → exact path; un-flagged (idle) → RESERVE_NOT_COLLATERAL
+    function test_CloseHook_WithdrawLeg_ExceedsSupplied_Typed_And_UnflaggedRefused() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BaseAaveV4LoanHookV2.WITHDRAW_EXCEEDS_SUPPLIED.selector, suppliedAssets + 1, suppliedAssets
+            )
+        );
+        closeHook.build(address(0), address(this), _defaultData(amount, false, suppliedAssets + 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BaseAaveV4LoanHookV2.WITHDRAW_EXCEEDS_SUPPLIED.selector, suppliedAssets + 1, suppliedAssets
+            )
+        );
+        closeHook.preExecute(address(0), address(this), _defaultData(amount, false, suppliedAssets + 1));
+        Execution[] memory ex = closeHook.build(address(0), address(this), _defaultData(amount, false, suppliedAssets));
+        assertEq(
+            ex[ex.length - 2].callData,
+            abi.encodeCall(IAaveV4Spoke.withdraw, (supplyReserveId, suppliedAssets, address(this))),
+            "exact == position takes the exact path"
+        );
+        mockSpoke.setUsingAsCollateral(supplyReserveId, false, address(this));
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        closeHook.build(address(0), address(this), _defaultData(amount, false, withdrawAmount));
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        closeHook.build(address(0), address(this), _defaultData(amount, false, MAX));
+    }
+
+    /// @dev The header oracle id (offset 0) must be nonzero on every V2 hook: build, preExecute, inspect and the strict
+    ///      sizing views all refuse it (checked right after the length, before the key pin)
+    function test_Header_ZeroOracleId_Refused_AllHooks() public {
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory good = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
+            bytes memory zeroId = abi.encodePacked(bytes32(0), BytesLib.slice(good, 32, good.length - 32));
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].build(address(0), address(this), zeroId);
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].preExecute(address(0), address(this), zeroId);
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].inspect(zeroId);
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].decodeAmounts(zeroId);
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].replaceCalldataAmounts(zeroId, new uint256[](i == 1 ? 1 : 2));
+        }
+    }
+
+    /// @dev Precedence: a zero oracle id is reported before a wrong key (both header faults present)
+    function test_Header_ZeroOracleId_PrecedesWrongKey() public {
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory good = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
+            bytes memory bad = abi.encodePacked(bytes32(0), address(0xBEEF), BytesLib.slice(good, 52, 189));
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].build(address(0), address(this), bad);
+            vm.expectRevert(BaseAaveV4LoanHookV2.ORACLE_ID_NOT_VALID.selector);
+            hooks[i].inspect(bad);
+        }
+    }
+
+    /// @dev CLOSE and RELEASE agree on the withdraw-leg order: position/flag gate first, then the zero word — a zero
+    ///      withdraw word over an un-flagged position is RESERVE_NOT_COLLATERAL on both, and over an empty one it is
+    ///      AMOUNT_NOT_VALID (empty position) on both
+    function test_CloseHook_WithdrawLeg_OrderMatchesRelease() public {
+        mockSpoke.setUsingAsCollateral(supplyReserveId, false, address(this));
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        closeHook.build(address(0), address(this), _defaultData(amount, false, 0));
+        mockSpoke.setUserSuppliedAssets(supplyReserveId, address(this), 0);
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        closeHook.build(address(0), address(this), _defaultData(amount, false, 0));
+    }
+
+    /// @dev CLOSE resolves its repay leg (and therefore the prev-hook pipe) BEFORE the withdraw-leg gate: with debt
+    /// open, usePrev and a broken pipe over an un-flagged position, the pipe error surfaces first — deliberate (the
+    /// repay
+    ///      leg is the primary slot), pinned here so a reorder is a visible change
+    function test_CloseHook_RepayPipe_ResolvedBeforeWithdrawGate() public {
+        mockSpoke.setUsingAsCollateral(supplyReserveId, false, address(this));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector); // prevHook == address(0)
+        closeHook.build(address(0), address(this), _defaultData(amount, true, withdrawAmount));
+        prevHook.setOutToken(collateralToken); // wrong token for the repay leg
+        prevHook.setOutAmount(amount);
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        closeHook.build(address(prevHook), address(this), _defaultData(amount, true, withdrawAmount));
+        prevHook.setOutToken(loanToken); // pipe healthy: the withdraw gate is next
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        closeHook.build(address(prevHook), address(this), _defaultData(amount, true, withdrawAmount));
+    }
+
+    /// @dev Header key fuzz, composite trio: a key over any other reserve id or any other spoke is refused by every
+    ///      entry point — build, inspect and both sizing views (strict decoder)
+    function testFuzz_Header_WrongKey_Refused_AllHooks(uint256 otherReserveId, address otherSpoke) public {
+        vm.assume(otherReserveId != supplyReserveId && otherReserveId != borrowReserveId);
+        vm.assume(otherSpoke != spoke);
+        BaseLoanHookV2[3] memory hooks = _hooks();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory good = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
+            uint256 primary = i == 1 ? borrowReserveId : supplyReserveId;
+            bytes memory body = BytesLib.slice(good, 52, 189);
+            bytes[2] memory bad = [
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(spoke, otherReserveId), body),
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(otherSpoke, primary), body)
+            ];
+            uint256[] memory one = new uint256[](i == 1 ? 1 : 2);
+            one[0] = 1;
+            for (uint256 b; b < 2; ++b) {
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].build(address(0), address(this), bad[b]);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].inspect(bad[b]);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].decodeAmounts(bad[b]);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].replaceCalldataAmounts(bad[b], one);
+            }
+        }
+    }
+
+    /// @dev The position gates (idle / collateral / over-position) live in build and preExecute only: the sizing views
+    ///      and inspect() are pure and keep working on an empty or un-flagged account, so OMS can size a template
+    ///      before the position exists and build() is what refuses it
+    function test_SizingViews_Pure_NoPositionGate_OpenAndClose() public {
+        mockSpoke.setUsingAsCollateral(supplyReserveId, false, address(this));
+        mockSpoke.setUserSuppliedAssets(supplyReserveId, address(this), 0);
+        bytes memory closeData = _defaultData(amount, false, withdrawAmount);
+        bytes memory openData = _defaultData(amount, false, borrowAmount);
+        assertEq(closeHook.decodeAmounts(closeData)[1], withdrawAmount, "close sizing view");
+        assertEq(openHook.decodeAmounts(openData)[0], amount, "open sizing view");
+        uint256[] memory two = new uint256[](2);
+        two[0] = amount;
+        two[1] = 1;
+        assertEq(closeHook.decodeAmounts(closeHook.replaceCalldataAmounts(closeData, two))[1], 1, "close replace");
+        assertEq(closeHook.inspect(closeData).length, 144, "inspect");
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector); // empty position
+        closeHook.build(address(0), address(this), closeData);
+        mockSpoke.setUserSuppliedAssets(supplyReserveId, address(this), 5e18); // idle, un-flagged
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        closeHook.build(address(0), address(this), closeData);
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
+        openHook.build(address(0), address(this), openData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                OPEN IDLE-MODE GUARD (one mode per account/reserve)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev An un-flagged supplied position is the idle MONEY_MARKET side's (ledger-tracked): OPEN refuses to flip it
+    ///      into LOAN mode, on build and on preExecute, before any provider execution
+    function test_OpenHook_Build_RevertIf_IdlePositionOnReserve() public {
+        mockSpoke.setUsingAsCollateral(supplyReserveId, false, address(this));
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
+        openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount));
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
+        openHook.preExecute(address(0), address(this), _defaultData(amount, false, borrowAmount));
+        // CLOSE never pays an un-flagged (idle) position out either — its withdraw leg carries the collateral gate;
+        // REPAY touches no collateral and builds normally (pre + 4 + post)
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        closeHook.build(address(0), address(this), _defaultData(amount, false, withdrawAmount));
+        assertEq(repayHook.build(address(0), address(this), _repayData(amount, false)).length, 6);
+    }
+
+    /// @dev A fresh reserve (no position, flag false) and an already-flagged reserve both open normally; the guard
+    ///      is per account
+    function test_OpenHook_Build_FreshOrFlaggedReserve_Passes() public {
+        mockSpoke.setUsingAsCollateral(supplyReserveId, false, address(this));
+        mockSpoke.setUserSuppliedAssets(supplyReserveId, address(this), 0);
+        assertEq(
+            openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount)).length, 8, "fresh"
+        );
+        mockSpoke.setUsingAsCollateral(supplyReserveId, true, address(this));
+        mockSpoke.setUserSuppliedAssets(supplyReserveId, address(this), suppliedAssets);
+        assertEq(
+            openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount)).length, 8, "flagged"
+        );
+        address alice = makeAddr("alice");
+        mockSpoke.setUserSuppliedAssets(supplyReserveId, alice, suppliedAssets); // alice idle, this account flagged
+        assertEq(openHook.build(address(0), address(this), _defaultData(amount, false, borrowAmount)).length, 8);
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
+        openHook.build(address(0), alice, _defaultData(amount, false, borrowAmount));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          ENCODING HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Canonical 241-byte Aave V4 V2 layout:
-    ///      bytes32 placeholder0 | address placeholder1 | loanToken | collateralToken | spoke |
-    ///      supplyReserveId | borrowReserveId | amount1 | usePrevHookAmount (1 byte) | amount2
-    function _encode(
+    function _key(address spoke_, uint256 reserveId) internal pure returns (address) {
+        return AaveV4ReserveKey.computeReserveKey(spoke_, reserveId);
+    }
+
+    /// @dev Canonical 241-byte Aave V4 V2 layout with an explicit header:
+    ///      bytes32 yieldSourceOracleId | address yieldSource (reserve key) | loanToken | collateralToken | spoke |
+    ///      supplyReserveId | borrowReserveId | amount1 | amount2 | usePrevHookAmount (1 byte)
+    function _encodeH(
+        bytes32 oracleId,
+        address headerKey,
         address loanToken_,
         address collateralToken_,
         address spoke_,
@@ -947,8 +1271,8 @@ contract AaveV4LoanHooksV2Test is Helpers {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            bytes32(0),
-            address(0),
+            oracleId,
+            headerKey,
             loanToken_,
             collateralToken_,
             spoke_,
@@ -957,6 +1281,78 @@ contract AaveV4LoanHooksV2Test is Helpers {
             amount1_,
             amount2_,
             usePrev_
+        );
+    }
+
+    /// @dev Supply-keyed header (OPEN / CLOSE): yieldSource = key(spoke, supplyReserveId)
+    function _encode(
+        address loanToken_,
+        address collateralToken_,
+        address spoke_,
+        uint256 supplyReserveId_,
+        uint256 borrowReserveId_,
+        uint256 amount1_,
+        bytes1 usePrev_,
+        uint256 amount2_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return _encodeH(
+            AAVE_V4_YS_ORACLE_ID,
+            _key(spoke_, supplyReserveId_),
+            loanToken_,
+            collateralToken_,
+            spoke_,
+            supplyReserveId_,
+            borrowReserveId_,
+            amount1_,
+            usePrev_,
+            amount2_
+        );
+    }
+
+    /// @dev Borrow-keyed header (REPAY): yieldSource = key(spoke, borrowReserveId)
+    function _encodeB(
+        address loanToken_,
+        address collateralToken_,
+        address spoke_,
+        uint256 supplyReserveId_,
+        uint256 borrowReserveId_,
+        uint256 amount1_,
+        bytes1 usePrev_,
+        uint256 amount2_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return _encodeH(
+            AAVE_V4_YS_ORACLE_ID,
+            _key(spoke_, borrowReserveId_),
+            loanToken_,
+            collateralToken_,
+            spoke_,
+            supplyReserveId_,
+            borrowReserveId_,
+            amount1_,
+            usePrev_,
+            amount2_
+        );
+    }
+
+    /// @dev Standalone REPAY payload: borrow-keyed header, reserved secondary word zero
+    function _repayData(uint256 cap, bool usePrev_) internal view returns (bytes memory) {
+        return _encodeB(
+            loanToken,
+            collateralToken,
+            spoke,
+            supplyReserveId,
+            borrowReserveId,
+            cap,
+            usePrev_ ? bytes1(0x01) : bytes1(0x00),
+            0
         );
     }
 
@@ -971,6 +1367,12 @@ contract AaveV4LoanHooksV2Test is Helpers {
             usePrev_ ? bytes1(0x01) : bytes1(0x00),
             amount2_
         );
+    }
+
+    function _hooks() internal view returns (BaseLoanHookV2[3] memory hooks) {
+        hooks[0] = BaseLoanHookV2(address(openHook));
+        hooks[1] = BaseLoanHookV2(address(repayHook));
+        hooks[2] = BaseLoanHookV2(address(closeHook));
     }
 
     function _truncate(bytes memory data, uint256 newLength) internal pure returns (bytes memory out) {

@@ -104,6 +104,11 @@ AAVE_V4_HOOKS=(
     "AaveV4SupplyAndBorrowHookV2"
     "AaveV4RepayHookV2"
     "AaveV4RepayAndWithdrawHookV2"
+    "AaveV4LendHook"
+    "AaveV4RedeemHook"
+    "AaveV4SupplyHookV2"
+    "AaveV4BorrowHookV2"
+    "AaveV4WithdrawHookV2"
 )
 
 missing_aavev4=0

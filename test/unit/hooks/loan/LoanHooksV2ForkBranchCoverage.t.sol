@@ -16,6 +16,7 @@ import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams } from "../../.
 
 // Hooks under test
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
+import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { MorphoSupplyAndBorrowHookV2 } from "../../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
 import { MorphoRepayHookV2 } from "../../../../src/hooks/loan/morpho/MorphoRepayHookV2.sol";
@@ -189,7 +190,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         return _aaveV3Raw(USDC, WETH, AAVE_V3_POOL, 2, a1, a2, usePrev ? bytes1(0x01) : bytes1(0x00));
     }
 
-    /// @dev Aave V4 V2 raw layout — exact 241 bytes
+    /// @dev Aave V4 V2 raw layout — exact 241 bytes, supply-keyed header (OPEN / CLOSE primary)
     function _aaveV4Raw(
         address loanT,
         address collT,
@@ -204,7 +205,52 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(bytes32(0), address(0), loanT, collT, spoke, sid, bid, a1, a2, usePrev);
+        return _aaveV4RawKeyed(sid, loanT, collT, spoke, sid, bid, a1, a2, usePrev);
+    }
+
+    /// @dev Standalone REPAY payload: borrow-keyed header (SUP-21143 primary for REPAY), reserved word zero
+    function _aaveV4RepayData(uint256 cap, bool usePrev) internal pure returns (bytes memory) {
+        return _aaveV4RawKeyed(
+            USDC_RESERVE_ID,
+            USDC,
+            WETH,
+            AAVE_V4_SPOKE,
+            WETH_RESERVE_ID,
+            USDC_RESERVE_ID,
+            cap,
+            0,
+            usePrev ? bytes1(0x01) : bytes1(0x00)
+        );
+    }
+
+    /// @dev SUP-21143 header: opaque oracle id + AaveV4ReserveKey(spoke, primaryReserveId) at offset 32
+    function _aaveV4RawKeyed(
+        uint256 primary,
+        address loanT,
+        address collT,
+        address spoke,
+        uint256 sid,
+        uint256 bid,
+        uint256 a1,
+        uint256 a2,
+        bytes1 usePrev
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        data = abi.encodePacked(
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(spoke, primary),
+            loanT,
+            collT,
+            spoke,
+            sid,
+            bid,
+            a1,
+            a2,
+            usePrev
+        );
         assertEq(data.length, 241);
     }
 
@@ -692,14 +738,14 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
 
         // prev output below debt → exact-amount repay of the prev amount
         prevStub.set(USDC, 500e6);
-        Execution[] memory execs = aaveV4Repay.build(address(prevStub), address(this), _aaveV4Data(MAX, 0, true));
+        Execution[] memory execs = aaveV4Repay.build(address(prevStub), address(this), _aaveV4RepayData(MAX, true));
         assertEq(execs.length, 6);
         assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, 500e6)));
         assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, 500e6, address(this))));
 
         // prev output above debt → min() to the debt, cleared natively via repay(max)
         prevStub.set(USDC, debt + 1000e6);
-        execs = aaveV4Repay.build(address(prevStub), address(this), _aaveV4Data(MAX, 0, true));
+        execs = aaveV4Repay.build(address(prevStub), address(this), _aaveV4RepayData(MAX, true));
         assertEq(execs.length, 6);
         assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, debt)));
         assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));
@@ -722,7 +768,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
 
         _openAaveV4Position();
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        aaveV4Repay.build(address(0), address(this), _aaveV4Data(0, 0, false));
+        aaveV4Repay.build(address(0), address(this), _aaveV4RepayData(0, false));
     }
 
     /// @dev A calldata cap above the real debt resolves to the debt (predicted clear) on every
@@ -746,7 +792,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         _openAaveV4Position();
         (uint256 drawn, uint256 premium) = IAaveV4Spoke(AAVE_V4_SPOKE).getUserDebt(USDC_RESERVE_ID, address(this));
         uint256 v4Debt = drawn + premium;
-        execs = aaveV4Repay.build(address(0), address(this), _aaveV4Data(v4Debt + 100e6, 0, false));
+        execs = aaveV4Repay.build(address(0), address(this), _aaveV4RepayData(v4Debt + 100e6, false));
         assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, v4Debt)));
         assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));
     }
@@ -876,7 +922,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         uint256 debt = drawn + premium;
         assertGt(debt, 0);
 
-        Execution[] memory execs = aaveV4Repay.build(address(0), address(this), _aaveV4Data(MAX, 0, false));
+        Execution[] memory execs = aaveV4Repay.build(address(0), address(this), _aaveV4RepayData(MAX, false));
         assertEq(execs.length, 6);
         assertEq(execs[2].callData, abi.encodeCall(IERC20.approve, (AAVE_V4_SPOKE, debt)));
         assertEq(execs[3].callData, abi.encodeCall(IAaveV4Spoke.repay, (USDC_RESERVE_ID, MAX, address(this))));

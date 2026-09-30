@@ -60,6 +60,17 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address aaveV4RepayAndWithdrawHookV2;
     }
 
+    struct AaveV4V2StandaloneHookAddresses {
+        address aaveV4SupplyHookV2;
+        address aaveV4BorrowHookV2;
+        address aaveV4WithdrawHookV2;
+    }
+
+    struct AaveV4IdleHookAddresses {
+        address aaveV4LendHook;
+        address aaveV4RedeemHook;
+    }
+
     struct EulerHookAddresses {
         address eulerDepositCollateralAndBorrowHook;
         address eulerRepayHook;
@@ -224,7 +235,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploys the V2 (versioned) loan hook sets under the same chain gates as their V1
     ///         counterparts: Morpho V2 where the Morpho singleton is configured, Aave V3 V2 where
-    ///         an Aave V3 pool is configured, Aave V4 V2 on Ethereum mainnet only
+    ///         an Aave V3 pool is configured, Aave V4 V2 on every network (Spoke from calldata)
     function runLoanHooksV2(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying V2 loan hooks on chainId: ", chainId);
@@ -237,11 +248,31 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             console2.log("Deploying Aave V3 V2 Hooks on chainId: ", chainId);
             _deployAaveV3V2Hooks(chainId, env);
         }
-        if (chainId == MAINNET_CHAIN_ID) {
-            console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
-            _deployAaveV4V2Hooks(chainId, env);
-        }
+        // Aave V4 V2: chain-agnostic bytecode (Spoke from calldata), deployed on every network
+        console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
+        _deployAaveV4V2Hooks(chainId, env);
 
+        _writeExportedContracts(chainId);
+    }
+
+    /// @notice Deploys the standalone Aave V4 V2 loan hooks — PLEDGE / BORROW / RELEASE (SUP-21141).
+    ///         No constructor args (the Spoke comes from calldata): deployed on every network.
+    function runAaveV4V2Standalone(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Aave V4 V2 standalone Hooks on chainId: ", chainId);
+
+        _deployAaveV4V2StandaloneHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    /// @notice Deploys the idle Aave V4 MONEY_MARKET lend / redeem hooks (SUP-21142). No constructor
+    ///         args: deployed on every network. Reserve-keyed accounting: the reserve key must be
+    ///         registered in AaveV4ReserveRegistry and the ledger before these hooks are used.
+    function runAaveV4Idle(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        console2.log("Deploying Aave V4 idle Hooks on chainId: ", chainId);
+
+        _deployAaveV4IdleHooks(chainId, env);
         _writeExportedContracts(chainId);
     }
 
@@ -294,13 +325,22 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployMorphoV2Hooks(chainId, env);
         }
 
-        // Aave V4 hooks — only on Ethereum mainnet (Aave V4 Hub-and-Spoke)
+        // Aave V4 V1 hooks — Ethereum mainnet only (legacy set; new roots select the V2 sets)
         if (chainId == MAINNET_CHAIN_ID) {
             console2.log("Deploying Aave V4 Hooks on chainId: ", chainId);
             _deployAaveV4Hooks(chainId, env);
-            console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
-            _deployAaveV4V2Hooks(chainId, env);
         }
+
+        // Aave V4 V2 composite (OPEN / REPAY / CLOSE), idle MONEY_MARKET (SUP-21142) and standalone V2
+        // (SUP-21141) sets — no constructor args (the Spoke comes from calldata), so the bytecode is
+        // chain-agnostic and is deployed on every configured network for uniform addresses. Inert on
+        // chains without an Aave V4 spoke; usable once a spoke, its oracles and the reserve registry exist.
+        console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
+        _deployAaveV4V2Hooks(chainId, env);
+        console2.log("Deploying Aave V4 idle Hooks on chainId: ", chainId);
+        _deployAaveV4IdleHooks(chainId, env);
+        console2.log("Deploying Aave V4 V2 standalone Hooks on chainId: ", chainId);
+        _deployAaveV4V2StandaloneHooks(chainId, env);
 
         // HyperCore hooks — only on HyperEVM, where CoreWriter exists
         if (otherHooksConfiguration.coreWriters[chainId] != address(0)) {
@@ -646,6 +686,86 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.aaveV4RepayAndWithdrawHookV2 != address(0), "AaveV4RepayAndWithdrawHookV2 not assigned");
 
         console2.log("All Aave V4 V2 hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+     AAVE V4 STANDALONE V2 + IDLE HOOKS DEPLOYMENT (SUP-21141 / 21142)
+    //////////////////////////////////////////////////////////////*/
+
+    function _deployAaveV4V2StandaloneHooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV4V2StandaloneHooksSet(chainId, env);
+    }
+
+    /// @notice Deploy the 3 standalone Aave V4 V2 loan hooks (no constructor args — Spoke comes from calldata)
+    function _deployAaveV4V2StandaloneHooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV4V2StandaloneHookAddresses memory hookAddresses)
+    {
+        uint256 len = 3;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        hooks[0] = HookDeployment(AAVE_V4_SUPPLY_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4SupplyHookV2", env));
+        hooks[1] = HookDeployment(AAVE_V4_BORROW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHookV2", env));
+        hooks[2] =
+            HookDeployment(AAVE_V4_WITHDRAW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHookV2", env));
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV4SupplyHookV2 = addresses[0];
+        hookAddresses.aaveV4BorrowHookV2 = addresses[1];
+        hookAddresses.aaveV4WithdrawHookV2 = addresses[2];
+
+        require(hookAddresses.aaveV4SupplyHookV2 != address(0), "AaveV4SupplyHookV2 not assigned");
+        require(hookAddresses.aaveV4BorrowHookV2 != address(0), "AaveV4BorrowHookV2 not assigned");
+        require(hookAddresses.aaveV4WithdrawHookV2 != address(0), "AaveV4WithdrawHookV2 not assigned");
+
+        console2.log("All Aave V4 V2 standalone hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    function _deployAaveV4IdleHooks(uint64 chainId, uint256 env) internal {
+        _deployAaveV4IdleHooksSet(chainId, env);
+    }
+
+    /// @notice Deploy the 2 idle Aave V4 MONEY_MARKET hooks (no constructor args — Spoke comes from calldata)
+    function _deployAaveV4IdleHooksSet(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (AaveV4IdleHookAddresses memory hookAddresses)
+    {
+        uint256 len = 2;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        address[] memory addresses = new address[](len);
+
+        hooks[0] = HookDeployment(AAVE_V4_LEND_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4LendHook", env));
+        hooks[1] = HookDeployment(AAVE_V4_REDEEM_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RedeemHook", env));
+
+        for (uint256 i = 0; i < len; ++i) {
+            HookDeployment memory hook = hooks[i];
+            string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(saltName), hook.creationCode);
+        }
+
+        hookAddresses.aaveV4LendHook = addresses[0];
+        hookAddresses.aaveV4RedeemHook = addresses[1];
+
+        require(hookAddresses.aaveV4LendHook != address(0), "AaveV4LendHook not assigned");
+        require(hookAddresses.aaveV4RedeemHook != address(0), "AaveV4RedeemHook not assigned");
+
+        console2.log("All Aave V4 idle hooks deployed and validated successfully.");
 
         return hookAddresses;
     }

@@ -67,6 +67,21 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "AAVE_V4_BORROW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "AAVE_V4_LEND_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "AAVE_V4_REDEEM_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "AAVE_V4_REPAY_AND_WITHDRAW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -89,7 +104,7 @@
   },
   {
     "hookKey": "AAVE_V4_REPAY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -114,11 +129,21 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "AAVE_V4_SUPPLY_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "AAVE_V4_WITHDRAW_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
     "amountPosition": 176,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "AAVE_V4_WITHDRAW_HOOK_V2_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_V2_KEY",
@@ -535,7 +560,7 @@
   },
   {
     "hookKey": "MORPHO_BORROW_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -566,7 +591,7 @@
   },
   {
     "hookKey": "MORPHO_REPAY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
@@ -590,12 +615,12 @@
   },
   {
     "hookKey": "MORPHO_SUPPLY_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {
     "hookKey": "MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY",
-    "mode": "sizeless",
+    "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
   {

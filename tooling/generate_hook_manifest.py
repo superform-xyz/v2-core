@@ -121,7 +121,13 @@ def parse_hook_source(path: Path) -> dict:
         result["hookType"] = explicit_type_match.group(1)
     else:
         # Check if it extends BaseLoanHook (always NONACCOUNTING)
-        if "BaseLoanHook" in content or "BaseAaveV4LoanHook" in content or "BaseMorphoLoanHook" in content:
+        # Standalone V2 loan hooks inherit BaseLoanHookV2 through Base<Protocol>StandaloneLoanHookV2
+        if (
+            "BaseLoanHook" in content
+            or "BaseAaveV4LoanHook" in content
+            or "BaseMorphoLoanHook" in content
+            or "StandaloneLoanHookV2" in content
+        ):
             result["hookType"] = "NONACCOUNTING"
         # Check BaseClaimRewardHook
         elif "BaseClaimRewardHook" in content:
@@ -143,7 +149,9 @@ def parse_hook_source(path: Path) -> dict:
         result["subtype"] = "SWAP"
     # Money-market lend/redeem leaves inherit HookSubTypes.LOAN from BaseMorphoMoneyMarketHook and
     # no longer reference HookSubTypes themselves (SUP-21024)
-    if "subtype" not in result and "BaseMorphoMoneyMarketHook" in content:
+    if "subtype" not in result and (
+        "BaseMorphoMoneyMarketHook" in content or "BaseAaveV4MoneyMarketHook" in content
+    ):
         result["subtype"] = "LOAN"
 
     return result

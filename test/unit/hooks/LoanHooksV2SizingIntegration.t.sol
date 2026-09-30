@@ -6,6 +6,8 @@ import { morphoMarketKey } from "../../utils/MorphoMarketKey.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { ISuperHookInflowOutflow } from "../../../src/interfaces/ISuperHook.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAaveV4Spoke } from "../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
 // Hooks under test
 import { MorphoSupplyAndBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHookV2.sol";
@@ -14,13 +16,20 @@ import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/Mor
 import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
 import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
 import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/MorphoWithdrawCollateralHookV2.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
+import { BaseLoanHookV2 } from "../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { BaseAaveV4LoanHookV2 } from "../../../src/hooks/loan/aave-v4/BaseAaveV4LoanHookV2.sol";
+import { BaseAaveV4StandaloneLoanHookV2 } from "../../../src/hooks/loan/aave-v4/BaseAaveV4StandaloneLoanHookV2.sol";
+import { AaveV4ReserveKey } from "../../../src/libraries/AaveV4ReserveKey.sol";
 import { AaveV3SupplyAndBorrowHookV2 } from "../../../src/hooks/loan/aave-v3/AaveV3SupplyAndBorrowHookV2.sol";
 import { AaveV3RepayHookV2 } from "../../../src/hooks/loan/aave-v3/AaveV3RepayHookV2.sol";
 import { AaveV3RepayAndWithdrawHookV2 } from "../../../src/hooks/loan/aave-v3/AaveV3RepayAndWithdrawHookV2.sol";
 import { AaveV4SupplyAndBorrowHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol";
 import { AaveV4RepayHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4RepayHookV2.sol";
 import { AaveV4RepayAndWithdrawHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4RepayAndWithdrawHookV2.sol";
+import { AaveV4SupplyHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol";
+import { AaveV4BorrowHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol";
+import { AaveV4WithdrawHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol";
 
 /// @title LoanHooksV2SizingIntegration
 /// @notice Fork-based tests to prove the V2 loan hook sizing interface, inspectors and build-time
@@ -48,6 +57,9 @@ contract LoanHooksV2SizingIntegration is Helpers {
     AaveV4SupplyAndBorrowHookV2 aaveV4Open;
     AaveV4RepayHookV2 aaveV4Repay;
     AaveV4RepayAndWithdrawHookV2 aaveV4Close;
+    AaveV4SupplyHookV2 aaveV4Pledge;
+    AaveV4BorrowHookV2 aaveV4Borrow;
+    AaveV4WithdrawHookV2 aaveV4Release;
 
     // ──────── Real addresses ────────
     address constant MORPHO_BLUE = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
@@ -87,6 +99,9 @@ contract LoanHooksV2SizingIntegration is Helpers {
         aaveV4Open = new AaveV4SupplyAndBorrowHookV2();
         aaveV4Repay = new AaveV4RepayHookV2();
         aaveV4Close = new AaveV4RepayAndWithdrawHookV2();
+        aaveV4Pledge = new AaveV4SupplyHookV2();
+        aaveV4Borrow = new AaveV4BorrowHookV2();
+        aaveV4Release = new AaveV4WithdrawHookV2();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -117,8 +132,9 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(data.length, 178);
     }
 
-    /// @dev Aave V4 V2 layout — exact 241 bytes
-    function _aaveV4Data(
+    /// @dev Aave V4 V2 layout — exact 241 bytes; header keyed to `primaryReserveId` (SUP-21143)
+    function _aaveV4DataKeyed(
+        uint256 primaryReserveId,
         uint256 supplyReserveId,
         uint256 borrowReserveId,
         uint256 a1,
@@ -130,9 +146,55 @@ contract LoanHooksV2SizingIntegration is Helpers {
         returns (bytes memory data)
     {
         data = abi.encodePacked(
-            bytes32(0), address(0), USDC, WETH, AAVE_V4_SPOKE, supplyReserveId, borrowReserveId, a1, a2, usePrev
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, primaryReserveId),
+            USDC,
+            WETH,
+            AAVE_V4_SPOKE,
+            supplyReserveId,
+            borrowReserveId,
+            a1,
+            a2,
+            usePrev
         );
         assertEq(data.length, 241);
+    }
+
+    /// @dev Supply-keyed (OPEN / CLOSE / PLEDGE / RELEASE)
+    function _aaveV4Data(
+        uint256 supplyReserveId,
+        uint256 borrowReserveId,
+        uint256 a1,
+        bool usePrev,
+        uint256 a2
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        return _aaveV4DataKeyed(supplyReserveId, supplyReserveId, borrowReserveId, a1, usePrev, a2);
+    }
+
+    /// @dev Borrow-keyed (REPAY / BORROW)
+    function _aaveV4DataB(
+        uint256 supplyReserveId,
+        uint256 borrowReserveId,
+        uint256 a1,
+        bool usePrev,
+        uint256 a2
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        return _aaveV4DataKeyed(borrowReserveId, supplyReserveId, borrowReserveId, a1, usePrev, a2);
+    }
+
+    /// @dev Keyed for standalone index i (0 pledge, 1 borrow, 2 release)
+    function _aaveV4DataFor(uint256 i, uint256 a1, bool usePrev) internal pure returns (bytes memory) {
+        return i == 1
+            ? _aaveV4DataB(WETH_RESERVE_ID, USDC_RESERVE_ID, a1, usePrev, 0)
+            : _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, a1, usePrev, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -194,8 +256,14 @@ contract LoanHooksV2SizingIntegration is Helpers {
 
     /// @dev Inspect binds the full real market identity and ignores amount changes
     function test_Fork_MorphoV2_Inspect_RealMarket() public view {
-        bytes memory expected =
-            abi.encodePacked(morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV), USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
+        bytes memory expected = abi.encodePacked(
+            morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV),
+            USDC,
+            WBTC,
+            MORPHO_ORACLE_WBTC,
+            MORPHO_IRM_WBTC,
+            MORPHO_LLTV
+        );
 
         assertEq(morphoOpen.inspect(_morphoData(COLLATERAL_AMOUNT, BORROW_AMOUNT, false)), expected);
         assertEq(morphoRepay.inspect(_morphoData(BORROW_AMOUNT, 0, false)), expected);
@@ -259,8 +327,14 @@ contract LoanHooksV2SizingIntegration is Helpers {
 
     /// @dev Standalone inspects bind the same full real market identity as the composite hooks
     function test_Fork_MorphoV2_Standalone_Inspect_RealMarket() public view {
-        bytes memory expected =
-            abi.encodePacked(morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV), USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV);
+        bytes memory expected = abi.encodePacked(
+            morphoMarketKey(USDC, WBTC, MORPHO_ORACLE_WBTC, MORPHO_IRM_WBTC, MORPHO_LLTV),
+            USDC,
+            WBTC,
+            MORPHO_ORACLE_WBTC,
+            MORPHO_IRM_WBTC,
+            MORPHO_LLTV
+        );
 
         assertEq(morphoPledge.inspect(_morphoData(COLLATERAL_AMOUNT, 0, false)), expected);
         assertEq(morphoBorrow.inspect(_morphoData(BORROW_AMOUNT, 0, false)), expected);
@@ -384,7 +458,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
     }
 
     function test_Fork_AaveV4V2_Repay_RealSpoke_SingleSlot() public {
-        bytes memory data = _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0);
+        bytes memory data = _aaveV4DataB(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0);
 
         assertEq(aaveV4Repay.decodeAmounts(data).length, 1);
         assertEq(aaveV4Repay.decodeAmounts(data)[0], BORROW_AMOUNT);
@@ -399,15 +473,22 @@ contract LoanHooksV2SizingIntegration is Helpers {
         aaveV4Repay.replaceCalldataAmounts(data, _dualAmounts(1, 2));
     }
 
+    /// @dev SUP-21143: key first (supply reserve for OPEN / CLOSE, borrow reserve for REPAY), 144 bytes
     function test_Fork_AaveV4V2_Inspect_RealSpoke() public view {
-        bytes memory expected = abi.encodePacked(AAVE_V4_SPOKE, USDC, WETH, WETH_RESERVE_ID, USDC_RESERVE_ID);
-
+        bytes memory tail = abi.encodePacked(AAVE_V4_SPOKE, USDC, WETH, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        bytes memory expectedS =
+            abi.encodePacked(AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, WETH_RESERVE_ID), tail);
+        bytes memory expectedB =
+            abi.encodePacked(AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, USDC_RESERVE_ID), tail);
+        assertEq(expectedS.length, 144);
         assertEq(
-            aaveV4Open.inspect(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, BORROW_AMOUNT)), expected
+            aaveV4Open.inspect(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, BORROW_AMOUNT)), expectedS
         );
-        assertEq(aaveV4Repay.inspect(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)), expected);
         assertEq(
-            aaveV4Close.inspect(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)), expected
+            aaveV4Repay.inspect(_aaveV4DataB(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)), expectedB
+        );
+        assertEq(
+            aaveV4Close.inspect(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)), expectedS
         );
     }
 
@@ -439,23 +520,40 @@ contract LoanHooksV2SizingIntegration is Helpers {
 
     /// @dev Zero debt evaluated against the real Spoke's getUserDebt: the repay leg is skipped
     ///      gracefully instead of reverting
-    function test_Fork_AaveV4V2_Repay_RealSpoke_ZeroDebtGraceful() public view {
+    function test_Fork_AaveV4V2_Repay_RealSpoke_ZeroDebtGraceful() public {
         // standalone repay: preExecute + postExecute only
         assertEq(
             aaveV4Repay.build(
-                address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)
+                address(0), address(this), _aaveV4DataB(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 0)
             )
             .length,
             2
         );
 
-        // close: preExecute + withdraw + postExecute
+        // close: the withdraw leg is resolved against the live position first (empty → AMOUNT_NOT_VALID), so give the
+        // account a flagged 1 WETH position; then preExecute + withdraw + postExecute
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        aaveV4Close.build(
+            address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)
+        );
+        deal(WETH, address(this), 1e18);
+        IERC20(WETH).approve(AAVE_V4_SPOKE, 1e18);
+        IAaveV4Spoke(AAVE_V4_SPOKE).supply(WETH_RESERVE_ID, 1e18, address(this));
+        IAaveV4Spoke(AAVE_V4_SPOKE).setUsingAsCollateral(WETH_RESERVE_ID, true, address(this));
+        uint256 supplied = IAaveV4Spoke(AAVE_V4_SPOKE).getUserSuppliedAssets(WETH_RESERVE_ID, address(this));
         assertEq(
             aaveV4Close.build(
-                address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, 1e18)
+                address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, supplied)
             )
             .length,
             3
+        );
+        // exact word above the live position: typed, before any Spoke call
+        vm.expectRevert(
+            abi.encodeWithSelector(BaseAaveV4LoanHookV2.WITHDRAW_EXCEEDS_SUPPLIED.selector, supplied + 1, supplied)
+        );
+        aaveV4Close.build(
+            address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, BORROW_AMOUNT, false, supplied + 1)
         );
     }
 
@@ -496,4 +594,155 @@ contract LoanHooksV2SizingIntegration is Helpers {
     }
 
     receive() external payable { }
+
+    /*//////////////////////////////////////////////////////////////
+          AAVE V4 V2 STANDALONE (SUP-21141): real-spoke sizing surface
+    //////////////////////////////////////////////////////////////*/
+
+    function _aaveV4Standalone() internal view returns (BaseAaveV4LoanHookV2[3] memory hooks) {
+        hooks[0] = BaseAaveV4LoanHookV2(address(aaveV4Pledge));
+        hooks[1] = BaseAaveV4LoanHookV2(address(aaveV4Borrow));
+        hooks[2] = BaseAaveV4LoanHookV2(address(aaveV4Release));
+    }
+
+    function test_Fork_AaveV4V2_Standalone_RealSpoke_SingleSlot() public {
+        BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory data = _aaveV4DataFor(i, 1e18, false);
+            assertEq(hooks[i].decodeAmounts(data).length, 1);
+            assertEq(hooks[i].decodeAmounts(data)[0], 1e18);
+            bytes memory replaced = hooks[i].replaceCalldataAmounts(data, _singleAmount(42e6));
+            assertEq(hooks[i].decodeAmounts(replaced)[0], 42e6);
+            assertEq(BytesLib.toUint256(replaced, 208), 0, "reserved secondary must stay zero");
+            assertEq(BytesLib.toUint256(replaced, 112), WETH_RESERVE_ID, "supplyReserveId preserved");
+            assertEq(BytesLib.toUint256(replaced, 144), USDC_RESERVE_ID, "borrowReserveId preserved");
+            vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+            hooks[i].replaceCalldataAmounts(data, _dualAmounts(1, 2));
+            // strict sizing surface: a nonzero reserved word is rejected by the views themselves
+            vm.expectRevert(BaseLoanHookV2.RESERVED_FIELD_NOT_ZERO.selector);
+            hooks[i].decodeAmounts(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, 1));
+        }
+    }
+
+    function test_Fork_AaveV4V2_Standalone_Inspect_RealSpoke() public view {
+        BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory expected = abi.encodePacked(
+                AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, i == 1 ? USDC_RESERVE_ID : WETH_RESERVE_ID),
+                AAVE_V4_SPOKE,
+                USDC,
+                WETH,
+                WETH_RESERVE_ID,
+                USDC_RESERVE_ID
+            );
+            assertEq(hooks[i].inspect(_aaveV4DataFor(i, 1e18, false)), expected, "key first, same shape as composite");
+        }
+    }
+
+    /// @dev SUP-21143 on the real Spoke: a header keyed to the other reserve / another spoke / the spoke itself is
+    ///      refused by build, inspect and by the strict sizing views of every V2 hook (composite included)
+    function test_Fork_AaveV4V2_WrongHeaderKey_Reverts() public {
+        BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory good = _aaveV4DataFor(i, 1e18, false);
+            address[3] memory wrong = [
+                AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, i == 1 ? WETH_RESERVE_ID : USDC_RESERVE_ID),
+                AaveV4ReserveKey.computeReserveKey(address(0xBEEF), i == 1 ? USDC_RESERVE_ID : WETH_RESERVE_ID),
+                AAVE_V4_SPOKE
+            ];
+            for (uint256 w; w < wrong.length; ++w) {
+                bytes memory bad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrong[w], BytesLib.slice(good, 52, 189));
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].build(address(0), address(this), bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].inspect(bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].decodeAmounts(bad);
+                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                hooks[i].replaceCalldataAmounts(bad, _singleAmount(1));
+            }
+        }
+        bytes memory openGood = _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, BORROW_AMOUNT);
+        bytes memory openBad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, AAVE_V4_SPOKE, BytesLib.slice(openGood, 52, 189));
+        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        aaveV4Open.build(address(0), address(this), openBad);
+        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        aaveV4Open.inspect(openBad);
+        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        aaveV4Open.decodeAmounts(openBad);
+        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        aaveV4Open.replaceCalldataAmounts(openBad, _dualAmounts(1, 2));
+    }
+
+    /// @dev Real reserve binding: correct ids build (pledge 7 = pre + approve0/approve/supply/enable/approve0
+    ///      + post; borrow 3), swapped ids revert for all three
+    function test_Fork_AaveV4V2_Standalone_RealSpoke_Build_And_ReserveBinding() public {
+        assertEq(aaveV4Pledge.build(address(0), address(this), _aaveV4DataFor(0, 1e18, false)).length, 7);
+        assertEq(aaveV4Borrow.build(address(0), address(this), _aaveV4DataFor(1, 1e18, false)).length, 3);
+        BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
+        for (uint256 i; i < hooks.length; ++i) {
+            // header keyed consistently with the swapped body, so the Spoke binding is what fails
+            bytes memory swapped = i == 1
+                ? _aaveV4DataB(USDC_RESERVE_ID, WETH_RESERVE_ID, 1e18, false, 0)
+                : _aaveV4Data(USDC_RESERVE_ID, WETH_RESERVE_ID, 1e18, false, 0);
+            vm.expectRevert(BaseAaveV4LoanHookV2.TOKEN_RESERVE_MISMATCH.selector);
+            hooks[i].build(address(0), address(this), swapped);
+        }
+    }
+
+    /// @dev RELEASE against the real Spoke with no position: both amount paths are refused by the pre-read before any
+    ///      Spoke call (twin of the Morpho `MaxSentinel_ZeroPositionReverts`); an idle-style un-flagged position on the
+    ///      real Spoke is refused with the mode error
+    function test_Fork_AaveV4V2_Release_RealSpoke_ZeroPositionReverts() public {
+        assertEq(IAaveV4Spoke(AAVE_V4_SPOKE).getUserSuppliedAssets(WETH_RESERVE_ID, address(this)), 0);
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        aaveV4Release.build(
+            address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, type(uint256).max, false, 0)
+        );
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        aaveV4Release.build(address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, 0));
+        // un-flagged real position (idle side): RELEASE refuses it, PLEDGE refuses to flip it
+        deal(WETH, address(this), 1e18);
+        IERC20(WETH).approve(AAVE_V4_SPOKE, 1e18);
+        IAaveV4Spoke(AAVE_V4_SPOKE).supply(WETH_RESERVE_ID, 1e18, address(this));
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
+        aaveV4Release.build(
+            address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, type(uint256).max, false, 0)
+        );
+        vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
+        aaveV4Pledge.build(address(0), address(this), _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, 0));
+        // flag it: RELEASE now builds the sentinel pass-through (3 = pre + withdraw(max) + post)
+        IAaveV4Spoke(AAVE_V4_SPOKE).setUsingAsCollateral(WETH_RESERVE_ID, true, address(this));
+        bytes memory sentinel = _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, type(uint256).max, false, 0);
+        assertEq(aaveV4Release.build(address(0), address(this), sentinel).length, 3);
+    }
+
+    /// @dev Roles pinned on the Aave standalone trio (twin of the Morpho test): pledge consumes [IN/TOKEN]; borrow and
+    ///      release produce [OUT/TOKEN]
+    function test_Fork_AaveV4V2_Standalone_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory pledgeMeta = aaveV4Pledge.amountRoles("");
+        assertEq(pledgeMeta.length, 1);
+        assertEq(uint8(pledgeMeta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint8(pledgeMeta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+        ISuperHookInflowOutflow.AmountMeta[] memory borrowMeta = aaveV4Borrow.amountRoles("");
+        assertEq(borrowMeta.length, 1);
+        assertEq(uint8(borrowMeta[0].dir), uint8(ISuperHookInflowOutflow.Direction.OUT));
+        assertEq(uint8(borrowMeta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+        ISuperHookInflowOutflow.AmountMeta[] memory releaseMeta = aaveV4Release.amountRoles("");
+        assertEq(releaseMeta.length, 1);
+        assertEq(uint8(releaseMeta[0].dir), uint8(ISuperHookInflowOutflow.Direction.OUT));
+        assertEq(uint8(releaseMeta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    /// @dev The sizing views carry no amount semantics: 0 and the sentinel round-trip through replace/decode, and only
+    ///      build() judges them (RELEASE accepts the sentinel; PLEDGE / BORROW do not)
+    function testFuzz_Fork_AaveV4V2_Standalone_RealSpoke(uint256 a1) public view {
+        BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
+        for (uint256 i; i < hooks.length; ++i) {
+            bytes memory data = _aaveV4DataFor(i, 1, false);
+            bytes memory replaced = hooks[i].replaceCalldataAmounts(data, _singleAmount(a1));
+            assertEq(hooks[i].decodeAmounts(replaced)[0], a1);
+            assertEq(hooks[i].inspect(replaced), hooks[i].inspect(data), "identity survives sizing");
+        }
+    }
 }

@@ -21,7 +21,9 @@ import "forge-std/console2.sol";
 
 /// @title SparkPSMHookIntegrationTest
 /// @notice Integration tests for Spark PSM hooks using a real Base fork
-/// @dev Tests actual swaps against the deployed PSM3 contract on Base
+/// @dev Tests actual swaps against the deployed PSM3 contract on Base, pinned at BASE_BLOCK so PSM
+///      liquidity is deterministic (at head the PSM has periodically held zero USDS, which made every
+///      USDS-out swap revert with `SafeERC20/transfer-failed`).
 ///      Requires BASE_RPC_URL environment variable
 contract SparkPSMHookIntegrationTest is Test, Constants {
     function _singleAmount(uint256 amt) internal pure returns (uint256[] memory amounts) {
@@ -45,7 +47,7 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
     uint256 public constant REFERRAL_CODE = 0;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(BASE_RPC_URL_KEY));
+        vm.createSelectFork(vm.envString(BASE_RPC_URL_KEY), BASE_BLOCK);
 
         psm = IPSM3(PSM_ADDRESS);
         account = address(this);
@@ -360,13 +362,13 @@ contract SparkPSMHookIntegrationTest is Test, Constants {
     function test_ApproveAndSwapExactIn_LargeAmount_USDC_to_USDS() public {
         // Query available USDS in the PSM to avoid exceeding liquidity
         uint256 psmUsdsBalance = IERC20(USDS).balanceOf(PSM_ADDRESS);
+        // Skip if PSM doesn't have enough USDS liquidity at the forked block (must run before the
+        // sizing arithmetic below, which underflows when the PSM holds no USDS)
+        vm.skip(psmUsdsBalance < 1_000_000e18);
         // Use 90% of available liquidity or 100K USDC, whichever is smaller
         uint256 maxSafe = psmUsdsBalance * 90 / 100 / 1e12; // Convert 18-dec USDS balance to 6-dec USDC equivalent
         uint256 amountIn = maxSafe < 100_000e6 ? maxSafe : 100_000e6;
         uint256 minAmountOut = amountIn * 1e12 - 1e18; // 1:1 rate with decimal adjustment, minus 1 USDS tolerance
-
-        // Skip if PSM doesn't have enough USDS liquidity at the forked block
-        vm.skip(psmUsdsBalance < 1_000_000e18);
 
         deal(USDC, account, amountIn);
         // Ensure PSM has enough USDS liquidity to fulfill the swap
