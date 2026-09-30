@@ -24,15 +24,15 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # ===== FILTER CONFIGURATION =====
 # Specify which chains to verify (empty = all chains from network configuration)
-CHAINS_TO_VERIFY=(4663) # RH only (temporary)
+CHAINS_TO_VERIFY=(8453) # Base: Aave V4 V2 / standalone / idle hooks (SUP-21140)
 # CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
-CONTRACTS_TO_VERIFY=() # all contracts (RH bring-up)
+CONTRACTS_TO_VERIFY=(AaveV4SupplyAndBorrowHookV2 AaveV4RepayHookV2 AaveV4RepayAndWithdrawHookV2 AaveV4SupplyHookV2 AaveV4BorrowHookV2 AaveV4WithdrawHookV2 AaveV4LendHook AaveV4RedeemHook)
 # CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
 
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
-VERIFY_DELAY=30 # high delay for RH Blockscout rate limits; running in parallel so wall-clock doesn't matter (was 1)
+VERIFY_DELAY=3 # Etherscan V2 (Base); RH Blockscout needed 30
 
 # ===== TRACKING =====
 declare -a VERIFIED_CONTRACTS=()
@@ -694,6 +694,15 @@ get_contract_source() {
         "AaveV4SupplyAndBorrowHook") echo "src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHook.sol" ;;
         "AaveV4SupplyHook") echo "src/hooks/loan/aave-v4/AaveV4SupplyHook.sol" ;;
         "AaveV4WithdrawHook") echo "src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol" ;;
+        # Hooks - AaveV4 Loan V2 (composite OPEN / REPAY / CLOSE + standalone PLEDGE / BORROW / RELEASE) and idle MONEY_MARKET
+        "AaveV4SupplyAndBorrowHookV2") echo "src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol" ;;
+        "AaveV4RepayHookV2") echo "src/hooks/loan/aave-v4/AaveV4RepayHookV2.sol" ;;
+        "AaveV4RepayAndWithdrawHookV2") echo "src/hooks/loan/aave-v4/AaveV4RepayAndWithdrawHookV2.sol" ;;
+        "AaveV4SupplyHookV2") echo "src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol" ;;
+        "AaveV4BorrowHookV2") echo "src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol" ;;
+        "AaveV4WithdrawHookV2") echo "src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol" ;;
+        "AaveV4LendHook") echo "src/hooks/loan/aave-v4/AaveV4LendHook.sol" ;;
+        "AaveV4RedeemHook") echo "src/hooks/loan/aave-v4/AaveV4RedeemHook.sol" ;;
 
         # Hooks - Bridges (Stargate)
         "StargateSendHook") echo "src/hooks/bridges/stargate/StargateSendHook.sol" ;;
