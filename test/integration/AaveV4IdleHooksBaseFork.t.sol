@@ -18,8 +18,8 @@ import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfig
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
-import { AaveV4ReserveRegistry } from "../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
+import { AaveV4ReserveRegistryV2 } from "../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { AaveV4LendHook } from "../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4RedeemHook } from "../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
@@ -37,7 +37,7 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     address internal constant MAG7_SPOKE = 0x17905Db0e4A3514467539956c084180616AE7B8D;
     uint256 internal constant USDC_RESERVE_ID = 7;
     uint256 internal constant LEND = 1000e6;
-    bytes32 internal constant ORACLE_SALT = bytes32("AaveV4SupplyYieldSourceOracle");
+    bytes32 internal constant ORACLE_SALT = bytes32("AaveV4ReserveOracle");
     bytes32 internal constant COLLATERAL_EVENT = keccak256("SetUsingAsCollateral(uint256,address,address,bool)");
 
     address public accountBase;
@@ -46,8 +46,8 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     ISuperLedgerConfiguration public ledgerConfig;
     SuperLedger public ledger;
     ISuperNativePaymaster public superNativePaymaster;
-    AaveV4ReserveRegistry public registry;
-    AaveV4SupplyYieldSourceOracle public oracle;
+    AaveV4ReserveRegistryV2 public registry;
+    AaveV4ReserveOracle public oracle;
     AaveV4LendHook public lendHook;
     AaveV4RedeemHook public redeemHook;
     address public usdcKey;
@@ -68,9 +68,9 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         allowedExecutors[0] = address(superExecutorOnBase);
         ledger = new SuperLedger(address(ledgerConfig), allowedExecutors);
 
-        registry = new AaveV4ReserveRegistry(address(this));
-        usdcKey = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
-        oracle = new AaveV4SupplyYieldSourceOracle(address(ledgerConfig), address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        (usdcKey,) = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
+        oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         feeRecipient = makeAddr("feeRecipient");
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =

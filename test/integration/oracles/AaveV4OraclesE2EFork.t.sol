@@ -7,11 +7,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { AaveV4ReserveRegistry } from "../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 import { AaveV4ReserveKey } from "../../../src/libraries/AaveV4ReserveKey.sol";
 import { AAVE_V4_SUPPLY_YS_ORACLE_ID } from "../../utils/Constants.sol";
-import { AaveV4DebtOracle } from "../../../src/accounting/oracles/AaveV4DebtOracle.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
+import { AaveV4ReserveOracle } from "../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { IAaveV4Spoke } from "../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -57,7 +56,7 @@ contract MockZeroCostBasisLedgerE2E {
     }
 }
 
-/// @notice End-to-end fork tests for the Aave V4 accounting oracles against the live Ethereum
+/// @notice End-to-end fork tests for the Aave V4 accounting oracle against the live Ethereum
 ///         Main Spoke, exercising ALL 14 live reserves at the pinned block plus full position
 ///         lifecycles — both via direct spoke self-calls and via the real V2 loan hooks.
 /// @dev Reserve map at block 24_884_274 (probed on-chain):
@@ -92,9 +91,8 @@ contract AaveV4OraclesE2EForkTest is Test {
 
     uint256 internal constant LIVE_RESERVE_COUNT = 14;
 
-    AaveV4ReserveRegistry internal registry;
-    AaveV4DebtOracle internal debtOracle;
-    AaveV4SupplyYieldSourceOracle internal supplyOracle;
+    AaveV4ReserveRegistryV2 internal registry;
+    AaveV4ReserveOracle internal oracle;
     address internal ledgerConfig;
 
     AaveV4SupplyAndBorrowHookV2 internal openHook;
@@ -102,7 +100,8 @@ contract AaveV4OraclesE2EForkTest is Test {
     AaveV4RepayAndWithdrawHookV2 internal closeHook;
 
     address[] internal underlyings;
-    address[] internal keys; // reserveKey per id, index == reserveId
+    address[] internal keys; // SUPPLY key per id, index == reserveId
+    address[] internal debtKeys; // DEBT key per id, index == reserveId
 
     address internal user1 = makeAddr("e2eUser1");
     address internal user2 = makeAddr("e2eUser2");
@@ -111,9 +110,8 @@ contract AaveV4OraclesE2EForkTest is Test {
         vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"), AAVE_V4_BLOCK);
 
         ledgerConfig = address(new SuperLedgerConfiguration());
-        registry = new AaveV4ReserveRegistry(address(this));
-        debtOracle = new AaveV4DebtOracle(ledgerConfig, address(registry));
-        supplyOracle = new AaveV4SupplyYieldSourceOracle(ledgerConfig, address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        oracle = new AaveV4ReserveOracle(ledgerConfig, address(registry));
 
         openHook = new AaveV4SupplyAndBorrowHookV2();
         repayHook = new AaveV4RepayHookV2();
@@ -136,8 +134,9 @@ contract AaveV4OraclesE2EForkTest is Test {
         underlyings[13] = GHO;
 
         keys = new address[](LIVE_RESERVE_COUNT);
+        debtKeys = new address[](LIVE_RESERVE_COUNT);
         for (uint256 id; id < LIVE_RESERVE_COUNT; ++id) {
-            keys[id] = registry.registerReserve(SPOKE, id);
+            (keys[id], debtKeys[id]) = registry.registerReserve(SPOKE, id);
         }
     }
 
@@ -252,13 +251,22 @@ contract AaveV4OraclesE2EForkTest is Test {
     ///         Reserve struct AND the underlying token's own ERC20 metadata
     function test_E2E_RegisterAllLiveReserves_BindingsMatchOnChain() public {
         for (uint256 id; id < LIVE_RESERVE_COUNT; ++id) {
-            (address spoke_, uint256 reserveId_, address underlying_, uint8 dec_) = registry.getReserveInfo(keys[id]);
+            (address spoke_, uint256 reserveId_, address underlying_, uint8 dec_, AaveV4ReserveRegistryV2.Side side_) =
+                registry.getReserveInfo(keys[id]);
             assertEq(spoke_, SPOKE);
             assertEq(reserveId_, id);
             assertEq(underlying_, underlyings[id], "underlying mismatch vs probed map");
             assertEq(dec_, IERC20Metadata(underlyings[id]).decimals(), "decimals mismatch vs token metadata");
             assertEq(keys[id], registry.computeReserveKey(SPOKE, id), "key derivation parity");
             assertTrue(registry.isRegistered(keys[id]));
+            assertTrue(side_ == AaveV4ReserveRegistryV2.Side.SUPPLY, "legacy derivation is the supply leg");
+
+            // the debt leg of the same reserve: same binding, DEBT side, distinct key
+            (,, address debtUnderlying_,, AaveV4ReserveRegistryV2.Side debtSide_) = registry.getReserveInfo(debtKeys[id]);
+            assertEq(debtUnderlying_, underlyings[id], "debt leg shares the underlying binding");
+            assertEq(debtKeys[id], registry.computeDebtKey(SPOKE, id), "debt key derivation parity");
+            assertTrue(debtSide_ == AaveV4ReserveRegistryV2.Side.DEBT);
+            assertTrue(debtKeys[id] != keys[id], "the two legs are keyed apart");
         }
         // id 14 is genuinely unlisted at this block
         vm.expectRevert();
@@ -267,9 +275,9 @@ contract AaveV4OraclesE2EForkTest is Test {
 
     /// @notice Batch views work across ALL live reserves at once (every key registered → no aborts)
     function test_E2E_BatchViews_AllLiveReserves() public view {
-        uint256[] memory pps = debtOracle.getPricePerShareMultiple(keys);
-        uint256[] memory debtTvls = debtOracle.getTVLMultiple(keys);
-        uint256[] memory supplyTvls = supplyOracle.getTVLMultiple(keys);
+        uint256[] memory pps = oracle.getPricePerShareMultiple(debtKeys);
+        uint256[] memory debtTvls = oracle.getTVLMultiple(debtKeys);
+        uint256[] memory supplyTvls = oracle.getTVLMultiple(keys);
 
         for (uint256 id; id < LIVE_RESERVE_COUNT; ++id) {
             assertEq(pps[id], 10 ** IERC20Metadata(underlyings[id]).decimals(), "identity PPS per reserve");
@@ -287,9 +295,9 @@ contract AaveV4OraclesE2EForkTest is Test {
 
     /// @notice Pins the real USDC reserve aggregates at the block (probed: ~864k debt, ~1.72M supplied)
     function test_E2E_RealAggregates_USDCReserve() public view {
-        assertGt(debtOracle.getTVL(keys[7]), 500_000e6, "USDC reserve has substantial live debt");
-        assertGt(supplyOracle.getTVL(keys[7]), 1_000_000e6, "USDC reserve has substantial live supply");
-        assertGt(supplyOracle.getTVL(keys[7]), debtOracle.getTVL(keys[7]), "supplied exceeds borrowed");
+        assertGt(oracle.getTVL(debtKeys[7]), 500_000e6, "USDC reserve has substantial live debt");
+        assertGt(oracle.getTVL(keys[7]), 1_000_000e6, "USDC reserve has substantial live supply");
+        assertGt(oracle.getTVL(keys[7]), oracle.getTVL(debtKeys[7]), "supplied exceeds borrowed");
     }
 
     /// @notice Batch TVL-by-owner across mixed reserves and users: values match single calls,
@@ -299,9 +307,9 @@ contract AaveV4OraclesE2EForkTest is Test {
         _openPosition(user2, WSTETH, 1, 10 ether, 8, 3000e6);
 
         address[] memory sources = new address[](3);
-        sources[0] = keys[7]; // USDC debt
-        sources[1] = keys[8]; // USDT debt
-        sources[2] = keys[0]; // WETH supply — read through the DEBT oracle: zero debt for both
+        sources[0] = debtKeys[7]; // USDC debt
+        sources[1] = debtKeys[8]; // USDT debt
+        sources[2] = debtKeys[0]; // WETH debt key: zero debt for both
         address[][] memory owners = new address[][](3);
         for (uint256 i; i < 3; ++i) {
             owners[i] = new address[](2);
@@ -309,8 +317,8 @@ contract AaveV4OraclesE2EForkTest is Test {
             owners[i][1] = user2;
         }
 
-        (uint256[][] memory tvls, bool[][] memory ok) = debtOracle.getTVLByOwnerOfSharesMultiple(sources, owners);
-        assertEq(tvls[0][0], debtOracle.getBalanceOfOwner(keys[7], user1), "batch == single");
+        (uint256[][] memory tvls, bool[][] memory ok) = oracle.getTVLByOwnerOfSharesMultiple(sources, owners);
+        assertEq(tvls[0][0], oracle.getBalanceOfOwner(debtKeys[7], user1), "batch == single");
         assertGe(tvls[0][0], 5000e6);
         assertEq(tvls[0][1], 0, "user2 has no USDC debt");
         assertEq(tvls[1][0], 0, "user1 has no USDT debt");
@@ -326,42 +334,42 @@ contract AaveV4OraclesE2EForkTest is Test {
             B. MULTI-USER / MULTI-RESERVE POSITION LIFECYCLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Two users on different collateral/debt reserves: the oracles isolate balances
+    /// @notice Two users on different collateral/debt reserves: the oracle isolates balances
     ///         per (key, owner) with zero cross-contamination
     function test_E2E_TwoUsers_IsolatedBalances() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
         _openPosition(user2, WSTETH, 1, 10 ether, 8, 3000e6);
 
         // user1: WETH supply + USDC debt only
-        assertGt(supplyOracle.getBalanceOfOwner(keys[0], user1), 0);
-        assertGe(debtOracle.getBalanceOfOwner(keys[7], user1), 5000e6);
-        assertEq(supplyOracle.getBalanceOfOwner(keys[1], user1), 0);
-        assertEq(debtOracle.getBalanceOfOwner(keys[8], user1), 0);
+        assertGt(oracle.getBalanceOfOwner(keys[0], user1), 0);
+        assertGe(oracle.getBalanceOfOwner(debtKeys[7], user1), 5000e6);
+        assertEq(oracle.getBalanceOfOwner(keys[1], user1), 0);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[8], user1), 0);
 
         // user2: wstETH supply + USDT debt only
-        assertGt(supplyOracle.getBalanceOfOwner(keys[1], user2), 0);
-        assertGe(debtOracle.getBalanceOfOwner(keys[8], user2), 3000e6);
-        assertEq(supplyOracle.getBalanceOfOwner(keys[0], user2), 0);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user2), 0);
+        assertGt(oracle.getBalanceOfOwner(keys[1], user2), 0);
+        assertGe(oracle.getBalanceOfOwner(debtKeys[8], user2), 3000e6);
+        assertEq(oracle.getBalanceOfOwner(keys[0], user2), 0);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user2), 0);
 
-        // Invariant: reserve-level TVL always covers any single user's position (both oracles)
-        assertGe(debtOracle.getTVL(keys[7]), debtOracle.getBalanceOfOwner(keys[7], user1));
-        assertGe(debtOracle.getTVL(keys[8]), debtOracle.getBalanceOfOwner(keys[8], user2));
-        assertGe(supplyOracle.getTVL(keys[0]), supplyOracle.getBalanceOfOwner(keys[0], user1));
-        assertGe(supplyOracle.getTVL(keys[1]), supplyOracle.getBalanceOfOwner(keys[1], user2));
+        // Invariant: reserve-level TVL always covers any single user's position (both legs)
+        assertGe(oracle.getTVL(debtKeys[7]), oracle.getBalanceOfOwner(debtKeys[7], user1));
+        assertGe(oracle.getTVL(debtKeys[8]), oracle.getBalanceOfOwner(debtKeys[8], user2));
+        assertGe(oracle.getTVL(keys[0]), oracle.getBalanceOfOwner(keys[0], user1));
+        assertGe(oracle.getTVL(keys[1]), oracle.getBalanceOfOwner(keys[1], user2));
     }
 
     /// @notice 8-decimal collateral (WBTC): PPS = 1e8 and the supplied read round-trips
     function test_E2E_WBTC_8Decimals_Lifecycle() public {
-        assertEq(supplyOracle.getPricePerShare(keys[3]), 1e8);
-        assertEq(debtOracle.getPricePerShare(keys[3]), 1e8);
+        assertEq(oracle.getPricePerShare(keys[3]), 1e8);
+        assertEq(oracle.getPricePerShare(debtKeys[3]), 1e8);
 
         _openPosition(user1, WBTC, 3, 1e8, 7, 10_000e6);
 
-        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[3], user1);
+        uint256 supplied = oracle.getBalanceOfOwner(keys[3], user1);
         assertGt(supplied, 0);
         assertLe(supplied, 1e8, "supply rounds down at source");
-        assertGe(debtOracle.getBalanceOfOwner(keys[7], user1), 10_000e6);
+        assertGe(oracle.getBalanceOfOwner(debtKeys[7], user1), 10_000e6);
     }
 
     /// @notice Partial repay: the oracle's debt delta equals the repaid amount (±1 wei rounding)
@@ -369,7 +377,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
         vm.warp(block.timestamp + 30 days);
 
-        uint256 debtBefore = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debtBefore = oracle.getBalanceOfOwner(debtKeys[7], user1);
         uint256 repayAmount = 2000e6;
 
         deal(USDC, user1, repayAmount);
@@ -377,47 +385,47 @@ contract AaveV4OraclesE2EForkTest is Test {
         vm.prank(user1);
         IAaveV4Spoke(SPOKE).repay(7, repayAmount, user1);
 
-        uint256 debtAfter = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debtAfter = oracle.getBalanceOfOwner(debtKeys[7], user1);
         assertApproxEqAbs(debtBefore - debtAfter, repayAmount, 1, "debt delta equals repaid amount");
         assertGt(debtAfter, 0, "residual debt remains");
         // supply leg untouched by repay
-        assertGt(supplyOracle.getBalanceOfOwner(keys[0], user1), 0);
+        assertGt(oracle.getBalanceOfOwner(keys[0], user1), 0);
     }
 
     /// @notice Partial withdraw: the oracle's supplied delta equals the withdrawn assets (±1 wei)
     function test_E2E_PartialWithdraw_ExactOracleDelta() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 1000e6); // low LTV so a partial withdraw stays healthy
 
-        uint256 suppliedBefore = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 suppliedBefore = oracle.getBalanceOfOwner(keys[0], user1);
         uint256 walletBefore = IERC20(WETH).balanceOf(user1);
 
         vm.prank(user1);
         (, uint256 assetsOut) = IAaveV4Spoke(SPOKE).withdraw(0, 2 ether, user1);
 
         assertEq(IERC20(WETH).balanceOf(user1) - walletBefore, assetsOut, "wallet received what spoke reports");
-        uint256 suppliedAfter = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 suppliedAfter = oracle.getBalanceOfOwner(keys[0], user1);
         assertApproxEqAbs(suppliedBefore - suppliedAfter, assetsOut, 1, "supplied delta equals withdrawn assets");
     }
 
     /// @notice Borrowing more strictly increases the oracle-read debt by the borrowed amount (±1 wei)
     function test_E2E_BorrowMore_DebtIncreases() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 2000e6);
-        uint256 debtBefore = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debtBefore = oracle.getBalanceOfOwner(debtKeys[7], user1);
 
         vm.prank(user1);
         IAaveV4Spoke(SPOKE).borrow(7, 1500e6, user1);
 
         assertApproxEqAbs(
-            debtOracle.getBalanceOfOwner(keys[7], user1) - debtBefore, 1500e6, 1, "debt grew by the borrow"
+            oracle.getBalanceOfOwner(debtKeys[7], user1) - debtBefore, 1500e6, 1, "debt grew by the borrow"
         );
     }
 
-    /// @notice Full close (repay max + withdraw max): BOTH oracles read exactly zero afterwards
-    function test_E2E_FullClose_BothOraclesReadZero() public {
+    /// @notice Full close (repay max + withdraw max): BOTH legs read exactly zero afterwards
+    function test_E2E_FullClose_BothLegsReadZero() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
         vm.warp(block.timestamp + 60 days);
 
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
         deal(USDC, user1, debt * 2);
         _approve(USDC, user1, SPOKE, type(uint256).max);
 
@@ -426,8 +434,8 @@ contract AaveV4OraclesE2EForkTest is Test {
         IAaveV4Spoke(SPOKE).withdraw(0, type(uint256).max, user1);
         vm.stopPrank();
 
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), 0, "debt cleared exactly");
-        assertEq(supplyOracle.getBalanceOfOwner(keys[0], user1), 0, "supply cleared exactly");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), 0, "debt cleared exactly");
+        assertEq(oracle.getBalanceOfOwner(keys[0], user1), 0, "supply cleared exactly");
         assertGt(IERC20(WETH).balanceOf(user1), 0, "collateral (plus yield) back in wallet");
     }
 
@@ -436,14 +444,14 @@ contract AaveV4OraclesE2EForkTest is Test {
     function test_E2E_Accrual_MonotonicCheckpoints() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
 
-        uint256 prevDebt = debtOracle.getBalanceOfOwner(keys[7], user1);
-        uint256 prevSupplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 prevDebt = oracle.getBalanceOfOwner(debtKeys[7], user1);
+        uint256 prevSupplied = oracle.getBalanceOfOwner(keys[0], user1);
 
         uint256[4] memory warps = [uint256(1 hours), 1 days, 30 days, 180 days];
         for (uint256 i; i < warps.length; ++i) {
             vm.warp(block.timestamp + warps[i]);
-            uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
-            uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
+            uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
+            uint256 supplied = oracle.getBalanceOfOwner(keys[0], user1);
             assertGe(debt, prevDebt, "debt monotonic non-decreasing under pure accrual");
             assertGe(supplied, prevSupplied, "supplied monotonic non-decreasing under pure accrual");
             prevDebt = debt;
@@ -458,34 +466,34 @@ contract AaveV4OraclesE2EForkTest is Test {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
 
         (uint256 drawn0, uint256 premium0) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), drawn0 + premium0);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), drawn0 + premium0);
 
         vm.warp(block.timestamp + 90 days);
         (uint256 drawn1, uint256 premium1) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), drawn1 + premium1);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), drawn1 + premium1);
         assertGt(drawn1, drawn0, "drawn debt accrued");
     }
 
     /// @notice Non-standard ERC20 (USDT, no bool return) as the debt asset: full lifecycle
     function test_E2E_USDT_NonStandardToken_Lifecycle() public {
         _openPosition(user1, WETH, 0, 10 ether, 8, 3000e6);
-        assertGe(debtOracle.getBalanceOfOwner(keys[8], user1), 3000e6);
+        assertGe(oracle.getBalanceOfOwner(debtKeys[8], user1), 3000e6);
 
         vm.warp(block.timestamp + 30 days);
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[8], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[8], user1);
         deal(USDT, user1, debt * 2);
         _approve(USDT, user1, SPOKE, debt * 2);
         vm.prank(user1);
         IAaveV4Spoke(SPOKE).repay(8, type(uint256).max, user1);
 
-        assertEq(debtOracle.getBalanceOfOwner(keys[8], user1), 0, "USDT debt cleared exactly");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[8], user1), 0, "USDT debt cleared exactly");
     }
 
     /*//////////////////////////////////////////////////////////////
                 C. HOOK-DRIVEN E2E (REAL V2 LOAN HOOKS)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Open via AaveV4SupplyAndBorrowHookV2's built executions: the oracles agree with
+    /// @notice Open via AaveV4SupplyAndBorrowHookV2's built executions: the oracle agrees with
     ///         the hook-observed state and the wallet deltas
     function test_E2E_HookOpen_OracleConsistency() public {
         uint256 supplyAmount = 10 ether;
@@ -502,15 +510,15 @@ contract AaveV4OraclesE2EForkTest is Test {
         assertEq(IERC20(USDC).balanceOf(user1) - usdcBefore, borrowAmount, "borrowed USDC in wallet");
         assertEq(IERC20(WETH).balanceOf(user1), 0, "collateral fully supplied");
 
-        // Oracles agree with the raw spoke reads the hooks use
+        // Both legs agree with the raw spoke reads the hooks use
         (uint256 drawn, uint256 premium) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), drawn + premium, "oracle == hook _totalDebt read");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), drawn + premium, "oracle == hook _totalDebt read");
         assertEq(
-            supplyOracle.getBalanceOfOwner(keys[0], user1),
+            oracle.getBalanceOfOwner(keys[0], user1),
             IAaveV4Spoke(SPOKE).getUserSuppliedAssets(0, user1),
             "oracle == hook _suppliedAssets read"
         );
-        assertGe(debtOracle.getBalanceOfOwner(keys[7], user1), borrowAmount);
+        assertGe(oracle.getBalanceOfOwner(debtKeys[7], user1), borrowAmount);
     }
 
     /// @notice Hook-driven partial repay: the oracle's debt delta equals the hook's exact repay
@@ -521,36 +529,36 @@ contract AaveV4OraclesE2EForkTest is Test {
 
         uint256 repayAmount = 1500e6;
         deal(USDC, user1, repayAmount);
-        uint256 debtBefore = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debtBefore = oracle.getBalanceOfOwner(debtKeys[7], user1);
 
         bytes memory data = _repayHookData(USDC, WETH, 0, 7, repayAmount);
         _executeAs(user1, repayHook.build(address(0), user1, data));
 
         assertApproxEqAbs(
-            debtBefore - debtOracle.getBalanceOfOwner(keys[7], user1), repayAmount, 1, "oracle delta == hook repay"
+            debtBefore - oracle.getBalanceOfOwner(debtKeys[7], user1), repayAmount, 1, "oracle delta == hook repay"
         );
         assertEq(IERC20(USDC).allowance(user1, SPOKE), 0, "allowance reset by hook");
         assertEq(IERC20(USDC).balanceOf(user1), 0, "exact spend");
     }
 
     /// @notice Full hook lifecycle: open via hook, accrue, close via hook (max repay + max
-    ///         withdraw) — both oracles read exactly zero and the wallet holds collateral + yield
-    function test_E2E_HookOpen_Warp_HookCloseMax_OraclesReadZero() public {
+    ///         withdraw) — both legs read exactly zero and the wallet holds collateral + yield
+    function test_E2E_HookOpen_Warp_HookCloseMax_LegsReadZero() public {
         uint256 supplyAmount = 10 ether;
         deal(WETH, user1, supplyAmount);
         _executeAs(user1, openHook.build(address(0), user1, _hookData(USDC, WETH, 0, 7, supplyAmount, 5000e6)));
 
         vm.warp(block.timestamp + 30 days);
 
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
         assertGt(debt, 5000e6, "interest accrued");
         deal(USDC, user1, debt + 100e6); // cover accrued interest
 
         bytes memory closeData = _hookData(USDC, WETH, 0, 7, type(uint256).max, type(uint256).max);
         _executeAs(user1, closeHook.build(address(0), user1, closeData));
 
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), 0, "debt oracle reads zero after close");
-        assertEq(supplyOracle.getBalanceOfOwner(keys[0], user1), 0, "supply oracle reads zero after close");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), 0, "debt key reads zero after close");
+        assertEq(oracle.getBalanceOfOwner(keys[0], user1), 0, "supply key reads zero after close");
         assertGe(IERC20(WETH).balanceOf(user1), supplyAmount, "collateral plus supply yield returned");
         assertEq(IERC20(USDC).allowance(user1, SPOKE), 0, "allowance reset");
     }
@@ -559,24 +567,24 @@ contract AaveV4OraclesE2EForkTest is Test {
     ///         drawn+premium read the hooks resolve against
     function test_E2E_HookOracleParity_AllStages() public {
         // Stage 0: no position
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), 0);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), 0);
 
         // Stage 1: open
         deal(WETH, user1, 10 ether);
         _executeAs(user1, openHook.build(address(0), user1, _hookData(USDC, WETH, 0, 7, 10 ether, 4000e6)));
         (uint256 d, uint256 p) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), d + p);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), d + p);
 
         // Stage 2: accrual
         vm.warp(block.timestamp + 45 days);
         (d, p) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), d + p);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), d + p);
 
         // Stage 3: partial hook repay
         deal(USDC, user1, 1000e6);
         _executeAs(user1, repayHook.build(address(0), user1, _repayHookData(USDC, WETH, 0, 7, 1000e6)));
         (d, p) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), d + p);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), d + p);
         assertGt(d + p, 0, "residual debt");
     }
 
@@ -586,30 +594,42 @@ contract AaveV4OraclesE2EForkTest is Test {
 
     /// @notice Re-registering a live reserve reverts (no overwrite, real spoke)
     function test_E2E_Registry_DuplicateLiveReserve_Reverts() public {
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_ALREADY_REGISTERED.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_ALREADY_REGISTERED.selector);
         registry.registerReserve(SPOKE, 7);
     }
 
-    /// @notice Deregistering a live reserve bricks all oracle reads for its key (the SAFETY
-    ///         INVARIANT hazard, demonstrated on real state), and re-registration restores the
-    ///         IDENTICAL key with identical live values
+    /// @notice Deregistering a live reserve bricks all oracle reads for the deregistered key (the
+    ///         SAFETY INVARIANT hazard, demonstrated on real state), and re-registration restores the
+    ///         IDENTICAL keys with identical live values. Deregistration is PER KEY while registration
+    ///         is per reserve, so BOTH legs must go before the reserve can be re-registered.
     function test_E2E_Registry_DeregisterRealReserve_BricksThenRestores() public {
-        uint256 tvlBefore = supplyOracle.getTVL(keys[2]); // weETH
+        uint256 tvlBefore = oracle.getTVL(keys[2]); // weETH
         assertGt(tvlBefore, 0);
 
+        // Dropping the supply leg alone leaves the debt leg resolvable — the documented asymmetry
         registry.proposeDeregisterReserve(keys[2]);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         registry.executeDeregisterReserve(keys[2]);
 
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        supplyOracle.getTVL(keys[2]);
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        debtOracle.getPricePerShare(keys[2]);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getTVL(keys[2]);
+        assertEq(oracle.getPricePerShare(debtKeys[2]), 1e18, "the debt leg survives its sibling");
+        // ...and the surviving leg blocks re-registration of the reserve as a whole
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_ALREADY_REGISTERED.selector);
+        registry.registerReserve(SPOKE, 2);
 
-        address restored = registry.registerReserve(SPOKE, 2);
+        registry.proposeDeregisterReserve(debtKeys[2]);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(debtKeys[2]);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getPricePerShare(debtKeys[2]);
+
+        (address restored, address restoredDebt) = registry.registerReserve(SPOKE, 2);
         assertEq(restored, keys[2], "hash-derived key restored identically");
+        assertEq(restoredDebt, debtKeys[2], "debt key restored identically");
         // TVL read works again; value moved only by warp-driven accrual (>= pre-deregistration)
-        assertGe(supplyOracle.getTVL(keys[2]), tvlBefore, "reads restored with live values");
+        assertGe(oracle.getTVL(keys[2]), tvlBefore, "reads restored with live values");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -624,7 +644,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
         vm.warp(block.timestamp + 30 days);
 
-        uint256 debtBefore = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debtBefore = oracle.getBalanceOfOwner(debtKeys[7], user1);
 
         // Unrelated third party: reverts AccessManagedUnauthorized(caller) on the live spoke
         vm.prank(makeAddr("premiumPoker"));
@@ -638,7 +658,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         assertTrue(ok, "self premium poke allowed");
 
         (uint256 drawn, uint256 premium) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
-        uint256 debtAfter = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debtAfter = oracle.getBalanceOfOwner(debtKeys[7], user1);
         assertEq(debtAfter, drawn + premium, "oracle == component sum after poke");
         assertGe(debtAfter, debtBefore, "poke never decreases total owed (ray-precision fix)");
     }
@@ -653,20 +673,20 @@ contract AaveV4OraclesE2EForkTest is Test {
         (bool ok,) = SPOKE.call(abi.encodeWithSignature("updateUserRiskPremium(address)", user1));
         assertTrue(ok);
 
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
         deal(USDC, user1, debt * 2);
         _approve(USDC, user1, SPOKE, type(uint256).max);
         vm.prank(user1);
         IAaveV4Spoke(SPOKE).repay(7, type(uint256).max, user1);
 
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), 0, "clears exactly even after a fresh poke");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), 0, "clears exactly even after a fresh poke");
     }
 
     /// @notice Pins the real EURC market state at the block: the reserve is ~100% utilized
     ///         (2,517e6 supplied vs 2,517e6 drawn), so any borrow reverts InsufficientLiquidity —
-    ///         while the oracles keep reading the fully-utilized reserve without issue
+    ///         while the oracle keeps reading the fully-utilized reserve without issue
     function test_E2E_EURC_FullyUtilizedReserve_OracleReadsLive() public {
-        assertGe(debtOracle.getTVL(keys[9]), supplyOracle.getTVL(keys[9]), "EURC ~100% utilized at this block");
+        assertGe(oracle.getTVL(debtKeys[9]), oracle.getTVL(keys[9]), "EURC ~100% utilized at this block");
 
         _openPosition(user1, WETH, 0, 10 ether, 7, 100e6); // unrelated healthy position
         vm.prank(user1);
@@ -674,8 +694,8 @@ contract AaveV4OraclesE2EForkTest is Test {
         IAaveV4Spoke(SPOKE).borrow(9, 500e6, user1);
 
         // Oracle reads on the exhausted reserve stay live
-        assertGt(debtOracle.getTVL(keys[9]), 0);
-        assertEq(debtOracle.getBalanceOfOwner(keys[9], user1), 0);
+        assertGt(oracle.getTVL(debtKeys[9]), 0);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[9], user1), 0);
     }
 
     /// @notice Donation immunity on the REAL spoke: transferring tokens directly to the spoke
@@ -683,10 +703,10 @@ contract AaveV4OraclesE2EForkTest is Test {
     function test_E2E_Donation_DoesNotMoveOracleReads() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
 
-        uint256 userSupplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
-        uint256 supplyTvl = supplyOracle.getTVL(keys[0]);
-        uint256 userDebt = debtOracle.getBalanceOfOwner(keys[7], user1);
-        uint256 debtTvl = debtOracle.getTVL(keys[7]);
+        uint256 userSupplied = oracle.getBalanceOfOwner(keys[0], user1);
+        uint256 supplyTvl = oracle.getTVL(keys[0]);
+        uint256 userDebt = oracle.getBalanceOfOwner(debtKeys[7], user1);
+        uint256 debtTvl = oracle.getTVL(debtKeys[7]);
 
         // Donate both assets straight to the spoke
         deal(WETH, address(this), 100 ether);
@@ -694,10 +714,10 @@ contract AaveV4OraclesE2EForkTest is Test {
         deal(USDC, address(this), 1_000_000e6);
         IERC20(USDC).transfer(SPOKE, 1_000_000e6);
 
-        assertEq(supplyOracle.getBalanceOfOwner(keys[0], user1), userSupplied, "user supply unmoved by donation");
-        assertEq(supplyOracle.getTVL(keys[0]), supplyTvl, "supply TVL unmoved by donation");
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), userDebt, "user debt unmoved by donation");
-        assertEq(debtOracle.getTVL(keys[7]), debtTvl, "debt TVL unmoved by donation");
+        assertEq(oracle.getBalanceOfOwner(keys[0], user1), userSupplied, "user supply unmoved by donation");
+        assertEq(oracle.getTVL(keys[0]), supplyTvl, "supply TVL unmoved by donation");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), userDebt, "user debt unmoved by donation");
+        assertEq(oracle.getTVL(debtKeys[7]), debtTvl, "debt TVL unmoved by donation");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -710,14 +730,14 @@ contract AaveV4OraclesE2EForkTest is Test {
     ///         and the configured fee is charged on the accrued yield only — proving the
     ///         identity-PPS oracle's ledger path fees yield, never principal, once wired
     function test_E2E_RealLedger_YieldFee_ChargedOnAccrualOnly() public {
-        // Configure: supply oracle, 10% fee, real ledger, this test as the allowed executor
+        // Configure: the reserve oracle at the supply key, 10% fee, real ledger, this test as executor
         address[] memory executors = new address[](1);
         executors[0] = address(this);
         SuperLedger ledger = new SuperLedger(ledgerConfig, executors);
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: address(supplyOracle),
+            yieldSourceOracle: address(oracle),
             feePercent: 1000,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
@@ -729,12 +749,12 @@ contract AaveV4OraclesE2EForkTest is Test {
 
         // Real supply on the real spoke
         _openPosition(user1, WETH, 0, 10 ether, 7, 1000e6);
-        uint256 inAssets = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 inAssets = oracle.getBalanceOfOwner(keys[0], user1);
         ledger.updateAccounting(user1, keys[0], id, true, inAssets, 0);
 
         // Real accrual, then full withdrawal after clearing the small debt
         vm.warp(block.timestamp + 365 days);
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
         deal(USDC, user1, debt * 2);
         _approve(USDC, user1, SPOKE, type(uint256).max);
         uint256 wethBefore = IERC20(WETH).balanceOf(user1);
@@ -757,7 +777,7 @@ contract AaveV4OraclesE2EForkTest is Test {
     ///         funds, with exact oracle deltas throughout
     function test_E2E_GHO_MintBasedDebt_Lifecycle() public {
         _openPosition(user1, WETH, 0, 10 ether, 13, 1000e18);
-        uint256 debtAfterBorrow = debtOracle.getBalanceOfOwner(keys[13], user1);
+        uint256 debtAfterBorrow = oracle.getBalanceOfOwner(debtKeys[13], user1);
         assertGe(debtAfterBorrow, 1000e18, "GHO debt registered");
         assertEq(IERC20(GHO).balanceOf(user1), 1000e18, "borrowed GHO in wallet");
 
@@ -767,12 +787,12 @@ contract AaveV4OraclesE2EForkTest is Test {
         IAaveV4Spoke(SPOKE).repay(13, 500e18, user1);
 
         assertApproxEqAbs(
-            debtAfterBorrow - debtOracle.getBalanceOfOwner(keys[13], user1), 500e18, 1, "GHO repay delta exact"
+            debtAfterBorrow - oracle.getBalanceOfOwner(debtKeys[13], user1), 500e18, 1, "GHO repay delta exact"
         );
     }
 
     /// @notice Multi-collateral portfolio: one user, WETH + WBTC both supplied, single USDC debt —
-    ///         the supply oracle isolates per reserve while the debt aggregates on one key
+    ///         the supply keys isolate per reserve while the debt aggregates on one debt key
     function test_E2E_MultiCollateral_PortfolioIsolation() public {
         // WETH leg
         _openPosition(user1, WETH, 0, 5 ether, 7, 2000e6);
@@ -785,18 +805,18 @@ contract AaveV4OraclesE2EForkTest is Test {
         IAaveV4Spoke(SPOKE).borrow(7, 8000e6, user1);
         vm.stopPrank();
 
-        // Supply oracle: per-reserve isolation, correct decimals domains
-        uint256 wethSupplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
-        uint256 wbtcSupplied = supplyOracle.getBalanceOfOwner(keys[3], user1);
+        // Supply leg: per-reserve isolation, correct decimals domains
+        uint256 wethSupplied = oracle.getBalanceOfOwner(keys[0], user1);
+        uint256 wbtcSupplied = oracle.getBalanceOfOwner(keys[3], user1);
         assertGt(wethSupplied, 0);
         assertLe(wethSupplied, 5 ether);
         assertGt(wbtcSupplied, 0);
         assertLe(wbtcSupplied, 1e8);
 
-        // Debt oracle: single aggregated USDC position across both borrows
-        assertGe(debtOracle.getBalanceOfOwner(keys[7], user1), 10_000e6, "both borrows aggregate on one key");
-        assertEq(debtOracle.getBalanceOfOwner(keys[3], user1), 0, "no WBTC debt");
-        assertEq(debtOracle.getBalanceOfOwner(keys[0], user1), 0, "no WETH debt");
+        // Debt leg: single aggregated USDC position across both borrows
+        assertGe(oracle.getBalanceOfOwner(debtKeys[7], user1), 10_000e6, "both borrows aggregate on one key");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[3], user1), 0, "no WBTC debt");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[0], user1), 0, "no WETH debt");
     }
 
     /// @notice Multi-debt portfolio read in ONE batch call: USDC + USDT + GHO debts for one user,
@@ -810,10 +830,10 @@ contract AaveV4OraclesE2EForkTest is Test {
         _openPosition(user2, WSTETH, 1, 5 ether, 0, 0.5 ether); // WETH debt (EURC is 100% utilized)
 
         address[] memory sources = new address[](4);
-        sources[0] = keys[7];
-        sources[1] = keys[8];
-        sources[2] = keys[13];
-        sources[3] = keys[0];
+        sources[0] = debtKeys[7];
+        sources[1] = debtKeys[8];
+        sources[2] = debtKeys[13];
+        sources[3] = debtKeys[0];
         address[][] memory owners = new address[][](4);
         for (uint256 i; i < 4; ++i) {
             owners[i] = new address[](2);
@@ -821,7 +841,7 @@ contract AaveV4OraclesE2EForkTest is Test {
             owners[i][1] = user2;
         }
 
-        (uint256[][] memory tvls, bool[][] memory ok) = debtOracle.getTVLByOwnerOfSharesMultiple(sources, owners);
+        (uint256[][] memory tvls, bool[][] memory ok) = oracle.getTVLByOwnerOfSharesMultiple(sources, owners);
         assertGe(tvls[0][0], 3000e6, "USDC debt");
         assertGe(tvls[1][0], 2000e6, "USDT debt");
         assertGe(tvls[2][0], 1000e18, "GHO debt");
@@ -835,50 +855,51 @@ contract AaveV4OraclesE2EForkTest is Test {
     }
 
     /// @notice Hook-driven close with an EXACT partial withdraw (not the max sentinel): the
-    ///         supply-oracle delta equals the withdrawn amount and residual position survives
+    ///         supply-key delta equals the withdrawn amount and residual position survives
     function test_E2E_HookClose_ExactPartialWithdraw_OracleDelta() public {
         deal(WETH, user1, 10 ether);
         _executeAs(user1, openHook.build(address(0), user1, _hookData(USDC, WETH, 0, 7, 10 ether, 1000e6)));
 
-        uint256 suppliedBefore = supplyOracle.getBalanceOfOwner(keys[0], user1);
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
+        uint256 suppliedBefore = oracle.getBalanceOfOwner(keys[0], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
         deal(USDC, user1, debt);
 
         // Close: exact-amount repay of the full debt via cap-free exact word, exact 2 ETH withdraw
         bytes memory closeData = _hookData(USDC, WETH, 0, 7, type(uint256).max, 2 ether);
         _executeAs(user1, closeHook.build(address(0), user1, closeData));
 
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), 0, "debt cleared");
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), 0, "debt cleared");
         assertApproxEqAbs(
-            suppliedBefore - supplyOracle.getBalanceOfOwner(keys[0], user1),
-            2 ether,
-            1,
-            "supply delta == exact withdraw"
+            suppliedBefore - oracle.getBalanceOfOwner(keys[0], user1), 2 ether, 1, "supply delta == exact withdraw"
         );
-        assertGt(supplyOracle.getBalanceOfOwner(keys[0], user1), 0, "residual collateral position survives");
+        assertGt(oracle.getBalanceOfOwner(keys[0], user1), 0, "residual collateral position survives");
     }
 
-    /// @notice SAFETY INVARIANT demonstrated with a LIVE position: deregistering the key bricks
-    ///         both oracles for an open position; re-registration restores the identical key and
+    /// @notice SAFETY INVARIANT demonstrated with a LIVE position: deregistering both keys bricks
+    ///         both legs for an open position; re-registration restores the identical keys and
     ///         the exact live values
     function test_E2E_DeregisterWithLivePosition_BricksThenRestoresExactValues() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
 
         registry.proposeDeregisterReserve(keys[7]);
+        registry.proposeDeregisterReserve(debtKeys[7]);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         // Record AFTER the warp so accrual doesn't move the comparison values
         (uint256 drawn, uint256 premium) = IAaveV4Spoke(SPOKE).getUserDebt(7, user1);
         registry.executeDeregisterReserve(keys[7]);
+        registry.executeDeregisterReserve(debtKeys[7]);
 
         // The live position's accounting reads are bricked — the documented hazard
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        debtOracle.getBalanceOfOwner(keys[7], user1);
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        debtOracle.getTVL(keys[7]);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getBalanceOfOwner(debtKeys[7], user1);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getTVL(keys[7]);
 
-        // Same-block re-registration restores the identical key and exact live values
-        assertEq(registry.registerReserve(SPOKE, 7), keys[7]);
-        assertEq(debtOracle.getBalanceOfOwner(keys[7], user1), drawn + premium, "exact live values restored");
+        // Same-block re-registration restores the identical keys and exact live values
+        (address restored, address restoredDebt) = registry.registerReserve(SPOKE, 7);
+        assertEq(restored, keys[7]);
+        assertEq(restoredDebt, debtKeys[7]);
+        assertEq(oracle.getBalanceOfOwner(debtKeys[7], user1), drawn + premium, "exact live values restored");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -902,14 +923,14 @@ contract AaveV4OraclesE2EForkTest is Test {
     }
 
     /// @notice F1 fix pinned on a REAL position: with a misconfigured 10% fee and no cost-basis
-    ///         snapshot (nothing is wired), the supply oracle's fee view returns exactly the
-    ///         requested amount — the pre-fix inherited view would have quoted supplied × 1.1
+    ///         snapshot (nothing is wired), the oracle's fee view returns exactly the requested
+    ///         amount on the supply key — the pre-fix inherited view would have quoted supplied × 1.1
     function test_E2E_F1_SupplyFeeView_BypassesOnRealPosition() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 1000e6);
-        bytes32 id = _registerAdversarialFeeConfig(keccak256("E2E_F1_SUPPLY"), address(supplyOracle));
+        bytes32 id = _registerAdversarialFeeConfig(keccak256("E2E_F1_SUPPLY"), address(oracle));
 
-        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
-        uint256 quote = supplyOracle.getAssetOutputWithFees(id, keys[0], WETH, user1, supplied);
+        uint256 supplied = oracle.getBalanceOfOwner(keys[0], user1);
+        uint256 quote = oracle.getAssetOutputWithFees(id, keys[0], WETH, user1, supplied);
 
         assertEq(quote, supplied, "bypass: quote == requested amount, never fee-inflated");
         assertLt(quote, supplied + supplied * 1000 / 10_000, "pre-fix inflated quote is impossible");
@@ -919,7 +940,7 @@ contract AaveV4OraclesE2EForkTest is Test {
     ///         can never request more assets than the position actually releases
     function test_E2E_F1_WithdrawQuote_NeverExceedsReleasable() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 100e6);
-        bytes32 id = _registerAdversarialFeeConfig(keccak256("E2E_F1_QUOTE"), address(supplyOracle));
+        bytes32 id = _registerAdversarialFeeConfig(keccak256("E2E_F1_QUOTE"), address(oracle));
 
         // Clear the small debt so a full withdrawal is possible
         deal(USDC, user1, 200e6);
@@ -927,8 +948,8 @@ contract AaveV4OraclesE2EForkTest is Test {
         vm.prank(user1);
         IAaveV4Spoke(SPOKE).repay(7, type(uint256).max, user1);
 
-        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
-        uint256 quote = supplyOracle.getAssetOutputWithFees(id, keys[0], WETH, user1, supplied);
+        uint256 supplied = oracle.getBalanceOfOwner(keys[0], user1);
+        uint256 quote = oracle.getAssetOutputWithFees(id, keys[0], WETH, user1, supplied);
 
         uint256 wethBefore = IERC20(WETH).balanceOf(user1);
         vm.prank(user1);
@@ -939,19 +960,18 @@ contract AaveV4OraclesE2EForkTest is Test {
         assertApproxEqAbs(quote, released, 1, "identity quote matches the actual release");
     }
 
-    /// @notice Both oracles bypass identically under the same adversarial config on real keys
-    function test_E2E_F1_BothOracles_BypassParity() public {
+    /// @notice Both legs bypass identically under the same adversarial config on real keys — one
+    ///         config id per leg, both pointing at the single merged oracle
+    function test_E2E_F1_BothLegs_BypassParity() public {
         _openPosition(user1, WETH, 0, 10 ether, 7, 5000e6);
-        bytes32 supplyId = _registerAdversarialFeeConfig(keccak256("E2E_F1_PARITY_S"), address(supplyOracle));
-        bytes32 debtId = _registerAdversarialFeeConfig(keccak256("E2E_F1_PARITY_D"), address(debtOracle));
+        bytes32 supplyId = _registerAdversarialFeeConfig(keccak256("E2E_F1_PARITY_S"), address(oracle));
+        bytes32 debtId = _registerAdversarialFeeConfig(keccak256("E2E_F1_PARITY_D"), address(oracle));
 
-        uint256 debt = debtOracle.getBalanceOfOwner(keys[7], user1);
-        assertEq(debtOracle.getAssetOutputWithFees(debtId, keys[7], USDC, user1, debt), debt, "debt view bypasses");
-        uint256 supplied = supplyOracle.getBalanceOfOwner(keys[0], user1);
+        uint256 debt = oracle.getBalanceOfOwner(debtKeys[7], user1);
+        assertEq(oracle.getAssetOutputWithFees(debtId, debtKeys[7], USDC, user1, debt), debt, "debt view bypasses");
+        uint256 supplied = oracle.getBalanceOfOwner(keys[0], user1);
         assertEq(
-            supplyOracle.getAssetOutputWithFees(supplyId, keys[0], WETH, user1, supplied),
-            supplied,
-            "supply view bypasses"
+            oracle.getAssetOutputWithFees(supplyId, keys[0], WETH, user1, supplied), supplied, "supply view bypasses"
         );
     }
 
@@ -970,7 +990,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         address superGov = script_.superGovernor(1); // Ethereum fork → default Super Governor
 
         // Fresh registry with the real DEPLOYER as bootstrap admin (mirrors DeployV2Core)
-        AaveV4ReserveRegistry reg = new AaveV4ReserveRegistry(deployer);
+        AaveV4ReserveRegistryV2 reg = new AaveV4ReserveRegistryV2(deployer);
         bytes32 MANAGER = reg.MARKET_MANAGER_ROLE();
         bytes32 ADMIN = reg.DEFAULT_ADMIN_ROLE();
 
@@ -998,9 +1018,11 @@ contract AaveV4OraclesE2EForkTest is Test {
 
         // ---- Operational continuity: governor registers a REAL reserve ----
         vm.prank(gov);
-        address key = reg.registerReserve(SPOKE, 0);
+        (address key, address debtKey) = reg.registerReserve(SPOKE, 0);
         assertEq(key, reg.computeReserveKey(SPOKE, 0));
+        assertEq(debtKey, reg.computeDebtKey(SPOKE, 0));
         assertTrue(reg.isRegistered(key));
+        assertTrue(reg.isRegistered(debtKey), "both legs registered in one call");
 
         // Governor can run the deregistration lifecycle too
         vm.startPrank(gov);
@@ -1018,7 +1040,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         vm.prank(superGov);
         reg.grantRole(MANAGER, newOps);
         vm.prank(newOps);
-        address key7 = reg.registerReserve(SPOKE, 7);
+        (address key7,) = reg.registerReserve(SPOKE, 7);
         assertTrue(reg.isRegistered(key7), "new ops manager operational after admin grant");
     }
 
@@ -1030,7 +1052,7 @@ contract AaveV4OraclesE2EForkTest is Test {
         address gov = script_.governor();
         address superGov = script_.superGovernor(1);
 
-        AaveV4ReserveRegistry reg = new AaveV4ReserveRegistry(deployer);
+        AaveV4ReserveRegistryV2 reg = new AaveV4ReserveRegistryV2(deployer);
         bytes32 MANAGER = reg.MARKET_MANAGER_ROLE();
         bytes32 ADMIN = reg.DEFAULT_ADMIN_ROLE();
 

@@ -16,9 +16,8 @@ import { ISuperHookInspector } from "../../src/interfaces/ISuperHook.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
-import { AaveV4ReserveRegistry } from "../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
-import { AaveV4DebtOracle } from "../../src/accounting/oracles/AaveV4DebtOracle.sol";
+import { AaveV4ReserveRegistryV2 } from "../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { AaveV4LendHook } from "../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4RedeemHook } from "../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { AaveV4SupplyAndBorrowHookV2 } from "../../src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol";
@@ -35,10 +34,10 @@ import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
 /// @title AaveV4HeaderIdentityE2EFork
 /// @notice SUP-21143 end-to-end on the live Ethereum Main Spoke through the real SuperExecutor, SuperLedger,
-///         AaveV4ReserveRegistry and both Aave V4 oracles: the reserve key carried in every Aave V4 hook header is
-///         the identity the registry, the supply / debt oracles and the ledger agree on — idle USDC lending and a
-///         WETH-collateral USDC borrow on the SAME spoke are keyed apart, the two-way mode partition holds, and an
-///         operator can recover from routing an OPEN onto an idle reserve.
+///         AaveV4ReserveRegistryV2 and the merged Aave V4 reserve oracle: the reserve key carried in every Aave V4
+///         hook header is the identity the registry, the oracle's supply leg and the ledger agree on — idle USDC
+///         lending and a WETH-collateral USDC borrow on the SAME spoke are keyed apart, the two-way mode partition
+///         holds, and an operator can recover from routing an OPEN onto an idle reserve.
 contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     address public constant SPOKE = 0x94e7A5dCbE816e498b89aB752661904E2F56c485;
     uint256 public constant WETH_RESERVE_ID = 0;
@@ -46,16 +45,17 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     uint256 public constant LEND = 2000e6;
     uint256 public constant PLEDGE = 1 ether;
     uint256 public constant BORROW = 500e6;
-    bytes32 public constant ORACLE_SALT = bytes32("AaveV4SupplyYieldSourceOracle");
+    bytes32 public constant ORACLE_SALT = bytes32("AaveV4ReserveOracle");
 
-    AaveV4ReserveRegistry public registry;
-    AaveV4SupplyYieldSourceOracle public supplyOracle;
-    AaveV4DebtOracle public debtOracle;
+    AaveV4ReserveRegistryV2 public registry;
+    AaveV4ReserveOracle public oracle;
     SuperLedger public superLedger;
     ISuperNativePaymaster public superNativePaymaster;
     bytes32 public oracleId;
     address public wethKey;
+    address public wethDebtKey;
     address public usdcKey;
+    address public usdcDebtKey;
 
     AaveV4LendHook public lendHook;
     AaveV4RedeemHook public redeemHook;
@@ -70,16 +70,15 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         blockNumber = AAVE_V4_BLOCK;
         super.setUp();
 
-        registry = new AaveV4ReserveRegistry(address(this));
-        wethKey = registry.registerReserve(SPOKE, WETH_RESERVE_ID);
-        usdcKey = registry.registerReserve(SPOKE, USDC_RESERVE_ID);
-        supplyOracle = new AaveV4SupplyYieldSourceOracle(address(ledgerConfig), address(registry));
-        debtOracle = new AaveV4DebtOracle(address(ledgerConfig), address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        (wethKey, wethDebtKey) = registry.registerReserve(SPOKE, WETH_RESERVE_ID);
+        (usdcKey, usdcDebtKey) = registry.registerReserve(SPOKE, USDC_RESERVE_ID);
+        oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: address(supplyOracle),
+            yieldSourceOracle: address(oracle),
             feePercent: 0,
             feeRecipient: makeAddr("aaveFeeRecipient"),
             ledger: address(ledger)
@@ -110,7 +109,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
                               ENCODERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Idle 157-byte layout: oracle id (the registered supply YS oracle) | reserve key | underlying | spoke |
+    /// @dev Idle 157-byte layout: oracle id (the registered reserve oracle) | reserve key | underlying | spoke |
     ///      reserveId | amount | usePrev
     function _idleData(
         address underlying,
@@ -288,10 +287,12 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
             address key = BytesLib.toAddress(id, 0);
             assertEq(key, BytesLib.toAddress(datas[i], 32), "inspect key == header key");
             assertTrue(registry.isRegistered(key), "key is a registered reserve");
-            (address spoke, uint256 reserveId, address underlying,) = registry.getReserveInfo(key);
+            (address spoke, uint256 reserveId, address underlying,, AaveV4ReserveRegistryV2.Side side) =
+                registry.getReserveInfo(key);
             assertEq(spoke, SPOKE);
             assertEq(reserveId, expectedReserve[i]);
             assertEq(underlying, expectedReserve[i] == USDC_RESERVE_ID ? CHAIN_1_USDC : CHAIN_1_WETH);
+            assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "headers always pin the SUPPLY leg");
         }
     }
 
@@ -300,18 +301,19 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The ticket's motivating scenario. The account idle-lends USDC (INFLOW, ledger keyed by the USDC reserve
-    ///         key), then pledges WETH and borrows USDC (LOAN, NONACCOUNTING, keyed WETH / USDC). Per key: the supply
-    ///         oracle reports the idle USDC and the pledged WETH separately, the debt oracle reports the USDC debt
-    /// under the very same USDC key the idle lend used, and the ledger only ever saw the idle leg. Redeeming the idle
-    ///         leg nets the ledger to zero and leaves the LOAN legs untouched; repay + release then close the loan.
+    ///         key), then pledges WETH and borrows USDC (LOAN, NONACCOUNTING, keyed WETH / USDC). Per key: the oracle
+    ///         reports the idle USDC and the pledged WETH separately on their SUPPLY keys and the USDC debt on the
+    ///         DEBT key of the very same reserve the idle lend used, and the ledger only ever saw the idle leg.
+    ///         Redeeming the idle leg nets the ledger to zero and leaves the LOAN legs untouched; repay + release
+    ///         then close the loan.
     function test_E2E_IdleUsdcLender_And_WethCollateralUsdcBorrower_KeyedApart() external {
         // 1. idle lend USDC
         _exec(address(lendHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false));
         uint256 idleCredited = _supplied(USDC_RESERVE_ID);
         assertFalse(_flag(USDC_RESERVE_ID), "idle: never flagged");
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), idleCredited, "ledger keyed by USDC key");
-        assertEq(supplyOracle.getBalanceOfOwner(usdcKey, accountEth), idleCredited, "supply oracle == idle position");
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, accountEth), 0, "no debt yet under the USDC key");
+        assertEq(oracle.getBalanceOfOwner(usdcKey, accountEth), idleCredited, "supply key == idle position");
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, accountEth), 0, "no debt yet under the USDC debt key");
 
         // 2. pledge WETH + borrow USDC in one userOp (LOAN legs, NONACCOUNTING)
         address[] memory hooks = new address[](2);
@@ -326,11 +328,11 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         assertTrue(_flag(WETH_RESERVE_ID), "WETH flagged (LOAN)");
         assertFalse(_flag(USDC_RESERVE_ID), "USDC still idle (never flagged by the borrow)");
 
-        // per-key identities: the SAME USDC key carries the idle supply (supply oracle) and the debt (debt oracle)
-        assertEq(supplyOracle.getBalanceOfOwner(usdcKey, accountEth), idleCredited, "idle USDC untouched by the borrow");
-        assertApproxEqAbs(debtOracle.getBalanceOfOwner(usdcKey, accountEth), BORROW, 1, "debt under the USDC key");
-        assertApproxEqAbs(supplyOracle.getBalanceOfOwner(wethKey, accountEth), PLEDGE, 2, "pledged WETH under WETH key");
-        assertEq(debtOracle.getBalanceOfOwner(wethKey, accountEth), 0, "no WETH debt");
+        // per-key identities: the SAME USDC reserve carries the idle supply (supply key) and the debt (debt key)
+        assertEq(oracle.getBalanceOfOwner(usdcKey, accountEth), idleCredited, "idle USDC untouched by the borrow");
+        assertApproxEqAbs(oracle.getBalanceOfOwner(usdcDebtKey, accountEth), BORROW, 1, "debt under the USDC debt key");
+        assertApproxEqAbs(oracle.getBalanceOfOwner(wethKey, accountEth), PLEDGE, 2, "pledged WETH under WETH key");
+        assertEq(oracle.getBalanceOfOwner(wethDebtKey, accountEth), 0, "no WETH debt");
         // the ledger never saw the LOAN legs
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), idleCredited, "ledger: idle leg only");
         assertEq(superLedger.usersAccumulatorShares(accountEth, wethKey), 0, "ledger: no LOAN entry");
@@ -347,8 +349,8 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         _exec(address(releaseHook), _release(type(uint256).max));
         assertEq(_debt(USDC_RESERVE_ID), 0);
         assertEq(_supplied(WETH_RESERVE_ID), 0);
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, accountEth), 0);
-        assertEq(supplyOracle.getBalanceOfOwner(wethKey, accountEth), 0);
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, accountEth), 0);
+        assertEq(oracle.getBalanceOfOwner(wethKey, accountEth), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -413,10 +415,10 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         _exec(address(openHook), openUsdcCollateral);
         assertTrue(_flag(USDC_RESERVE_ID), "USDC now LOAN-mode collateral");
         assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth) - wethBefore, 0.05 ether, "WETH borrowed exactly");
-        assertApproxEqAbs(debtOracle.getBalanceOfOwner(wethKey, accountEth), 0.05 ether, 1, "WETH debt under WETH key");
         assertApproxEqAbs(
-            supplyOracle.getBalanceOfOwner(usdcKey, accountEth), 1000e6, 2, "USDC collateral under USDC key"
+            oracle.getBalanceOfOwner(wethDebtKey, accountEth), 0.05 ether, 1, "WETH debt under WETH debt key"
         );
+        assertApproxEqAbs(oracle.getBalanceOfOwner(usdcKey, accountEth), 1000e6, 2, "USDC collateral under USDC key");
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0, "LOAN leg never reaches the ledger");
         // the reserve is LOAN-mode now: the idle LEND is refused
         _execExpectFailure(

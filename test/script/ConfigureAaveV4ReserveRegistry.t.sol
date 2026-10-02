@@ -3,12 +3,13 @@ pragma solidity 0.8.30;
 
 import { Test } from "forge-std/Test.sol";
 import { ConfigureAaveV4ReserveRegistry } from "../../script/ConfigureAaveV4ReserveRegistry.s.sol";
+import { AaveV4ReserveRegistryV2 } from "../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 import { AaveV4ReserveRegistry } from "../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
 
 /// @dev Exposes the seeding primitive so it can run against a fresh registry on a live fork
 ///      without a broadcast or the env/role preamble.
 contract SeedHarness is ConfigureAaveV4ReserveRegistry {
-    function seed(AaveV4ReserveRegistry registry, address spoke) external returns (SeedResult memory) {
+    function seed(AaveV4ReserveRegistryV2 registry, address spoke) external returns (SeedResult memory) {
         return _seedSpoke(registry, spoke);
     }
 
@@ -18,6 +19,16 @@ contract SeedHarness is ConfigureAaveV4ReserveRegistry {
 
     function mag7Spoke() external pure returns (address) {
         return BASE_MAG7_SPOKE;
+    }
+
+    /// @dev Lets the test drop a single leg while holding MARKET_MANAGER_ROLE, so the half-registered state
+    ///      the repair branch exists for can actually be constructed.
+    function dropLeg(AaveV4ReserveRegistryV2 registry, address key) external {
+        registry.proposeDeregisterReserve(key);
+    }
+
+    function executeDrop(AaveV4ReserveRegistryV2 registry, address key) external {
+        registry.executeDeregisterReserve(key);
     }
 }
 
@@ -31,7 +42,7 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
     uint256 internal constant MAG7_LISTED_RESERVES = 8; // 7 equities + USDC at the pinned block
 
     SeedHarness internal harness;
-    AaveV4ReserveRegistry internal registry;
+    AaveV4ReserveRegistryV2 internal registry;
     address internal spoke;
 
     function setUp() public {
@@ -39,7 +50,7 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
         harness = new SeedHarness();
         spoke = harness.mag7Spoke();
         // Admin = harness so it holds MARKET_MANAGER_ROLE, exactly like DEPLOYER after a real deploy.
-        registry = new AaveV4ReserveRegistry(address(harness));
+        registry = new AaveV4ReserveRegistryV2(address(harness));
     }
 
     function test_Seed_RegistersEveryListedReserveOnce() public {
@@ -49,19 +60,28 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
         assertEq(first.skipped, 0);
 
         for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            // Both legs must be present: one registerReserve call registers supply AND debt
             address key = registry.computeReserveKey(spoke, id);
-            assertTrue(registry.isRegistered(key), "every id registered");
-            (address spoke_, uint256 id_,,) = registry.getReserveInfo(key);
+            address debtKey = registry.computeDebtKey(spoke, id);
+            assertTrue(registry.isRegistered(key), "every id registered (supply leg)");
+            assertTrue(registry.isRegistered(debtKey), "every id registered (debt leg)");
+            (address spoke_, uint256 id_,,, AaveV4ReserveRegistryV2.Side supplySide) = registry.getReserveInfo(key);
             assertEq(spoke_, spoke);
             assertEq(id_, id);
+            assertTrue(supplySide == AaveV4ReserveRegistryV2.Side.SUPPLY, "supply leg side");
+            (address dSpoke, uint256 dId,,, AaveV4ReserveRegistryV2.Side debtSide) = registry.getReserveInfo(debtKey);
+            assertEq(dSpoke, spoke, "debt leg binds the same spoke");
+            assertEq(dId, id, "debt leg binds the same reserveId");
+            assertTrue(debtSide == AaveV4ReserveRegistryV2.Side.DEBT, "debt leg side");
         }
-        (,, address u0, uint8 d0) = registry.getReserveInfo(registry.computeReserveKey(spoke, 0));
+        (,, address u0, uint8 d0,) = registry.getReserveInfo(registry.computeReserveKey(spoke, 0));
         assertEq(u0, AAPLc, "reserve 0 is AAPLc");
         assertEq(d0, 8);
-        (,, address u7, uint8 d7) = registry.getReserveInfo(registry.computeReserveKey(spoke, 7));
+        (,, address u7, uint8 d7,) = registry.getReserveInfo(registry.computeReserveKey(spoke, 7));
         assertEq(u7, USDC_BASE, "reserve 7 is USDC");
         assertEq(d7, 6);
         assertFalse(registry.isRegistered(registry.computeReserveKey(spoke, MAG7_LISTED_RESERVES)), "no phantom id");
+        assertFalse(registry.isRegistered(registry.computeDebtKey(spoke, MAG7_LISTED_RESERVES)), "no phantom debt id");
     }
 
     function test_Seed_SecondRunIsANoOp() public {
@@ -99,5 +119,110 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
         harness.runCheck(8453, address(registry), spoke);
         harness.seed(registry, spoke);
         harness.runCheck(8453, address(registry), spoke);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            HALF-REGISTERED RESERVES: THE REPAIR BRANCH
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Seeds, then drops one leg of reserve `id` through the full timelock
+    function _dropOneLeg(uint256 id, bool dropDebt) internal returns (address droppedKey) {
+        harness.seed(registry, spoke);
+        droppedKey = dropDebt ? registry.computeDebtKey(spoke, id) : registry.computeReserveKey(spoke, id);
+        harness.dropLeg(registry, droppedKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        harness.executeDrop(registry, droppedKey);
+        assertFalse(registry.isRegistered(droppedKey), "leg dropped");
+    }
+
+    /// @notice A half-registered reserve must be REPAIRED by a re-seed, not skipped. Before the repair
+    ///         branch existed the seeder saw the supply key present and `continue`d, leaving the debt key
+    ///         permanently unresolvable while reporting success — and `registerReserve` can never fix it,
+    ///         because its two-key guard rejects the surviving leg.
+    function test_Seed_RepairsAHalfRegisteredReserve_DebtLegMissing() public {
+        address droppedDebtKey = _dropOneLeg(0, true);
+
+        ConfigureAaveV4ReserveRegistry.SeedResult memory r = harness.seed(registry, spoke);
+        assertEq(r.repaired, 1, "exactly the one missing leg was repaired");
+        assertEq(r.registered, 0, "nothing newly registered");
+        assertEq(r.skipped, MAG7_LISTED_RESERVES - 1, "the other reserves were skipped as whole");
+        assertTrue(registry.isRegistered(droppedDebtKey), "debt leg restored");
+        (,,,, AaveV4ReserveRegistryV2.Side restoredSide) = registry.getReserveInfo(droppedDebtKey);
+        assertTrue(restoredSide == AaveV4ReserveRegistryV2.Side.DEBT, "restored as DEBT");
+    }
+
+    /// @notice The mirror case: a missing SUPPLY leg is repaired and restored under the SUPPLY side
+    function test_Seed_RepairsAHalfRegisteredReserve_SupplyLegMissing() public {
+        address droppedSupplyKey = _dropOneLeg(6, false);
+
+        ConfigureAaveV4ReserveRegistry.SeedResult memory r = harness.seed(registry, spoke);
+        assertEq(r.repaired, 1, "one leg repaired");
+        assertTrue(registry.isRegistered(droppedSupplyKey), "supply leg restored");
+        (,,,, AaveV4ReserveRegistryV2.Side restoredSide) = registry.getReserveInfo(droppedSupplyKey);
+        assertTrue(restoredSide == AaveV4ReserveRegistryV2.Side.SUPPLY, "restored as SUPPLY");
+    }
+
+    /// @notice A healthy registry needs no repairs — the counter stays zero, so a non-zero `repaired` is a
+    ///         real signal that someone deregistered a single leg rather than routine noise
+    function test_Seed_HealthyRegistry_RepairsNothing() public {
+        harness.seed(registry, spoke);
+        ConfigureAaveV4ReserveRegistry.SeedResult memory r = harness.seed(registry, spoke);
+        assertEq(r.repaired, 0, "no repairs on a whole registry");
+        assertEq(r.skipped, MAG7_LISTED_RESERVES, "every reserve skipped as whole");
+    }
+
+    /// @notice After repair the reserve is whole: both legs resolve and share one binding
+    function test_Seed_AfterRepair_BothLegsResolveAndAgree() public {
+        _dropOneLeg(3, true);
+        harness.seed(registry, spoke);
+
+        address supplyKey = registry.computeReserveKey(spoke, 3);
+        address debtKey = registry.computeDebtKey(spoke, 3);
+        (address s1, uint256 i1, address u1, uint8 d1,) = registry.getReserveInfo(supplyKey);
+        (address s2, uint256 i2, address u2, uint8 d2,) = registry.getReserveInfo(debtKey);
+        assertEq(s2, s1, "same spoke");
+        assertEq(i2, i1, "same reserveId");
+        assertEq(u2, u1, "same underlying");
+        assertEq(d2, d1, "same decimals");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                V1 -> V2 MIGRATION PARITY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The V2 seed must carry across every reserve V1 holds — on Base that is the live MAG7
+    ///         tokenized-stocks market. Parity passes once V2 is seeded from the same spoke.
+    function test_MigrationParity_V2CarriesEveryV1Reserve() public {
+        AaveV4ReserveRegistry legacy = new AaveV4ReserveRegistry(address(this));
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            legacy.registerReserve(spoke, id);
+        }
+        harness.seed(registry, spoke);
+
+        uint256 carried = harness.assertMigrationParity(legacy, registry, spoke);
+        assertEq(carried, MAG7_LISTED_RESERVES, "all 8 stock-market reserves carried to V2");
+    }
+
+    /// @notice Parity must FAIL LOUDLY when a reserve V1 holds is missing a leg in V2 — this is the check's
+    ///         whole purpose, since the seeder enumerates from the spoke and not from V1
+    function test_MigrationParity_RevertIf_V2MissingALeg() public {
+        AaveV4ReserveRegistry legacy = new AaveV4ReserveRegistry(address(this));
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            legacy.registerReserve(spoke, id);
+        }
+        _dropOneLeg(2, true); // seeds V2, then removes reserve 2's debt leg
+
+        vm.expectRevert(bytes("MIGRATION_DEBT_LEG_MISSING"));
+        harness.assertMigrationParity(legacy, registry, spoke);
+    }
+
+    /// @notice Parity refuses to pass vacuously: an empty V1 means the comparison proved nothing, so it
+    ///         reverts rather than reporting success
+    function test_MigrationParity_RevertIf_V1IsEmpty() public {
+        AaveV4ReserveRegistry emptyLegacy = new AaveV4ReserveRegistry(address(this));
+        harness.seed(registry, spoke);
+
+        vm.expectRevert(bytes("MIGRATION_PARITY_FOUND_NOTHING_IN_V1"));
+        harness.assertMigrationParity(emptyLegacy, registry, spoke);
     }
 }

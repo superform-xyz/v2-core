@@ -28,7 +28,7 @@ import { BaseHook } from "../../src/hooks/BaseHook.sol";
 import { AaveV4ReserveKey } from "../../src/libraries/AaveV4ReserveKey.sol";
 import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { ISuperHook } from "../../src/interfaces/ISuperHook.sol";
-import { AaveV4ReserveRegistry } from "../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveRegistryV2 } from "../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
@@ -1909,7 +1909,7 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     ///         (supply reserve for OPEN / CLOSE / PLEDGE / RELEASE, borrow reserve for REPAY / BORROW), then spoke,
     ///         tokens and both ids — 144 bytes, and the key equals the deployed registry's computeReserveKey
     function test_AaveV4V2_Header_KeyEqualsRegistry_AllSixOps() external {
-        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         address keyWeth = registry.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID);
         address keyUsdc = registry.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID);
         assertEq(keyWeth, AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), "library == registry");

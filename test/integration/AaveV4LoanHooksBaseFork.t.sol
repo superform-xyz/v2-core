@@ -18,8 +18,8 @@ import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfig
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
-import { AaveV4ReserveRegistry } from "../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
+import { AaveV4ReserveRegistryV2 } from "../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { AaveV4LendHook } from "../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4SupplyHookV2 } from "../../src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol";
 import { AaveV4BorrowHookV2 } from "../../src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol";
@@ -52,7 +52,7 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     uint256 internal constant USDC_RESERVE_ID = 7;
     uint256 internal constant EQUITY_RESERVE_ID = 0; // 8-decimal RWA equity token, used as the identity-only pair leg
     uint256 internal constant PLEDGE = 1000e6;
-    bytes32 internal constant ORACLE_SALT = bytes32("AaveV4SupplyYieldSourceOracle");
+    bytes32 internal constant ORACLE_SALT = bytes32("AaveV4ReserveOracle");
 
     AccountInstance internal instanceOnBase;
     address internal accountBase;
@@ -60,8 +60,8 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     ISuperLedgerConfiguration internal ledgerConfig;
     SuperLedger internal ledger;
     ISuperNativePaymaster internal superNativePaymaster;
-    AaveV4ReserveRegistry internal registry;
-    AaveV4SupplyYieldSourceOracle internal oracle;
+    AaveV4ReserveRegistryV2 internal registry;
+    AaveV4ReserveOracle internal oracle;
     bytes32 internal oracleId;
     address internal usdcKey;
     address internal equityToken;
@@ -85,9 +85,9 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         allowedExecutors[0] = address(superExecutorOnBase);
         ledger = new SuperLedger(address(ledgerConfig), allowedExecutors);
 
-        registry = new AaveV4ReserveRegistry(address(this));
-        usdcKey = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
-        oracle = new AaveV4SupplyYieldSourceOracle(address(ledgerConfig), address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        (usdcKey,) = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
+        oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -180,10 +180,12 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         bytes memory id = pledgeHook.inspect(_loanData(USDC_RESERVE_ID, PLEDGE, false));
         address key = id.toAddress(0);
         assertEq(key, usdcKey, "inspect key == registered Base key");
-        (address spoke, uint256 reserveId, address underlying,) = registry.getReserveInfo(key);
+        (address spoke, uint256 reserveId, address underlying,, AaveV4ReserveRegistryV2.Side side) =
+            registry.getReserveInfo(key);
         assertEq(spoke, MAG7_SPOKE);
         assertEq(reserveId, USDC_RESERVE_ID);
         assertEq(underlying, CHAIN_8453_USDC);
+        assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "hook headers pin the SUPPLY leg");
         assertTrue(
             key != AaveV4ReserveKey.computeReserveKey(ETH_MAIN_SPOKE, USDC_RESERVE_ID),
             "same reserve id, different spoke, different key"
