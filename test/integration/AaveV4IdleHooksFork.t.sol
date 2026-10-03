@@ -15,8 +15,8 @@ import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaste
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
-import { AaveV4ReserveRegistry } from "../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
+import { AaveV4ReserveRegistryV2 } from "../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { AaveV4LendHook } from "../../src/hooks/loan/aave-v4/AaveV4LendHook.sol";
 import { AaveV4RedeemHook } from "../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { BaseAaveV4MoneyMarketHook } from "../../src/hooks/loan/aave-v4/BaseAaveV4MoneyMarketHook.sol";
@@ -26,7 +26,7 @@ import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
 /// @title AaveV4IdleHooksFork
 /// @notice SUP-21142 E2E on Ethereum mainnet: AaveV4LendHook / AaveV4RedeemHook through the REAL
-///         SuperExecutor, SuperLedger and AaveV4SupplyYieldSourceOracle registered at the reserve key,
+///         SuperExecutor, SuperLedger and AaveV4ReserveOracle registered at the supply reserve key,
 ///         against the live Main Spoke USDC reserve (id 7). Proves: supply-only (collateral flag never
 ///         flips), exact wallet deltas, identity-PPS ledger netting, fail-closed on unregistered keys.
 contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
@@ -35,13 +35,13 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
     uint256 public constant GHO_RESERVE_ID = 13;
     address public constant GHO = 0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f;
     uint256 public constant LEND = 1000e6;
-    bytes32 public constant ORACLE_SALT = bytes32("AaveV4SupplyYieldSourceOracle");
+    bytes32 public constant ORACLE_SALT = bytes32("AaveV4ReserveOracle");
     bytes32 internal constant COLLATERAL_EVENT = keccak256("SetUsingAsCollateral(uint256,address,address,bool)");
 
     AaveV4LendHook public lendHook;
     AaveV4RedeemHook public redeemHook;
-    AaveV4ReserveRegistry public registry;
-    AaveV4SupplyYieldSourceOracle public oracle;
+    AaveV4ReserveRegistryV2 public registry;
+    AaveV4ReserveOracle public oracle;
     ISuperNativePaymaster public superNativePaymaster;
     SuperLedger public superLedger;
     address public feeRecipient;
@@ -52,12 +52,12 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         blockNumber = AAVE_V4_BLOCK;
         super.setUp();
 
-        registry = new AaveV4ReserveRegistry(address(this));
-        usdcKey = registry.registerReserve(SPOKE, USDC_RESERVE_ID);
-        oracle = new AaveV4SupplyYieldSourceOracle(address(ledgerConfig), address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        (usdcKey,) = registry.registerReserve(SPOKE, USDC_RESERVE_ID);
+        oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         feeRecipient = makeAddr("aaveIdleFeeRecipient");
 
-        // Register the identity-PPS supply oracle with feePercent = 0 (operational invariant) on the
+        // Register the identity-PPS reserve oracle with feePercent = 0 (operational invariant) on the
         // real SuperLedger the executor posts to.
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -265,7 +265,7 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         _executeExpectFailure(
             address(lendHook),
             _idleData(GHO, GHO_RESERVE_ID, 100e18, false),
-            AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector
+            AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector
         );
         assertEq(IAaveV4Spoke(SPOKE).getUserSuppliedAssets(GHO_RESERVE_ID, accountEth), 0, "nothing supplied");
     }

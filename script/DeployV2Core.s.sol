@@ -768,7 +768,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Oracles (always check these; count must track the array below)
         // NOTE: Order must match _deployOracles array indices for consistency
-        string[24] memory oracleContracts = [
+        string[23] memory oracleContracts = [
             "ERC4626YieldSourceOracle", // [0]
             "ERC5115YieldSourceOracle", // [1]
             "PendlePTYieldSourceOracle", // [2]
@@ -790,9 +790,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "EulerDebtOracle", // [18]
             "MorphoBlueDebtOracle", // [19]
             "ERC20YieldSourceOracle", // [20]
-            "AaveV4ReserveRegistry", // [21]
-            "AaveV4DebtOracle", // [22]
-            "AaveV4SupplyYieldSourceOracle" // [23]
+            "AaveV4ReserveRegistryV2", // [21]
+            "AaveV4ReserveOracle" // [22]
         ];
 
         for (uint256 i = 0; i < oracleContracts.length; i++) {
@@ -3021,30 +3020,24 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                     );
                 }
             }
-            // AaveV4ReserveRegistry (admin = DEPLOYER)
+            // AaveV4ReserveRegistryV2 (admin = DEPLOYER)
             __checkContract(
-                AAVE_V4_RESERVE_REGISTRY_KEY,
-                __getSalt(AAVE_V4_RESERVE_REGISTRY_KEY),
+                AAVE_V4_RESERVE_REGISTRY_V2_KEY,
+                __getSalt(AAVE_V4_RESERVE_REGISTRY_V2_KEY),
                 abi.encode(DEPLOYER),
                 env
             );
-            // AaveV4DebtOracle + AaveV4SupplyYieldSourceOracle (superLedgerConfig + registry)
-            if (__checkBytecodeExists("AaveV4ReserveRegistry", env)) {
+            // AaveV4ReserveOracle (superLedgerConfig + registry)
+            if (__checkBytecodeExists("AaveV4ReserveRegistryV2", env)) {
                 address aaveV4RegistryAddr =
-                    __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_KEY, abi.encode(DEPLOYER), env);
+                    __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_V2_KEY, abi.encode(DEPLOYER), env);
                 // Gate on the deterministic CREATE2 address only: the deploy phase creates the
-                // registry and both oracles in one run, so requiring live registry code here
+                // registry and the oracle in one run, so requiring live registry code here
                 // made the check phase under-report on a fresh chain.
                 if (aaveV4RegistryAddr != address(0)) {
                     __checkContract(
-                        AAVE_V4_DEBT_ORACLE_KEY,
-                        __getSalt(AAVE_V4_DEBT_ORACLE_KEY),
-                        abi.encode(superLedgerConfig, aaveV4RegistryAddr),
-                        env
-                    );
-                    __checkContract(
-                        AAVE_V4_SUPPLY_YIELD_SOURCE_ORACLE_KEY,
-                        __getSalt(AAVE_V4_SUPPLY_YIELD_SOURCE_ORACLE_KEY),
+                        AAVE_V4_RESERVE_ORACLE_KEY,
+                        __getSalt(AAVE_V4_RESERVE_ORACLE_KEY),
                         abi.encode(superLedgerConfig, aaveV4RegistryAddr),
                         env
                     );
@@ -3975,7 +3968,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         pure
         returns (ContractVerification[] memory contracts)
     {
-        contracts = new ContractVerification[](17);
+        contracts = new ContractVerification[](16);
 
         contracts[0] = ContractVerification({
             name: "SuperLedgerConfiguration",
@@ -4076,23 +4069,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         });
 
         contracts[14] = ContractVerification({
-            name: "AaveV4ReserveRegistry",
-            outputKey: ".AaveV4ReserveRegistry",
-            bytecodePath: __getBytecodeArtifactPath("AaveV4ReserveRegistry", env),
+            name: "AaveV4ReserveRegistryV2",
+            outputKey: ".AaveV4ReserveRegistryV2",
+            bytecodePath: __getBytecodeArtifactPath("AaveV4ReserveRegistryV2", env),
             constructorArgs: ""
         });
 
         contracts[15] = ContractVerification({
-            name: "AaveV4DebtOracle",
-            outputKey: ".AaveV4DebtOracle",
-            bytecodePath: __getBytecodeArtifactPath("AaveV4DebtOracle", env),
-            constructorArgs: ""
-        });
-
-        contracts[16] = ContractVerification({
-            name: "AaveV4SupplyYieldSourceOracle",
-            outputKey: ".AaveV4SupplyYieldSourceOracle",
-            bytecodePath: __getBytecodeArtifactPath("AaveV4SupplyYieldSourceOracle", env),
+            name: "AaveV4ReserveOracle",
+            outputKey: ".AaveV4ReserveOracle",
+            bytecodePath: __getBytecodeArtifactPath("AaveV4ReserveOracle", env),
             constructorArgs: ""
         });
     }
@@ -4168,20 +4154,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
         } else if (
-            Strings.equal(contractToVerify.name, "AaveV4ReserveRegistry")
+            Strings.equal(contractToVerify.name, "AaveV4ReserveRegistryV2")
         ) {
-            // AaveV4ReserveRegistry needs admin (DEPLOYER)
+            // AaveV4ReserveRegistryV2 needs admin (DEPLOYER)
             bytes memory constructorArgs = abi.encode(DEPLOYER);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
             );
         } else if (
-            Strings.equal(contractToVerify.name, "AaveV4DebtOracle")
-                || Strings.equal(contractToVerify.name, "AaveV4SupplyYieldSourceOracle")
+            Strings.equal(contractToVerify.name, "AaveV4ReserveOracle")
         ) {
-            // AaveV4DebtOracle / AaveV4SupplyYieldSourceOracle need superLedgerConfig + registry address
+            // AaveV4ReserveOracle needs superLedgerConfig + registry address
             address aaveV4RegistryAddr =
-                __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_KEY, abi.encode(DEPLOYER), vars.env);
+                __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_V2_KEY, abi.encode(DEPLOYER), vars.env);
             bytes memory constructorArgs = abi.encode(vars.superLedgerConfig, aaveV4RegistryAddr);
             computedAddress = DeterministicDeployerLib.computeAddress(
                 abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
@@ -5362,7 +5347,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 pendlePTAmortizedOracleIndex = 8;
         uint256 pendlePTAmortizedOracleV2Index = 9;
 
-        uint256 len = 24;
+        uint256 len = 23;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         address[] memory oracleAddresses = new address[](len);
 
@@ -5384,16 +5369,16 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" MorphoBlueMarketRegistry deployed:", morphoRegistry);
         }
 
-        // Deploy AaveV4ReserveRegistry first (dependency for the AaveV4 oracles)
+        // Deploy AaveV4ReserveRegistryV2 first (dependency for the AaveV4 oracles)
         address aaveV4Registry = address(0);
-        if (__checkBytecodeExists("AaveV4ReserveRegistry", env)) {
+        if (__checkBytecodeExists("AaveV4ReserveRegistryV2", env)) {
             aaveV4Registry = __deployContractIfNeeded(
-                AAVE_V4_RESERVE_REGISTRY_KEY,
+                AAVE_V4_RESERVE_REGISTRY_V2_KEY,
                 chainId,
-                __getSalt(AAVE_V4_RESERVE_REGISTRY_KEY),
-                abi.encodePacked(__getBytecode("AaveV4ReserveRegistry", env), abi.encode(DEPLOYER))
+                __getSalt(AAVE_V4_RESERVE_REGISTRY_V2_KEY),
+                abi.encodePacked(__getBytecode("AaveV4ReserveRegistryV2", env), abi.encode(DEPLOYER))
             );
-            console2.log(" AaveV4ReserveRegistry deployed:", aaveV4Registry);
+            console2.log(" AaveV4ReserveRegistryV2 deployed:", aaveV4Registry);
         }
 
         // Deploy UniV3CLPRegistry (dependency for UniV3CLPYieldSourceOracle)
@@ -5496,17 +5481,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         oracles[20] = _createSafeOracleDeploymentWithArgs(
             ERC20_YIELD_SOURCE_ORACLE_KEY, "ERC20YieldSourceOracle", env, abi.encode(superLedgerConfig)
         );
-        // AaveV4ReserveRegistry is deployed above (not via oracle array) — slot 21 stays empty
-        // AaveV4DebtOracle + AaveV4SupplyYieldSourceOracle (superLedgerConfig + registry)
+        // AaveV4ReserveRegistryV2 is deployed above (not via oracle array) — slot 21 stays empty
+        // AaveV4ReserveOracle (superLedgerConfig + registry) — serves both the supply and debt legs
         if (aaveV4Registry != address(0)) {
             oracles[22] = _createSafeOracleDeploymentWithArgs(
-                AAVE_V4_DEBT_ORACLE_KEY, "AaveV4DebtOracle", env, abi.encode(superLedgerConfig, aaveV4Registry)
-            );
-            oracles[23] = _createSafeOracleDeploymentWithArgs(
-                AAVE_V4_SUPPLY_YIELD_SOURCE_ORACLE_KEY,
-                "AaveV4SupplyYieldSourceOracle",
-                env,
-                abi.encode(superLedgerConfig, aaveV4Registry)
+                AAVE_V4_RESERVE_ORACLE_KEY, "AaveV4ReserveOracle", env, abi.encode(superLedgerConfig, aaveV4Registry)
             );
         }
 

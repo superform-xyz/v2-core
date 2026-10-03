@@ -2,11 +2,11 @@
 pragma solidity >=0.8.30;
 
 import { DeployV2Base } from "./DeployV2Base.s.sol";
-import { AaveV4ReserveRegistry } from "../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveRegistryV2 } from "../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 import { console2 } from "forge-std/console2.sol";
 
 /// @title TransferAaveV4ReserveRegistryRoles
-/// @notice Script to transfer AaveV4ReserveRegistry roles from DEPLOYER to governance addresses.
+/// @notice Script to transfer AaveV4ReserveRegistryV2 roles from DEPLOYER to governance addresses.
 /// @dev Role mapping (mirrors TransferMorphoBlueMarketRegistryRoles):
 ///      - MARKET_MANAGER_ROLE  → GOVERNOR          (operational: register reserves, deregistrations)
 ///      - DEFAULT_ADMIN_ROLE   → SUPER_GOVERNOR    (admin: manage role grants)
@@ -33,7 +33,7 @@ contract TransferAaveV4ReserveRegistryRoles is DeployV2Base {
     /// @notice Transfer all roles from DEPLOYER to GOVERNOR / SUPER_GOVERNOR
     /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Chain ID (used to select Flare-specific Super Governor)
-    /// @param registryAddr Address of the deployed AaveV4ReserveRegistry
+    /// @param registryAddr Address of the deployed AaveV4ReserveRegistryV2
     function run(uint256 env, uint64 chainId, address registryAddr) external broadcast(env) {
         require(env == 0 || env == 2, "INVALID_ENV: only prod (0) or staging (2) supported");
         _setBaseConfiguration(env, "");
@@ -46,9 +46,9 @@ contract TransferAaveV4ReserveRegistryRoles is DeployV2Base {
         require(superGovernor != DEPLOYER, "SUPER_GOVERNOR cannot equal DEPLOYER");
         require(GOVERNOR != DEPLOYER, "GOVERNOR cannot equal DEPLOYER");
 
-        AaveV4ReserveRegistry registry = AaveV4ReserveRegistry(registryAddr);
+        AaveV4ReserveRegistryV2 registry = AaveV4ReserveRegistryV2(registryAddr);
 
-        console2.log("====== Transfer AaveV4ReserveRegistry Roles ======");
+        console2.log("====== Transfer AaveV4ReserveRegistryV2 Roles ======");
         console2.log("Registry:", registryAddr);
         console2.log("Chain ID:", uint256(chainId));
         console2.log("Environment:", env);
@@ -126,14 +126,14 @@ contract TransferAaveV4ReserveRegistryRoles is DeployV2Base {
     /// @notice Check current role status without making changes
     /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Chain ID (used to select Flare-specific Super Governor)
-    /// @param registryAddr Address of the deployed AaveV4ReserveRegistry
+    /// @param registryAddr Address of the deployed AaveV4ReserveRegistryV2
     function runCheck(uint256 env, uint64 chainId, address registryAddr) external broadcast(env) {
         require(env == 0 || env == 2, "INVALID_ENV: only prod (0) or staging (2) supported");
         _setBaseConfiguration(env, "");
 
         address superGovernor = _getSuperGovernor(chainId);
 
-        console2.log("====== AaveV4ReserveRegistry Role Check ======");
+        console2.log("====== AaveV4ReserveRegistryV2 Role Check ======");
         console2.log("Registry:", registryAddr);
         console2.log("Chain ID:", uint256(chainId));
         console2.log("Environment:", env);
@@ -147,7 +147,7 @@ contract TransferAaveV4ReserveRegistryRoles is DeployV2Base {
             return;
         }
 
-        AaveV4ReserveRegistry registry = AaveV4ReserveRegistry(registryAddr);
+        AaveV4ReserveRegistryV2 registry = AaveV4ReserveRegistryV2(registryAddr);
 
         _logRoleStatus(registry, superGovernor, "Current");
 
@@ -177,7 +177,7 @@ contract TransferAaveV4ReserveRegistryRoles is DeployV2Base {
         return SUPER_GOVERNOR_ADDRESS;
     }
 
-    function _logRoleStatus(AaveV4ReserveRegistry registry, address superGovernor, string memory label) internal view {
+    function _logRoleStatus(AaveV4ReserveRegistryV2 registry, address superGovernor, string memory label) internal view {
         bytes32 DEFAULT_ADMIN_ROLE = registry.DEFAULT_ADMIN_ROLE();
         bytes32 MARKET_MANAGER_ROLE = registry.MARKET_MANAGER_ROLE();
 
@@ -192,7 +192,7 @@ contract TransferAaveV4ReserveRegistryRoles is DeployV2Base {
         console2.log("");
     }
 
-    function _isFullyTransferred(AaveV4ReserveRegistry registry, address superGovernor) internal view returns (bool) {
+    function _isFullyTransferred(AaveV4ReserveRegistryV2 registry, address superGovernor) internal view returns (bool) {
         bytes32 DEFAULT_ADMIN_ROLE = registry.DEFAULT_ADMIN_ROLE();
         bytes32 MARKET_MANAGER_ROLE = registry.MARKET_MANAGER_ROLE();
 

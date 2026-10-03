@@ -19,7 +19,9 @@ import { AaveV4RedeemHook } from "../../../../src/hooks/loan/aave-v4/AaveV4Redee
 import { AaveV4SupplyHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol";
 import { AaveV4BorrowHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol";
 import { AaveV4WithdrawHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 
 /// @title AaveV4LoanBytecodeUnchangedTest
 /// @notice Every Aave V4 hook's creation code is pinned to its locked artifact. With `bytecode_hash = "none"`
@@ -28,7 +30,7 @@ import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4
 ///         trio, standalone V2 trio) to new artifacts — new deterministic addresses; the previously deployed
 ///         Ethereum addresses stay live for old roots. Its final review then consolidated the reserve-key hash
 ///         and `RESERVE_KEY_MISMATCH` into `AaveV4ReserveKey`, which the idle MONEY_MARKET pair (SUP-21142, not
-///         yet deployed) and `AaveV4ReserveRegistry` now share — so the idle pair is re-pinned as well.
+///         yet deployed) and `AaveV4ReserveRegistryV2` now share — so the idle pair is re-pinned as well.
 contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function _locked(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode/", name, ".json"))));
@@ -38,10 +40,41 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         return keccak256(vm.getCode(string(abi.encodePacked("script/generated-bytecode/", name, ".json"))));
     }
 
-    /// @dev The registry delegates its key derivation to `AaveV4ReserveKey` (SUP-21143 consolidation); it has no main
-    ///      locked artifact yet (the #1017 oracle set lives in generated + locked-dev), so pin the generated one
-    function test_ReserveRegistry_BytecodePinned() public {
-        assertEq(keccak256(type(AaveV4ReserveRegistry).creationCode), _generated("AaveV4ReserveRegistry"));
+    /// @dev V2 is a NEW contract under a new deploy name, not an edit to the deployed V1 — the struct gained
+    ///      `side` and `getReserveInfo` went 4->5 returns, which moves the creation code and therefore the
+    ///      CREATE2 address. Pinned against BOTH artifacts: `_generated` is what a vnet/dev deploy consumes
+    ///      and `_locked` is what a prod deploy consumes, and a mismatch between them is exactly how a prod
+    ///      run would deploy different code than was reviewed.
+    function test_ReserveRegistryV2_BytecodePinned() public {
+        bytes32 fresh = keccak256(type(AaveV4ReserveRegistryV2).creationCode);
+        assertEq(fresh, _generated("AaveV4ReserveRegistryV2"), "V2 generated artifact matches source");
+        assertEq(fresh, _locked("AaveV4ReserveRegistryV2"), "V2 locked artifact matches source");
+    }
+
+    /// @notice The merged oracle is under the same locked-bytecode release model as everything else here, so
+    ///         its artifacts must track its source too. Without this, an edit to `AaveV4ReserveOracle` would
+    ///         silently desync source from the locked artifact a prod deploy actually uses.
+    function test_ReserveOracle_BytecodePinned() public {
+        bytes32 fresh = keccak256(type(AaveV4ReserveOracle).creationCode);
+        assertEq(fresh, _generated("AaveV4ReserveOracle"), "oracle generated artifact matches source");
+        assertEq(fresh, _locked("AaveV4ReserveOracle"), "oracle locked artifact matches source");
+    }
+
+    /// @notice V1 is kept in-repo unmodified so the deployed, seeded registry stays reproducible. This fails
+    ///         if anyone edits it.
+    /// @dev Pinned against the GENERATED artifact, not the locked one, because they DIVERGE on `dev` and
+    ///      always have: generated matches this source, `locked-bytecode/AaveV4ReserveRegistry.json` does
+    ///      not. That divergence pre-dates this change (it is why the original version of this test also
+    ///      used `_generated`), but it is worth naming: `locked-bytecode/` is what an env-0 PROD deploy
+    ///      consumes, so for V1 the artifact prod would deploy is not the artifact this repo's source
+    ///      produces. V2 is held to the stricter standard — `test_ReserveRegistryV2_BytecodePinned` asserts
+    ///      source == generated == locked — so the new contract cannot inherit the same drift.
+    function test_ReserveRegistryV1_StillMatchesItsGeneratedArtifact() public {
+        assertEq(
+            keccak256(type(AaveV4ReserveRegistry).creationCode),
+            _generated("AaveV4ReserveRegistry"),
+            "V1 source must still reproduce its generated artifact"
+        );
     }
 
     function test_LoanV1_BytecodePinned() public {

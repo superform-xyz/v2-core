@@ -18,7 +18,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
-import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 // Hooks
 import { BaseLoanHookV2 } from "../../../../src/hooks/loan/BaseLoanHookV2.sol";
 import { BaseAaveV4LoanHookV2 } from "../../../../src/hooks/loan/aave-v4/BaseAaveV4LoanHookV2.sol";
@@ -895,7 +895,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
 
     /// @dev The library the hooks pin against is byte-identical to the deployed registry's derivation
     function testFuzz_ReserveKey_MatchesRegistry(address spoke_, uint256 reserveId) public {
-        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         assertEq(AaveV4ReserveKey.computeReserveKey(spoke_, reserveId), registry.computeReserveKey(spoke_, reserveId));
     }
 

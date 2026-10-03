@@ -29,7 +29,7 @@ import { AaveV4WithdrawHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4W
 import { MockAaveV4SpokeV2, MockPrevHookV2 } from "./AaveV4LoanHooksV2.t.sol";
 import { BaseAaveV4StandaloneLoanHookV2 } from "../../../../src/hooks/loan/aave-v4/BaseAaveV4StandaloneLoanHookV2.sol";
 import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
-import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 
 /// @title AaveV4StandaloneLoanHooksV2Test
 /// @notice SUP-21141: the standalone PLEDGE / BORROW / RELEASE hooks on the canonical 241-byte Aave V4
@@ -345,7 +345,7 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
     /// @dev The library the hooks pin against equals the registry's derivation AND the literal formula off-chain
     ///      consumers derive (the registry now delegates to the library, so the literal check is the independent pin)
     function testFuzz_ReserveKey_MatchesLiteralFormula(address spoke_, uint256 reserveId) public {
-        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         address literal = address(uint160(uint256(keccak256(abi.encode(spoke_, reserveId)))));
         assertEq(AaveV4ReserveKey.computeReserveKey(spoke_, reserveId), literal, "library == literal");
         assertEq(registry.computeReserveKey(spoke_, reserveId), literal, "registry == literal");

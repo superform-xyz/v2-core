@@ -3,14 +3,13 @@ pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
 
-import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
-import { AaveV4DebtOracle } from "../../../../src/accounting/oracles/AaveV4DebtOracle.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { IAaveV4Spoke } from "../../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
-import { ISuperLedger } from "../../../../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../../../src/interfaces/accounting/ISuperLedger.sol";
 
 /// @dev Ledger mock whose previewFees treats the ENTIRE amount as profit (zero cost basis) —
 ///      models the debt-oracle hazard: debt positions never snapshot, so nothing offsets the "profit".
@@ -104,9 +103,8 @@ contract MockAaveV4Spoke {
 }
 
 contract AaveV4OraclesTest is Test {
-    AaveV4ReserveRegistry public registry;
-    AaveV4DebtOracle public debtOracle;
-    AaveV4SupplyYieldSourceOracle public supplyOracle;
+    AaveV4ReserveRegistryV2 public registry;
+    AaveV4ReserveOracle public oracle;
     MockAaveV4Spoke public spoke;
     address public ledgerConfig;
 
@@ -118,24 +116,28 @@ contract AaveV4OraclesTest is Test {
     uint256 public constant USDC_RESERVE_ID = 7;
     uint256 public constant EQUITY_RESERVE_ID = 12;
 
+    /// @dev SUPPLY keys — the unchanged legacy derivation, `registry.computeReserveKey`
     address public usdcKey;
     address public equityKey;
+
+    /// @dev DEBT keys — `registry.computeDebtKey`, the second leg registered by the same call
+    address public usdcDebtKey;
+    address public equityDebtKey;
 
     function setUp() public {
         // Avoid timestamp underflow in timelock math on the default block.timestamp
         vm.warp(365 days * 2);
 
         ledgerConfig = address(new SuperLedgerConfiguration());
-        registry = new AaveV4ReserveRegistry(address(this));
-        debtOracle = new AaveV4DebtOracle(ledgerConfig, address(registry));
-        supplyOracle = new AaveV4SupplyYieldSourceOracle(ledgerConfig, address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        oracle = new AaveV4ReserveOracle(ledgerConfig, address(registry));
 
         spoke = new MockAaveV4Spoke();
         spoke.setReserve(USDC_RESERVE_ID, usdc, 6);
         spoke.setReserve(EQUITY_RESERVE_ID, equity, 18);
 
-        usdcKey = registry.registerReserve(address(spoke), USDC_RESERVE_ID);
-        equityKey = registry.registerReserve(address(spoke), EQUITY_RESERVE_ID);
+        (usdcKey, usdcDebtKey) = registry.registerReserve(address(spoke), USDC_RESERVE_ID);
+        (equityKey, equityDebtKey) = registry.registerReserve(address(spoke), EQUITY_RESERVE_ID);
 
         // Default state: account1 borrows USDC (drawn + premium), supplies equity
         spoke.setUserDebt(USDC_RESERVE_ID, account1, 400e6, 100e6);
@@ -149,23 +151,21 @@ contract AaveV4OraclesTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_constructors_setImmutables() public view {
-        assertEq(debtOracle.SUPER_LEDGER_CONFIGURATION(), ledgerConfig);
-        assertEq(address(debtOracle.REGISTRY()), address(registry));
-        assertEq(supplyOracle.SUPER_LEDGER_CONFIGURATION(), ledgerConfig);
-        assertEq(address(supplyOracle.REGISTRY()), address(registry));
+        assertEq(oracle.SUPER_LEDGER_CONFIGURATION(), ledgerConfig);
+        assertEq(address(oracle.REGISTRY()), address(registry));
     }
 
     function test_constructors_revertIf_zeroRegistry() public {
-        vm.expectRevert(AaveV4DebtOracle.ZERO_ADDRESS.selector);
-        new AaveV4DebtOracle(ledgerConfig, address(0));
+        vm.expectRevert(AaveV4ReserveOracle.ZERO_ADDRESS.selector);
+        new AaveV4ReserveOracle(ledgerConfig, address(0));
 
-        vm.expectRevert(AaveV4SupplyYieldSourceOracle.ZERO_ADDRESS.selector);
-        new AaveV4SupplyYieldSourceOracle(ledgerConfig, address(0));
+        vm.expectRevert(AaveV4ReserveOracle.ZERO_ADDRESS.selector);
+        new AaveV4ReserveOracle(address(0), address(registry));
     }
 
     function test_registryConstructor_revertIf_zeroAdmin() public {
-        vm.expectRevert(AaveV4ReserveRegistry.ZERO_ADDRESS.selector);
-        new AaveV4ReserveRegistry(address(0));
+        vm.expectRevert(AaveV4ReserveRegistryV2.ZERO_ADDRESS.selector);
+        new AaveV4ReserveRegistryV2(address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -198,21 +198,41 @@ contract AaveV4OraclesTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_registry_register_storesBinding() public view {
-        (address spoke_, uint256 reserveId_, address underlying_, uint8 decimals_) = registry.getReserveInfo(usdcKey);
+        (address spoke_, uint256 reserveId_, address underlying_, uint8 decimals_, AaveV4ReserveRegistryV2.Side side_) =
+            registry.getReserveInfo(usdcKey);
         assertEq(spoke_, address(spoke));
         assertEq(reserveId_, USDC_RESERVE_ID);
         assertEq(underlying_, usdc);
         assertEq(decimals_, 6);
+        assertTrue(side_ == AaveV4ReserveRegistryV2.Side.SUPPLY, "legacy key is the SUPPLY leg");
         assertTrue(registry.isRegistered(usdcKey));
     }
 
+    /// @notice One registerReserve call binds BOTH legs: same spoke/reserve/underlying/decimals,
+    ///         differing only in side, under two distinct keys
+    function test_registry_register_storesBothLegs() public view {
+        (address sSpoke, uint256 sId, address sUnderlying, uint8 sDecimals, AaveV4ReserveRegistryV2.Side sSide) =
+            registry.getReserveInfo(usdcKey);
+        (address dSpoke, uint256 dId, address dUnderlying, uint8 dDecimals, AaveV4ReserveRegistryV2.Side dSide) =
+            registry.getReserveInfo(usdcDebtKey);
+
+        assertEq(dSpoke, sSpoke, "same spoke");
+        assertEq(dId, sId, "same reserveId");
+        assertEq(dUnderlying, sUnderlying, "same underlying");
+        assertEq(dDecimals, sDecimals, "same decimals");
+        assertTrue(sSide == AaveV4ReserveRegistryV2.Side.SUPPLY);
+        assertTrue(dSide == AaveV4ReserveRegistryV2.Side.DEBT);
+        assertTrue(usdcKey != usdcDebtKey, "the legs must be keyed apart");
+        assertEq(usdcDebtKey, registry.computeDebtKey(address(spoke), USDC_RESERVE_ID), "debt key derivation");
+    }
+
     function test_registry_register_revertIf_duplicate() public {
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_ALREADY_REGISTERED.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_ALREADY_REGISTERED.selector);
         registry.registerReserve(address(spoke), USDC_RESERVE_ID);
     }
 
     function test_registry_register_revertIf_zeroSpoke() public {
-        vm.expectRevert(AaveV4ReserveRegistry.ZERO_ADDRESS.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.ZERO_ADDRESS.selector);
         registry.registerReserve(address(0), 0);
     }
 
@@ -229,7 +249,7 @@ contract AaveV4OraclesTest is Test {
 
     function test_registry_register_revertIf_zeroUnderlying() public {
         spoke.setReserve(42, address(0), 18);
-        vm.expectRevert(AaveV4ReserveRegistry.INVALID_RESERVE.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.INVALID_RESERVE.selector);
         registry.registerReserve(address(spoke), 42);
     }
 
@@ -249,7 +269,7 @@ contract AaveV4OraclesTest is Test {
 
         // Before the timelock elapses: revert
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY() - 1);
-        vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
         registry.executeDeregisterReserve(usdcKey);
 
         // At the boundary: succeeds
@@ -258,7 +278,7 @@ contract AaveV4OraclesTest is Test {
         assertFalse(registry.isRegistered(usdcKey));
 
         // Post-deregistration reads revert
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
         registry.getReserveInfo(usdcKey);
     }
 
@@ -269,109 +289,129 @@ contract AaveV4OraclesTest is Test {
         assertTrue(registry.isRegistered(usdcKey));
 
         vm.warp(block.timestamp + 3 days);
-        vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_NOT_PENDING.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
         registry.executeDeregisterReserve(usdcKey);
     }
 
     function test_registry_deregister_revertIf_notPending() public {
-        vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_NOT_PENDING.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
         registry.executeDeregisterReserve(usdcKey);
-        vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_NOT_PENDING.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
         registry.cancelDeregisterReserve(usdcKey);
     }
 
     function test_registry_deregister_revertIf_notRegistered() public {
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
         registry.proposeDeregisterReserve(makeAddr("unknownKey"));
     }
 
     /// @notice Hash-derivation property: re-registering the same pair after deregistration
     ///         restores the IDENTICAL key — a key can never be rebound to a different reserve
     function test_registry_reregistration_restoresSameKey() public {
+        // Both legs must go: registration is per reserve, so a surviving leg blocks re-registration
+        registry.proposeDeregisterReserve(usdcKey);
+        registry.proposeDeregisterReserve(usdcDebtKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(usdcKey);
+        registry.executeDeregisterReserve(usdcDebtKey);
+
+        (address keyAgain, address debtKeyAgain) = registry.registerReserve(address(spoke), USDC_RESERVE_ID);
+        assertEq(keyAgain, usdcKey, "re-registration must restore the identical derived supply key");
+        assertEq(debtKeyAgain, usdcDebtKey, "re-registration must restore the identical derived debt key");
+    }
+
+    /// @notice Deregistration is PER KEY while registration is PER RESERVE, so dropping one leg leaves
+    ///         the other resolvable — and that survivor blocks re-registration of the whole reserve
+    function test_registry_deregisterOneLeg_otherLegSurvives_andBlocksReregistration() public {
         registry.proposeDeregisterReserve(usdcKey);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         registry.executeDeregisterReserve(usdcKey);
 
-        address keyAgain = registry.registerReserve(address(spoke), USDC_RESERVE_ID);
-        assertEq(keyAgain, usdcKey, "re-registration must restore the identical derived key");
+        assertFalse(registry.isRegistered(usdcKey), "supply leg dropped");
+        assertTrue(registry.isRegistered(usdcDebtKey), "debt leg survives independently");
+        // The surviving debt leg still resolves for reads
+        assertEq(oracle.getPricePerShare(usdcDebtKey), 1e6);
+        // ...and blocks re-registering the reserve until it too is dropped
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_ALREADY_REGISTERED.selector);
+        registry.registerReserve(address(spoke), USDC_RESERVE_ID);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        DEBT ORACLE: IDENTITY + READS
+                         DEBT LEG: IDENTITY + READS
     //////////////////////////////////////////////////////////////*/
 
     function test_debt_decimalsAndPps() public view {
-        assertEq(debtOracle.decimals(usdcKey), 6);
-        assertEq(debtOracle.getPricePerShare(usdcKey), 1e6);
-        assertEq(debtOracle.decimals(equityKey), 18);
-        assertEq(debtOracle.getPricePerShare(equityKey), 1e18);
+        assertEq(oracle.decimals(usdcDebtKey), 6);
+        assertEq(oracle.getPricePerShare(usdcDebtKey), 1e6);
+        assertEq(oracle.decimals(equityDebtKey), 18);
+        assertEq(oracle.getPricePerShare(equityDebtKey), 1e18);
     }
 
     function test_debt_identityConverters() public view {
-        assertEq(debtOracle.getShareOutput(usdcKey, address(0), 123e6), 123e6);
-        assertEq(debtOracle.getWithdrawalShareOutput(usdcKey, address(0), 123e6), 123e6);
-        assertEq(debtOracle.getAssetOutput(usdcKey, address(0), 123e6), 123e6);
+        assertEq(oracle.getShareOutput(usdcDebtKey, address(0), 123e6), 123e6);
+        assertEq(oracle.getWithdrawalShareOutput(usdcDebtKey, address(0), 123e6), 123e6);
+        assertEq(oracle.getAssetOutput(usdcDebtKey, address(0), 123e6), 123e6);
     }
 
     /// @notice Total debt = drawn + premium — the exact BaseAaveV4LoanHookV2._totalDebt read
     function test_debt_balanceOfOwner_isDrawnPlusPremium() public view {
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, account1), 500e6);
-        assertEq(debtOracle.getTVLByOwnerOfShares(usdcKey, account1), 500e6);
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account1), 500e6);
+        assertEq(oracle.getTVLByOwnerOfShares(usdcDebtKey, account1), 500e6);
     }
 
     function test_debt_balanceOfOwner_zeroDebt() public view {
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, account2), 0);
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account2), 0);
     }
 
     function test_debt_balanceOfOwner_drawnOnly() public {
         spoke.setUserDebt(USDC_RESERVE_ID, account2, 250e6, 0);
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, account2), 250e6);
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account2), 250e6);
     }
 
     /// @notice Premium-only debt is still debt (drawn == 0, premium > 0)
     function test_debt_balanceOfOwner_premiumOnly() public {
         spoke.setUserDebt(USDC_RESERVE_ID, account2, 0, 33e6);
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, account2), 33e6);
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account2), 33e6);
     }
 
     function test_fuzz_debt_balanceOfOwner_sumNeverTruncates(uint128 drawn, uint128 premium) public {
         spoke.setUserDebt(USDC_RESERVE_ID, account2, drawn, premium);
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, account2), uint256(drawn) + uint256(premium));
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account2), uint256(drawn) + uint256(premium));
     }
 
     function test_debt_getTVL_isReserveAggregate() public view {
-        assertEq(debtOracle.getTVL(usdcKey), 1_000_000e6);
+        assertEq(oracle.getTVL(usdcDebtKey), 1_000_000e6);
     }
 
     /*//////////////////////////////////////////////////////////////
-                    SUPPLY ORACLE: IDENTITY + READS
+                        SUPPLY LEG: IDENTITY + READS
     //////////////////////////////////////////////////////////////*/
 
     function test_supply_decimalsAndPps() public view {
-        assertEq(supplyOracle.decimals(equityKey), 18);
-        assertEq(supplyOracle.getPricePerShare(equityKey), 1e18);
+        assertEq(oracle.decimals(equityKey), 18);
+        assertEq(oracle.getPricePerShare(equityKey), 1e18);
     }
 
     function test_supply_balanceOfOwner_isSuppliedAssets() public view {
-        assertEq(supplyOracle.getBalanceOfOwner(equityKey, account1), 2 ether);
-        assertEq(supplyOracle.getTVLByOwnerOfShares(equityKey, account1), 2 ether);
+        assertEq(oracle.getBalanceOfOwner(equityKey, account1), 2 ether);
+        assertEq(oracle.getTVLByOwnerOfShares(equityKey, account1), 2 ether);
     }
 
     function test_supply_balanceOfOwner_zeroSupply() public view {
-        assertEq(supplyOracle.getBalanceOfOwner(equityKey, account2), 0);
+        assertEq(oracle.getBalanceOfOwner(equityKey, account2), 0);
     }
 
     function test_supply_getTVL_isReserveAggregate() public view {
-        assertEq(supplyOracle.getTVL(equityKey), 50_000 ether);
+        assertEq(oracle.getTVL(equityKey), 50_000 ether);
     }
 
     /// @notice Per-leg decimals independence: the 6-decimal debt leg and 18-decimal supply leg
     ///         of one market resolve decimals from their OWN reserve bindings
     function test_decimalsIndependence_acrossLegs() public view {
-        assertEq(debtOracle.decimals(usdcKey), 6);
-        assertEq(supplyOracle.decimals(equityKey), 18);
-        assertEq(debtOracle.getPricePerShare(usdcKey), 1e6);
-        assertEq(supplyOracle.getPricePerShare(equityKey), 1e18);
+        assertEq(oracle.decimals(usdcDebtKey), 6);
+        assertEq(oracle.decimals(equityKey), 18);
+        assertEq(oracle.getPricePerShare(usdcDebtKey), 1e6);
+        assertEq(oracle.getPricePerShare(equityKey), 1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -380,35 +420,24 @@ contract AaveV4OraclesTest is Test {
 
     function test_unregisteredKey_revertsTyped_everywhere() public {
         address unknown = makeAddr("unknownKey");
-        bytes4 sel = AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector;
+        bytes4 sel = AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector;
 
         vm.expectRevert(sel);
-        debtOracle.decimals(unknown);
+        oracle.decimals(unknown);
         vm.expectRevert(sel);
-        debtOracle.getPricePerShare(unknown);
+        oracle.getPricePerShare(unknown);
         vm.expectRevert(sel);
-        debtOracle.getBalanceOfOwner(unknown, account1);
+        oracle.getBalanceOfOwner(unknown, account1);
         vm.expectRevert(sel);
-        debtOracle.getTVLByOwnerOfShares(unknown, account1);
+        oracle.getTVLByOwnerOfShares(unknown, account1);
         vm.expectRevert(sel);
-        debtOracle.getTVL(unknown);
-
-        vm.expectRevert(sel);
-        supplyOracle.decimals(unknown);
-        vm.expectRevert(sel);
-        supplyOracle.getPricePerShare(unknown);
-        vm.expectRevert(sel);
-        supplyOracle.getBalanceOfOwner(unknown, account1);
-        vm.expectRevert(sel);
-        supplyOracle.getTVLByOwnerOfShares(unknown, account1);
-        vm.expectRevert(sel);
-        supplyOracle.getTVL(unknown);
+        oracle.getTVL(unknown);
     }
 
     /// @notice getTVLByOwnerOfSharesMultiple isolates the unregistered entry; others succeed
     function test_batch_tvlByOwner_isolatesUnregisteredKey() public {
         address[] memory sources = new address[](2);
-        sources[0] = usdcKey;
+        sources[0] = usdcDebtKey;
         sources[1] = makeAddr("unknownKey");
         address[][] memory owners = new address[][](2);
         owners[0] = new address[](1);
@@ -416,7 +445,7 @@ contract AaveV4OraclesTest is Test {
         owners[1] = new address[](1);
         owners[1][0] = account1;
 
-        (uint256[][] memory tvls, bool[][] memory ok) = debtOracle.getTVLByOwnerOfSharesMultiple(sources, owners);
+        (uint256[][] memory tvls, bool[][] memory ok) = oracle.getTVLByOwnerOfSharesMultiple(sources, owners);
         assertEq(tvls[0][0], 500e6);
         assertTrue(ok[0][0]);
         assertEq(tvls[1][0], 0);
@@ -427,14 +456,14 @@ contract AaveV4OraclesTest is Test {
     ///         isolation — a single unregistered key aborts the whole batch call
     function test_batch_ppsAndTvlMultiple_knownIssue_abortOnUnregisteredKey() public {
         address[] memory sources = new address[](2);
-        sources[0] = usdcKey;
+        sources[0] = usdcDebtKey;
         sources[1] = makeAddr("unknownKey");
 
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        debtOracle.getPricePerShareMultiple(sources);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getPricePerShareMultiple(sources);
 
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        debtOracle.getTVLMultiple(sources);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getTVLMultiple(sources);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -454,10 +483,7 @@ contract AaveV4OraclesTest is Test {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: oracle_,
-            feePercent: feePercent,
-            feeRecipient: makeAddr("feeRecipient"),
-            ledger: ledger
+            yieldSourceOracle: oracle_, feePercent: feePercent, feeRecipient: makeAddr("feeRecipient"), ledger: ledger
         });
         bytes32[] memory salts = new bytes32[](1);
         salts[0] = salt;
@@ -470,38 +496,38 @@ contract AaveV4OraclesTest is Test {
     ///         wiring exists to snapshot), the base implementation would have inflated 500 USDC
     ///         principal to 550; the override returns identity instead. The ledger path still
     ///         relies on the feePercent = 0 operational invariant.
-    function test_getAssetOutputWithFees_supplyOracle_overrideBypassesFees_zeroCostBasis() public {
+    function test_getAssetOutputWithFees_supplyLeg_overrideBypassesFees_zeroCostBasis() public {
         address mockLedger = address(new MockZeroCostBasisLedger());
-        bytes32 id = _registerConfig(keccak256("AAVE_V4_SUPPLY_FEE"), address(supplyOracle), 1000, mockLedger); // 10%
+        bytes32 id = _registerConfig(keccak256("AAVE_V4_SUPPLY_FEE"), address(oracle), 1000, mockLedger); // 10%
 
         uint256 amount = 500e6;
-        uint256 result = supplyOracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, amount);
-        assertEq(result, amount, "supply oracle must bypass fee math; principal can never be fee-inflated");
+        uint256 result = oracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, amount);
+        assertEq(result, amount, "supply leg must bypass fee math; principal can never be fee-inflated");
     }
 
-    /// @notice The debt oracle's override BYPASSES the fee math entirely — identity output even with
+    /// @notice The debt leg's override BYPASSES the fee math entirely — identity output even with
     ///         a misconfigured feePercent > 0 (protects the view path; the ledger path still relies
     ///         on the feePercent = 0 operational invariant).
-    function test_getAssetOutputWithFees_debtOracle_overrideBypassesFees() public {
+    function test_getAssetOutputWithFees_debtLeg_overrideBypassesFees() public {
         address mockLedger = address(new MockZeroCostBasisLedger());
-        bytes32 id = _registerConfig(keccak256("AAVE_V4_DEBT_FEE_MISCONFIG"), address(debtOracle), 1000, mockLedger);
+        bytes32 id = _registerConfig(keccak256("AAVE_V4_DEBT_FEE_MISCONFIG"), address(oracle), 1000, mockLedger);
 
         uint256 debtAmount = 500e6;
-        uint256 result = debtOracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, debtAmount);
-        assertEq(result, debtAmount, "debt oracle must bypass fee math regardless of config");
+        uint256 result = oracle.getAssetOutputWithFees(id, usdcDebtKey, address(0), account1, debtAmount);
+        assertEq(result, debtAmount, "debt leg must bypass fee math regardless of config");
     }
 
     /// @notice Missing config falls through to plain output on the inherited (supply) path
-    function test_getAssetOutputWithFees_supplyOracle_noConfig_returnsIdentity() public view {
+    function test_getAssetOutputWithFees_supplyLeg_noConfig_returnsIdentity() public view {
         bytes32 fakeId = keccak256("UNREGISTERED_CONFIG");
-        assertEq(supplyOracle.getAssetOutputWithFees(fakeId, usdcKey, address(0), account1, 123e6), 123e6);
+        assertEq(oracle.getAssetOutputWithFees(fakeId, usdcKey, address(0), account1, 123e6), 123e6);
     }
 
     /// @notice Configured feePercent == 0 returns identity on the inherited path
-    function test_getAssetOutputWithFees_supplyOracle_configuredZeroFee_returnsIdentity() public {
+    function test_getAssetOutputWithFees_supplyLeg_configuredZeroFee_returnsIdentity() public {
         address mockLedger = address(new MockZeroCostBasisLedger());
-        bytes32 id = _registerConfig(keccak256("AAVE_V4_SUPPLY_ZERO_FEE"), address(supplyOracle), 0, mockLedger);
-        assertEq(supplyOracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, 123e6), 123e6);
+        bytes32 id = _registerConfig(keccak256("AAVE_V4_SUPPLY_ZERO_FEE"), address(oracle), 0, mockLedger);
+        assertEq(oracle.getAssetOutputWithFees(id, usdcKey, address(0), account1, 123e6), 123e6);
     }
 
     /// @notice REAL-LEDGER round trip (documents the FUTURE-wiring ledger path; production keeps
@@ -513,7 +539,7 @@ contract AaveV4OraclesTest is Test {
         executors[0] = address(this);
         SuperLedger realLedger = new SuperLedger(ledgerConfig, executors);
         bytes32 id =
-            _registerConfig(keccak256("AAVE_V4_SUPPLY_REAL_LEDGER"), address(supplyOracle), 1000, address(realLedger));
+            _registerConfig(keccak256("AAVE_V4_SUPPLY_REAL_LEDGER"), address(oracle), 1000, address(realLedger));
 
         uint256 amount = 1000e6;
         // Inflow: snapshot cost basis at identity PPS
@@ -521,6 +547,121 @@ contract AaveV4OraclesTest is Test {
         // Outflow: withdraw the same principal — profit == 0 → fee == 0
         uint256 feeAmount = realLedger.updateAccounting(account1, usdcKey, id, false, amount, amount);
         assertEq(feeAmount, 0, "identity PPS principal round trip must charge zero fee");
+    }
+
+    /// @notice DOCBLOCK CASE (a), WITH REAL ACCRUAL: the oracle's "WHY THE FEE VIEW IS BYPASSED ON BOTH
+    ///         LEGS" note claims that on the SUPPLY leg a non-zero `feePercent` charges nothing because
+    ///         identity PPS makes cost basis == shares at every snapshot, so "a partial redeem re-prices
+    ///         to its own cost basis". This pins exactly that: principal in, yield accrues ON THE SPOKE
+    ///         (so the position is genuinely in profit and `getBalanceOfOwner` reports it), then a PARTIAL
+    ///         outflow through the real `SuperLedger` at `feePercent = 10%` still yields `feeAmount == 0`.
+    /// @dev This is the load-bearing reason there is no on-chain `feePercent == 0` guard on the supply
+    ///      leg, so it must be tested with accrual present. The pre-existing
+    ///      `test_realLedger_supplyRoundTrip_principalChargesZeroFee` is principal-in / principal-out with
+    ///      NO accrual — the degenerate case where profit is trivially zero and the claim is untested.
+    ///      The amounts mirror the idle MONEY_MARKET hooks: `AaveV4LendHook` (INFLOW) reports the
+    ///      supplied-assets delta as "shares", and `AaveV4RedeemHook` (OUTFLOW) reports the redeemed
+    ///      asset amount as both `amountSharesOrAssets` and `usedShares` — identical under identity PPS.
+    function test_realLedger_supplyLeg_partialRedeemAfterAccrual_chargesZeroFeeDespiteNonZeroFeePercent() public {
+        (SuperLedger realLedger, bytes32 id) =
+            _realLedgerWithFee(keccak256("AAVE_V4_SUPPLY_PARTIAL_AFTER_ACCRUAL"), 1000);
+
+        // --- INFLOW: 1000 USDC of principal lands on the spoke and is snapshotted ---
+        uint256 principal = 1000e6;
+        spoke.setUserSuppliedAssets(USDC_RESERVE_ID, account1, principal);
+        realLedger.updateAccounting(account1, usdcKey, id, true, principal, 0);
+        assertEq(realLedger.usersAccumulatorShares(account1, usdcKey), principal, "accumulator holds the principal");
+        assertEq(
+            realLedger.usersAccumulatorCostBasis(account1, usdcKey),
+            principal,
+            "identity PPS: cost basis equals shares at the snapshot"
+        );
+
+        // --- ACCRUAL: the spoke's virtual accrual grows the position by 10% ---
+        uint256 accrued = 1100e6;
+        spoke.setUserSuppliedAssets(USDC_RESERVE_ID, account1, accrued);
+        assertGt(accrued, principal, "the accrual is real, so profit is not trivially zero");
+        assertEq(oracle.getBalanceOfOwner(usdcKey, account1), accrued, "the oracle reports the accrued position");
+
+        // --- PARTIAL OUTFLOW: half of the principal, priced at identity PPS ---
+        uint256 redeemed = 500e6;
+        uint256 feeAmount = realLedger.updateAccounting(account1, usdcKey, id, false, redeemed, redeemed);
+        assertEq(feeAmount, 0, "partial redeem re-prices to its own cost basis: zero profit, zero fee");
+
+        // the accumulators drained proportionally — cost basis stays equal to shares, which is why the
+        // NEXT partial redeem is zero-fee too
+        assertEq(realLedger.usersAccumulatorShares(account1, usdcKey), principal - redeemed, "shares drained pro rata");
+        assertEq(
+            realLedger.usersAccumulatorCostBasis(account1, usdcKey),
+            principal - redeemed,
+            "cost basis drained pro rata: still equal to shares"
+        );
+
+        // CONSUMER WARNING pinned: the ledger accumulator is NOT NAV — the spoke still holds the accrued
+        // remainder, which exceeds the remaining ledger shares
+        assertGt(
+            oracle.getBalanceOfOwner(usdcKey, account1) - redeemed,
+            realLedger.usersAccumulatorShares(account1, usdcKey),
+            "ledger shares understate the live position once yield has accrued"
+        );
+    }
+
+    /// @notice DOCBLOCK CASE (b), WITH REAL ACCRUAL: the second half of the same claim — "a full redeem
+    ///         after accrual reports usedShares above the accumulator, which `BaseLedger` caps and
+    ///         re-prices to the accumulator". Principal in, yield accrues on the spoke, then the WHOLE
+    ///         accrued balance is redeemed so `usedShares` strictly exceeds the accumulator. `BaseLedger`
+    ///         caps `usedShares` (emitting `UsedSharesCapped`), re-prices `amountAssets` to the capped
+    ///         shares at identity PPS, and the fee is again ZERO at `feePercent = 10%`.
+    /// @dev Together with the partial case above, this is the full two-case justification for having no
+    ///      on-chain fee guard on the supply leg. The cap is what makes the accrued surplus invisible to
+    ///      the fee math: without it, `amountAssets` (the accrued balance) would exceed the cost basis
+    ///      (the principal) and the difference would be charged as profit.
+    function test_realLedger_supplyLeg_fullRedeemAfterAccrual_usedSharesAboveAccumulator_chargesZeroFee() public {
+        (SuperLedger realLedger, bytes32 id) = _realLedgerWithFee(keccak256("AAVE_V4_SUPPLY_FULL_AFTER_ACCRUAL"), 1000);
+
+        // --- INFLOW: 1000 USDC of principal ---
+        uint256 principal = 1000e6;
+        spoke.setUserSuppliedAssets(USDC_RESERVE_ID, account1, principal);
+        realLedger.updateAccounting(account1, usdcKey, id, true, principal, 0);
+
+        // --- ACCRUAL: 23.4% of yield, chosen so no amount is a round multiple of the principal ---
+        spoke.setUserSuppliedAssets(USDC_RESERVE_ID, account1, 1234e6);
+        uint256 accrued = oracle.getBalanceOfOwner(usdcKey, account1);
+        assertGt(
+            accrued,
+            realLedger.usersAccumulatorShares(account1, usdcKey),
+            "precondition: a full redeem reports usedShares ABOVE the accumulator"
+        );
+
+        // --- FULL OUTFLOW: the redeem hook reports the entire accrued balance ---
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerData.UsedSharesCapped(accrued, principal);
+        uint256 feeAmount = realLedger.updateAccounting(account1, usdcKey, id, false, accrued, accrued);
+        assertEq(feeAmount, 0, "capped usedShares re-price to the accumulator: zero profit, zero fee");
+
+        assertEq(realLedger.usersAccumulatorShares(account1, usdcKey), 0, "the accumulator is cleared");
+        assertEq(realLedger.usersAccumulatorCostBasis(account1, usdcKey), 0, "and so is the cost basis");
+    }
+
+    /// @dev Real `SuperLedger` + a `SuperLedgerConfiguration` entry at a NON-ZERO `feePercent`, with the
+    ///      fee asserted non-zero so the zero-fee results above can never be vacuous.
+    /// @param salt Config salt, distinct per test
+    /// @param feePercent Performance fee in basis points; must be > 0
+    /// @return realLedger The ledger this test contract is an allowed executor on
+    /// @return id The derived yieldSourceOracleId
+    function _realLedgerWithFee(bytes32 salt, uint256 feePercent)
+        internal
+        returns (SuperLedger realLedger, bytes32 id)
+    {
+        address[] memory executors = new address[](1);
+        executors[0] = address(this);
+        realLedger = new SuperLedger(ledgerConfig, executors);
+        id = _registerConfig(salt, address(oracle), feePercent, address(realLedger));
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            SuperLedgerConfiguration(ledgerConfig).getYieldSourceOracleConfig(id);
+        assertGt(config.feePercent, 0, "the configured fee must be non-zero or the zero-fee result is vacuous");
+        assertEq(config.ledger, address(realLedger), "the config points at the real ledger under test");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -555,7 +696,7 @@ contract AaveV4OraclesTest is Test {
 
         // The original deadline is no longer sufficient
         vm.warp(firstDeadline);
-        vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
         registry.executeDeregisterReserve(usdcKey);
     }
 
@@ -567,7 +708,7 @@ contract AaveV4OraclesTest is Test {
 
         vm.warp(block.timestamp + offset);
         if (block.timestamp < deadline) {
-            vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
+            vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
             registry.executeDeregisterReserve(usdcKey);
         } else {
             registry.executeDeregisterReserve(usdcKey);
@@ -578,14 +719,19 @@ contract AaveV4OraclesTest is Test {
     /// @notice Invariant: a re-registered key can never inherit a live pending deregistration —
     ///         execute deletes the pending entry and is the only path to the unregistered state
     function test_registry_reregisteredKey_hasNoZombiePending() public {
+        // Deregistration is per key, registration is per reserve: BOTH legs must be dropped or the
+        // surviving one blocks re-registration with RESERVE_ALREADY_REGISTERED
         registry.proposeDeregisterReserve(usdcKey);
+        registry.proposeDeregisterReserve(usdcDebtKey);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         registry.executeDeregisterReserve(usdcKey);
+        registry.executeDeregisterReserve(usdcDebtKey);
 
-        address restored = registry.registerReserve(address(spoke), USDC_RESERVE_ID);
+        (address restored, address restoredDebt) = registry.registerReserve(address(spoke), USDC_RESERVE_ID);
         assertEq(restored, usdcKey);
+        assertEq(restoredDebt, usdcDebtKey);
         assertEq(registry.pendingDeregistrations(usdcKey), 0, "no pending survives re-registration");
-        vm.expectRevert(AaveV4ReserveRegistry.DEREGISTRATION_NOT_PENDING.selector);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
         registry.executeDeregisterReserve(usdcKey);
     }
 
@@ -594,22 +740,29 @@ contract AaveV4OraclesTest is Test {
         address key42 = registry.computeReserveKey(address(spoke), 42);
         spoke.setReserve(42, makeAddr("token42"), 18);
 
+        address debtKey42 = registry.computeDebtKey(address(spoke), 42);
         vm.expectEmit(true, true, true, true);
-        emit AaveV4ReserveRegistry.ReserveRegistered(key42, address(spoke), 42, makeAddr("token42"));
+        emit AaveV4ReserveRegistryV2.ReserveRegistered(
+            key42, address(spoke), 42, makeAddr("token42"), AaveV4ReserveRegistryV2.Side.SUPPLY
+        );
+        vm.expectEmit(true, true, true, true);
+        emit AaveV4ReserveRegistryV2.ReserveRegistered(
+            debtKey42, address(spoke), 42, makeAddr("token42"), AaveV4ReserveRegistryV2.Side.DEBT
+        );
         registry.registerReserve(address(spoke), 42);
 
         vm.expectEmit(true, false, false, true);
-        emit AaveV4ReserveRegistry.ReserveDeregistrationProposed(key42, block.timestamp + 2 days);
+        emit AaveV4ReserveRegistryV2.ReserveDeregistrationProposed(key42, block.timestamp + 2 days);
         registry.proposeDeregisterReserve(key42);
 
         vm.expectEmit(true, false, false, false);
-        emit AaveV4ReserveRegistry.ReserveDeregistrationCancelled(key42);
+        emit AaveV4ReserveRegistryV2.ReserveDeregistrationCancelled(key42);
         registry.cancelDeregisterReserve(key42);
 
         registry.proposeDeregisterReserve(key42);
         vm.warp(block.timestamp + 2 days);
         vm.expectEmit(true, false, false, false);
-        emit AaveV4ReserveRegistry.ReserveDeregistered(key42);
+        emit AaveV4ReserveRegistryV2.ReserveDeregistered(key42);
         registry.executeDeregisterReserve(key42);
     }
 
@@ -622,12 +775,14 @@ contract AaveV4OraclesTest is Test {
     function test_views_liveUnderPausedFrozenFlags() public {
         spoke.setReserveFlags(USDC_RESERVE_ID, 0x03); // paused | frozen
 
-        assertEq(debtOracle.decimals(usdcKey), 6);
-        assertEq(debtOracle.getPricePerShare(usdcKey), 1e6);
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, account1), 500e6);
-        assertEq(debtOracle.getTVL(usdcKey), 1_000_000e6);
-        assertEq(supplyOracle.getBalanceOfOwner(usdcKey, account1), 0);
-        assertEq(supplyOracle.getTVL(usdcKey), 0);
+        assertEq(oracle.decimals(usdcDebtKey), 6);
+        assertEq(oracle.getPricePerShare(usdcDebtKey), 1e6);
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account1), 500e6);
+        assertEq(oracle.getTVL(usdcDebtKey), 1_000_000e6);
+        // Same reserve, SUPPLY leg: nobody supplied USDC, so the supply key reads zero while the
+        // debt key above reads the borrow position — the per-key side discriminator in action
+        assertEq(oracle.getBalanceOfOwner(usdcKey, account1), 0);
+        assertEq(oracle.getTVL(usdcKey), 0);
     }
 
     /// @notice Pins the NatSpec claim: PPS works at decimals 77 and reverts (checked overflow)
@@ -635,13 +790,16 @@ contract AaveV4OraclesTest is Test {
     function test_pps_decimalsOverflowBoundary() public {
         spoke.setReserve(77, makeAddr("token77"), 77);
         spoke.setReserve(78, makeAddr("token78"), 78);
-        address key77 = registry.registerReserve(address(spoke), 77);
-        address key78 = registry.registerReserve(address(spoke), 78);
+        (address key77, address debtKey77) = registry.registerReserve(address(spoke), 77);
+        (address key78, address debtKey78) = registry.registerReserve(address(spoke), 78);
 
-        assertEq(debtOracle.getPricePerShare(key77), 10 ** 77);
+        // Side-independent: decimals and PPS come from the shared reserve binding, so both legs
+        // behave identically at the boundary
+        assertEq(oracle.getPricePerShare(key77), 10 ** 77);
+        assertEq(oracle.getPricePerShare(debtKey77), 10 ** 77);
         vm.expectRevert(); // Panic(0x11) checked-arithmetic overflow
-        debtOracle.getPricePerShare(key78);
+        oracle.getPricePerShare(key78);
         vm.expectRevert();
-        supplyOracle.getPricePerShare(key78);
+        oracle.getPricePerShare(debtKey78);
     }
 }

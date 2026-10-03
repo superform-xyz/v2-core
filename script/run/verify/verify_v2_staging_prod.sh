@@ -567,12 +567,14 @@ generate_constructor_args() {
             morpho_registry_addr=$(get_contract_address "$chain_id" "MorphoBlueMarketRegistry")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$morpho_registry_addr")"
             ;;
-        "AaveV4ReserveRegistry")
+        "AaveV4ReserveRegistry"|"AaveV4ReserveRegistryV2")
             echo "$(cast abi-encode "constructor(address)" "$deployer")"
             ;;
-        "AaveV4DebtOracle"|"AaveV4SupplyYieldSourceOracle")
+        "AaveV4ReserveOracle")
+            # V2, not V1: the merged oracle's constructor was given the V2 registry at deploy time, so
+            # verifying against V1's address would compute the wrong constructor args.
             local aave_v4_registry_addr
-            aave_v4_registry_addr=$(get_contract_address "$chain_id" "AaveV4ReserveRegistry")
+            aave_v4_registry_addr=$(get_contract_address "$chain_id" "AaveV4ReserveRegistryV2")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$aave_v4_registry_addr")"
             ;;
         # All other contracts (no constructor args)
@@ -780,8 +782,8 @@ get_contract_source() {
         "MorphoBlueDebtOracle") echo "src/accounting/oracles/MorphoBlueDebtOracle.sol" ;;
         "ERC20YieldSourceOracle") echo "src/accounting/oracles/ERC20YieldSourceOracle.sol" ;;
         "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
-        "AaveV4DebtOracle") echo "src/accounting/oracles/AaveV4DebtOracle.sol" ;;
-        "AaveV4SupplyYieldSourceOracle") echo "src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol" ;;
+        "AaveV4ReserveRegistryV2") echo "src/accounting/oracles/AaveV4ReserveRegistryV2.sol" ;;
+        "AaveV4ReserveOracle") echo "src/accounting/oracles/AaveV4ReserveOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

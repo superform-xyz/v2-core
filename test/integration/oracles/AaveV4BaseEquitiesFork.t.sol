@@ -8,13 +8,12 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { AaveV4ReserveRegistry } from "../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
-import { AaveV4SupplyYieldSourceOracle } from "../../../src/accounting/oracles/AaveV4SupplyYieldSourceOracle.sol";
-import { AaveV4DebtOracle } from "../../../src/accounting/oracles/AaveV4DebtOracle.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { IAaveV4Spoke } from "../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
 /// @title AaveV4BaseEquitiesFork
-/// @notice Compatibility review of both Aave V4 oracles against the LIVE Base equities deployment
+/// @notice Compatibility review of both legs of the Aave V4 reserve oracle against the LIVE Base equities deployment
 ///         (aave-address-book AaveV4Base: MAG7_SPOKE + 7 tokenized stocks at 8 decimals + USDC at 6).
 ///         The PR's existing fork tests target the Ethereum spoke (WETH/USDC, 18/6 decimals); this
 ///         file re-runs the same surface against the equities spoke.
@@ -38,24 +37,24 @@ contract AaveV4BaseEquitiesFork is Test {
 
     uint256 internal constant FORK_BLOCK = 51_778_000;
 
-    AaveV4ReserveRegistry internal registry;
-    AaveV4SupplyYieldSourceOracle internal supplyOracle;
-    AaveV4DebtOracle internal debtOracle;
+    AaveV4ReserveRegistryV2 internal registry;
+    AaveV4ReserveOracle internal oracle;
 
     address internal aaplKey;
+    address internal aaplDebtKey;
     address internal tslaKey;
     address internal usdcKey;
+    address internal usdcDebtKey;
 
     function setUp() public {
         vm.createSelectFork(vm.envString("BASE_RPC_URL"), FORK_BLOCK);
-        registry = new AaveV4ReserveRegistry(address(this));
-        // a non-zero SuperLedgerConfiguration is all the constructors require
-        supplyOracle = new AaveV4SupplyYieldSourceOracle(address(0xC0FFEE), address(registry));
-        debtOracle = new AaveV4DebtOracle(address(0xC0FFEE), address(registry));
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        // a non-zero SuperLedgerConfiguration is all the constructor requires
+        oracle = new AaveV4ReserveOracle(address(0xC0FFEE), address(registry));
 
-        aaplKey = registry.registerReserve(MAG7_SPOKE, AAPL_ID);
-        tslaKey = registry.registerReserve(MAG7_SPOKE, TSLA_ID);
-        usdcKey = registry.registerReserve(MAG7_SPOKE, USDC_ID);
+        (aaplKey, aaplDebtKey) = registry.registerReserve(MAG7_SPOKE, AAPL_ID);
+        (tslaKey,) = registry.registerReserve(MAG7_SPOKE, TSLA_ID);
+        (usdcKey, usdcDebtKey) = registry.registerReserve(MAG7_SPOKE, USDC_ID);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,15 +63,26 @@ contract AaveV4BaseEquitiesFork is Test {
 
     /// @notice The vendored Reserve struct decodes the live equities spoke; bindings match the address book.
     function test_Registry_BindsEquitiesReserves() public view {
-        (address spoke, uint256 id, address underlying, uint8 dec) = registry.getReserveInfo(aaplKey);
+        (address spoke, uint256 id, address underlying, uint8 dec, AaveV4ReserveRegistryV2.Side side) =
+            registry.getReserveInfo(aaplKey);
         assertEq(spoke, MAG7_SPOKE);
         assertEq(id, AAPL_ID);
         assertEq(underlying, AAPLc, "AAPLc underlying");
         assertEq(dec, 8, "tokenized stocks are 8 decimals");
+        assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "legacy key is the supply leg");
 
-        (,, address u7, uint8 d7) = registry.getReserveInfo(usdcKey);
+        (,, address u7, uint8 d7,) = registry.getReserveInfo(usdcKey);
         assertEq(u7, USDC, "USDC underlying");
         assertEq(d7, 6, "USDC is 6 decimals");
+
+        // the debt leg of the same reserve shares the binding and differs only in its side
+        (address dSpoke, uint256 dId, address dU, uint8 dDec, AaveV4ReserveRegistryV2.Side dSide) =
+            registry.getReserveInfo(usdcDebtKey);
+        assertEq(dSpoke, MAG7_SPOKE);
+        assertEq(dId, USDC_ID);
+        assertEq(dU, USDC);
+        assertEq(dDec, 6);
+        assertTrue(dSide == AaveV4ReserveRegistryV2.Side.DEBT, "domain-separated key is the debt leg");
 
         // every reserve on this spoke shares one hub
         assertEq(IAaveV4Spoke(MAG7_SPOKE).getReserve(AAPL_ID).hub, EQUITIES_HUB);
@@ -129,34 +139,34 @@ contract AaveV4BaseEquitiesFork is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            SUPPLY ORACLE
+                             SUPPLY LEG
     //////////////////////////////////////////////////////////////*/
 
     /// @notice decimals + PPS are the 8-decimal identity for stocks, 6 for USDC.
     function test_Supply_DecimalsAndPps() public view {
-        assertEq(supplyOracle.decimals(aaplKey), 8);
-        assertEq(supplyOracle.getPricePerShare(aaplKey), 1e8, "identity PPS at 8 decimals");
-        assertEq(supplyOracle.decimals(usdcKey), 6);
-        assertEq(supplyOracle.getPricePerShare(usdcKey), 1e6);
+        assertEq(oracle.decimals(aaplKey), 8);
+        assertEq(oracle.getPricePerShare(aaplKey), 1e8, "identity PPS at 8 decimals");
+        assertEq(oracle.decimals(usdcKey), 6);
+        assertEq(oracle.getPricePerShare(usdcKey), 1e6);
     }
 
     /// @notice Live balances and TVL match the spoke reads exactly, for a real equities position.
     function test_Supply_LiveBalancesMatchSpoke() public view {
-        uint256 oracleBal = supplyOracle.getBalanceOfOwner(aaplKey, WHALE);
+        uint256 oracleBal = oracle.getBalanceOfOwner(aaplKey, WHALE);
         uint256 spokeBal = IAaveV4Spoke(MAG7_SPOKE).getUserSuppliedAssets(AAPL_ID, WHALE);
         assertEq(oracleBal, spokeBal, "AAPLc supplied balance");
         assertGt(oracleBal, 0, "whale has a live AAPLc position");
-        assertEq(supplyOracle.getTVLByOwnerOfShares(aaplKey, WHALE), spokeBal, "identity: TVL == balance");
+        assertEq(oracle.getTVLByOwnerOfShares(aaplKey, WHALE), spokeBal, "identity: TVL == balance");
 
         assertEq(
-            supplyOracle.getTVL(aaplKey),
+            oracle.getTVL(aaplKey),
             IAaveV4Spoke(MAG7_SPOKE).getReserveSuppliedAssets(AAPL_ID),
             "reserve-level AAPLc TVL"
         );
-        assertGt(supplyOracle.getTVL(aaplKey), 0);
+        assertGt(oracle.getTVL(aaplKey), 0);
         // the borrower's collateral leg is visible too
         assertEq(
-            supplyOracle.getBalanceOfOwner(tslaKey, BORROWER),
+            oracle.getBalanceOfOwner(tslaKey, BORROWER),
             IAaveV4Spoke(MAG7_SPOKE).getUserSuppliedAssets(TSLA_ID, BORROWER)
         );
     }
@@ -173,10 +183,10 @@ contract AaveV4BaseEquitiesFork is Test {
         assertFalse(ok, "direct ERC20 call is not fork-executable");
 
         // yet the whole oracle surface works, because it never calls the token
-        assertEq(supplyOracle.decimals(aaplKey), 8);
-        assertEq(supplyOracle.getPricePerShare(aaplKey), 1e8);
-        assertGt(supplyOracle.getBalanceOfOwner(aaplKey, WHALE), 0);
-        assertGt(supplyOracle.getTVL(aaplKey), 0);
+        assertEq(oracle.decimals(aaplKey), 8);
+        assertEq(oracle.getPricePerShare(aaplKey), 1e8);
+        assertGt(oracle.getBalanceOfOwner(aaplKey, WHALE), 0);
+        assertGt(oracle.getTVL(aaplKey), 0);
     }
 
     /// @notice With a normal ERC20 etched at the equity address, a REAL withdrawal moves the oracle by exactly the
@@ -187,15 +197,15 @@ contract AaveV4BaseEquitiesFork is Test {
         deal(AAPLc, MAG7_SPOKE, 1_000_000e8);
         deal(AAPLc, EQUITIES_HUB, 1_000_000e8);
 
-        uint256 before_ = supplyOracle.getBalanceOfOwner(aaplKey, WHALE);
-        uint256 tvlBefore = supplyOracle.getTVL(aaplKey);
+        uint256 before_ = oracle.getBalanceOfOwner(aaplKey, WHALE);
+        uint256 tvlBefore = oracle.getTVL(aaplKey);
 
         vm.prank(WHALE);
         (, uint256 assets) = IAaveV4Spoke(MAG7_SPOKE).withdraw(AAPL_ID, 1e8, WHALE);
         assertEq(assets, 1e8, "withdrew 1 AAPLc (8 decimals)");
 
-        assertEq(supplyOracle.getBalanceOfOwner(aaplKey, WHALE), before_ - assets, "owner balance delta");
-        assertEq(supplyOracle.getTVL(aaplKey), tvlBefore - assets, "reserve TVL delta");
+        assertEq(oracle.getBalanceOfOwner(aaplKey, WHALE), before_ - assets, "owner balance delta");
+        assertEq(oracle.getTVL(aaplKey), tvlBefore - assets, "reserve TVL delta");
         assertEq(IERC20(AAPLc).balanceOf(WHALE), assets, "assets really left in token units");
     }
 
@@ -206,7 +216,7 @@ contract AaveV4BaseEquitiesFork is Test {
         uint256 amount = 1000e6;
         deal(USDC, user, amount);
 
-        uint256 tvlBefore = supplyOracle.getTVL(usdcKey);
+        uint256 tvlBefore = oracle.getTVL(usdcKey);
         vm.startPrank(user);
         IERC20(USDC).approve(MAG7_SPOKE, amount);
         (, uint256 assets) = IAaveV4Spoke(MAG7_SPOKE).supply(USDC_ID, amount, user);
@@ -217,75 +227,76 @@ contract AaveV4BaseEquitiesFork is Test {
         // ROUNDING: Aave V4 converts assets->shares->assets rounding DOWN (toAddedAssetsDown), so the position
         // view reads 1 wei BELOW what supply() returned. The oracle passes the source value through unmodified
         // (documented in its NatSpec); consumers must not assume supply() return == subsequent balance read.
-        uint256 seen = supplyOracle.getBalanceOfOwner(usdcKey, user);
+        uint256 seen = oracle.getBalanceOfOwner(usdcKey, user);
         assertLe(seen, amount, "never over-reports what the supplier can claim");
         assertApproxEqAbs(seen, amount, 1, "within source rounding");
         assertEq(seen, 999_999_999, "exact observed value: 1 wei round-down");
-        assertApproxEqAbs(supplyOracle.getTVL(usdcKey), tvlBefore + amount, 1, "reserve TVL grew");
-        assertEq(supplyOracle.getPricePerShare(usdcKey), 1e6);
+        assertApproxEqAbs(oracle.getTVL(usdcKey), tvlBefore + amount, 1, "reserve TVL grew");
+        assertEq(oracle.getPricePerShare(usdcKey), 1e6);
     }
 
     /// @notice Identity converters are unit-preserving at 8 decimals (no 18-decimal assumption anywhere).
     function test_Supply_IdentityConvertersAt8Decimals() public view {
         uint256 amt = 12_345_678; // 0.12345678 AAPLc
-        assertEq(supplyOracle.getShareOutput(aaplKey, AAPLc, amt), amt);
-        assertEq(supplyOracle.getAssetOutput(aaplKey, AAPLc, amt), amt);
-        assertEq(supplyOracle.getWithdrawalShareOutput(aaplKey, AAPLc, amt), amt);
-        assertEq(supplyOracle.getAssetOutputWithFees(bytes32(0), aaplKey, AAPLc, address(0), amt), amt);
+        assertEq(oracle.getShareOutput(aaplKey, AAPLc, amt), amt);
+        assertEq(oracle.getAssetOutput(aaplKey, AAPLc, amt), amt);
+        assertEq(oracle.getWithdrawalShareOutput(aaplKey, AAPLc, amt), amt);
+        assertEq(oracle.getAssetOutputWithFees(bytes32(0), aaplKey, AAPLc, address(0), amt), amt);
     }
 
     /*//////////////////////////////////////////////////////////////
-                             DEBT ORACLE
+                              DEBT LEG
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The live USDC borrow against equities collateral reads correctly.
     function test_Debt_LiveBorrowMatchesSpoke() public view {
         (uint256 drawn, uint256 premium) = IAaveV4Spoke(MAG7_SPOKE).getUserDebt(USDC_ID, BORROWER);
-        assertEq(debtOracle.getBalanceOfOwner(usdcKey, BORROWER), drawn + premium, "drawn + premium");
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, BORROWER), drawn + premium, "drawn + premium");
         assertGt(drawn, 0, "borrower has live USDC debt");
-        assertEq(debtOracle.decimals(usdcKey), 6);
-        assertEq(debtOracle.getPricePerShare(usdcKey), 1e6);
+        assertEq(oracle.decimals(usdcDebtKey), 6);
+        assertEq(oracle.getPricePerShare(usdcDebtKey), 1e6);
 
         (uint256 rd, uint256 rp) = IAaveV4Spoke(MAG7_SPOKE).getReserveDebt(USDC_ID);
-        assertEq(debtOracle.getTVL(usdcKey), rd + rp, "reserve-level debt");
+        assertEq(oracle.getTVL(usdcDebtKey), rd + rp, "reserve-level debt");
     }
 
-    /// @notice Equity reserves carry no debt on this spoke — the debt oracle reads a clean zero, not a revert.
+    /// @notice Equity reserves carry no debt on this spoke — the debt key reads a clean zero, not a revert.
     function test_Debt_EquityReservesReadZero() public view {
-        assertEq(debtOracle.getBalanceOfOwner(aaplKey, BORROWER), 0);
-        assertEq(debtOracle.getTVL(aaplKey), 0, "stocks are collateral-only here");
+        assertEq(oracle.getBalanceOfOwner(aaplDebtKey, BORROWER), 0);
+        assertEq(oracle.getTVL(aaplDebtKey), 0, "stocks are collateral-only here");
     }
 
     /// @notice Debt accrues in-view over time on the equities spoke (hub index is live).
     function test_Debt_AccruesOverTime() public {
-        uint256 before_ = debtOracle.getBalanceOfOwner(usdcKey, BORROWER);
+        uint256 before_ = oracle.getBalanceOfOwner(usdcDebtKey, BORROWER);
         vm.warp(block.timestamp + 30 days);
-        assertGt(debtOracle.getBalanceOfOwner(usdcKey, BORROWER), before_, "debt grows without any action");
+        assertGt(oracle.getBalanceOfOwner(usdcDebtKey, BORROWER), before_, "debt grows without any action");
     }
 
     /*//////////////////////////////////////////////////////////////
                       CROSS-ASSET DENOMINATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice DOCUMENTS the denomination gap: for one leveraged position the two oracles return values in
-    ///         two different assets and two different decimal bases (AAPLc 8dp vs USDC 6dp). Neither oracle
+    /// @notice DOCUMENTS the denomination gap: for one leveraged position the two legs return values in
+    ///         two different assets and two different decimal bases (AAPLc 8dp vs USDC 6dp). The oracle never
     ///         converts; a consumer naively subtracting them gets a meaningless number.
     function test_CrossAsset_UnitsAreNotComparable() public view {
-        uint256 collateral = supplyOracle.getBalanceOfOwner(tslaKey, BORROWER); // TSLAc, 8 decimals
-        uint256 debt = debtOracle.getBalanceOfOwner(usdcKey, BORROWER); // USDC, 6 decimals
+        uint256 collateral = oracle.getBalanceOfOwner(tslaKey, BORROWER); // TSLAc, 8 decimals
+        uint256 debt = oracle.getBalanceOfOwner(usdcDebtKey, BORROWER); // USDC, 6 decimals
         assertGt(collateral, 0);
         assertGt(debt, 0);
-        assertEq(supplyOracle.decimals(tslaKey), 8);
-        assertEq(debtOracle.decimals(usdcKey), 6);
-        // no price feed exists in either oracle: equity price must come from MAG7_SPOKE_ORACLE externally
+        assertEq(oracle.decimals(tslaKey), 8);
+        assertEq(oracle.decimals(usdcDebtKey), 6);
+        // no price feed exists in the oracle: equity price must come from MAG7_SPOKE_ORACLE externally
     }
 
-    /// @notice Unregistered keys revert rather than returning zero, on both oracles.
+    /// @notice Unregistered keys revert rather than returning zero, on both legs' derivations.
     function test_UnregisteredKeyReverts() public {
         address ghost = registry.computeReserveKey(MAG7_SPOKE, UNLISTED_ID);
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        supplyOracle.getBalanceOfOwner(ghost, WHALE);
-        vm.expectRevert(AaveV4ReserveRegistry.RESERVE_NOT_REGISTERED.selector);
-        debtOracle.getTVL(ghost);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getBalanceOfOwner(ghost, WHALE);
+        address ghostDebt = registry.computeDebtKey(MAG7_SPOKE, UNLISTED_ID);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getTVL(ghostDebt);
     }
 }

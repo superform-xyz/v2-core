@@ -1,6 +1,8 @@
 {
   "networks": {
     "Arbitrum": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV3BorrowHook": "0xc425c27ee2a2Bb9F9a98Eb73E6D6B80e9Bf01CFa",
         "AaveV3RepayAndWithdrawHook": "0xCb26186899053C315D9e3DF78D2374a3551427F3",
@@ -18,7 +20,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -156,11 +160,11 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Arc": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV4BorrowHookV2": "0x7f6ec7bcA8325c143a6580cF31eA71eF08Ce8399",
         "AaveV4DebtOracle": "0x075a9A8Df2B78b5689B27D0d7eBB8aa47BcA82e3",
@@ -168,7 +172,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -264,11 +270,11 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Avalanche": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV3BorrowHook": "0xc425c27ee2a2Bb9F9a98Eb73E6D6B80e9Bf01CFa",
         "AaveV3RepayAndWithdrawHook": "0xCb26186899053C315D9e3DF78D2374a3551427F3",
@@ -286,7 +292,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -400,11 +408,11 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "BNB": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV3BorrowHook": "0xc425c27ee2a2Bb9F9a98Eb73E6D6B80e9Bf01CFa",
         "AaveV3RepayAndWithdrawHook": "0xCb26186899053C315D9e3DF78D2374a3551427F3",
@@ -422,7 +430,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -557,11 +567,11 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Base": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV3BorrowHook": "0xc425c27ee2a2Bb9F9a98Eb73E6D6B80e9Bf01CFa",
         "AaveV3RepayAndWithdrawHook": "0xCb26186899053C315D9e3DF78D2374a3551427F3",
@@ -579,7 +589,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -726,11 +738,11 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Ethereum": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV3BorrowHook": "0xc425c27ee2a2Bb9F9a98Eb73E6D6B80e9Bf01CFa",
         "AaveV3RepayAndWithdrawHook": "0xCb26186899053C315D9e3DF78D2374a3551427F3",
@@ -751,7 +763,9 @@
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHook": "0xcD8b8D4BE45fF721561c6EE0A6a1EE449bEb59c5",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHook": "0x60e23c899D66E7037674D628019a4e8277e35bB8",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHook": "0x3A88b69572c8b8f45a1E03431D1372aa33BB384f",
@@ -896,11 +910,11 @@
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "WrappedNativeHook": "0xef5e825bA3F342FA5c858810C43B87f67ba08939",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Flare": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV4BorrowHookV2": "0x7f6ec7bcA8325c143a6580cF31eA71eF08Ce8399",
         "AaveV4DebtOracle": "0x075a9A8Df2B78b5689B27D0d7eBB8aa47BcA82e3",
@@ -908,7 +922,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -1014,11 +1030,11 @@
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "WrappedNativeHook": "0x1EDbDA02415d51808ED687E0E49F2ec32868F615",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "HyperEVM": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV4BorrowHookV2": "0x7f6ec7bcA8325c143a6580cF31eA71eF08Ce8399",
         "AaveV4DebtOracle": "0x075a9A8Df2B78b5689B27D0d7eBB8aa47BcA82e3",
@@ -1026,7 +1042,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -1145,17 +1163,19 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Plataberget": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV4BorrowHookV2": "0x7f6ec7bcA8325c143a6580cF31eA71eF08Ce8399",
         "AaveV4LendHook": "0xc8a7E20Cb33aF34345EDF32104F2Ea0A8e46281B",
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4WithdrawHookV2": "0xEfE5C609223793D683E6A3AE2C2F5d23BDF09ecB",
@@ -1240,11 +1260,11 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "RH": {
+      "counter": 0,
+      "vnet_id": "",
       "contracts": {
         "AaveV4BorrowHookV2": "0x7f6ec7bcA8325c143a6580cF31eA71eF08Ce8399",
         "AaveV4DebtOracle": "0x075a9A8Df2B78b5689B27D0d7eBB8aa47BcA82e3",
@@ -1252,7 +1272,9 @@
         "AaveV4RedeemHook": "0xcfBAef145343c549a823E2621C4dd205483264BF",
         "AaveV4RepayAndWithdrawHookV2": "0x105D063375742A93667174d7BA7F13006C260caB",
         "AaveV4RepayHookV2": "0xf4B93891D25c34b31c8c1F7F99FCec052082a5e8",
+        "AaveV4ReserveOracle": "0x32B9f850DCDe322fBf761a2bD919cD726aA50E34",
         "AaveV4ReserveRegistry": "0xC9e4B8D0523AadE290c959Cfc5c5271684Cb260F",
+        "AaveV4ReserveRegistryV2": "0xd027791cDeD9d7B7211Bbfea76a2a4c509a5d00E",
         "AaveV4SupplyAndBorrowHookV2": "0x716BfFaBcA9a8c1164285bDD720a5ee5e7156D8F",
         "AaveV4SupplyHookV2": "0x7907C9505D95F77Bb6e7C019E6ACa42F50F69201",
         "AaveV4SupplyYieldSourceOracle": "0xbbfDc71eAfe27a90C3Dd2920E1308F04fF999EBe",
@@ -1368,9 +1390,7 @@
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
         "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
-      },
-      "counter": 0,
-      "vnet_id": ""
+      }
     },
     "Stable": {
       "contracts": {
@@ -1457,5 +1477,5 @@
       "vnet_id": ""
     }
   },
-  "updated_at": "2026-09-30T06:43:36Z"
+  "updated_at": "2026-10-03T22:40:35Z"
 }

@@ -51,9 +51,9 @@ Relay Protocol deposits (RelaySendFundsAndExecuteOnDstHook / ApproveAndRelaySend
 The RelayAdapter is permissionless (Relay has no authenticatable destination caller). Its received-funds guard and escrow accounting prevent phantom failed-transfer credits and cross-user escrow sweeps. However, funds parked in the adapter between two separate solver transactions — a deviation from Relay's atomic txs[] batching (allowFailure = false) — are forwardable by any caller presenting a validly-signed message for their own account until the legitimate second leg lands. The SuperBundler must always request fund delivery and the adapter call as one atomic batch.
 #### 15. Identity-PPS oracles must keep feePercent = 0
 
-Identity-PPS yield-source oracles are registered with feePercent = 0. Four of them override
-`getAssetOutputWithFees` to bypass the fee view on-chain: `AaveV4DebtOracle`,
-`AaveV4SupplyYieldSourceOracle`, `ERC20YieldSourceOracle` and `MorphoBlueDebtOracle`.
+Identity-PPS yield-source oracles are registered with feePercent = 0. Three of them override
+`getAssetOutputWithFees` to bypass the fee view on-chain: `AaveV4ReserveOracle`,
+`ERC20YieldSourceOracle` and `MorphoBlueDebtOracle`.
 `EulerDebtOracle` does NOT — it carries the invariant in NatSpec only ("Neither is guarded
 on-chain here"), so it depends entirely on configuration; a fee-bypass backport is a candidate
 hardening PR. In every case the ledger accounting path (`BaseLedger._processOutflow`) computes
@@ -61,12 +61,25 @@ fees directly from `SuperLedgerConfiguration` and is not guarded by the oracle. 
 snapshots cost basis for these positions, any configured fee taxes principal as profit; pairing
 such an oracle with `FlatFeeLedger` fees the full principal on every outflow. Operational
 invariant: these oracle ids are registered with feePercent = 0 or not registered at all, and
-never with FlatFeeLedger — this covers `AaveV4DebtOracle` and `AaveV4SupplyYieldSourceOracle`
-explicitly. Second invariant, for every registry-keyed family (Aave V4 reserves, Morpho Blue
-markets): **never register the supply-side and debt-side oracle ids of the SAME registry key
-against the same ledger.** `BaseLedger` accumulators are keyed `(user, yieldSource)` with no
-oracle-id component, so the two legs of one position sum into a single accumulator slot. Use one
-ledger per side, or register only the side being accounted. For ERC20YieldSourceOracle specifically, whoever whitelists a token as
+never with FlatFeeLedger — this covers `AaveV4ReserveOracle` explicitly, whose registration is
+asymmetric by leg. Its SUPPLY keys MUST be registered at feePercent = 0 if the already-deployed idle
+MONEY_MARKET pair is ever driven: `AaveV4LendHook` is `HookType.INFLOW` and `AaveV4RedeemHook` is
+`HookType.OUTFLOW`, and `SuperExecutorBase` reverts `MANAGER_NOT_SET` for those hooks unless the
+header's yieldSourceOracleId resolves to a configured oracle. Its DEBT keys must never be
+ledger-wired at all (every LOAN hook is NONACCOUNTING). Today no Aave V4 oracleId is configured
+anywhere in the deploy path, so the idle pair would revert if driven — a pre-existing gap, not a
+property to rely on.
+Second invariant, for every registry-keyed family: **never register the supply-side and debt-side
+oracle ids of the SAME registry key against the same ledger.** `BaseLedger` accumulators are keyed
+`(user, yieldSource)` with no oracle-id component, so the two legs of one position sum into a
+single accumulator slot. Use one ledger per side, or register only the side being accounted.
+This still applies to **Morpho Blue**, whose `MorphoBlueMarketRegistry` key is side-agnostic and
+whose two legs therefore share a key. It no longer applies to **Aave V4**: `AaveV4ReserveRegistry`
+binds a `Side` into the key preimage (supply keeps the legacy two-word derivation; debt is
+`keccak256(abi.encode(spoke, reserveId, DEBT_KEY_DOMAIN))`), so the legs are distinct
+`yieldSource` values and cannot share an accumulator slot even on one ledger. That separation is
+structural, not operational — it is what lets a single `AaveV4ReserveOracle` serve both legs
+through the sideless `IYieldSourceOracle` surface the `SuperYieldSourceOracle` aggregator calls. For ERC20YieldSourceOracle specifically, whoever whitelists a token as
 a SuperVault yield source owns its due diligence: single canonical entry point (double-entry
 tokens would be double-counted by off-chain pricing), no rebasing/fee-on-transfer mechanics with
 the corporate-action convention pinned per token and confirmed with the issuer in writing (the

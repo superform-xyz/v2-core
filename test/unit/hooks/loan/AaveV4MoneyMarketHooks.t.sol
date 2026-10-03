@@ -31,7 +31,7 @@ import { AaveV4SupplyHook } from "../../../../src/hooks/loan/aave-v4/AaveV4Suppl
 import { AaveV4WithdrawHook } from "../../../../src/hooks/loan/aave-v4/AaveV4WithdrawHook.sol";
 import { AaveV4SupplyAndBorrowHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol";
 import { AaveV4RepayHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4RepayHookV2.sol";
-import { AaveV4ReserveRegistry } from "../../../../src/accounting/oracles/AaveV4ReserveRegistry.sol";
+import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
 
 /// @dev Stateful idle-spoke mock: pulls the underlying on supply, credits the position rounded DOWN by
 ///      `roundDownWei` (Aave's toAddedAssetsDown), pays min(amount, supplied) on withdraw (any amount
@@ -133,7 +133,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     address public spoke;
     address public underlying;
     address public account;
-    bytes32 public constant ORACLE_ID = keccak256("AaveV4SupplyYieldSourceOracle");
+    bytes32 public constant ORACLE_ID = keccak256("AaveV4ReserveOracle");
     uint256 public constant RESERVE_ID = 7;
     uint256 public constant AMOUNT = 1000e6;
 
@@ -266,7 +266,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_ReserveKey_MatchesRegistryFormula() public {
-        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         assertEq(_key(spoke, RESERVE_ID), registry.computeReserveKey(spoke, RESERVE_ID));
         assertEq(_key(spoke, 0), registry.computeReserveKey(spoke, 0));
         assertTrue(_key(spoke, 0) != _key(spoke, RESERVE_ID), "reserve ids diverge");
@@ -275,7 +275,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
 
     /// @dev The hook's local key must equal the deployed registry's formula for every (spoke, reserveId)
     function testFuzz_ReserveKey_MatchesRegistryFormula(address spoke_, uint256 reserveId) public {
-        AaveV4ReserveRegistry registry = new AaveV4ReserveRegistry(address(this));
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         assertEq(_key(spoke_, reserveId), registry.computeReserveKey(spoke_, reserveId));
     }
 

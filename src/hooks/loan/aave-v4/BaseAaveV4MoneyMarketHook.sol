@@ -37,9 +37,9 @@ import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../..
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 156); // canonical 0x00 / 0x01
 ///
 ///      HEADER IDENTITY: offset 32 carries the RESERVE KEY — `keccak256(abi.encode(spoke, reserveId))`
-///      truncated to an address, byte-identical to `AaveV4ReserveRegistry.computeReserveKey` — never the
+///      truncated to an address, byte-identical to `AaveV4ReserveRegistryV2.computeReserveKey` — never the
 ///      Spoke. SuperExecutorBase posts INFLOW / OUTFLOW to SuperLedger keyed by that address and
-///      AaveV4SupplyYieldSourceOracle resolves the same key through the registry (identity PPS, asset
+///      AaveV4ReserveOracle resolves the same key through the registry (identity PPS, asset
 ///      units). Keying by the Spoke would collide every reserve of a spoke, and every LOAN position on
 ///      it, onto one accounting slot. The key is recomputed locally (pure) and pinned against the body
 ///      in the decoder, so build, preExecute AND inspect all fail closed on a mismatch. The sizing views
@@ -228,7 +228,7 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     }
 
     /// @dev The account's supplied assets on the reserve — the SAME read
-    ///      AaveV4SupplyYieldSourceOracle performs, so hook units equal oracle units by construction.
+    ///      AaveV4ReserveOracle performs, so hook units equal oracle units by construction.
     function _suppliedAssets(IdleVars memory vars, address account) internal view returns (uint256) {
         return IAaveV4Spoke(vars.spoke).getUserSuppliedAssets(vars.reserveId, account);
     }

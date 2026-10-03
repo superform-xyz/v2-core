@@ -267,7 +267,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploys the idle Aave V4 MONEY_MARKET lend / redeem hooks (SUP-21142). No constructor
     ///         args: deployed on every network. Reserve-keyed accounting: the reserve key must be
-    ///         registered in AaveV4ReserveRegistry and the ledger before these hooks are used.
+    ///         registered in AaveV4ReserveRegistryV2 and the ledger before these hooks are used.
     function runAaveV4Idle(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Aave V4 idle Hooks on chainId: ", chainId);
