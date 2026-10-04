@@ -22,9 +22,6 @@ interface IAaveV4OwnerSnapshot {
         uint256 balance;
     }
 
-    /// @notice Version of the complete owner snapshot contract; consumers must require version 1.
-    function SNAPSHOT_VERSION() external view returns (uint256);
-
     /// @notice Read registered positions, discover every active debt on covered spokes, and read cash.
     /// @dev Reverts on any incomplete accounting read or unregistered active debt. Source keys and spokes are
     ///      deduplicated. Spokes are the union of registered positions and configuredSpokes. Wallet
@@ -37,7 +34,6 @@ interface IAaveV4OwnerSnapshot {
     /// @param cashTokens Explicit tokens to keep tracking after full repayment.
     /// @param vaultAsset Token already counted as idle vault cash by the consumer.
     /// @param maxReservesPerSpoke Maximum permitted reserve count; exceeding it reverts, never truncates.
-    /// @return version Snapshot contract version.
     /// @return positions Unique registered positions followed by additional active debts.
     /// @return balances Unique non-vault cash balances; all amounts are non-negative raw token units.
     function getOwnerSnapshot(
@@ -50,5 +46,5 @@ interface IAaveV4OwnerSnapshot {
     )
         external
         view
-        returns (uint256 version, OwnerPosition[] memory positions, WalletBalance[] memory balances);
+        returns (OwnerPosition[] memory positions, WalletBalance[] memory balances);
 }

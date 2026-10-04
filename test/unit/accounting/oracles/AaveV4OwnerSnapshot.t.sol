@@ -106,12 +106,8 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function test_OwnerSnapshotDiscoversDebtAccrualAndCash() public {
         vm.expectCall(address(usdc), abi.encodeWithSignature("balanceOf(address)", owner), uint64(1));
-        (
-            uint256 version,
-            IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,
-            IAaveV4OwnerSnapshot.WalletBalance[] memory cash
-        ) = oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), one(address(usdc)), address(equity), 128);
-        assertEq(version, 1);
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
+            oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), one(address(usdc)), address(equity), 128);
         assertEq(positions.length, 2);
         assertEq(positions[0].sourceKey, supplyKey);
         assertEq(positions[0].symbol, "EQUITY");
@@ -136,7 +132,7 @@ contract AaveV4OwnerSnapshotTest is Test {
         spokes[1] = address(spoke);
         vm.expectCall(address(spoke), abi.encodeWithSignature("getReserveCount()"), uint64(1));
         vm.expectCall(address(usdc), abi.encodeWithSignature("balanceOf(address)", owner), uint64(1));
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
             oracle.getOwnerSnapshot(owner, keys, spokes, one(address(usdc)), address(equity), 128);
         assertEq(positions.length, 2);
         assertEq(cash.length, 1);
@@ -144,7 +140,7 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function test_MultipleDebtsKeepEachTokenOnce() public {
         spoke.setPosition(2, owner, 0, 2e18, 1e16);
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
             oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), one(address(usdc)), address(equity), 128);
         assertEq(positions.length, 3);
         assertEq(cash.length, 2);
@@ -156,7 +152,7 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function test_SameReserveSupplyAndDebtKeepSeparateKeys() public {
         spoke.setPosition(0, owner, 100e8, 1e8, 1);
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
             oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), new address[](0), address(equity), 128);
         assertEq(positions.length, 3);
         assertEq(positions[1].sourceKey, registry.computeDebtKey(address(spoke), 0));
@@ -170,7 +166,7 @@ contract AaveV4OwnerSnapshotTest is Test {
         other.setPosition(0, owner, 0, 50e6, 1e6);
         registry.registerReserve(address(other), 0);
         vm.expectCall(address(usdc), abi.encodeWithSignature("balanceOf(address)", owner), uint64(1));
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
             oracle.getOwnerSnapshot(owner, one(supplyKey), one(address(other)), new address[](0), address(equity), 128);
         assertEq(positions.length, 3);
         assertEq(cash.length, 1);
@@ -179,13 +175,13 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function test_VaultUnderlyingCashIsNotReadTwice() public {
         vm.mockCallRevert(address(usdc), abi.encodeWithSignature("balanceOf(address)", owner), bytes("must not read"));
-        (,, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
+        (, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
             oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), one(address(usdc)), address(usdc), 128);
         assertEq(cash.length, 0);
     }
 
     function test_EmptySourcesStillDiscoverConfiguredSpoke() public {
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) = oracle.getOwnerSnapshot(
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) = oracle.getOwnerSnapshot(
             owner, new address[](0), one(address(spoke)), new address[](0), address(equity), 128
         );
         assertEq(positions.length, 1);
@@ -194,7 +190,7 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function test_AfterRepaymentExplicitCashPersistsWithoutWalletSweep() public {
         spoke.setPosition(1, owner, 0, 0, 0);
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) = oracle.getOwnerSnapshot(
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) = oracle.getOwnerSnapshot(
             owner, new address[](0), one(address(spoke)), one(address(usdc)), address(equity), 128
         );
         assertEq(positions.length, 0);
@@ -208,7 +204,7 @@ contract AaveV4OwnerSnapshotTest is Test {
         uint256 id = spoke.addReserve(address(next), 6);
         (, address key) = registry.registerReserve(address(spoke), id);
         spoke.setPosition(id, owner, 0, 1e6, 1);
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
             oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), new address[](0), address(equity), 128);
         assertEq(positions.length, 3);
         assertEq(positions[2].sourceKey, key);
@@ -224,7 +220,7 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function test_UnavailableSymbolDoesNotBlockAccounting() public {
         vm.mockCallRevert(address(usdc), abi.encodeWithSignature("symbol()"), bytes("optional metadata"));
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) =
             oracle.getOwnerSnapshot(owner, one(supplyKey), new address[](0), new address[](0), address(equity), 128);
         assertEq(positions[1].symbol, "");
         assertEq(positions[1].assets, 102e6);
@@ -234,7 +230,7 @@ contract AaveV4OwnerSnapshotTest is Test {
     function testFuzz_MalformedSymbolDoesNotBlockAccounting(bytes32 malformed) public {
         // Legacy bytes32 metadata is not ABI encoded string metadata.
         vm.mockCall(address(usdc), abi.encodeWithSignature("symbol()"), abi.encode(malformed));
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
             oracle.getOwnerSnapshot(owner, one(debtKey), new address[](0), new address[](0), address(equity), 128);
         assertEq(positions[0].symbol, "");
         assertEq(positions[0].assets, 102e6);
@@ -249,7 +245,7 @@ contract AaveV4OwnerSnapshotTest is Test {
         responses[4] = abi.encode(string(new bytes(257))); // Valid encoding, excessive symbol length.
         for (uint256 i; i < responses.length; ++i) {
             vm.mockCall(address(usdc), abi.encodeWithSignature("symbol()"), responses[i]);
-            (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+            (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
                 oracle.getOwnerSnapshot(owner, one(debtKey), new address[](0), new address[](0), address(equity), 128);
             assertEq(positions[0].symbol, "");
             assertEq(positions[0].assets, 102e6);
@@ -259,7 +255,7 @@ contract AaveV4OwnerSnapshotTest is Test {
     function test_MaximumSymbolLengthIsAccepted() public {
         string memory symbol = string(new bytes(256));
         vm.mockCall(address(usdc), abi.encodeWithSignature("symbol()"), abi.encode(symbol));
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
             oracle.getOwnerSnapshot(owner, one(debtKey), new address[](0), new address[](0), address(equity), 128);
         assertEq(positions[0].symbol, symbol);
         assertEq(positions[0].assets, 102e6);
@@ -284,7 +280,7 @@ contract AaveV4OwnerSnapshotTest is Test {
 
     function testFuzz_AccruedDebtMatchesExistingOracle(uint128 drawn, uint128 premium) public {
         spoke.setPosition(1, owner, 0, drawn, premium);
-        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+        (IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
             oracle.getOwnerSnapshot(owner, one(debtKey), new address[](0), new address[](0), address(equity), 128);
         assertEq(positions[0].assets, uint256(drawn) + premium);
         assertEq(positions[0].assets, oracle.getBalanceOfOwner(debtKey, owner));

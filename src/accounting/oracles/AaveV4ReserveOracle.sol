@@ -117,9 +117,6 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 ///      `getTVLByOwnerOfSharesMultiple` only; `getPricePerShareMultiple` / `getTVLMultiple` loop without
 ///      isolation (inherited behavior — one reverting key aborts those batch calls).
 contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot {
-    /// @inheritdoc IAaveV4OwnerSnapshot
-    uint256 public constant SNAPSHOT_VERSION = 1;
-
     /// @notice Requested discovery coverage exceeds the caller's explicit bound.
     error SNAPSHOT_RESERVE_LIMIT();
     /// @notice Debt positions for the same token have inconsistent registry decimal metadata.
@@ -322,14 +319,13 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     )
         external
         view
-        returns (uint256 version, OwnerPosition[] memory positions, WalletBalance[] memory balances)
+        returns (OwnerPosition[] memory positions, WalletBalance[] memory balances)
     {
         if (owner == address(0) || vaultAsset == address(0)) revert ZERO_ADDRESS();
         if (maxReservesPerSpoke == 0 || maxReservesPerSpoke > 65_536) revert SNAPSHOT_RESERVE_LIMIT();
 
         positions = _ownerPositions(owner, sourceKeys, configuredSpokes, maxReservesPerSpoke);
         balances = _cashBalances(owner, positions, cashTokens, vaultAsset);
-        return (SNAPSHOT_VERSION, positions, balances);
     }
 
     function _ownerPositions(
