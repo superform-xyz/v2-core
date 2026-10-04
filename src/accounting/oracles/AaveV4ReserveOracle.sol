@@ -7,6 +7,9 @@ import { IAaveV4Spoke } from "../../vendor/aave-v4/IAaveV4Spoke.sol";
 // superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { AaveV4ReserveRegistryV2 } from "./AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveKey } from "../../libraries/AaveV4ReserveKey.sol";
+import { IAaveV4OwnerSnapshot } from "../../interfaces/accounting/IAaveV4OwnerSnapshot.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /// @title AaveV4ReserveOracle
 /// @author Superform Labs
@@ -113,7 +116,15 @@ import { AaveV4ReserveRegistryV2 } from "./AaveV4ReserveRegistryV2.sol";
 ///      methods in `AbstractYieldSourceOracle` isolate reverts via try/catch in
 ///      `getTVLByOwnerOfSharesMultiple` only; `getPricePerShareMultiple` / `getTVLMultiple` loop without
 ///      isolation (inherited behavior — one reverting key aborts those batch calls).
-contract AaveV4ReserveOracle is AbstractYieldSourceOracle {
+contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot {
+    /// @inheritdoc IAaveV4OwnerSnapshot
+    uint256 public constant SNAPSHOT_VERSION = 1;
+
+    /// @notice Requested discovery coverage exceeds the caller's explicit bound.
+    error SNAPSHOT_RESERVE_LIMIT();
+    /// @notice Debt positions for the same token have inconsistent registry decimal metadata.
+    error SNAPSHOT_DECIMALS_MISMATCH();
+
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -181,7 +192,16 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getWithdrawalShareOutput(address, address, uint256 assetsIn) external pure override returns (uint256) {
+    function getWithdrawalShareOutput(
+        address,
+        address,
+        uint256 assetsIn
+    )
+        external
+        pure
+        override
+        returns (uint256)
+    {
         return assetsIn;
     }
 
@@ -289,5 +309,216 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle {
     /// @return side SUPPLY or DEBT
     function sideOf(address yieldSourceAddress) external view returns (AaveV4ReserveRegistryV2.Side side) {
         (,,,, side) = REGISTRY.getReserveInfo(yieldSourceAddress);
+    }
+
+    /// @inheritdoc IAaveV4OwnerSnapshot
+    function getOwnerSnapshot(
+        address owner,
+        address[] calldata sourceKeys,
+        address[] calldata configuredSpokes,
+        address[] calldata cashTokens,
+        address vaultAsset,
+        uint256 maxReservesPerSpoke
+    )
+        external
+        view
+        returns (uint256 version, OwnerPosition[] memory positions, WalletBalance[] memory balances)
+    {
+        if (owner == address(0) || vaultAsset == address(0)) revert ZERO_ADDRESS();
+        if (maxReservesPerSpoke == 0 || maxReservesPerSpoke > 65_536) revert SNAPSHOT_RESERVE_LIMIT();
+
+        positions = _ownerPositions(owner, sourceKeys, configuredSpokes, maxReservesPerSpoke);
+        balances = _cashBalances(owner, positions, cashTokens, vaultAsset);
+        return (SNAPSHOT_VERSION, positions, balances);
+    }
+
+    function _ownerPositions(
+        address owner,
+        address[] calldata sourceKeys,
+        address[] calldata configuredSpokes,
+        uint256 maxReservesPerSpoke
+    )
+        private
+        view
+        returns (OwnerPosition[] memory positions)
+    {
+        address[] memory spokes = new address[](configuredSpokes.length + sourceKeys.length);
+        uint256 spokeCount;
+        for (uint256 i; i < configuredSpokes.length; ++i) {
+            spokeCount = _appendAddress(spokes, spokeCount, configuredSpokes[i]);
+        }
+        OwnerPosition[] memory registered = new OwnerPosition[](sourceKeys.length);
+        uint256 registeredCount;
+        for (uint256 i; i < sourceKeys.length; ++i) {
+            if (_hasPosition(registered, registeredCount, sourceKeys[i])) continue;
+            OwnerPosition memory position = _ownerPosition(sourceKeys[i], owner);
+            registered[registeredCount++] = position;
+            spokeCount = _appendAddress(spokes, spokeCount, position.spoke);
+        }
+
+        address[] memory debtKeys = _borrowKeys(owner, spokes, spokeCount, maxReservesPerSpoke);
+        positions = new OwnerPosition[](registeredCount + debtKeys.length);
+        for (uint256 i; i < registeredCount; ++i) {
+            positions[i] = registered[i];
+        }
+        uint256 positionCount = registeredCount;
+        for (uint256 i; i < debtKeys.length; ++i) {
+            if (!_hasPosition(registered, registeredCount, debtKeys[i])) {
+                positions[positionCount++] = _ownerPosition(debtKeys[i], owner);
+            }
+        }
+        assembly ("memory-safe") {
+            mstore(positions, positionCount)
+        }
+    }
+
+    function _borrowKeys(
+        address owner,
+        address[] memory spokes,
+        uint256 spokeCount,
+        uint256 maxReservesPerSpoke
+    )
+        private
+        view
+        returns (address[] memory debtKeys)
+    {
+        uint256[] memory counts = new uint256[](spokeCount);
+        uint256 totalReserves;
+        for (uint256 i; i < spokeCount; ++i) {
+            counts[i] = IAaveV4Spoke(spokes[i]).getReserveCount();
+            if (counts[i] > maxReservesPerSpoke) revert SNAPSHOT_RESERVE_LIMIT();
+            totalReserves += counts[i];
+        }
+        // Provision keys for the scan; allocate/read full position records only for actual debt.
+        debtKeys = new address[](totalReserves);
+        uint256 debtCount;
+        for (uint256 i; i < spokeCount; ++i) {
+            for (uint256 reserveId; reserveId < counts[i]; ++reserveId) {
+                (, bool borrowing) = IAaveV4Spoke(spokes[i]).getUserReserveStatus(reserveId, owner);
+                if (borrowing) debtKeys[debtCount++] = AaveV4ReserveKey.computeDebtKey(spokes[i], reserveId);
+            }
+        }
+        assembly ("memory-safe") {
+            mstore(debtKeys, debtCount)
+        }
+    }
+
+    function _cashBalances(
+        address owner,
+        OwnerPosition[] memory positions,
+        address[] calldata cashTokens,
+        address vaultAsset
+    )
+        private
+        view
+        returns (WalletBalance[] memory balances)
+    {
+        balances = new WalletBalance[](cashTokens.length + positions.length);
+        uint256 cashCount;
+        // Registry decimals are authoritative for debt tokens. Reading configured cash second
+        // avoids another decimals()/balanceOf() for the same token or for the vault underlying.
+        for (uint256 i; i < positions.length; ++i) {
+            OwnerPosition memory position = positions[i];
+            if (position.side == uint8(AaveV4ReserveRegistryV2.Side.DEBT)) {
+                cashCount = _appendCash(
+                    balances, cashCount, owner, vaultAsset, position.underlying, position.underlyingDecimals
+                );
+            }
+        }
+        for (uint256 i; i < cashTokens.length; ++i) {
+            address token = cashTokens[i];
+            if (token == address(0)) revert ZERO_ADDRESS();
+            if (token == vaultAsset || _hasCash(balances, cashCount, token)) continue;
+            cashCount = _appendCash(balances, cashCount, owner, vaultAsset, token, IERC20Metadata(token).decimals());
+        }
+        assembly ("memory-safe") {
+            mstore(balances, cashCount)
+        }
+    }
+
+    function _ownerPosition(address key, address owner) private view returns (OwnerPosition memory position) {
+        AaveV4ReserveRegistryV2.Side side;
+        position.sourceKey = key;
+        (position.spoke, position.reserveId, position.underlying, position.underlyingDecimals, side) =
+            REGISTRY.getReserveInfo(key);
+        position.side = uint8(side);
+        position.symbol = _symbol(position.underlying);
+        if (side == AaveV4ReserveRegistryV2.Side.SUPPLY) {
+            position.assets = IAaveV4Spoke(position.spoke).getUserSuppliedAssets(position.reserveId, owner);
+        } else if (side == AaveV4ReserveRegistryV2.Side.DEBT) {
+            (uint256 drawn, uint256 premium) = IAaveV4Spoke(position.spoke).getUserDebt(position.reserveId, owner);
+            position.assets = drawn + premium;
+        } else {
+            revert UNHANDLED_SIDE();
+        }
+    }
+
+    /// @dev Symbol is optional display metadata and must not make accounting unavailable.
+    function _symbol(address token) private view returns (string memory) {
+        (bool success, bytes memory result) =
+            token.staticcall{ gas: 30_000 }(abi.encodeWithSelector(IERC20Metadata.symbol.selector));
+        if (!success || result.length < 64) return "";
+        uint256 offset;
+        uint256 length;
+        assembly ("memory-safe") {
+            offset := mload(add(result, 32))
+            length := mload(add(result, 64))
+        }
+        if (offset != 32 || length > 256 || result.length < 64 + ((length + 31) / 32) * 32) return "";
+        return abi.decode(result, (string));
+    }
+
+    function _appendAddress(address[] memory values, uint256 count, address value) private pure returns (uint256) {
+        if (value == address(0)) revert ZERO_ADDRESS();
+        for (uint256 i; i < count; ++i) {
+            if (values[i] == value) return count;
+        }
+        values[count] = value;
+        return count + 1;
+    }
+
+    function _hasPosition(
+        OwnerPosition[] memory positions,
+        uint256 count,
+        address key
+    )
+        private
+        pure
+        returns (bool)
+    {
+        for (uint256 i; i < count; ++i) {
+            if (positions[i].sourceKey == key) return true;
+        }
+        return false;
+    }
+
+    function _hasCash(WalletBalance[] memory balances, uint256 count, address token) private pure returns (bool) {
+        for (uint256 i; i < count; ++i) {
+            if (balances[i].token == token) return true;
+        }
+        return false;
+    }
+
+    function _appendCash(
+        WalletBalance[] memory balances,
+        uint256 count,
+        address owner,
+        address vaultAsset,
+        address token,
+        uint8 tokenDecimals
+    )
+        private
+        view
+        returns (uint256)
+    {
+        if (token == vaultAsset) return count;
+        for (uint256 i; i < count; ++i) {
+            if (balances[i].token == token) {
+                if (balances[i].decimals != tokenDecimals) revert SNAPSHOT_DECIMALS_MISMATCH();
+                return count;
+            }
+        }
+        balances[count] = WalletBalance(token, tokenDecimals, IERC20Metadata(token).balanceOf(owner));
+        return count + 1;
     }
 }

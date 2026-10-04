@@ -10,6 +10,10 @@ pragma solidity 0.8.30;
 ///      Return-value semantics follow the canonical ISpoke interface: every money function
 ///      returns (shares, assets) — the share amount first, then the underlying asset amount.
 interface IAaveV4Spoke {
+    /// @notice Number of listed reserves, including paused or frozen reserves.
+    /// @return Number of sequential reserve identifiers starting at zero.
+    function getReserveCount() external view returns (uint256);
+
     /// @notice Reserve level data (canonical ISpoke.Reserve)
     /// @dev `hub` is declared as `address` (canonically `IHubBase`) and `flags` as `uint8`
     ///      (canonically the wrapped user-defined value type `ReserveFlags`); both encodings are
