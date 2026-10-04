@@ -174,12 +174,13 @@ contract AaveV4StocksHookOracleParityFork is Test {
     AaveV4LoanHookReadHarness internal loanReader;
     AaveV4IdleHookReadHarness internal idleReader;
 
-    AaveV4SupplyHookV2 internal pledgeHook; // PLEDGE  — primary: supply reserve
-    AaveV4WithdrawHookV2 internal releaseHook; // RELEASE — primary: supply reserve
-    AaveV4SupplyAndBorrowHookV2 internal openHook; // OPEN    — primary: supply reserve
-    AaveV4RepayAndWithdrawHookV2 internal closeHook; // CLOSE   — primary: supply reserve
-    AaveV4BorrowHookV2 internal borrowHook; // BORROW  — primary: BORROW reserve
-    AaveV4RepayHookV2 internal repayHook; // REPAY   — primary: BORROW reserve
+    // SUP-21239: all six carry the market key of the pair — there is no per-op primary reserve any more
+    AaveV4SupplyHookV2 internal pledgeHook; // PLEDGE
+    AaveV4WithdrawHookV2 internal releaseHook; // RELEASE
+    AaveV4SupplyAndBorrowHookV2 internal openHook; // OPEN
+    AaveV4RepayAndWithdrawHookV2 internal closeHook; // CLOSE
+    AaveV4BorrowHookV2 internal borrowHook; // BORROW
+    AaveV4RepayHookV2 internal repayHook; // REPAY
     AaveV4LendHook internal lendHook; // idle lend   — primary: supply reserve
     AaveV4RedeemHook internal redeemHook; // idle redeem — primary: supply reserve
 
@@ -349,10 +350,10 @@ contract AaveV4StocksHookOracleParityFork is Test {
         }
 
         // and the pin refuses the leg keys of its own pair
-        address market = keyLib.computeMarketKey(MAG7_SPOKE, AAPL_ID, USDC_ID);
-        assertTrue(market != address(0), "sanity");
         vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         keyLib.requireHeaderIsMarketKey(supplyKeys[AAPL_ID], MAG7_SPOKE, AAPL_ID, USDC_ID);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        keyLib.requireHeaderIsMarketKey(debtKeys[AAPL_ID], MAG7_SPOKE, AAPL_ID, USDC_ID);
         vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         keyLib.requireHeaderIsMarketKey(debtKeys[USDC_ID], MAG7_SPOKE, AAPL_ID, USDC_ID);
     }
@@ -503,16 +504,15 @@ contract AaveV4StocksHookOracleParityFork is Test {
           D. PER-OP PRIMARY SIDE — HEADER IS ALWAYS A SUPPLY KEY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Per-op primary-reserve mapping for all six V2 hooks on the live stocks market, read out of the
-    ///         production `inspect()` path (same pure decoder, same pin as `build()` / `preExecute()`):
-    ///         PLEDGE / RELEASE / OPEN / CLOSE select the SUPPLY reserve (AAPLc) as primary, while BORROW and
-    ///         REPAY select the BORROW reserve (USDC). In EVERY case — including the two DEBT-side ops —
-    ///         primary reserve is the borrow reserve; the header key is still that reserve's SUPPLY key.
-    ///         The registry confirms `Side.SUPPLY` on all six headers, and each one is also asserted NOT to
-    ///         be any debt key.
-    /// @dev Mapping derived from the `_primaryReserveId` overrides: `AaveV4SupplyHookV2`,
-    ///      `AaveV4WithdrawHookV2`, `AaveV4SupplyAndBorrowHookV2`, `AaveV4RepayAndWithdrawHookV2` return
-    ///      `vars.supplyReserveId`; `AaveV4BorrowHookV2` and `AaveV4RepayHookV2` return `vars.borrowReserveId`.
+    /// @notice All six V2 hooks on the live stocks market carry the SAME header — the market key of
+    ///         (MAG7 spoke, AAPLc collateral, USDC loan) — read out of the production `inspect()` path (same
+    ///         pure decoder, same pin as `build()` / `preExecute()`). Each header is asserted to be none of
+    ///         the four leg keys of the two reserves involved, to resolve through the registry's MARKET
+    ///         namespace, and NOT to resolve through its reserve namespace.
+    /// @dev SUP-21239 deleted the per-op mapping this test used to assert. Before it, PLEDGE / RELEASE / OPEN
+    ///      / CLOSE pinned the collateral reserve's SUPPLY key and BORROW / REPAY the loan reserve's — the
+    ///      `_primaryReserveId` overrides, now removed along with the virtual itself, because the market key
+    ///      is a function of the whole body and there is no leg left to select.
     function test_StocksHookHeaders_EveryV2Op_PinsTheSameMarketKey() public {
         address[6] memory hooks = [
             address(pledgeHook),
@@ -891,12 +891,18 @@ contract AaveV4StocksHookOracleParityFork is Test {
         registry.proposeDeregisterReserve(supplyKeys[TSLA_ID]);
         assertGt(registry.pendingDeregistrations(supplyKeys[TSLA_ID]), 0, "proposal open");
 
-        // 2. a market registered DURING the open window claims that leg — the execute-side re-check catches it
+        // 2. while that proposal is open the leg cannot be CLAIMED. This is the fix for the overlap the
+        //    security review found: if the market could claim it, the execute would revert
+        //    MARKET_REFERENCES_RESERVE without clearing the proposal, leaving it armed to fire with no fresh
+        //    warning window the moment the market was removed.
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_DEREGISTRATION_PENDING.selector);
+        registry.registerMarket(MAG7_SPOKE, TSLA_ID, USDC_ID);
+
+        // cancelling is the explicit operator decision the guard forces; then the market registers
+        registry.cancelDeregisterReserve(supplyKeys[TSLA_ID]);
         address tslaMarket = registry.registerMarket(MAG7_SPOKE, TSLA_ID, USDC_ID);
-        vm.warp(block.timestamp + delay);
-        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
-        registry.executeDeregisterReserve(supplyKeys[TSLA_ID]);
-        assertTrue(registry.isRegistered(supplyKeys[TSLA_ID]), "leg survived the elapsed timelock");
+        assertEq(registry.pendingDeregistrations(supplyKeys[TSLA_ID]), 0, "no proposal survives the claim");
+        assertEq(registry.marketRefs(supplyKeys[TSLA_ID]), 1, "and the leg is claimed");
 
         // 3. a second live market over the SAME USDC debt leg
         address aaplMarket = registry.registerMarket(MAG7_SPOKE, AAPL_ID, USDC_ID);
@@ -921,12 +927,16 @@ contract AaveV4StocksHookOracleParityFork is Test {
         registry.proposeDeregisterReserve(supplyKeys[AAPL_ID]); // released, so proposable again
         registry.cancelDeregisterReserve(supplyKeys[AAPL_ID]);
 
-        // 5. both markets gone: refs clear and the legs are deregisterable again
+        // 5. both markets gone: refs clear and the legs are deregisterable again — each needing a FRESH
+        //    proposal and a full delay, which is the point of the overlap guard. No stale proposal survived
+        //    the market's lifetime to fire instantly here.
         _deregisterMarket(tslaMarket, delay);
         assertEq(registry.marketRefs(debtKeys[USDC_ID]), 0, "shared DEBT leg released");
         assertEq(registry.marketRefs(supplyKeys[TSLA_ID]), 0, "TSLAc SUPPLY leg released");
+        assertEq(registry.pendingDeregistrations(supplyKeys[TSLA_ID]), 0, "and nothing was left armed");
 
-        // the step-1 proposal never expired, so it executes now with no re-propose
+        registry.proposeDeregisterReserve(supplyKeys[TSLA_ID]);
+        vm.warp(block.timestamp + delay);
         registry.executeDeregisterReserve(supplyKeys[TSLA_ID]);
         assertFalse(registry.isRegistered(supplyKeys[TSLA_ID]), "leg deregisterable once no market names it");
         registry.proposeDeregisterReserve(debtKeys[USDC_ID]);

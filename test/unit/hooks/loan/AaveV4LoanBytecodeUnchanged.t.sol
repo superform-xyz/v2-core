@@ -51,6 +51,13 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         return keccak256(vm.getCode(string(abi.encodePacked("script/generated-bytecode/", name, ".json"))));
     }
 
+    /// @dev What an env 1 (vnet) / env 2 (staging) deploy consumes, per `DeployV2Base.__getBytecodeArtifactPath`.
+    ///      Only contracts deployed through `DeployV2Core` are read from here — `DeployV2OtherHooks`
+    ///      hardcodes `locked-bytecode/` for every env, so the LOAN hooks' dev artifacts are never consulted.
+    function _lockedDev(string memory name) internal returns (bytes32) {
+        return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode-dev/", name, ".json"))));
+    }
+
     /// @dev V2 is a NEW contract under a new deploy name, not an edit to the deployed V1 — the struct gained
     ///      `side` and `getReserveInfo` went 4->5 returns, which moves the creation code and therefore the
     ///      CREATE2 address. Pinned against BOTH artifacts: `_generated` is what a vnet/dev deploy consumes
@@ -60,6 +67,11 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         bytes32 fresh = keccak256(type(AaveV4ReserveRegistryV2).creationCode);
         assertEq(fresh, _generated("AaveV4ReserveRegistryV2"), "V2 generated artifact matches source");
         assertEq(fresh, _locked("AaveV4ReserveRegistryV2"), "V2 locked artifact matches source");
+        // The registry is the one moved artifact deployed via `DeployV2Core`, so its env 1/2 copy is live
+        // code, not a dead file. Without this a re-pin could update prod + generated, leave dev stale, keep
+        // this suite green, and have a staging run deploy the OLD registry at a different CREATE2 address —
+        // which silently moves `AaveV4ReserveOracle` too, since the registry is its constructor argument.
+        assertEq(fresh, _lockedDev("AaveV4ReserveRegistryV2"), "V2 locked-dev artifact matches source");
     }
 
     /// @notice The merged oracle is under the same locked-bytecode release model as everything else here, so

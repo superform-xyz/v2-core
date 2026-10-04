@@ -1062,8 +1062,10 @@ contract AaveV4ReserveOracleDispatchTest is Test {
     ///         the V2 LOAN hooks to carry a market key in the same header field the idle pair uses for a
     ///         reserve key — a market key can never be mistaken for a position.
     /// @dev If a future change ever makes the oracle resolve `_markets`, market-keyed NAV would report the
-    ///      collateral reserve's supplied amount once per market sharing it, and `SuperYieldSourceOracle`'s
-    ///      batch reads sum without de-duplication. That is the double count this test exists to prevent.
+    ///      collateral reserve's supplied amount once per market sharing it — on the live MAG7 spoke, seven
+    ///      times, since all seven equity reserves borrow the one USDC reserve. A caller summing a portfolio
+    ///      would inflate it accordingly; nothing in the aggregator de-duplicates by underlying position.
+    ///      That is the double count this test exists to prevent.
     function test_marketKey_isNotResolvableByTheOracle() public {
         address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
 

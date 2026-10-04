@@ -15,10 +15,12 @@ pragma solidity 0.8.30;
 ///            `RESERVE_NOT_REGISTERED` (fail-closed).
 /// @dev Single definition: `AaveV4ReserveRegistryV2.computeReserveKey` / `.computeMarketKey` (the `public pure`
 ///      ones off-chain indexers call), the idle `BaseAaveV4MoneyMarketHook` decoder and both LOAN bases all
-///      delegate here. The literal formulas are what off-chain consumers derive; they are pinned independently
-///      of this library by `testFuzz_ReserveKey_MatchesLiteralFormula` /
-///      `testFuzz_MarketKey_MatchesLiteralFormula` (LOAN unit suites) and
-///      `test/unit/accounting/oracles/AaveV4Oracles.t.sol`.
+///      delegate here. The literal formulas are what off-chain consumers derive; each is pinned independently
+///      of this library against the written-out expression — the reserve formula by
+///      `testFuzz_ReserveKey_MatchesLiteralFormula` (LOAN unit suites) and
+///      `test/unit/accounting/oracles/AaveV4Oracles.t.sol`, the market formula by
+///      `testFuzz_MarketKey_MatchesLiteralFormula` and
+///      `AaveV4ReserveKeyDerivation.testFuzz_ComputeMarketKey_MatchesLiteralFormula`.
 ///      Collision surface: forging a key equal to a specific registered reserve's or market's is a 160-bit
 ///      second preimage (~2^160 keccak evaluations; 2^160 / N against N registered entries) — the 2^80
 ///      birthday figure does not apply because the target is fixed. A collision could only block a second

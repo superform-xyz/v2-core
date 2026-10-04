@@ -1492,17 +1492,32 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
         registry.proposeDeregisterReserve(usdcDebtLegKey);
     }
 
-    /// @notice And re-checked at EXECUTE time, because a market can be registered during the 2-day window.
-    ///         Without this the guard would be bypassable by proposing first and registering the market after.
-    function test_executeDeregisterReserve_revertIf_marketRegisteredDuringTheWindow() public {
+    /// @notice THE INVARIANT THAT REPLACES THE RACE: a claimed leg can never have a pending proposal, and a
+    ///         pending leg can never be claimed. The two guards close the loop from both sides —
+    ///         `MARKET_REFERENCES_RESERVE` on propose, `RESERVE_DEREGISTRATION_PENDING` on registerMarket —
+    ///         so "propose first, register the market during the window" is unrepresentable rather than merely
+    ///         caught late. That matters because catching it late left the proposal armed (see
+    ///         `test_registerMarket_revertIf_collateralLegDeregistrationPending`).
+    /// @dev The `marketRefs` re-check inside `executeDeregisterReserve` is therefore defence in depth and
+    ///      unreachable through the public API today. It is kept deliberately: it is the backstop if a future
+    ///      edit ever reopens the window, and it costs one SLOAD on an admin-only path.
+    function test_legProposalAndMarketClaim_areMutuallyExclusive() public {
         (address wethSupplyKey,) = _registerWethReserve();
 
+        // direction 1: proposal first — the market cannot claim the leg
         registry.proposeDeregisterReserve(wethSupplyKey);
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_DEREGISTRATION_PENDING.selector);
         registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
 
-        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        // direction 2: market first — the leg cannot be proposed
+        registry.cancelDeregisterReserve(wethSupplyKey);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
         vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
-        registry.executeDeregisterReserve(wethSupplyKey);
+        registry.proposeDeregisterReserve(wethSupplyKey);
+
+        // so this never holds for any claimed leg
+        assertEq(registry.pendingDeregistrations(wethSupplyKey), 0, "a claimed leg has no pending proposal");
+        assertGt(registry.marketRefs(wethSupplyKey), 0, "and it is claimed");
     }
 
     /// @notice Legs that no market names are unaffected: the guard is per leg, not per reserve. The USDC
@@ -1560,5 +1575,191 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
         assertEq(registry.marketRefs(usdcDebtLegKey), 1, "one claim remains");
         vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
         registry.proposeDeregisterReserve(usdcDebtLegKey);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       THE TWO TIMELOCKS NEVER OVERLAP (SUP-21239 security review M-1)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A reserve leg with a PENDING deregistration cannot be claimed by a new market. Without this,
+    ///         the two timelocks overlap and produce an armed-but-invisible proposal: propose a leg's
+    ///         deregistration while no market names it, register a market during the window, and the execute
+    ///         then reverts `MARKET_REFERENCES_RESERVE` WITHOUT clearing the proposal. An operator reads that
+    ///         revert as "the deregistration is dead" — but it stays executable forever, and fires in the same
+    ///         block the market is finally removed, with none of the 2-day warning the timelock exists to give.
+    /// @dev Both claimed legs are covered: the collateral reserve's SUPPLY leg and the loan reserve's DEBT leg.
+    function test_registerMarket_revertIf_collateralLegDeregistrationPending() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+
+        registry.proposeDeregisterReserve(wethSupplyKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_DEREGISTRATION_PENDING.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    function test_registerMarket_revertIf_loanDebtLegDeregistrationPending() public {
+        _registerWethReserve();
+        address usdcDebtLegKey = registry.computeDebtKey(address(spoke), USDC_RESERVE_ID);
+
+        registry.proposeDeregisterReserve(usdcDebtLegKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_DEREGISTRATION_PENDING.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    /// @notice Cancelling the leg's proposal clears the block, and the market then registers normally — so the
+    ///         guard orders the two lifecycles rather than deadlocking them.
+    function test_registerMarket_succeedsOnceTheLegProposalIsCancelled() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+
+        registry.proposeDeregisterReserve(wethSupplyKey);
+        registry.cancelDeregisterReserve(wethSupplyKey);
+
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertTrue(registry.isMarketRegistered(marketKey), "market registers once nothing is pending");
+        assertEq(registry.marketRefs(wethSupplyKey), 1, "and claims the leg");
+    }
+
+    /// @notice A leg proposal that is pending for the OTHER two legs — the ones a market does not claim — does
+    ///         not block registration. The guard is per claimed leg, exactly like `marketRefs`.
+    function test_registerMarket_unclaimedLegProposalsDoNotBlock() public {
+        (, address wethDebtKey) = _registerWethReserve();
+
+        registry.proposeDeregisterReserve(wethDebtKey); // collateral reserve's DEBT leg — not claimed
+        registry.proposeDeregisterReserve(usdcKey); // loan reserve's SUPPLY leg — not claimed
+
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertTrue(registry.isMarketRegistered(marketKey), "unclaimed legs' proposals are irrelevant");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        LIFECYCLE SEQUENCES ACROSS THE TWO NAMESPACES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Market removed, then one of its legs removed: re-registering the market now fails on the leg
+    ///         check, not on a stale `_markets` entry. Proves `executeDeregisterMarket` fully releases the
+    ///         market AND that the leg requirement is re-evaluated rather than remembered.
+    function test_marketReRegistration_revertIf_aLegWasRemovedInTheMeantime() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        // now the collateral leg can go, because no market names it any more
+        registry.proposeDeregisterReserve(wethSupplyKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(wethSupplyKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_LEG_NOT_REGISTERED.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    /// @notice `executeDeregisterMarket` cannot run twice. The function has no `registered` check — it relies
+    ///         on `pendingMarketDeregistrations` being deleted on execute — so this pins the dependency the
+    ///         code comments. A second run against a deleted market would decrement
+    ///         `marketRefs[computeReserveKey(address(0), 0)]` and underflow.
+    function test_executeDeregisterMarket_cannotRunTwice() public {
+        address marketKey = _registerCanonicalMarket();
+
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
+        registry.executeDeregisterMarket(marketKey);
+    }
+
+    /// @notice Re-registering a reserve leg after the market that named it was removed works, and the fresh
+    ///         leg carries no residual claim.
+    function test_reserveReRegistration_afterItsMarketWasRemoved() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        registry.proposeDeregisterReserve(wethSupplyKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(wethSupplyKey);
+        // the DEBT leg survived, so the reserve is half-registered: repair rather than re-register
+        address restored = registry.repairLeg(address(spoke), WETH_RESERVE_ID, AaveV4ReserveRegistryV2.Side.SUPPLY);
+
+        assertEq(restored, wethSupplyKey, "the repaired leg is the same derived key");
+        assertEq(registry.marketRefs(restored), 0, "a re-registered leg carries no residual market claim");
+        assertTrue(registry.isRegistered(restored), "leg live again");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       THE CROSS-NAMESPACE GUARD (reachable only via vm.store)
+    //////////////////////////////////////////////////////////////*/
+    // `KEY_NAMESPACE_COLLISION` needs a ~2^-160 collision to reach through the public API, so these tests
+    // forge the colliding state directly. Without them the three guard branches are both unverified and
+    // mutation-immune — deleting them would kill no test — which is exactly the vacuous-coverage trap the
+    // merged-oracle review flagged. Storage layout (forge inspect): slot 1 `_reserves`, slot 3 `_markets`.
+
+    uint256 internal constant RESERVES_SLOT = 1;
+    uint256 internal constant MARKETS_SLOT = 3;
+
+    /// @dev Force `_markets[key].registered = true`. `MarketInfo` packs `loanToken` + `registered` into its
+    ///      fifth word, so the flag is byte 20 of base+4.
+    function _forceMarketRegistered(address key) internal {
+        bytes32 base = keccak256(abi.encode(key, MARKETS_SLOT));
+        vm.store(address(registry), bytes32(uint256(base) + 4), bytes32(uint256(1) << 160));
+        require(registry.isMarketRegistered(key), "vm.store slot math: _markets.registered not set");
+    }
+
+    /// @dev Force `_reserves[key].registered = true`. `ReserveInfo` is {spoke | reserveId | underlying +
+    ///      decimals + side + registered}: the third word packs the 20-byte `underlying`, then `decimals`,
+    ///      `side` and `registered`, so the flag is byte 22 of base+2.
+    function _forceReserveRegistered(address key) internal {
+        bytes32 base = keccak256(abi.encode(key, RESERVES_SLOT));
+        vm.store(address(registry), bytes32(uint256(base) + 2), bytes32(uint256(1) << 176));
+        require(registry.isRegistered(key), "vm.store slot math: _reserves.registered not set");
+    }
+
+    /// @notice A key already live in the MARKET namespace cannot be registered as a reserve leg — either leg.
+    ///         This is what stops one 20-byte value from meaning a market to an off-chain whitelist and a
+    ///         position to the oracle.
+    function test_registerReserve_revertIf_eitherLegKeyIsAlreadyAMarket() public {
+        uint256 freshId = 33;
+        address token = makeAddr("freshToken");
+        spoke.setReserve(freshId, token, 18);
+
+        _forceMarketRegistered(registry.computeReserveKey(address(spoke), freshId));
+        vm.expectRevert(AaveV4ReserveRegistryV2.KEY_NAMESPACE_COLLISION.selector);
+        registry.registerReserve(address(spoke), freshId);
+
+        // and the mirror: the DEBT leg colliding instead
+        uint256 otherId = 34;
+        spoke.setReserve(otherId, token, 18);
+        _forceMarketRegistered(registry.computeDebtKey(address(spoke), otherId));
+        vm.expectRevert(AaveV4ReserveRegistryV2.KEY_NAMESPACE_COLLISION.selector);
+        registry.registerReserve(address(spoke), otherId);
+    }
+
+    /// @notice `repairLeg` carries the same guard: a missing leg whose key has become a market is not restored.
+    function test_repairLeg_revertIf_keyIsAlreadyAMarket() public {
+        // drop the USDC DEBT leg so repairLeg has something to restore
+        registry.proposeDeregisterReserve(usdcDebtKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(usdcDebtKey);
+
+        _forceMarketRegistered(usdcDebtKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.KEY_NAMESPACE_COLLISION.selector);
+        registry.repairLeg(address(spoke), USDC_RESERVE_ID, AaveV4ReserveRegistryV2.Side.DEBT);
+    }
+
+    /// @notice And the reverse direction: a key already live as a reserve leg cannot be registered as a market.
+    function test_registerMarket_revertIf_marketKeyIsAlreadyAReserve() public {
+        _registerWethReserve();
+
+        _forceReserveRegistered(registry.computeMarketKey(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID));
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.KEY_NAMESPACE_COLLISION.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
     }
 }

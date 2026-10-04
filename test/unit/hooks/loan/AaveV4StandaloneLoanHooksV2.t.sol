@@ -381,12 +381,23 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
     /// @dev The header key is identity only: every non-ERC20 execution targets the calldata Spoke and every approve
     ///      names the Spoke as spender — the key is never called or approved
     function test_Standalone_Build_SpokeIsCallTarget_NotHeaderKey() public view {
-        address key = _marketKey(spoke, SUPPLY_ID, BORROW_ID);
+        address marketKey = _marketKey(spoke, SUPPLY_ID, BORROW_ID);
+        address supplyLegKey = _key(spoke, SUPPLY_ID);
+        address debtLegKey = _key(spoke, BORROW_ID);
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
             Execution[] memory ex = _build(hooks[i], _dataFor(i, amount1, false));
+
+            // "never a target" is asserted over EVERY execution, not just the provider ones: BORROW and
+            // RELEASE build exactly one execution, so the `j + 1 < ex.length` loop below never runs for them
+            // and this was previously vacuous for two of the three hooks.
+            for (uint256 j; j < ex.length; ++j) {
+                assertTrue(ex[j].target != marketKey, "market key is never a target");
+                assertTrue(ex[j].target != supplyLegKey, "collateral leg key is never a target");
+                assertTrue(ex[j].target != debtLegKey, "loan leg key is never a target");
+            }
+            // provider-shaped checks stay on the middle executions (index 0 is preExecute, last is postExecute)
             for (uint256 j = 1; j + 1 < ex.length; ++j) {
-                assertTrue(ex[j].target != key, "key is never a target");
                 if (ex[j].target == collateralToken) {
                     (address spender,) = abi.decode(BytesLib.slice(ex[j].callData, 4, 64), (address, uint256));
                     assertEq(spender, spoke, "approve spender is the Spoke");
@@ -1553,8 +1564,10 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         }
     }
 
-    /// @dev Header key fuzz, standalone trio: a key over any other reserve id or any other spoke is refused by build,
-    ///      preExecute, inspect and both sizing views
+    /// @dev Header key fuzz, standalone trio: a MARKET key over any other reserve pair or any other spoke is
+    ///      refused by build, preExecute, inspect and both sizing views. The fuzzed ids go into the market
+    ///      derivation on both legs — a reserve key here would revert trivially (no reserve key is ever a
+    ///      market key) and the fuzz inputs could not change the outcome, which is what this test must avoid.
     function testFuzz_Standalone_WrongKey_Refused_AllHooks(uint256 otherReserveId, address foreignSpoke) public {
         vm.assume(otherReserveId != SUPPLY_ID && otherReserveId != BORROW_ID);
         vm.assume(foreignSpoke != spoke);
@@ -1563,12 +1576,12 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         one[0] = 1;
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory body = BytesLib.slice(_dataFor(i, 1e18, false), 52, 189);
-            uint256 primary = i == 1 ? BORROW_ID : SUPPLY_ID;
-            bytes[2] memory bad = [
-                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _key(spoke, otherReserveId), body),
-                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _key(foreignSpoke, primary), body)
+            bytes[3] memory bad = [
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _marketKey(spoke, otherReserveId, BORROW_ID), body),
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _marketKey(spoke, SUPPLY_ID, otherReserveId), body),
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _marketKey(foreignSpoke, SUPPLY_ID, BORROW_ID), body)
             ];
-            for (uint256 b; b < 2; ++b) {
+            for (uint256 b; b < bad.length; ++b) {
                 vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 _build(hooks[i], bad[b]);
                 vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);

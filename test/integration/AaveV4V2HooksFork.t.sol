@@ -1923,8 +1923,9 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     ///         and every approve names the Spoke as spender (built against the live Spoke with a live position)
     function test_AaveV4V2_SpokeIsCallTarget_AllSixOps() external {
         _openDefaultPosition();
-        address keyWeth = AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
-        address keyUsdc = AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID);
+        address marketKey = AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        address collateralLegKey = AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID);
+        address loanLegKey = AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID);
         address[6] memory hooks = [
             address(openHook),
             address(repayHook),
@@ -1944,7 +1945,10 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         for (uint256 i; i < hooks.length; ++i) {
             Execution[] memory ex = ISuperHook(hooks[i]).build(address(0), accountEth, datas[i]);
             for (uint256 j = 1; j + 1 < ex.length; ++j) {
-                assertTrue(ex[j].target != keyWeth && ex[j].target != keyUsdc, "key is never a target");
+                assertTrue(
+                    ex[j].target != marketKey && ex[j].target != collateralLegKey && ex[j].target != loanLegKey,
+                    "neither the market key nor either leg key is ever a target"
+                );
                 if (ex[j].target == CHAIN_1_USDC || ex[j].target == CHAIN_1_WETH) {
                     (address spender,) = abi.decode(BytesLib.slice(ex[j].callData, 4, 64), (address, uint256));
                     assertEq(spender, SPOKE_ADDR, "approve spender is the Spoke");

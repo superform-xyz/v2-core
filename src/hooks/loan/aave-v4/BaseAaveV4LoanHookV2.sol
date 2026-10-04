@@ -49,9 +49,14 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 ///      The pin runs inside the pure decoder, so build, preExecute, inspect, decodeAmounts and
 ///      replaceCalldataAmounts all fail closed on a crafted header (decodeUsePrevHookAmount checks length +
 ///      canonical bool only). The Spoke (offset 92) remains the ONLY call target and approve spender; the key
-///      is never called and is NOT oracle-resolvable — `AaveV4ReserveOracle` reads reserve legs only, so a
-///      market key handed to it reverts `RESERVE_NOT_REGISTERED`. `yieldSourceOracleId` (offset 0) must be
-///      nonzero (ORACLE_ID_NOT_VALID) and is otherwise identity for off-chain consumers: LOAN hooks are
+///      is never called: `marketKey` appears only in the zero-check, the pin and the inspector payload, never
+///      as an `Execution.target` or an approve spender. (The Spoke is the only PROVIDER target; the builds also
+///      target `loanToken` / `collateralToken` for `IERC20.approve`, with the Spoke as spender.) The key is
+///      also not oracle-resolvable: `AaveV4ReserveOracle` reads reserve legs only, so a market key passed to
+///      any of its REGISTRY-RESOLVING reads reverts `RESERVE_NOT_REGISTERED`. Its `pure` identity converters
+///      (`getShareOutput` / `getAssetOutput` / …) ignore the yield-source argument and still return a number
+///      for any address — they read no state, so that is arithmetic, not a NAV read. `yieldSourceOracleId` (offset 0)
+/// must be nonzero (ORACLE_ID_NOT_VALID) and is otherwise identity for off-chain consumers: LOAN hooks are
 ///      NONACCOUNTING, so the executor never reads the header for them and the market key is never a
 ///      SuperLedger key. NAV stays per reserve leg (`computeReserveKey` / `computeDebtKey`), which is also why
 ///      the V1 LOAN six and the idle INFLOW/OUTFLOW pair deliberately keep the reserve-key rule.
@@ -173,7 +178,8 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
 
     /// @dev Strictly decodes the canonical Aave V4 V2 layout.
     ///      Enforces: exact 241-byte length, nonzero oracle id, nonzero addresses (header key included), distinct
-    ///      loan/collateral tokens, header key == AaveV4ReserveKey(spoke, primary reserve), canonical
+    ///      loan/collateral tokens, header key == `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId,
+    ///      borrowReserveId)` (SUP-21239 — there is no per-op primary reserve any more), canonical
     ///      usePrevHookAmount boolean, and — when `secondaryReserved` is true (standalone legs) — a
     ///      zero amount2 word. Reserve/token binding is validated separately via _validateReserves
     ///      (view) so this decoder stays pure for inspect() and the sizing views.

@@ -45,7 +45,7 @@ untouched by construction at the time of SUP-21141 (`AaveV4LoanBytecodeUnchanged
 
 | offset | field | rule |
 |---|---|---|
-| 0 / 32 | strategy header | **bound (SUP-21143)**: `yieldSourceOracleId` @0 = Superform Aave V4 YS oracle id (must be nonzero → `ORACLE_ID_NOT_VALID`; otherwise identity only — LOAN is NONACCOUNTING, the executor never reads it); `yieldSource` @32 = `AaveV4ReserveKey.computeReserveKey(spoke, primaryReserveId)` (supply reserve for PLEDGE / RELEASE, borrow reserve for BORROW), zero → `ADDRESS_NOT_VALID`, anything else → `RESERVE_KEY_MISMATCH` — pinned inside the pure decoder, so build, preExecute, inspect, `decodeAmounts` and `replaceCalldataAmounts` all fail closed (`decodeUsePrevHookAmount` checks length + canonical bool only); checked after every format check |
+| 0 / 32 | strategy header | **bound (SUP-21143)**: `yieldSourceOracleId` @0 = Superform Aave V4 YS oracle id (must be nonzero → `ORACLE_ID_NOT_VALID`; otherwise identity only — LOAN is NONACCOUNTING, the executor never reads it); `yieldSource` @32 = `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` — the MARKET key of the pair, the same value for every leg (SUP-21239, superseding SUP-21143's per-reserve rule; the ids are never sorted, so the reversed pair is a different market) — zero → `ADDRESS_NOT_VALID`, anything else → `MARKET_KEY_MISMATCH` — pinned inside the pure decoder, so build, preExecute, inspect, `decodeAmounts` and `replaceCalldataAmounts` all fail closed (`decodeUsePrevHookAmount` checks length + canonical bool only); checked after every format check |
 | 52 | `loanToken` | nonzero; ≠ collateralToken (`IDENTICAL_TOKENS`) |
 | 72 | `collateralToken` | nonzero |
 | 92 | `spoke` | nonzero; the only call target / approve spender |
@@ -66,7 +66,7 @@ successfully (wrong key preserved) and is refused only at `inspect()` / `build()
 `test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`). Sizing success on any hook is not execution viability:
 reserve / token binding, balances, mode, health and amount semantics are checked at build / execution.
 
-`inspect()` = `reserveKey ‖ spoke ‖ loanToken ‖ collateralToken ‖ supplyReserveId ‖ borrowReserveId` (144 bytes, key first — the oracle / indexing key, same rule as Morpho and the idle Aave hooks) — identical shape to the composite V2 hooks and, since SUP-21143, to the V1 hooks. The Spoke @92 remains the only call target and approve spender; the key is never called.
+`inspect()` = `marketKey ‖ spoke ‖ loanToken ‖ collateralToken ‖ supplyReserveId ‖ borrowReserveId` (144 bytes, key first — the intent / indexing key, same rule as Morpho and the idle Aave hooks; SUP-21239 changed only what the leading 20 bytes mean, never the layout or the length) — identical shape to the composite V2 hooks and, since SUP-21143, to the V1 hooks. The Spoke @92 remains the only call target and approve spender; the key is never called.
 
 ### 3.3 Amount semantics ("before any Spoke call")
 

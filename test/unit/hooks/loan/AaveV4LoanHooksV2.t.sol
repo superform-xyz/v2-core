@@ -891,11 +891,15 @@ contract AaveV4LoanHooksV2Test is Helpers {
         BaseLoanHookV2[3] memory hooks = _hooks();
         address key = _marketKey(spoke, supplyReserveId, borrowReserveId);
         address keyB = _key(spoke, supplyReserveId);
+        address keyC = _key(spoke, borrowReserveId);
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory data = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
             Execution[] memory ex = hooks[i].build(address(0), address(this), data);
             for (uint256 j = 1; j + 1 < ex.length; ++j) {
-                assertTrue(ex[j].target != key && ex[j].target != keyB, "key is never a target");
+                assertTrue(
+                    ex[j].target != key && ex[j].target != keyB && ex[j].target != keyC,
+                    "neither the market key nor either leg key is ever a target"
+                );
                 if (ex[j].target == loanToken || ex[j].target == collateralToken) {
                     (address spender,) = abi.decode(BytesLib.slice(ex[j].callData, 4, 64), (address, uint256));
                     assertEq(spender, spoke, "approve spender is the Spoke");

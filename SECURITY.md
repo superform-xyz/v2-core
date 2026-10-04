@@ -90,3 +90,45 @@ monitor the beacon's implementation, not the token's EIP-1967 slot, which is emp
 blocklist/pause semantics understood, donations accounted for (balanceOf includes unsolicited
 transfers; off-chain pricing should reconcile balance deltas against executed flows), decimals
 <= 18, and `getTVL` (global totalSupply) never used as a pricing input.
+
+#### 16. Aave V4 market keys are intent identity, never accounting identity
+
+`AaveV4ReserveRegistryV2` holds TWO disjoint key namespaces (SUP-21239) and the separation is load-bearing:
+
+- **NAV / accounting** — `computeReserveKey(spoke, reserveId)` (SUPPLY) and
+  `computeDebtKey(spoke, reserveId)` (DEBT), stored in `_reserves`. Only these resolve through
+  `AaveV4ReserveOracle`, and only these can ever be `SuperLedger` keys (via the idle MONEY_MARKET pair).
+- **Intent / identity** — `computeMarketKey(spoke, supplyReserveId, borrowReserveId)`, stored in `_markets`.
+  This is the header `yieldSource` of the six V2 LOAN hooks, and therefore what merkle leaves, the vault
+  whitelist and off-chain indexing name. The V2 LOAN hooks are `NONACCOUNTING`, so the executor never reads
+  it; the oracle reads `_reserves` only, so a market key passed to any registry-resolving oracle read reverts
+  `RESERVE_NOT_REGISTERED`.
+
+Operational invariants:
+
+1. **Never make a market key oracle-resolvable.** Aave V4 positions are reserve-granular —
+   `getUserSuppliedAssets(reserveId, owner)` takes no market parameter — so one reserve participates in N
+   markets. On the live Base MAG7 spoke all seven equity reserves borrow the one USDC reserve, so
+   market-keyed supply NAV would report the same amount seven times. Nothing in the aggregator de-duplicates
+   by underlying position. Market-keyed NAV is a double count by construction, which is why Morpho Blue's
+   side-agnostic market key is NOT a template here: Morpho stores `position[marketId][user]`, so the market
+   IS its accounting unit. Aave V4's is the reserve.
+2. **Market registration does not gate execution.** The V2 LOAN hooks never call the registry; they only pin
+   that the header equals the market key of the body. Registering a market records its binding for off-chain
+   consumers. Deciding which markets a vault may touch remains an off-chain whitelist decision.
+3. **Removal order is markets, then reserve legs.** A market claims exactly two of its two reserves' four
+   legs — the collateral reserve's SUPPLY leg and the loan reserve's DEBT leg — and `marketRefs` refuses to
+   deregister either while the market lives (`MARKET_REFERENCES_RESERVE`). Symmetrically, a leg with a
+   pending deregistration cannot be claimed by a new market (`RESERVE_DEREGISTRATION_PENDING`), so the two
+   timelocks never overlap. Taking a claimed leg dark would abort whole-batch reads in
+   `getPricePerShareMultiple` / `getTVLMultiple` (which, unlike `getTVLByOwnerOfSharesMultiple`, have no
+   per-entry isolation).
+4. **Off-chain consumers must key on `(chainId, marketKey)`.** Like the two leg derivations, the market
+   preimage contains no chainId, and Aave V4 spoke addresses are not guaranteed chain-unique. On-chain this
+   is harmless — the pin is evaluated on the executing chain and the signed envelope binds chainId — but any
+   consumer keying a whitelist or an index on the bare 20 bytes would conflate two chains' markets.
+5. **The derivation is frozen and its leg order is significant.**
+   `keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN))`, lower 20 bytes. The
+   ids are never sorted: "collateral A, borrow B" and "collateral B, borrow A" are different strategies and
+   must stay different keys. `MARKET_KEY_DOMAIN` cannot change once any market key has been signed into a
+   root.
