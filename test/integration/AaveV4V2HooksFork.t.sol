@@ -113,24 +113,17 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return _createDataWithTokens(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            supplyReserveId,
-            borrowReserveId,
-            supplyReserveId,
-            amount1,
-            usePrevHookAmount,
-            amount2
+            CHAIN_1_USDC, CHAIN_1_WETH, supplyReserveId, borrowReserveId, amount1, usePrevHookAmount, amount2
         );
     }
 
-    /// @dev SUP-21143 header: opaque oracle id + AaveV4ReserveKey(spoke, primaryReserveId) at offset 32
+    /// @dev SUP-21239 header: opaque oracle id + AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId,
+    ///      borrowReserveId) at offset 32. No per-op primary reserve: every leg of a market carries one key.
     function _createDataWithTokens(
         address loanToken,
         address collateralToken,
         uint256 supplyReserveId,
         uint256 borrowReserveId,
-        uint256 primaryReserveId,
         uint256 amount1,
         bool usePrevHookAmount,
         uint256 amount2
@@ -141,7 +134,7 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     {
         return abi.encodePacked(
             AAVE_V4_YS_ORACLE_ID, // yieldSourceOracleId (52-byte header: bytes 0-31) — identity only
-            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, primaryReserveId), // yieldSource (bytes 32-51)
+            AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, supplyReserveId, borrowReserveId), // yieldSource (32-51)
             loanToken, // loanToken
             collateralToken, // collateralToken
             SPOKE_ADDR, // spoke
@@ -158,25 +151,19 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         return _createDataWithReserves(WETH_RESERVE_ID, USDC_RESERVE_ID, amount, usePrev, 0);
     }
 
-    /// @dev Standalone BORROW data (borrow-keyed header) on the WETH(0) / USDC(7) pair
+    /// @dev Standalone BORROW data on the WETH(0) / USDC(7) pair — same market key as every other leg
     function _borrowData(uint256 amount, bool usePrev) internal pure returns (bytes memory) {
-        return _createDataWithTokens(
-            CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, USDC_RESERVE_ID, amount, usePrev, 0
-        );
+        return _createDataWithTokens(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, usePrev, 0);
     }
 
     /// @dev Standalone PLEDGE / RELEASE data on the WBTC(3) / USDC(7) pair
     function _standaloneWbtcData(uint256 amount, bool usePrev) internal pure returns (bytes memory) {
-        return _createDataWithTokens(
-            CHAIN_1_USDC, CHAIN_1_WBTC, WBTC_RESERVE_ID, USDC_RESERVE_ID, WBTC_RESERVE_ID, amount, usePrev, 0
-        );
+        return _createDataWithTokens(CHAIN_1_USDC, CHAIN_1_WBTC, WBTC_RESERVE_ID, USDC_RESERVE_ID, amount, usePrev, 0);
     }
 
     /// @dev Standalone BORROW data naming WBTC(3) as the (identity-only) collateral reserve
     function _borrowWbtcData(uint256 amount, bool usePrev) internal pure returns (bytes memory) {
-        return _createDataWithTokens(
-            CHAIN_1_USDC, CHAIN_1_WBTC, WBTC_RESERVE_ID, USDC_RESERVE_ID, USDC_RESERVE_ID, amount, usePrev, 0
-        );
+        return _createDataWithTokens(CHAIN_1_USDC, CHAIN_1_WBTC, WBTC_RESERVE_ID, USDC_RESERVE_ID, amount, usePrev, 0);
     }
 
     /// @dev Open: amount1 = collateral supplied, amount2 = loan borrowed
@@ -205,17 +192,10 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         return _createDataWithReserves(WETH_RESERVE_ID, USDC_RESERVE_ID, repayAmount, usePrevHookAmount, withdrawAmount);
     }
 
-    /// @dev Standalone repay: amount1 = repay (max = full debt), amount2 word reserved as zero; borrow-keyed header
+    /// @dev Standalone repay: amount1 = repay (max = full debt), amount2 word reserved as zero; market-keyed
     function _createRepayData(uint256 repayAmount, bool usePrevHookAmount) internal pure returns (bytes memory) {
         return _createDataWithTokens(
-            CHAIN_1_USDC,
-            CHAIN_1_WETH,
-            WETH_RESERVE_ID,
-            USDC_RESERVE_ID,
-            USDC_RESERVE_ID,
-            repayAmount,
-            usePrevHookAmount,
-            0
+            CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, repayAmount, usePrevHookAmount, 0
         );
     }
 
@@ -825,7 +805,7 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         // the live Spoke binding is what refuses the payload
         bytes memory swapped = _createDataWithReserves(USDC_RESERVE_ID, WETH_RESERVE_ID, SUPPLY_AMOUNT, false, 0);
         bytes memory swappedB = _createDataWithTokens(
-            CHAIN_1_USDC, CHAIN_1_WETH, USDC_RESERVE_ID, WETH_RESERVE_ID, WETH_RESERVE_ID, SUPPLY_AMOUNT, false, 0
+            CHAIN_1_USDC, CHAIN_1_WETH, USDC_RESERVE_ID, WETH_RESERVE_ID, SUPPLY_AMOUNT, false, 0
         );
         _executeHookExpectFailure(address(pledgeHook), swapped, BaseAaveV4LoanHookV2.TOKEN_RESERVE_MISMATCH.selector);
         _executeHookExpectFailure(address(borrowHook), swappedB, BaseAaveV4LoanHookV2.TOKEN_RESERVE_MISMATCH.selector);
@@ -1678,15 +1658,16 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         assertEq(wethBefore - IERC20(CHAIN_1_WETH).balanceOf(accountEth), 0.7 ether, "sized supply executed");
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - usdcBefore, 300e6, "sized borrow executed");
 
-        // mis-keyed template (USDC key on an OPEN): the strict views refuse it — the OMS never gets a payload to sign
+        // mis-keyed template (the loan reserve's OLD reserve key on an OPEN): the strict views refuse it —
+        // the OMS never gets a payload to sign
         bytes memory badTemplate = abi.encodePacked(
             AAVE_V4_YS_ORACLE_ID,
             AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID),
             BytesLib.slice(openTemplate, 52, 189)
         );
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         openHook.decodeAmounts(badTemplate);
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         openHook.replaceCalldataAmounts(badTemplate, sized);
 
         // CLOSE: size repay cap to the live debt and the withdraw to the live position, then execute
@@ -1905,17 +1886,24 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
                 HEADER BIND (SUP-21143) ON THE LIVE SPOKE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice inspect() of all six V2 ops starts with the registry-derived reserve key of the op's primary reserve
-    ///         (supply reserve for OPEN / CLOSE / PLEDGE / RELEASE, borrow reserve for REPAY / BORROW), then spoke,
-    ///         tokens and both ids — 144 bytes, and the key equals the deployed registry's computeReserveKey
+    /// @notice SUP-21239: inspect() of all six V2 ops starts with the registry-derived MARKET key of the pair —
+    ///         the SAME 20 bytes for every op, where the per-reserve rule gave OPEN / CLOSE / PLEDGE / RELEASE
+    ///         one key and REPAY / BORROW another — then spoke, tokens and both ids, still 144 bytes. The key
+    ///         equals the deployed registry's `computeMarketKey`, which is what off-chain consumers query.
     function test_AaveV4V2_Header_KeyEqualsRegistry_AllSixOps() external {
         AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
-        address keyWeth = registry.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID);
-        address keyUsdc = registry.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID);
-        assertEq(keyWeth, AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), "library == registry");
+        address marketKey = registry.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertEq(
+            marketKey,
+            AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID),
+            "library == registry"
+        );
+        // the two NAV keys are deliberately NOT the header any more, and must stay distinct from it
+        assertTrue(marketKey != registry.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), "not the collateral key");
+        assertTrue(marketKey != registry.computeDebtKey(SPOKE_ADDR, USDC_RESERVE_ID), "not the loan debt key");
         bytes memory tail = abi.encodePacked(SPOKE_ADDR, CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID);
-        bytes memory expS = abi.encodePacked(keyWeth, tail);
-        bytes memory expB = abi.encodePacked(keyUsdc, tail);
+        bytes memory expS = abi.encodePacked(marketKey, tail);
+        bytes memory expB = expS;
         assertEq(expS.length, 144);
         assertEq(openHook.inspect(_createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT)), expS, "OPEN");
         assertEq(repayHook.inspect(_createRepayData(BORROW_AMOUNT, false)), expB, "REPAY");
@@ -1929,8 +1917,8 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     ///         and every approve names the Spoke as spender (built against the live Spoke with a live position)
     function test_AaveV4V2_SpokeIsCallTarget_AllSixOps() external {
         _openDefaultPosition();
-        address keyWeth = AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID);
-        address keyUsdc = AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID);
+        address keyWeth = AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        address keyUsdc = AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID);
         address[6] memory hooks = [
             address(openHook),
             address(repayHook),
@@ -1961,32 +1949,44 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         }
     }
 
-    /// @notice Through the real userOp path: a header keyed to the other reserve, another spoke, the spoke itself or
-    ///         zero is refused before any Spoke call — nothing pledged, borrowed or released
+    /// @notice Through the real userOp path: a header carrying either leg's OLD reserve key, the reversed
+    ///         market, another spoke's market, the spoke itself or zero is refused before any Spoke call —
+    ///         nothing pledged, borrowed or released. The reserve-key cases are the migration property: a new
+    ///         hook address against an old reserve-keyed root fails closed.
     function test_AaveV4V2_WrongHeaderKey_Reverts_StateUnchanged() external {
         _executeHook(address(pledgeHook), _standaloneData(SUPPLY_AMOUNT, false));
         uint256 supplied = _supplied(WETH_RESERVE_ID);
         bytes memory releaseBody = BytesLib.slice(_standaloneData(0.3 ether, false), 52, 189);
         bytes memory borrowBody = BytesLib.slice(_borrowData(BORROW_AMOUNT, false), 52, 189);
-        address[3] memory wrongForRelease = [
+        address[5] memory wrongForRelease = [
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID),
             AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID),
-            AaveV4ReserveKey.computeReserveKey(address(0xBEEF), WETH_RESERVE_ID),
+            AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, USDC_RESERVE_ID, WETH_RESERVE_ID),
+            AaveV4ReserveKey.computeMarketKey(address(0xBEEF), WETH_RESERVE_ID, USDC_RESERVE_ID),
             SPOKE_ADDR
         ];
         for (uint256 w; w < wrongForRelease.length; ++w) {
             _executeHookExpectFailure(
                 address(releaseHook),
                 abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrongForRelease[w], releaseBody),
-                AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector
+                AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector
             );
         }
-        // BORROW keyed to the supply reserve (the "wrong primary" mistake)
+        // BORROW keyed to a reserve leg — under SUP-21143 the collateral key was the "wrong primary" mistake
+        // and the borrow key was correct; now BOTH are refused because the header must be the market key
         _executeHookExpectFailure(
             address(borrowHook),
             abi.encodePacked(
                 AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), borrowBody
             ),
-            AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector
+            AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector
+        );
+        _executeHookExpectFailure(
+            address(borrowHook),
+            abi.encodePacked(
+                AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID), borrowBody
+            ),
+            AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector
         );
         _executeHookExpectFailure(
             address(pledgeHook),

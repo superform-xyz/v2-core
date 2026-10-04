@@ -132,13 +132,14 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         );
     }
 
-    /// @dev LOAN 241-byte layout keyed to `primaryId`
+    /// @dev LOAN 241-byte layout, header = the MARKET key of (SPOKE, supplyId, borrowId) (SUP-21239). The
+    ///      idle builder above deliberately stays on the reserve SUPPLY key: idle has no borrow leg and its
+    ///      header IS a SuperLedger key.
     function _loanData(
         address loanToken,
         address collateralToken,
         uint256 supplyId,
         uint256 borrowId,
-        uint256 primaryId,
         uint256 a1,
         uint256 a2,
         bool usePrev
@@ -149,7 +150,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     {
         return abi.encodePacked(
             oracleId,
-            AaveV4ReserveKey.computeReserveKey(SPOKE, primaryId),
+            AaveV4ReserveKey.computeMarketKey(SPOKE, supplyId, borrowId),
             loanToken,
             collateralToken,
             SPOKE,
@@ -162,8 +163,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     }
 
     function _pledge(uint256 amount) internal view returns (bytes memory) {
-        return
-            _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, WETH_RESERVE_ID, amount, 0, false);
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, 0, false);
     }
 
     function _release(uint256 amount) internal view returns (bytes memory) {
@@ -171,24 +171,19 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     }
 
     function _borrow(uint256 amount) internal view returns (bytes memory) {
-        return
-            _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, USDC_RESERVE_ID, amount, 0, false);
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, 0, false);
     }
 
     function _repay(uint256 cap, bool usePrev) internal view returns (bytes memory) {
-        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, USDC_RESERVE_ID, cap, 0, usePrev);
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, cap, 0, usePrev);
     }
 
     function _open(uint256 supply, uint256 borrow) internal view returns (bytes memory) {
-        return _loanData(
-            CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, WETH_RESERVE_ID, supply, borrow, false
-        );
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, supply, borrow, false);
     }
 
     function _close(uint256 cap, uint256 withdraw) internal view returns (bytes memory) {
-        return _loanData(
-            CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, WETH_RESERVE_ID, cap, withdraw, false
-        );
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, cap, withdraw, false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -375,13 +370,11 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         _exec(address(lendHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false));
         // LOAN hooks on the USDC reserve as COLLATERAL (borrowing WETH against it) are refused while it is idle
         bytes memory pledgeUsdc =
-            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 100e6, 0, false);
-        bytes memory openUsdc = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 100e6, 0.01 ether, false
-        );
-        bytes memory releaseUsdc = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, type(uint256).max, 0, false
-        );
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 100e6, 0, false);
+        bytes memory openUsdc =
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 100e6, 0.01 ether, false);
+        bytes memory releaseUsdc =
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, type(uint256).max, 0, false);
         _execExpectFailure(address(pledgeHook), pledgeUsdc, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         _execExpectFailure(address(openHook), openUsdc, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         _execExpectFailure(address(releaseHook), releaseUsdc, bytes4(keccak256("RESERVE_NOT_COLLATERAL()")));
@@ -399,9 +392,8 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     ///         longer ledger-tracked; the idle LEND is refused from then on
     function test_E2E_OpenOverIdle_Refused_ThenRedeemAndOpen_Succeeds() external {
         _exec(address(lendHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false));
-        bytes memory openUsdcCollateral = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 1000e6, 0.05 ether, false
-        );
+        bytes memory openUsdcCollateral =
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 1000e6, 0.05 ether, false);
         _execExpectFailure(
             address(openHook), openUsdcCollateral, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector
         );
@@ -440,9 +432,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         hooks[1] = address(openHook);
         bytes[] memory datas = new bytes[](2);
         datas[0] = _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false);
-        datas[1] = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 1000e6, 0.05 ether, false
-        );
+        datas[1] = _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 1000e6, 0.05 ether, false);
         uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
         _execHooksExpectFailure(hooks, datas, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "lend rolled back");

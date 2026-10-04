@@ -205,27 +205,20 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
         pure
         returns (bytes memory data)
     {
-        return _aaveV4RawKeyed(sid, loanT, collT, spoke, sid, bid, a1, a2, usePrev);
+        return _aaveV4RawKeyed(loanT, collT, spoke, sid, bid, a1, a2, usePrev);
     }
 
-    /// @dev Standalone REPAY payload: borrow-keyed header (SUP-21143 primary for REPAY), reserved word zero
+    /// @dev Standalone REPAY payload: the market key (identical to every other leg since SUP-21239),
+    ///      reserved word zero
     function _aaveV4RepayData(uint256 cap, bool usePrev) internal pure returns (bytes memory) {
         return _aaveV4RawKeyed(
-            USDC_RESERVE_ID,
-            USDC,
-            WETH,
-            AAVE_V4_SPOKE,
-            WETH_RESERVE_ID,
-            USDC_RESERVE_ID,
-            cap,
-            0,
-            usePrev ? bytes1(0x01) : bytes1(0x00)
+            USDC, WETH, AAVE_V4_SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID, cap, 0, usePrev ? bytes1(0x01) : bytes1(0x00)
         );
     }
 
-    /// @dev SUP-21143 header: opaque oracle id + AaveV4ReserveKey(spoke, primaryReserveId) at offset 32
+    /// @dev SUP-21239 header: opaque oracle id + AaveV4ReserveKey.computeMarketKey(spoke, sid, bid) at
+    ///      offset 32 — one key per market, so no per-op primary reserve to select
     function _aaveV4RawKeyed(
-        uint256 primary,
         address loanT,
         address collT,
         address spoke,
@@ -241,7 +234,7 @@ contract LoanHooksV2ForkBranchCoverage is Helpers {
     {
         data = abi.encodePacked(
             AAVE_V4_YS_ORACLE_ID,
-            AaveV4ReserveKey.computeReserveKey(spoke, primary),
+            AaveV4ReserveKey.computeMarketKey(spoke, sid, bid),
             loanT,
             collT,
             spoke,

@@ -15,7 +15,7 @@ import { ISuperHookInspector, ISuperHookInflowOutflow } from "../../../interface
 /// @author Superform Labs
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 YS oracle id
-/// @notice         address yieldSource = data.extractYieldSource(); // AaveV4ReserveKey(spoke, supplyReserveId)
+/// @notice         address yieldSource = data.extractYieldSource(); // computeMarketKey(spoke, supplyId, borrowId)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
@@ -67,12 +67,6 @@ contract AaveV4WithdrawHookV2 is BaseAaveV4StandaloneLoanHookV2 {
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
         return "Withdraws an exact or full collateral amount from an Aave V4 spoke without repaying";
-    }
-
-    /// @dev Header pin target (BaseAaveV4LoanHookV2._primaryReserveId): the header yield source must be the
-    ///      reserve key of the supply reserve
-    function _primaryReserveId(AaveV4V2Vars memory vars) internal pure override returns (uint256) {
-        return vars.supplyReserveId;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -84,8 +84,15 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
                             ENCODE HELPERS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev A reserve-leg key — a WRONG header for these hooks since SUP-21239, kept because rejecting it is
+    ///      the property that lets the new hook addresses coexist with old reserve-keyed roots.
     function _key(address spoke_, uint256 reserveId) internal pure returns (address) {
         return AaveV4ReserveKey.computeReserveKey(spoke_, reserveId);
+    }
+
+    /// @dev The market key every V2 LOAN header must carry — the same value for every leg of the market.
+    function _marketKey(address spoke_, uint256 supplyId_, uint256 borrowId_) internal pure returns (address) {
+        return AaveV4ReserveKey.computeMarketKey(spoke_, supplyId_, borrowId_);
     }
 
     /// @dev Full layout with an explicit header (oracle id + yield-source key)
@@ -127,7 +134,7 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
     {
         return _encodeH(
             AAVE_V4_YS_ORACLE_ID,
-            _key(spoke_, supplyId),
+            _marketKey(spoke_, supplyId, borrowId),
             loanToken_,
             collateralToken_,
             spoke_,
@@ -156,7 +163,7 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
     {
         return _encodeH(
             AAVE_V4_YS_ORACLE_ID,
-            _key(spoke_, borrowId),
+            _marketKey(spoke_, supplyId, borrowId),
             loanToken_,
             collateralToken_,
             spoke_,
@@ -302,11 +309,11 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory data = _dataFor(i, amount1, false);
-            uint256 primary = i == 1 ? BORROW_ID : SUPPLY_ID;
-            uint256 other = i == 1 ? SUPPLY_ID : BORROW_ID;
             // oracle id free
             bytes memory tagged = abi.encodePacked(
-                keccak256("any-oracle-id"), _key(spoke, primary), BytesLib.slice(data, 52, data.length - 52)
+                keccak256("any-oracle-id"),
+                _marketKey(spoke, SUPPLY_ID, BORROW_ID),
+                BytesLib.slice(data, 52, data.length - 52)
             );
             Execution[] memory a = _build(hooks[i], tagged);
             Execution[] memory b = _build(hooks[i], data);
@@ -316,20 +323,28 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
                 assertEq(a[j].callData, b[j].callData, "header never leaks into calldata");
             }
             assertEq(hooks[i].inspect(tagged), hooks[i].inspect(data), "oracle id is not identity");
-            // key pinned: other reserve, other spoke, the spoke itself, an unrelated address
-            address[4] memory wrong = [_key(spoke, other), _key(address(otherSpoke), primary), spoke, address(0xBEEF)];
+            // key pinned: either leg's OLD reserve key, the legs swapped, another spoke's market, the spoke
+            // itself, an unrelated address
+            address[6] memory wrong = [
+                _key(spoke, SUPPLY_ID),
+                _key(spoke, BORROW_ID),
+                _marketKey(spoke, BORROW_ID, SUPPLY_ID),
+                _marketKey(address(otherSpoke), SUPPLY_ID, BORROW_ID),
+                spoke,
+                address(0xBEEF)
+            ];
             for (uint256 w; w < wrong.length; ++w) {
                 bytes memory bad =
                     abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrong[w], BytesLib.slice(data, 52, data.length - 52));
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 _build(hooks[i], bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].preExecute(address(prevHook), address(this), bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].inspect(bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].decodeAmounts(bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].replaceCalldataAmounts(bad, one);
             }
             // zero key is an address error, like every other zero address
@@ -342,8 +357,9 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         }
     }
 
-    /// @dev The library the hooks pin against equals the registry's derivation AND the literal formula off-chain
-    ///      consumers derive (the registry now delegates to the library, so the literal check is the independent pin)
+    /// @dev The library equals the registry's derivation AND the literal formula off-chain consumers derive
+    ///      (the registry delegates to the library, so the literal check is the independent pin). The RESERVE
+    ///      assertion stays: the V1 six, the idle pair and the registry's NAV namespace still use that key.
     function testFuzz_ReserveKey_MatchesLiteralFormula(address spoke_, uint256 reserveId) public {
         AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         address literal = address(uint160(uint256(keccak256(abi.encode(spoke_, reserveId)))));
@@ -351,10 +367,21 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         assertEq(registry.computeReserveKey(spoke_, reserveId), literal, "registry == literal");
     }
 
+    /// @dev THE HEADER FORMULA THESE HOOKS NOW ENFORCE. Four-word, domain-separated, ids unsorted — pinned
+    ///      against the literal expression because Erebor, snapshotd and the UI re-derive it from exactly this.
+    function testFuzz_MarketKey_MatchesLiteralFormula(address spoke_, uint256 supplyId_, uint256 borrowId_) public {
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
+        address literal = address(
+            uint160(uint256(keccak256(abi.encode(spoke_, supplyId_, borrowId_, keccak256("AaveV4ReserveKey.MARKET")))))
+        );
+        assertEq(AaveV4ReserveKey.computeMarketKey(spoke_, supplyId_, borrowId_), literal, "library == literal");
+        assertEq(registry.computeMarketKey(spoke_, supplyId_, borrowId_), literal, "registry == literal");
+    }
+
     /// @dev The header key is identity only: every non-ERC20 execution targets the calldata Spoke and every approve
     ///      names the Spoke as spender — the key is never called or approved
     function test_Standalone_Build_SpokeIsCallTarget_NotHeaderKey() public view {
-        address key = _key(spoke, SUPPLY_ID);
+        address key = _marketKey(spoke, SUPPLY_ID, BORROW_ID);
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
             Execution[] memory ex = _build(hooks[i], _dataFor(i, amount1, false));
@@ -725,9 +752,11 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
     function test_Standalone_Inspect_MarketIdentityOnly() public view {
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
-            uint256 primary = i == 1 ? BORROW_ID : SUPPLY_ID;
-            bytes memory expected =
-                abi.encodePacked(_key(spoke, primary), spoke, loanToken, collateralToken, SUPPLY_ID, BORROW_ID);
+            // SUP-21239: every leg of the market inspects to the SAME payload — the market key, then the
+            // unchanged 124 bytes of market identity
+            bytes memory expected = abi.encodePacked(
+                _marketKey(spoke, SUPPLY_ID, BORROW_ID), spoke, loanToken, collateralToken, SUPPLY_ID, BORROW_ID
+            );
             assertEq(expected.length, 144);
             assertEq(hooks[i].inspect(_dataFor(i, amount1, false)), expected, "key first, then market identity");
             assertEq(hooks[i].inspect(_dataFor(i, MAX, true)), expected, "amount / usePrev are not identity");
@@ -1138,7 +1167,7 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory data = _encodeH(
                 header0,
-                _key(spoke, i == 1 ? BORROW_ID : SUPPLY_ID),
+                _marketKey(spoke, SUPPLY_ID, BORROW_ID),
                 loanToken,
                 collateralToken,
                 spoke,
@@ -1296,8 +1325,10 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
         bytes memory identical = _encode(loanToken, loanToken, spoke, SUPPLY_ID, BORROW_ID, amount1, 0, false);
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
-            // ids swapped but the header keyed consistently with the swapped body: the pure decoder does not bind
-            // reserves to the Spoke, so inspect still yields the (swapped) identity, key first
+            // ids swapped but the header keyed consistently with the swapped body: the pure decoder does not
+            // bind reserves to the Spoke, so inspect still yields the (swapped) identity, key first. Note the
+            // key itself differs from the unswapped market's — the derivation does not sort its ids, so the
+            // reversed pair is a DIFFERENT market.
             bytes memory swapped =
                 _encodeFor(i, loanToken, collateralToken, spoke, BORROW_ID, SUPPLY_ID, amount1, 0, false);
             vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
@@ -1311,14 +1342,16 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
             assertEq(
                 hooks[i].inspect(swapped),
                 abi.encodePacked(
-                    _key(spoke, i == 1 ? SUPPLY_ID : BORROW_ID), spoke, loanToken, collateralToken, BORROW_ID, SUPPLY_ID
+                    _marketKey(spoke, BORROW_ID, SUPPLY_ID), spoke, loanToken, collateralToken, BORROW_ID, SUPPLY_ID
                 ),
                 "reserve binding is not part of inspect; the header key is"
             );
+            // the reversed market's key against an unswapped body: ordering is significant, so this is a
+            // different market and the pin must refuse it
             bytes memory wrongKey = abi.encodePacked(
-                AAVE_V4_YS_ORACLE_ID, _key(spoke, i == 1 ? SUPPLY_ID : BORROW_ID), BytesLib.slice(good, 52, 189)
+                AAVE_V4_YS_ORACLE_ID, _marketKey(spoke, BORROW_ID, SUPPLY_ID), BytesLib.slice(good, 52, 189)
             );
-            vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
             hooks[i].inspect(wrongKey);
         }
     }
@@ -1536,15 +1569,15 @@ contract AaveV4StandaloneLoanHooksV2Test is Helpers {
                 abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _key(foreignSpoke, primary), body)
             ];
             for (uint256 b; b < 2; ++b) {
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 _build(hooks[i], bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 BaseHook(address(hooks[i])).preExecute(address(prevHook), address(this), bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].inspect(bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].decodeAmounts(bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].replaceCalldataAmounts(bad[b], one);
             }
         }

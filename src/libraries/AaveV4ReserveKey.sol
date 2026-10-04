@@ -3,21 +3,40 @@ pragma solidity 0.8.30;
 
 /// @title AaveV4ReserveKey
 /// @author Superform Labs
-/// @notice Reserve-key derivation shared by every Aave V4 LOAN hook: the 20-byte pseudo-address that identifies
-///         one (spoke, reserveId) pair as a Superform yield source.
-/// @dev Single definition: `AaveV4ReserveRegistryV2.computeReserveKey` (the `public pure` off-chain indexers call),
-///      the idle `BaseAaveV4MoneyMarketHook` decoder and both LOAN bases all delegate here. The literal formula
-///      `address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))))` is what off-chain consumers derive;
-///      it is pinned independently of this library by `testFuzz_ReserveKey_MatchesLiteralFormula` (LOAN unit
-///      suite) and `test/unit/accounting/oracles/AaveV4Oracles.t.sol`.
-///      Collision surface: forging a key equal to a specific registered reserve's is a 160-bit second preimage
-///      (~2^160 keccak evaluations; 2^160 / N against N registered reserves) — the 2^80 birthday figure does not
-///      apply because the target is fixed. A collision could only block a second registration in the registry;
-///      hooks never call or approve the key (the Spoke in calldata is the sole call target), so it is identity only.
+/// @notice Every Aave V4 key derivation, in one place. Aave V4 has TWO key namespaces with disjoint consumers:
+///         1. ACCOUNTING / NAV — one key per reserve LEG: `computeReserveKey` (SUPPLY) and `computeDebtKey`
+///            (DEBT). Consumed by `AaveV4ReserveOracle`, `AaveV4ReserveRegistryV2._reserves`, and SuperLedger
+///            via the idle INFLOW / OUTFLOW pair. These are oracle-resolvable and can be ledger keys.
+///         2. INTENT / IDENTITY — one key per market PAIR: `computeMarketKey(spoke, supplyReserveId,
+///            borrowReserveId)` (SUP-21239). Consumed by the header `yieldSource` of the V2 LOAN hooks, and
+///            hence by merkle leaves, vault whitelists and off-chain indexing. NEVER passed to an oracle and
+///            never a ledger key: the V2 LOAN hooks are NONACCOUNTING, so the executor never reads their
+///            header, and a market key handed to `AaveV4ReserveOracle` correctly reverts
+///            `RESERVE_NOT_REGISTERED` (fail-closed).
+/// @dev Single definition: `AaveV4ReserveRegistryV2.computeReserveKey` / `.computeMarketKey` (the `public pure`
+///      ones off-chain indexers call), the idle `BaseAaveV4MoneyMarketHook` decoder and both LOAN bases all
+///      delegate here. The literal formulas are what off-chain consumers derive; they are pinned independently
+///      of this library by `testFuzz_ReserveKey_MatchesLiteralFormula` /
+///      `testFuzz_MarketKey_MatchesLiteralFormula` (LOAN unit suites) and
+///      `test/unit/accounting/oracles/AaveV4Oracles.t.sol`.
+///      Collision surface: forging a key equal to a specific registered reserve's or market's is a 160-bit
+///      second preimage (~2^160 keccak evaluations; 2^160 / N against N registered entries) — the 2^80
+///      birthday figure does not apply because the target is fixed. A collision could only block a second
+///      registration in the registry; hooks never call or approve the key (the Spoke in calldata is the sole
+///      call target), so it is identity only.
+///      Cross-namespace collision: the three derivations take 2-, 3- and 4-word preimages, but differing
+///      preimage LENGTH is structural separation and NOT a proof — keccak256 is not injective across lengths
+///      and all three truncate to 160 bits. The domain constants are what make the separation intentional and
+///      auditable. On-chain a cross-namespace collision is harmless anyway: the two namespaces live in
+///      separate registry mappings with disjoint consumers.
 library AaveV4ReserveKey {
     /// @notice Thrown when a hook's header yield source (offset 32) is not the reserve key of the op's primary
     ///         reserve on the calldata Spoke
     error RESERVE_KEY_MISMATCH();
+
+    /// @notice Thrown when a V2 LOAN hook's header yield source (offset 32) is not the market key of the
+    ///         (spoke, supplyReserveId, borrowReserveId) triple the body acts on
+    error MARKET_KEY_MISMATCH();
 
     /// @notice Domain separator mixed into the DEBT key preimage
     /// @dev FROZEN. This literal MUST NOT change once any registry is seeded with debt keys: it is baked
@@ -27,6 +46,16 @@ library AaveV4ReserveKey {
     ///      `AaveV4ReserveRegistryV2.DEBT_KEY_DOMAIN` re-exports this value, and
     ///      `AaveV4ReserveOracleDispatch.t.sol` pins the two equal.
     bytes32 internal constant DEBT_KEY_DOMAIN = keccak256("AaveV4ReserveRegistryV2.DEBT");
+
+    /// @notice Domain separator mixed into the MARKET key preimage
+    /// @dev FROZEN once any market key is signed into a merkle root: it is baked into every market key ever
+    ///      derived, so editing it silently repoints every registered market and every signed intent that
+    ///      names one, while leaving every test that pins it passing.
+    ///      Named after THIS LIBRARY, not after a registry — deliberately unlike its `DEBT_KEY_DOMAIN`
+    ///      sibling, which baked a registry VERSION into a frozen constant and can never be corrected. Do
+    ///      NOT "align" `DEBT_KEY_DOMAIN` to this convention: that literal is frozen and already baked into
+    ///      live debt keys.
+    bytes32 internal constant MARKET_KEY_DOMAIN = keccak256("AaveV4ReserveKey.MARKET");
 
     /// @notice Lower 20 bytes of keccak256(abi.encode(spoke, reserveId, DEBT_KEY_DOMAIN))
     /// @dev The DEBT counterpart to `computeReserveKey`. Lives here, beside the supply derivation, so Aave
@@ -51,13 +80,69 @@ library AaveV4ReserveKey {
         return address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))));
     }
 
-    /// @notice Header pin shared by every Aave V4 hook: the header yield source must equal the reserve key of the
-    ///         op's primary reserve on the calldata Spoke, so a crafted header can never name a different reserve
-    ///         than the one the body acts on. Pure — safe inside pure decoders (build, preExecute, inspect, sizing).
+    /// @notice Lower 20 bytes of keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN))
+    /// @dev The INTENT-namespace derivation (SUP-21239): one key per Aave V4 market pair, so one economic
+    ///      market is one yield source in merkle leaves, whitelists and the UI instead of two unrelated
+    ///      reserve keys. Aave V4 has no market object on-chain (positions are reserve-granular), so a market
+    ///      is a Superform curation decision: this key names one, `AaveV4ReserveRegistryV2.registerMarket`
+    ///      records its bindings, and nothing on-chain enumerates markets.
+    ///      ORDER IS SIGNIFICANT and MUST NOT be sorted: the legs are asymmetric — "equity collateral, borrow
+    ///      USDC" and "USDC collateral, borrow equity" are different strategies with different risk, so
+    ///      `computeMarketKey(s, a, b) != computeMarketKey(s, b, a)` and that asymmetry is pinned by test.
+    ///      Tokens are NOT in the preimage: `loanToken` / `collateralToken` are a function of
+    ///      `(spoke, reserveId)` and are already bound per call by the hooks' `_validateReserves` and at
+    ///      registration by the registry, so including them would create a second source of truth and let two
+    ///      keys name one market.
+    ///      Being `internal` and unused by the V1 LOAN six and the idle pair, it is dead-code-eliminated from
+    ///      their creation code — `AaveV4LoanBytecodeUnchanged.t.sol` pins that empirically.
+    /// @param spoke The Aave V4 spoke address
+    /// @param supplyReserveId The collateral (supply) reserve identifier within the spoke
+    /// @param borrowReserveId The loan (borrow) reserve identifier within the spoke
+    /// @return The pseudo-address market key
+    function computeMarketKey(
+        address spoke,
+        uint256 supplyReserveId,
+        uint256 borrowReserveId
+    )
+        internal
+        pure
+        returns (address)
+    {
+        return
+            address(uint160(uint256(keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN)))));
+    }
+
+    /// @notice Header pin shared by the V1 LOAN six and the idle pair: the header yield source must equal the
+    ///         reserve key of the op's primary reserve on the calldata Spoke, so a crafted header can never name
+    ///         a different reserve than the one the body acts on. Pure — safe inside pure decoders (build,
+    ///         preExecute, inspect, sizing).
     /// @param headerKey The header yield source (offset 32)
     /// @param spoke The calldata Spoke
     /// @param reserveId The op's primary reserve id
     function requireHeaderKey(address headerKey, address spoke, uint256 reserveId) internal pure {
         if (headerKey != computeReserveKey(spoke, reserveId)) revert RESERVE_KEY_MISMATCH();
+    }
+
+    /// @notice Header pin for the V2 LOAN hooks (SUP-21239): the header yield source must equal the market key of
+    ///         the (Spoke, supply reserve, borrow reserve) triple the body acts on, so a crafted header can never
+    ///         name a different market — nor either leg's reserve key — than the one the body acts on. Pure, so
+    ///         build, preExecute, inspect, decodeAmounts and replaceCalldataAmounts all fail closed.
+    /// @dev Replaces the per-hook `_primaryReserveId` selection the reserve-key pin needed: the market key is a
+    ///      function of the WHOLE body, so there is no leg left to choose and the "override picked the wrong leg"
+    ///      bug class is closed by construction rather than by convention.
+    /// @param headerKey The header yield source (offset 32)
+    /// @param spoke The calldata Spoke
+    /// @param supplyReserveId The body's collateral (supply) reserve id
+    /// @param borrowReserveId The body's loan (borrow) reserve id
+    function requireHeaderIsMarketKey(
+        address headerKey,
+        address spoke,
+        uint256 supplyReserveId,
+        uint256 borrowReserveId
+    )
+        internal
+        pure
+    {
+        if (headerKey != computeMarketKey(spoke, supplyReserveId, borrowReserveId)) revert MARKET_KEY_MISMATCH();
     }
 }

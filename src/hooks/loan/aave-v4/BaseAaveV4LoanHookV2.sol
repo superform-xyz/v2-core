@@ -20,7 +20,7 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 /// @dev One canonical 241-byte layout is shared by all six Aave V4 V2 loan hooks
 ///      (standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 YS oracle id
-/// @notice         address yieldSource = data.extractYieldSource(); // AaveV4ReserveKey(spoke, primaryReserveId)
+/// @notice         address yieldSource = data.extractYieldSource(); // computeMarketKey(spoke, supplyId, borrowId)
 /// @notice         address loanToken = BytesLib.toAddress(data, 52);
 /// @notice         address collateralToken = BytesLib.toAddress(data, 72);
 /// @notice         address spoke = BytesLib.toAddress(data, 92);
@@ -36,16 +36,27 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 ///      Reserve/token binding: each reserve id is resolved through the Spoke's canonical
 ///      getReserve(reserveId).underlying and must match the token declared in calldata, otherwise
 ///      the hook reverts before any provider call.
-///      HEADER IDENTITY (SUP-21143, same rule as Morpho Blue): `yieldSource` (offset 32) MUST equal
-///      `AaveV4ReserveKey.computeReserveKey(spoke, primaryReserveId)` — the registry key the Superform
-///      supply / debt oracles and off-chain indexing identify the reserve by — where the primary reserve
-///      is the op's own (`_primaryReserveId`: supply reserve for OPEN / CLOSE / PLEDGE / RELEASE, borrow
-///      reserve for REPAY / BORROW). The pin runs inside the pure decoder, so build, preExecute,
-///      inspect, decodeAmounts and replaceCalldataAmounts all fail closed on a crafted header (decodeUsePrevHookAmount
-///      checks length + canonical bool only). The Spoke (offset 92) remains
-///      the ONLY call target and approve spender; the key is never called. `yieldSourceOracleId` (offset 0) must
-///      be nonzero (ORACLE_ID_NOT_VALID) and is otherwise identity for off-chain consumers: LOAN hooks are
-///      NONACCOUNTING, so the executor never reads the header for them.
+///      HEADER IDENTITY (SUP-21239, superseding SUP-21143's per-reserve rule; same shape as Morpho Blue's
+///      market key): `yieldSource` (offset 32) MUST equal
+///      `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` — the lower 20 bytes of
+///      `keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN))`. One economic
+///      market is therefore ONE yield source in merkle leaves, the vault whitelist and the UI, instead of the
+///      two unrelated reserve keys the per-leg rule produced. ORDER IS SIGNIFICANT: the ids are never sorted,
+///      so "collateral A, borrow B" and "collateral B, borrow A" are different markets.
+///      The key is a function of the WHOLE body, which is why there is no `_primaryReserveId` any more: no leg
+///      is selected, so the "override picked the wrong leg" bug class is closed by construction rather than by
+///      convention. Mismatch reverts `AaveV4ReserveKey.MARKET_KEY_MISMATCH`.
+///      The pin runs inside the pure decoder, so build, preExecute, inspect, decodeAmounts and
+///      replaceCalldataAmounts all fail closed on a crafted header (decodeUsePrevHookAmount checks length +
+///      canonical bool only). The Spoke (offset 92) remains the ONLY call target and approve spender; the key
+///      is never called and is NOT oracle-resolvable — `AaveV4ReserveOracle` reads reserve legs only, so a
+///      market key handed to it reverts `RESERVE_NOT_REGISTERED`. `yieldSourceOracleId` (offset 0) must be
+///      nonzero (ORACLE_ID_NOT_VALID) and is otherwise identity for off-chain consumers: LOAN hooks are
+///      NONACCOUNTING, so the executor never reads the header for them and the market key is never a
+///      SuperLedger key. NAV stays per reserve leg (`computeReserveKey` / `computeDebtKey`), which is also why
+///      the V1 LOAN six and the idle INFLOW/OUTFLOW pair deliberately keep the reserve-key rule.
+///      Registering a market in `AaveV4ReserveRegistryV2` records its binding for off-chain consumers; it does
+///      NOT gate execution, because these hooks never call the registry.
 ///      SECURITY INVARIANT: onBehalfOf is always hardcoded to `account` — never arbitrary.
 abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
     using HookDataDecoder for bytes;
@@ -71,7 +82,7 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
     //////////////////////////////////////////////////////////////*/
 
     struct AaveV4V2Vars {
-        address reserveKey; // header offset 32 — AaveV4ReserveKey(spoke, primaryReserveId)
+        address marketKey; // header offset 32 — AaveV4ReserveKey.computeMarketKey(spoke, supplyId, borrowId)
         address loanToken;
         address collateralToken;
         address spoke;
@@ -160,13 +171,6 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev The reserve whose key the header must carry for this op. Pure so the decoder (and
-    ///      therefore inspect() and the sizing views) stays pure.
-    /// @param vars The decoded hook parameters
-    /// @return The op's primary reserve id (supply reserve for OPEN / CLOSE / PLEDGE / RELEASE, borrow
-    ///         reserve for REPAY / BORROW)
-    function _primaryReserveId(AaveV4V2Vars memory vars) internal pure virtual returns (uint256);
-
     /// @dev Strictly decodes the canonical Aave V4 V2 layout.
     ///      Enforces: exact 241-byte length, nonzero oracle id, nonzero addresses (header key included), distinct
     ///      loan/collateral tokens, header key == AaveV4ReserveKey(spoke, primary reserve), canonical
@@ -188,13 +192,13 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
         if (data.length != AAVE_V4_V2_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         if (data.extractYieldSourceOracleId() == bytes32(0)) revert ORACLE_ID_NOT_VALID();
 
-        vars.reserveKey = data.extractYieldSource();
+        vars.marketKey = data.extractYieldSource();
         vars.loanToken = BytesLib.toAddress(data, LOAN_TOKEN_OFFSET);
         vars.collateralToken = BytesLib.toAddress(data, COLLATERAL_TOKEN_OFFSET);
         vars.spoke = BytesLib.toAddress(data, SPOKE_OFFSET);
 
         if (
-            vars.reserveKey == address(0) || vars.loanToken == address(0) || vars.collateralToken == address(0)
+            vars.marketKey == address(0) || vars.loanToken == address(0) || vars.collateralToken == address(0)
                 || vars.spoke == address(0)
         ) {
             revert ADDRESS_NOT_VALID();
@@ -209,9 +213,12 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
 
         // Reuse the already-decoded word instead of re-reading it
         if (secondaryReserved && vars.amount2 != 0) revert RESERVED_FIELD_NOT_ZERO();
-        // Header pin, after every format check: the signed yield source must be THIS op's primary reserve on
-        // THIS spoke (format errors surface first; identity errors second)
-        AaveV4ReserveKey.requireHeaderKey(vars.reserveKey, vars.spoke, _primaryReserveId(vars));
+        // Header pin, after every format check: the signed yield source must be THIS op's MARKET on THIS
+        // spoke (format errors surface first; identity errors second). A function of the WHOLE body, so there
+        // is no per-hook leg to select — see the removal of `_primaryReserveId` (SUP-21239).
+        AaveV4ReserveKey.requireHeaderIsMarketKey(
+            vars.marketKey, vars.spoke, vars.supplyReserveId, vars.borrowReserveId
+        );
     }
 
     /// @dev Binds both reserve ids to the declared tokens through the Spoke's canonical
@@ -309,18 +316,14 @@ abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
         );
     }
 
-    /// @dev Full market-identity inspector payload, reserve key FIRST (the oracle / indexing key —
-    ///      leaves are hashed over these raw bytes, same rule as Morpho and the idle Aave hooks), then
-    ///      spoke, loan token, collateral token and both reserve ids: 144 bytes. Amount fields,
-    ///      usePrevHookAmount and the oracle id are intentionally excluded.
+    /// @dev Full market-identity inspector payload, MARKET key FIRST (the intent / indexing key — leaves are
+    ///      hashed over these raw bytes, same rule as Morpho and the idle Aave hooks), then spoke, loan token,
+    ///      collateral token and both reserve ids: 144 bytes. Byte layout and length are UNCHANGED by
+    ///      SUP-21239 — only the meaning of the first 20 bytes moved from the primary reserve's key to the
+    ///      market key. Amount fields, usePrevHookAmount and the oracle id are intentionally excluded.
     function _inspectAaveV4V2(AaveV4V2Vars memory vars) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            vars.reserveKey,
-            vars.spoke,
-            vars.loanToken,
-            vars.collateralToken,
-            vars.supplyReserveId,
-            vars.borrowReserveId
+            vars.marketKey, vars.spoke, vars.loanToken, vars.collateralToken, vars.supplyReserveId, vars.borrowReserveId
         );
     }
 }

@@ -71,6 +71,40 @@ import { AaveV4ReserveKey } from "../../libraries/AaveV4ReserveKey.sol";
 ///      **Do NOT deregister a reserve with active Superform accounting positions.** The reserve
 ///      must first be fully migrated or deprecated (all positions withdrawn / oracle
 ///      unregistered from SuperLedgerConfiguration) before deregistration is executed.
+///
+///      MARKET KEYS (SUP-21239) — the SECOND namespace this contract holds:
+///      `_markets` maps a market key — `computeMarketKey(spoke, supplyReserveId, borrowReserveId)`, a
+///      four-word domain-separated preimage — to the collateral/loan binding of ONE Aave V4 market pair.
+///      The two namespaces have DISJOINT consumers and must never be mixed:
+///        * reserve keys (`_reserves`) are ACCOUNTING / NAV identity: `AaveV4ReserveOracle` resolves them,
+///          and the idle INFLOW / OUTFLOW pair posts SuperLedger accounting under them.
+///        * market keys (`_markets`) are INTENT identity: the header `yieldSource` of the V2 LOAN hooks,
+///          hence merkle leaves, vault whitelists and off-chain indexing. A market key is NEVER passed to an
+///          oracle and is NEVER a ledger key — `AaveV4ReserveOracle` reads `_reserves` only, so a market key
+///          handed to it reverts `RESERVE_NOT_REGISTERED` (fail-closed), which is pinned by test.
+///      Separate mappings, plus the defensive `KEY_NAMESPACE_COLLISION` guard on both registration paths, are
+///      what keep one 20-byte value from meaning a reserve leg here and a market there.
+///
+///      MARKET REGISTRATION DOES NOT GATE EXECUTION. The V2 LOAN hooks are NONACCOUNTING: the executor never
+///      reads their header, and the hooks never call this registry. They pin only that the header equals the
+///      market key of the body they act on. Registering a market records its binding for off-chain consumers;
+///      which markets a vault may touch stays an Erebor/whitelist decision.
+///
+///      WHY A MARKET IS A CURATION DECISION: Aave V4 has no market object. `getUserSuppliedAssets(reserveId,
+///      owner)` and `getUserDebt(reserveId, owner)` take no market parameter, so a supply position on one
+///      reserve collateralises EVERY borrow the owner holds on that spoke — one reserve participates in N
+///      markets. Markets therefore cannot be enumerated from the protocol (no `assertMigrationParity`
+///      analogue, no auto-seeding), and NAV must stay per reserve leg: market-keyed NAV would return the same
+///      supplied amount once per market and `SuperYieldSourceOracle`'s batch reads sum without de-duplication.
+///      A strategy with two collateral reserves against one debt reserve is TWO markets — which is how the
+///      hooks model it: one pair per call.
+///
+///      SAFETY INVARIANT — market lifecycle:
+///      `registerMarket` requires BOTH NAV legs (the collateral reserve's SUPPLY key and the loan reserve's
+///      DEBT key) to be registered first, and counts itself in `marketRefs` against each. A reserve leg a
+///      market still names cannot be deregistered — `MARKET_REFERENCES_RESERVE`, checked at both propose and
+///      execute — because taking one leg dark aborts whole-portfolio NAV reads, not just that entry. Order of
+///      operations for removal: deregister the markets, then the reserve legs.
 contract AaveV4ReserveRegistryV2 is AccessControl {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -93,6 +127,33 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
 
     /// @notice Thrown when executing a deregistration before its timelock has elapsed
     error DEREGISTRATION_TIMELOCK_NOT_ELAPSED();
+
+    /// @notice Thrown when querying a market key that has not been registered
+    error MARKET_NOT_REGISTERED();
+
+    /// @notice Thrown when registering a market key that is already registered
+    error MARKET_ALREADY_REGISTERED();
+
+    /// @notice Thrown when registering a market whose two legs are the same reserve
+    error IDENTICAL_RESERVES();
+
+    /// @notice Thrown when a market's collateral and loan underlyings are the same token
+    /// @dev Registry/hook parity: every V2 LOAN hook refuses `loanToken == collateralToken`
+    ///      (`BaseAaveV4LoanHookV2.IDENTICAL_TOKENS`), so a market this registry accepts must be a market
+    ///      the hooks can actually execute.
+    error IDENTICAL_UNDERLYINGS();
+
+    /// @notice Thrown when registering a market before both of its NAV legs are registered
+    error MARKET_LEG_NOT_REGISTERED();
+
+    /// @notice Thrown when a key is already registered in the other namespace
+    /// @dev Defensive only: reaching this requires a ~2^-160 cross-namespace collision. It exists so such a
+    ///      collision can never make one 20-byte key mean a reserve leg to the oracle and a market to an
+    ///      off-chain whitelist.
+    error KEY_NAMESPACE_COLLISION();
+
+    /// @notice Thrown when deregistering a reserve leg that a registered market still depends on
+    error MARKET_REFERENCES_RESERVE();
 
     /*//////////////////////////////////////////////////////////////
                                 ROLES
@@ -127,6 +188,18 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     ///      non-corrupting.
     bytes32 public constant DEBT_KEY_DOMAIN = AaveV4ReserveKey.DEBT_KEY_DOMAIN;
 
+    /// @notice Domain separator mixed into the MARKET key preimage
+    /// @dev Off-chain consumers reproduce a market key as
+    ///      `address(uint160(uint256(keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId,
+    /// MARKET_KEY_DOMAIN)))))` — four fixed 32-byte words, so the preimage is structurally distinct from both the
+    /// two-word SUPPLY
+    ///      and three-word DEBT preimages. Differing lengths are not a collision proof (keccak256 is not
+    ///      injective across lengths and all three truncate to 160 bits); the domain constant is what makes the
+    ///      separation intentional and auditable, and `KEY_NAMESPACE_COLLISION` is what makes a collision
+    ///      non-corrupting. Re-exported from `AaveV4ReserveKey` so there is exactly one definition, and pinned
+    ///      equal to it by test.
+    bytes32 public constant MARKET_KEY_DOMAIN = AaveV4ReserveKey.MARKET_KEY_DOMAIN;
+
     /*//////////////////////////////////////////////////////////////
                                  ENUMS
     //////////////////////////////////////////////////////////////*/
@@ -160,6 +233,26 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
         bool registered;
     }
 
+    /// @notice An Aave V4 market pair: one collateral (supply) reserve against one loan (borrow) reserve
+    /// @dev Aave V4 has no market object on-chain — positions are reserve-granular — so a market is a
+    ///      Superform curation decision recorded here, never something enumerable from the protocol.
+    ///      Both underlyings are read from the spoke at registration, never operator-supplied, so the binding
+    ///      rule matches the hooks' per-call `_validateReserves`.
+    /// @param spoke The Aave V4 spoke holding both reserves
+    /// @param supplyReserveId The collateral (supply) reserve identifier within the spoke
+    /// @param borrowReserveId The loan (borrow) reserve identifier within the spoke
+    /// @param collateralToken The supply reserve's underlying, bound at registration
+    /// @param loanToken The borrow reserve's underlying, bound at registration
+    /// @param registered True once registered
+    struct MarketInfo {
+        address spoke;
+        uint256 supplyReserveId;
+        uint256 borrowReserveId;
+        address collateralToken;
+        address loanToken;
+        bool registered;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -180,6 +273,28 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     /// @notice Emitted when a pending deregistration is cancelled before execution
     event ReserveDeregistrationCancelled(address indexed reserveKey);
 
+    /// @notice Emitted once per registered market
+    /// @dev `borrowReserveId` is non-indexed: the three indexed slots are taken by marketKey/spoke/
+    ///      supplyReserveId, and consumers filter by key. Indexers enumerate markets from this event —
+    ///      nothing on-chain lists them.
+    event MarketRegistered(
+        address indexed marketKey,
+        address indexed spoke,
+        uint256 indexed supplyReserveId,
+        uint256 borrowReserveId,
+        address collateralToken,
+        address loanToken
+    );
+
+    /// @notice Emitted when a pending market deregistration is executed and the market is removed
+    event MarketDeregistered(address indexed marketKey);
+
+    /// @notice Emitted when a market deregistration is proposed, starting the 2-day timelock
+    event MarketDeregistrationProposed(address indexed marketKey, uint256 executeAfter);
+
+    /// @notice Emitted when a pending market deregistration is cancelled before execution
+    event MarketDeregistrationCancelled(address indexed marketKey);
+
     /*//////////////////////////////////////////////////////////////
                                 STATE
     //////////////////////////////////////////////////////////////*/
@@ -190,6 +305,23 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     /// @notice Pending deregistrations: reserveKey => timestamp after which execution is allowed
     /// @dev Zero means no pending deregistration for that key
     mapping(address reserveKey => uint256 executeAfter) public pendingDeregistrations;
+
+    /// @notice Registered markets indexed by their pseudo-address market key
+    /// @dev A SEPARATE mapping from `_reserves` on purpose: market keys are intent identity and must never be
+    ///      resolvable as a reserve leg. `AaveV4ReserveOracle` only ever reads `_reserves`, so a market key
+    ///      handed to it reverts `RESERVE_NOT_REGISTERED` — fail-closed by construction.
+    mapping(address marketKey => MarketInfo) private _markets;
+
+    /// @notice Pending market deregistrations: marketKey => timestamp after which execution is allowed
+    /// @dev Zero means no pending deregistration for that key
+    mapping(address marketKey => uint256 executeAfter) public pendingMarketDeregistrations;
+
+    /// @notice How many registered markets depend on a given reserve leg key
+    /// @dev Incremented for both legs by `registerMarket`, decremented by `executeDeregisterMarket`. Guards
+    ///      the one genuinely new lifecycle hazard this namespace introduces: deregistering a reserve leg a
+    ///      market still names takes that market's NAV leg dark, and `SuperYieldSourceOracle`'s batch reads
+    ///      have no per-entry isolation, so one unresolvable key aborts a whole portfolio NAV read.
+    mapping(address reserveKey => uint256 marketCount) public marketRefs;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -249,6 +381,9 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
             revert RESERVE_ALREADY_REGISTERED();
         }
 
+        // Defensive cross-namespace guard: a key may mean a reserve leg OR a market, never both
+        if (_markets[supplyKey].registered || _markets[debtKey].registered) revert KEY_NAMESPACE_COLLISION();
+
         _reserves[supplyKey] = ReserveInfo({
             spoke: spoke_,
             reserveId: reserveId_,
@@ -303,6 +438,8 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
         reserveKey = side_ == Side.DEBT ? computeDebtKey(spoke_, reserveId_) : computeReserveKey(spoke_, reserveId_);
         if (_reserves[reserveKey].registered) revert RESERVE_ALREADY_REGISTERED();
 
+        if (_markets[reserveKey].registered) revert KEY_NAMESPACE_COLLISION();
+
         // The SIBLING leg must already exist. Without this, `repairLeg` could mint a lone leg on a reserve
         // that was never registered — creating exactly the half-registered state this contract documents as
         // unrepresentable, and wedging the reserve permanently, since `registerReserve`'s two-key guard then
@@ -345,6 +482,8 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     /// @param reserveKey The pseudo-address to deregister
     function proposeDeregisterReserve(address reserveKey) external onlyRole(MARKET_MANAGER_ROLE) {
         if (!_reserves[reserveKey].registered) revert RESERVE_NOT_REGISTERED();
+        // Immediate operator feedback: deregister the markets that name this leg first
+        if (marketRefs[reserveKey] != 0) revert MARKET_REFERENCES_RESERVE();
         uint256 executeAfter = block.timestamp + DEREGISTER_DELAY;
         pendingDeregistrations[reserveKey] = executeAfter;
         emit ReserveDeregistrationProposed(reserveKey, executeAfter);
@@ -366,6 +505,8 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
         uint256 executeAfter = pendingDeregistrations[reserveKey];
         if (executeAfter == 0) revert DEREGISTRATION_NOT_PENDING();
         if (block.timestamp < executeAfter) revert DEREGISTRATION_TIMELOCK_NOT_ELAPSED();
+        // Re-checked at execution: a market can be registered during the 2-day window
+        if (marketRefs[reserveKey] != 0) revert MARKET_REFERENCES_RESERVE();
         delete pendingDeregistrations[reserveKey];
         delete _reserves[reserveKey];
         emit ReserveDeregistered(reserveKey);
@@ -428,5 +569,179 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     /// @return The pseudo-address debt key
     function computeDebtKey(address spoke_, uint256 reserveId_) public pure returns (address) {
         return AaveV4ReserveKey.computeDebtKey(spoke_, reserveId_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    MARKET ENTRIES (SUP-21239)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Register an Aave V4 market pair — one collateral reserve against one loan reserve
+    /// @dev Records the market the V2 LOAN hooks name in their header `yieldSource`, so one economic market
+    ///      is ONE yield source in merkle leaves, vault whitelists and the UI instead of two unrelated
+    ///      reserve keys. Both underlyings are read from the spoke here, never operator-supplied.
+    ///      WHAT THIS DOES NOT DO: it does not gate execution. The V2 LOAN hooks are NONACCOUNTING and never
+    ///      call this registry — they only pin that the header equals `computeMarketKey` of the body they
+    ///      act on. Whitelisting which markets a vault may touch remains an off-chain (Erebor) decision.
+    ///      Markets are not enumerable from Aave V4 (there is no market object on-chain, positions are
+    ///      reserve-granular), so registration is explicit curation and there is no auto-seeding analogue of
+    ///      `ConfigureAaveV4ReserveRegistry`'s reserve enumeration.
+    /// @param spoke_ Address of the Aave V4 spoke (trusted by caller; see contract-level docs)
+    /// @param supplyReserveId_ The collateral (supply) reserve identifier within the spoke
+    /// @param borrowReserveId_ The loan (borrow) reserve identifier within the spoke
+    /// @return marketKey The pseudo-address naming this market
+    function registerMarket(
+        address spoke_,
+        uint256 supplyReserveId_,
+        uint256 borrowReserveId_
+    )
+        external
+        onlyRole(MARKET_MANAGER_ROLE)
+        returns (address marketKey)
+    {
+        if (spoke_ == address(0)) revert ZERO_ADDRESS();
+        if (supplyReserveId_ == borrowReserveId_) revert IDENTICAL_RESERVES();
+
+        // Reverts for codeless spokes and unlisted reserves — validation happens on-chain
+        IAaveV4Spoke.Reserve memory supplyReserve = IAaveV4Spoke(spoke_).getReserve(supplyReserveId_);
+        IAaveV4Spoke.Reserve memory borrowReserve = IAaveV4Spoke(spoke_).getReserve(borrowReserveId_);
+        if (supplyReserve.underlying == address(0) || borrowReserve.underlying == address(0)) {
+            revert INVALID_RESERVE();
+        }
+        if (supplyReserve.underlying == borrowReserve.underlying) revert IDENTICAL_UNDERLYINGS();
+
+        // Both NAV legs must already resolve through the oracle: the collateral reserve's SUPPLY leg and the
+        // loan reserve's DEBT leg are exactly the two keys a consumer reads to value this market. Registering
+        // a market whose legs are absent would whitelist an intent whose NAV cannot be read.
+        address supplyLegKey = computeReserveKey(spoke_, supplyReserveId_);
+        address debtLegKey = computeDebtKey(spoke_, borrowReserveId_);
+        if (!_reserves[supplyLegKey].registered || !_reserves[debtLegKey].registered) {
+            revert MARKET_LEG_NOT_REGISTERED();
+        }
+
+        marketKey = computeMarketKey(spoke_, supplyReserveId_, borrowReserveId_);
+        if (_markets[marketKey].registered) revert MARKET_ALREADY_REGISTERED();
+        // Defensive cross-namespace guard, the mirror of `registerReserve`'s
+        if (_reserves[marketKey].registered) revert KEY_NAMESPACE_COLLISION();
+
+        _markets[marketKey] = MarketInfo({
+            spoke: spoke_,
+            supplyReserveId: supplyReserveId_,
+            borrowReserveId: borrowReserveId_,
+            collateralToken: supplyReserve.underlying,
+            loanToken: borrowReserve.underlying,
+            registered: true
+        });
+
+        ++marketRefs[supplyLegKey];
+        ++marketRefs[debtLegKey];
+
+        emit MarketRegistered(
+            marketKey, spoke_, supplyReserveId_, borrowReserveId_, supplyReserve.underlying, borrowReserve.underlying
+        );
+    }
+
+    /// @notice Propose deregistration of a registered market, starting the 2-day timelock
+    /// @dev Mirrors the reserve flow: `executeDeregisterMarket` after the timelock, `cancelDeregisterMarket`
+    ///      to abort, re-proposing extends but never shortens, and proposals never expire (same ops runbook
+    ///      rule — alert on a proposal with no matching Deregistered/Cancelled event).
+    /// @dev SAFETY: a deregistered market key stops resolving through `getMarketInfo`, which off-chain
+    ///      consumers use to join a signed intent back to its reserve legs. Deregister only after no root
+    ///      names this market. It does NOT stop the hooks accepting the key — the pin is pure derivation.
+    /// @param marketKey The pseudo-address to deregister
+    function proposeDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
+        if (!_markets[marketKey].registered) revert MARKET_NOT_REGISTERED();
+        uint256 executeAfter = block.timestamp + DEREGISTER_DELAY;
+        pendingMarketDeregistrations[marketKey] = executeAfter;
+        emit MarketDeregistrationProposed(marketKey, executeAfter);
+    }
+
+    /// @notice Execute a previously proposed market deregistration after the 2-day timelock
+    /// @dev Releases this market's claim on both reserve legs (`marketRefs`), so a leg becomes
+    ///      deregisterable again once no market names it.
+    ///      WHY THERE IS NO `repairMarket` ANALOGUE OF `repairLeg`: `repairLeg` exists only because reserve
+    ///      REGISTRATION is per reserve (two keys) while DEREGISTRATION is per key, so the two are not
+    ///      inverses and a half-registered reserve is reachable. A market is exactly ONE key:
+    ///      `registerMarket` and this function ARE inverses, no partial state is representable, and the key
+    ///      is derived rather than operator-chosen — so re-registering after deregistration reproduces the
+    ///      identical key and binding. A repair primitive would be pure attack surface.
+    /// @param marketKey The pseudo-address to deregister
+    function executeDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
+        uint256 executeAfter = pendingMarketDeregistrations[marketKey];
+        if (executeAfter == 0) revert DEREGISTRATION_NOT_PENDING();
+        if (block.timestamp < executeAfter) revert DEREGISTRATION_TIMELOCK_NOT_ELAPSED();
+
+        MarketInfo storage market = _markets[marketKey];
+        --marketRefs[computeReserveKey(market.spoke, market.supplyReserveId)];
+        --marketRefs[computeDebtKey(market.spoke, market.borrowReserveId)];
+
+        delete pendingMarketDeregistrations[marketKey];
+        delete _markets[marketKey];
+        emit MarketDeregistered(marketKey);
+    }
+
+    /// @notice Cancel a pending market deregistration before it is executed
+    /// @param marketKey The pseudo-address whose pending deregistration to cancel
+    function cancelDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
+        if (pendingMarketDeregistrations[marketKey] == 0) revert DEREGISTRATION_NOT_PENDING();
+        delete pendingMarketDeregistrations[marketKey];
+        emit MarketDeregistrationCancelled(marketKey);
+    }
+
+    /// @notice Get the market binding for a registered market key
+    /// @dev The off-chain join from a signed intent back to the two NAV keys: derive
+    ///      `computeReserveKey(spoke, supplyReserveId)` and `computeDebtKey(spoke, borrowReserveId)` from
+    ///      what this returns. Reverts for an unregistered key AND for a reserve key — the namespaces are
+    ///      separate mappings.
+    /// @param marketKey The pseudo-address of a registered market
+    /// @return spoke The Aave V4 spoke holding both reserves
+    /// @return supplyReserveId The collateral (supply) reserve identifier
+    /// @return borrowReserveId The loan (borrow) reserve identifier
+    /// @return collateralToken The supply reserve's underlying bound at registration
+    /// @return loanToken The borrow reserve's underlying bound at registration
+    function getMarketInfo(address marketKey)
+        external
+        view
+        returns (
+            address spoke,
+            uint256 supplyReserveId,
+            uint256 borrowReserveId,
+            address collateralToken,
+            address loanToken
+        )
+    {
+        MarketInfo storage market = _markets[marketKey];
+        if (!market.registered) revert MARKET_NOT_REGISTERED();
+        return (market.spoke, market.supplyReserveId, market.borrowReserveId, market.collateralToken, market.loanToken);
+    }
+
+    /// @notice Returns true if the market key is registered
+    /// @dev False for every reserve key, by construction — separate mapping, separate namespace
+    /// @param marketKey The pseudo-address to query
+    /// @return True if registered, false otherwise
+    function isMarketRegistered(address marketKey) external view returns (bool) {
+        return _markets[marketKey].registered;
+    }
+
+    /// @notice Compute the market key for a (spoke, supplyReserveId, borrowReserveId) triple without
+    ///         registering
+    /// @dev Delegates to `AaveV4ReserveKey.computeMarketKey` so Aave V4 key derivation has exactly one home,
+    ///      exactly as `computeReserveKey` / `computeDebtKey` do. ORDER IS SIGNIFICANT: the legs are
+    ///      asymmetric, so `(spoke, a, b)` and `(spoke, b, a)` are different markets with different keys and
+    ///      the ids must never be sorted. This is the entry point off-chain consumers call to reproduce a
+    ///      header before signing it.
+    /// @param spoke_ The Aave V4 spoke address
+    /// @param supplyReserveId_ The collateral (supply) reserve identifier within the spoke
+    /// @param borrowReserveId_ The loan (borrow) reserve identifier within the spoke
+    /// @return The pseudo-address market key
+    function computeMarketKey(
+        address spoke_,
+        uint256 supplyReserveId_,
+        uint256 borrowReserveId_
+    )
+        public
+        pure
+        returns (address)
+    {
+        return AaveV4ReserveKey.computeMarketKey(spoke_, supplyReserveId_, borrowReserveId_);
     }
 }

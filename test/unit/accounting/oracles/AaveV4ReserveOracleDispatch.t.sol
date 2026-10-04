@@ -126,6 +126,27 @@ contract AaveV4ReserveKeyLibHarness {
     function domain() external pure returns (bytes32) {
         return AaveV4ReserveKey.DEBT_KEY_DOMAIN;
     }
+
+    function marketKey(address spoke, uint256 supplyId, uint256 borrowId) external pure returns (address) {
+        return AaveV4ReserveKey.computeMarketKey(spoke, supplyId, borrowId);
+    }
+
+    function marketDomain() external pure returns (bytes32) {
+        return AaveV4ReserveKey.MARKET_KEY_DOMAIN;
+    }
+
+    /// @dev External so `vm.expectRevert` can observe the library's `MARKET_KEY_MISMATCH`
+    function requireHeaderIsMarketKey(
+        address headerKey,
+        address spoke,
+        uint256 supplyId,
+        uint256 borrowId
+    )
+        external
+        pure
+    {
+        AaveV4ReserveKey.requireHeaderIsMarketKey(headerKey, spoke, supplyId, borrowId);
+    }
 }
 
 /// @dev A registry stand-in that reports a Side OUTSIDE the declared enum, which the real registry cannot
@@ -1030,5 +1051,73 @@ contract AaveV4ReserveOracleDispatchTest is Test {
         assertEq(registry.computeReserveKey(spoke_, id_), lib.supplyKey(spoke_, id_), "supply derivation agrees");
         assertEq(registry.computeDebtKey(spoke_, id_), lib.debtKey(spoke_, id_), "debt derivation agrees");
         assertEq(registry.DEBT_KEY_DOMAIN(), lib.domain(), "DEBT_KEY_DOMAIN re-export agrees");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+      MARKET KEYS ARE NOT ORACLE-RESOLVABLE (SUP-21239)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The namespace split, pinned at the oracle boundary: a REGISTERED market key is still not a
+    ///         reserve, so every registry-resolving read fails closed on it. This is what makes it safe for
+    ///         the V2 LOAN hooks to carry a market key in the same header field the idle pair uses for a
+    ///         reserve key — a market key can never be mistaken for a position.
+    /// @dev If a future change ever makes the oracle resolve `_markets`, market-keyed NAV would report the
+    ///      collateral reserve's supplied amount once per market sharing it, and `SuperYieldSourceOracle`'s
+    ///      batch reads sum without de-duplication. That is the double count this test exists to prevent.
+    function test_marketKey_isNotResolvableByTheOracle() public {
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        assertTrue(registry.isMarketRegistered(marketKey), "precondition: the market IS registered");
+        assertFalse(registry.isRegistered(marketKey), "precondition: it is not a reserve");
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.decimals(marketKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getPricePerShare(marketKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getBalanceOfOwner(marketKey, account1);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getTVL(marketKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.getTVLByOwnerOfShares(marketKey, account1);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        oracle.sideOf(marketKey);
+    }
+
+    /// @notice The market key of a pair is distinct from all four of its legs' NAV keys, so the oracle keeps
+    ///         answering for the legs exactly as before while the market key stays unresolvable.
+    function test_marketKey_doesNotShadowItsLegsNavReads() public {
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        assertTrue(marketKey != wethKey && marketKey != wethDebtKey, "market key distinct from collateral legs");
+        assertTrue(marketKey != usdcKey && marketKey != usdcDebtKey, "market key distinct from loan legs");
+
+        assertEq(oracle.getBalanceOfOwner(wethKey, account1), 3 ether, "collateral SUPPLY leg still reads");
+        assertEq(oracle.getBalanceOfOwner(usdcDebtKey, account1), 425e6, "loan DEBT leg still reads drawn+premium");
+    }
+
+    /// @notice The hook-facing derivation and the registry's public one agree for markets, exactly as the
+    ///         existing reserve-key parity test pins for legs. Off-chain consumers derive from the library
+    ///         formula; the registry is what they query — a drift would desynchronise signed intents.
+    function testFuzz_marketKeyDerivation_libraryEqualsRegistry(
+        address spoke_,
+        uint256 supplyId_,
+        uint256 borrowId_
+    )
+        public
+    {
+        AaveV4ReserveKeyLibHarness lib = new AaveV4ReserveKeyLibHarness();
+
+        assertEq(
+            lib.marketKey(spoke_, supplyId_, borrowId_),
+            registry.computeMarketKey(spoke_, supplyId_, borrowId_),
+            "library and registry market derivations must agree"
+        );
+        assertEq(lib.marketDomain(), registry.MARKET_KEY_DOMAIN(), "market domain must be re-exported");
     }
 }

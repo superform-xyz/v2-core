@@ -25,8 +25,11 @@ import { ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 ///      now serves scope hygiene, not a lock.
 ///      Layout: the canonical 241-byte Aave V4 V2 layout with the secondary word (offset 208)
 ///      RESERVED ZERO — one advertised leg only. The strategy header (offsets 0-51) is bound by the
-///      inherited decoder: `yieldSource` (offset 32) == AaveV4ReserveKey(spoke, primary reserve) — supply
-///      reserve for PLEDGE / RELEASE, borrow reserve for BORROW (SUP-21143).
+///      inherited decoder: `yieldSource` (offset 32) == `AaveV4ReserveKey.computeMarketKey(spoke,
+///      supplyReserveId, borrowReserveId)` — the MARKET key of the pair, identical for every leg of a market
+///      (SUP-21239, superseding SUP-21143's per-reserve rule). A standalone leg advertises one amount, but it
+///      still carries both reserve ids in its body, so the market key is derivable from its calldata and the
+///      pin applies unchanged.
 ///      ISuperHookLoans getters: the inherited non-virtual BaseLoanHook getters read offsets 52 / 72,
 ///      which on this layout ARE loanToken / collateralToken (unlike the idle layout, where 72 is the
 ///      Spoke), so _snapshotBalances and the _settle* helpers below measure the real ERC-20s.

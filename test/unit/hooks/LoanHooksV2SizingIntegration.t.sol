@@ -132,9 +132,9 @@ contract LoanHooksV2SizingIntegration is Helpers {
         assertEq(data.length, 178);
     }
 
-    /// @dev Aave V4 V2 layout — exact 241 bytes; header keyed to `primaryReserveId` (SUP-21143)
+    /// @dev Aave V4 V2 layout — exact 241 bytes; header is the MARKET key of the pair (SUP-21239, which
+    ///      dropped the per-op primary reserve: every leg of a market carries the same key)
     function _aaveV4DataKeyed(
-        uint256 primaryReserveId,
         uint256 supplyReserveId,
         uint256 borrowReserveId,
         uint256 a1,
@@ -147,7 +147,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
     {
         data = abi.encodePacked(
             AAVE_V4_YS_ORACLE_ID,
-            AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, primaryReserveId),
+            AaveV4ReserveKey.computeMarketKey(AAVE_V4_SPOKE, supplyReserveId, borrowReserveId),
             USDC,
             WETH,
             AAVE_V4_SPOKE,
@@ -172,10 +172,11 @@ contract LoanHooksV2SizingIntegration is Helpers {
         pure
         returns (bytes memory data)
     {
-        return _aaveV4DataKeyed(supplyReserveId, supplyReserveId, borrowReserveId, a1, usePrev, a2);
+        return _aaveV4DataKeyed(supplyReserveId, borrowReserveId, a1, usePrev, a2);
     }
 
-    /// @dev Borrow-keyed (REPAY / BORROW)
+    /// @dev REPAY / BORROW. Identical to `_aaveV4Data` since SUP-21239 (one market key for every leg); kept
+    ///      so the call sites that documented "the borrow-keyed one" still read that way.
     function _aaveV4DataB(
         uint256 supplyReserveId,
         uint256 borrowReserveId,
@@ -187,7 +188,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
         pure
         returns (bytes memory data)
     {
-        return _aaveV4DataKeyed(borrowReserveId, supplyReserveId, borrowReserveId, a1, usePrev, a2);
+        return _aaveV4DataKeyed(supplyReserveId, borrowReserveId, a1, usePrev, a2);
     }
 
     /// @dev Keyed for standalone index i (0 pledge, 1 borrow, 2 release)
@@ -473,13 +474,14 @@ contract LoanHooksV2SizingIntegration is Helpers {
         aaveV4Repay.replaceCalldataAmounts(data, _dualAmounts(1, 2));
     }
 
-    /// @dev SUP-21143: key first (supply reserve for OPEN / CLOSE, borrow reserve for REPAY), 144 bytes
+    /// @dev SUP-21239: MARKET key first, 144 bytes — the same payload for OPEN, REPAY and CLOSE, where the
+    ///      per-reserve rule gave OPEN/CLOSE one key and REPAY another
     function test_Fork_AaveV4V2_Inspect_RealSpoke() public view {
         bytes memory tail = abi.encodePacked(AAVE_V4_SPOKE, USDC, WETH, WETH_RESERVE_ID, USDC_RESERVE_ID);
-        bytes memory expectedS =
-            abi.encodePacked(AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, WETH_RESERVE_ID), tail);
-        bytes memory expectedB =
-            abi.encodePacked(AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, USDC_RESERVE_ID), tail);
+        bytes memory expectedS = abi.encodePacked(
+            AaveV4ReserveKey.computeMarketKey(AAVE_V4_SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID), tail
+        );
+        bytes memory expectedB = expectedS;
         assertEq(expectedS.length, 144);
         assertEq(
             aaveV4Open.inspect(_aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, BORROW_AMOUNT)), expectedS
@@ -628,7 +630,7 @@ contract LoanHooksV2SizingIntegration is Helpers {
         BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory expected = abi.encodePacked(
-                AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, i == 1 ? USDC_RESERVE_ID : WETH_RESERVE_ID),
+                AaveV4ReserveKey.computeMarketKey(AAVE_V4_SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID),
                 AAVE_V4_SPOKE,
                 USDC,
                 WETH,
@@ -639,38 +641,41 @@ contract LoanHooksV2SizingIntegration is Helpers {
         }
     }
 
-    /// @dev SUP-21143 on the real Spoke: a header keyed to the other reserve / another spoke / the spoke itself is
-    ///      refused by build, inspect and by the strict sizing views of every V2 hook (composite included)
+    /// @dev SUP-21239 on the real Spoke: a header carrying either leg's old reserve key, the reversed market,
+    ///      another spoke's market or the spoke itself is refused by build, inspect and by the strict sizing
+    ///      views of every V2 hook (composite included)
     function test_Fork_AaveV4V2_WrongHeaderKey_Reverts() public {
         BaseAaveV4LoanHookV2[3] memory hooks = _aaveV4Standalone();
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory good = _aaveV4DataFor(i, 1e18, false);
-            address[3] memory wrong = [
-                AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, i == 1 ? WETH_RESERVE_ID : USDC_RESERVE_ID),
-                AaveV4ReserveKey.computeReserveKey(address(0xBEEF), i == 1 ? USDC_RESERVE_ID : WETH_RESERVE_ID),
+            address[5] memory wrong = [
+                AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, WETH_RESERVE_ID),
+                AaveV4ReserveKey.computeReserveKey(AAVE_V4_SPOKE, USDC_RESERVE_ID),
+                AaveV4ReserveKey.computeMarketKey(AAVE_V4_SPOKE, USDC_RESERVE_ID, WETH_RESERVE_ID),
+                AaveV4ReserveKey.computeMarketKey(address(0xBEEF), WETH_RESERVE_ID, USDC_RESERVE_ID),
                 AAVE_V4_SPOKE
             ];
             for (uint256 w; w < wrong.length; ++w) {
                 bytes memory bad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrong[w], BytesLib.slice(good, 52, 189));
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].build(address(0), address(this), bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].inspect(bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].decodeAmounts(bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].replaceCalldataAmounts(bad, _singleAmount(1));
             }
         }
         bytes memory openGood = _aaveV4Data(WETH_RESERVE_ID, USDC_RESERVE_ID, 1e18, false, BORROW_AMOUNT);
         bytes memory openBad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, AAVE_V4_SPOKE, BytesLib.slice(openGood, 52, 189));
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         aaveV4Open.build(address(0), address(this), openBad);
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         aaveV4Open.inspect(openBad);
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         aaveV4Open.decodeAmounts(openBad);
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         aaveV4Open.replaceCalldataAmounts(openBad, _dualAmounts(1, 2));
     }
 

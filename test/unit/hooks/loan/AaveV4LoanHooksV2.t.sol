@@ -793,39 +793,45 @@ contract AaveV4LoanHooksV2Test is Helpers {
                              INSPECT TESTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev SUP-21143: reserve key FIRST (op primary: supply reserve for OPEN / CLOSE, borrow reserve for REPAY),
-    ///      then spoke, tokens and both reserve ids — 144 bytes
+    /// @dev SUP-21239: MARKET key FIRST, then spoke, tokens and both reserve ids — still exactly 144 bytes and
+    ///      the same field order as SUP-21143's payload (leaves hash these raw bytes, so the layout is frozen);
+    ///      only the meaning of the first 20 bytes moved. Every hook of the market now inspects to the SAME
+    ///      payload, where before OPEN/CLOSE were supply-keyed and REPAY borrow-keyed.
     function test_Inspect_Payload_AllHooks() public view {
-        bytes memory expectedSupplyKeyed = abi.encodePacked(
-            _key(spoke, supplyReserveId), spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId
+        bytes memory expected = abi.encodePacked(
+            _marketKey(spoke, supplyReserveId, borrowReserveId),
+            spoke,
+            loanToken,
+            collateralToken,
+            supplyReserveId,
+            borrowReserveId
         );
-        bytes memory expectedBorrowKeyed = abi.encodePacked(
-            _key(spoke, borrowReserveId), spoke, loanToken, collateralToken, supplyReserveId, borrowReserveId
-        );
-        assertEq(expectedSupplyKeyed.length, 144);
-        assertEq(openHook.inspect(_defaultData(amount, false, borrowAmount)), expectedSupplyKeyed);
-        assertEq(repayHook.inspect(_repayData(amount, false)), expectedBorrowKeyed);
-        assertEq(closeHook.inspect(_defaultData(amount, false, withdrawAmount)), expectedSupplyKeyed);
+        assertEq(expected.length, 144);
+        assertEq(openHook.inspect(_defaultData(amount, false, borrowAmount)), expected);
+        assertEq(repayHook.inspect(_repayData(amount, false)), expected);
+        assertEq(closeHook.inspect(_defaultData(amount, false, withdrawAmount)), expected);
     }
 
     /*//////////////////////////////////////////////////////////////
-                    HEADER BIND (SUP-21143) — COMPOSITE OPS
+                    HEADER BIND (SUP-21239) — COMPOSITE OPS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev The header yield source must be the reserve key of the op's primary reserve on the calldata Spoke; the
-    ///      oracle id is identity only. Wrong keys (other reserve, other spoke, spoke-as-key, unrelated) revert on
-    ///      build, preExecute, inspect AND the (now strict) composite sizing views.
+    /// @dev The header yield source must be the MARKET key of the (Spoke, supply, borrow) triple the body acts
+    ///      on; the oracle id is identity only. Wrong keys revert on build, preExecute, inspect AND the (now
+    ///      strict) composite sizing views. The wrong-key set deliberately includes BOTH legs' reserve keys:
+    ///      under SUP-21143 one of them was the correct header, so this is the fail-closed property that lets
+    ///      the new hook addresses coexist with old reserve-keyed roots.
     function test_Header_KeyPinned_AnyNonzeroOracleId_AllHooks() public {
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
             bool isRepay = i == 1;
-            uint256 primary = isRepay ? borrowReserveId : supplyReserveId;
-            uint256 other = isRepay ? supplyReserveId : borrowReserveId;
             bytes memory good = isRepay ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
             bytes memory body = BytesLib.slice(good, 52, good.length - 52);
 
             // oracle id free: same executions, same identity
-            bytes memory tagged = abi.encodePacked(keccak256("any-oracle-id"), _key(spoke, primary), body);
+            bytes memory tagged = abi.encodePacked(
+                keccak256("any-oracle-id"), _marketKey(spoke, supplyReserveId, borrowReserveId), body
+            );
             Execution[] memory a = hooks[i].build(address(0), address(this), tagged);
             Execution[] memory b = hooks[i].build(address(0), address(this), good);
             assertEq(a.length, b.length);
@@ -835,18 +841,25 @@ contract AaveV4LoanHooksV2Test is Helpers {
             }
             assertEq(hooks[i].inspect(tagged), hooks[i].inspect(good));
 
-            address[4] memory wrong = [_key(spoke, other), _key(address(0xBEEF), primary), spoke, address(0xBEEF)];
+            address[6] memory wrong = [
+                _key(spoke, supplyReserveId), // the OLD SUP-21143 header for OPEN / CLOSE
+                _key(spoke, borrowReserveId), // the OLD SUP-21143 header for REPAY
+                _marketKey(spoke, borrowReserveId, supplyReserveId), // legs swapped: a different market
+                _marketKey(address(0xBEEF), supplyReserveId, borrowReserveId), // same pair, other spoke
+                spoke,
+                address(0xBEEF)
+            ];
             for (uint256 w; w < wrong.length; ++w) {
                 bytes memory bad = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, wrong[w], body);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].build(address(0), address(this), bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].preExecute(address(0), address(this), bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].inspect(bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].decodeAmounts(bad);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].replaceCalldataAmounts(bad, new uint256[](isRepay ? 1 : 2));
             }
             bytes memory zeroKey = abi.encodePacked(AAVE_V4_YS_ORACLE_ID, address(0), body);
@@ -876,8 +889,8 @@ contract AaveV4LoanHooksV2Test is Helpers {
     /// @dev The key is identity only: every non-ERC20 target and every approve spender is the calldata Spoke
     function test_Header_SpokeIsCallTarget_NotKey() public view {
         BaseLoanHookV2[3] memory hooks = _hooks();
-        address key = _key(spoke, supplyReserveId);
-        address keyB = _key(spoke, borrowReserveId);
+        address key = _marketKey(spoke, supplyReserveId, borrowReserveId);
+        address keyB = _key(spoke, supplyReserveId);
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory data = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
             Execution[] memory ex = hooks[i].build(address(0), address(this), data);
@@ -893,10 +906,22 @@ contract AaveV4LoanHooksV2Test is Helpers {
         }
     }
 
-    /// @dev The library the hooks pin against is byte-identical to the deployed registry's derivation
+    /// @dev The library the hooks pin against is byte-identical to the deployed registry's derivation. The
+    ///      reserve assertion stays because the V1 six, the idle pair and the registry's NAV namespace still
+    ///      use it; the market assertion is what the V2 hooks now enforce.
     function testFuzz_ReserveKey_MatchesRegistry(address spoke_, uint256 reserveId) public {
         AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
         assertEq(AaveV4ReserveKey.computeReserveKey(spoke_, reserveId), registry.computeReserveKey(spoke_, reserveId));
+    }
+
+    /// @dev The market derivation the V2 headers pin against equals the registry's public one, so an off-chain
+    ///      consumer that queries the registry derives exactly the header the hooks accept.
+    function testFuzz_MarketKey_MatchesRegistry(address spoke_, uint256 supplyId_, uint256 borrowId_) public {
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
+        assertEq(
+            AaveV4ReserveKey.computeMarketKey(spoke_, supplyId_, borrowId_),
+            registry.computeMarketKey(spoke_, supplyId_, borrowId_)
+        );
     }
 
     function test_Inspect_UnchangedWhenOnlyAmountsChange() public view {
@@ -1151,30 +1176,30 @@ contract AaveV4LoanHooksV2Test is Helpers {
         closeHook.build(address(prevHook), address(this), _defaultData(amount, true, withdrawAmount));
     }
 
-    /// @dev Header key fuzz, composite trio: a key over any other reserve id or any other spoke is refused by every
-    ///      entry point — build, inspect and both sizing views (strict decoder)
+    /// @dev Header key fuzz, composite trio: a market key over any other reserve pair or any other spoke is
+    ///      refused by every entry point — build, inspect and both sizing views (strict decoder)
     function testFuzz_Header_WrongKey_Refused_AllHooks(uint256 otherReserveId, address otherSpoke) public {
         vm.assume(otherReserveId != supplyReserveId && otherReserveId != borrowReserveId);
         vm.assume(otherSpoke != spoke);
         BaseLoanHookV2[3] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; ++i) {
             bytes memory good = i == 1 ? _repayData(amount, false) : _defaultData(amount, false, borrowAmount);
-            uint256 primary = i == 1 ? borrowReserveId : supplyReserveId;
             bytes memory body = BytesLib.slice(good, 52, 189);
-            bytes[2] memory bad = [
-                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(spoke, otherReserveId), body),
-                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, AaveV4ReserveKey.computeReserveKey(otherSpoke, primary), body)
+            bytes[3] memory bad = [
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _marketKey(spoke, otherReserveId, borrowReserveId), body),
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _marketKey(spoke, supplyReserveId, otherReserveId), body),
+                abi.encodePacked(AAVE_V4_YS_ORACLE_ID, _marketKey(otherSpoke, supplyReserveId, borrowReserveId), body)
             ];
             uint256[] memory one = new uint256[](i == 1 ? 1 : 2);
             one[0] = 1;
-            for (uint256 b; b < 2; ++b) {
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+            for (uint256 b; b < bad.length; ++b) {
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].build(address(0), address(this), bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].inspect(bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].decodeAmounts(bad[b]);
-                vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
                 hooks[i].replaceCalldataAmounts(bad[b], one);
             }
         }
@@ -1247,12 +1272,20 @@ contract AaveV4LoanHooksV2Test is Helpers {
                          ENCODING HELPERS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev A reserve-leg key. After SUP-21239 these are WRONG headers for the V2 hooks — kept because that
+    ///      is exactly what the pin must now reject (an old reserve-keyed root against a new hook address).
     function _key(address spoke_, uint256 reserveId) internal pure returns (address) {
         return AaveV4ReserveKey.computeReserveKey(spoke_, reserveId);
     }
 
+    /// @dev The market key every V2 LOAN header must carry: one key per (spoke, supply, borrow) triple, the
+    ///      same value for every leg of the market.
+    function _marketKey(address spoke_, uint256 supplyId_, uint256 borrowId_) internal pure returns (address) {
+        return AaveV4ReserveKey.computeMarketKey(spoke_, supplyId_, borrowId_);
+    }
+
     /// @dev Canonical 241-byte Aave V4 V2 layout with an explicit header:
-    ///      bytes32 yieldSourceOracleId | address yieldSource (reserve key) | loanToken | collateralToken | spoke |
+    ///      bytes32 yieldSourceOracleId | address yieldSource (market key) | loanToken | collateralToken | spoke |
     ///      supplyReserveId | borrowReserveId | amount1 | amount2 | usePrevHookAmount (1 byte)
     function _encodeH(
         bytes32 oracleId,
@@ -1301,7 +1334,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     {
         return _encodeH(
             AAVE_V4_YS_ORACLE_ID,
-            _key(spoke_, supplyReserveId_),
+            _marketKey(spoke_, supplyReserveId_, borrowReserveId_),
             loanToken_,
             collateralToken_,
             spoke_,
@@ -1313,7 +1346,9 @@ contract AaveV4LoanHooksV2Test is Helpers {
         );
     }
 
-    /// @dev Borrow-keyed header (REPAY): yieldSource = key(spoke, borrowReserveId)
+    /// @dev REPAY header. Historically borrow-keyed; under SUP-21239 it carries the SAME market key as every
+    ///      other leg, so this builder is now identical to `_encode` and is kept only so the call sites that
+    ///      documented "the borrow-keyed one" still read that way.
     function _encodeB(
         address loanToken_,
         address collateralToken_,
@@ -1330,7 +1365,7 @@ contract AaveV4LoanHooksV2Test is Helpers {
     {
         return _encodeH(
             AAVE_V4_YS_ORACLE_ID,
-            _key(spoke_, borrowReserveId_),
+            _marketKey(spoke_, supplyReserveId_, borrowReserveId_),
             loanToken_,
             collateralToken_,
             spoke_,

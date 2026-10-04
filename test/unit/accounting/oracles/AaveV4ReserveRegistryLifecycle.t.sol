@@ -295,7 +295,9 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
             address(
                 uint160(
                     uint256(
-                        keccak256(abi.encode(address(spoke), USDC_RESERVE_ID, keccak256("AaveV4ReserveRegistryV2.DEBT")))
+                        keccak256(
+                            abi.encode(address(spoke), USDC_RESERVE_ID, keccak256("AaveV4ReserveRegistryV2.DEBT"))
+                        )
                     )
                 )
             ),
@@ -843,7 +845,9 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
     /// @notice ReserveDeregistrationProposed carries the indexed key and the armed deadline
     function test_events_proposeDeregistration() public {
         vm.expectEmit(true, false, false, true);
-        emit AaveV4ReserveRegistryV2.ReserveDeregistrationProposed(usdcKey, block.timestamp + registry.DEREGISTER_DELAY());
+        emit AaveV4ReserveRegistryV2.ReserveDeregistrationProposed(
+            usdcKey, block.timestamp + registry.DEREGISTER_DELAY()
+        );
         registry.proposeDeregisterReserve(usdcKey);
     }
 
@@ -853,7 +857,9 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
         vm.warp(block.timestamp + 1 days);
 
         vm.expectEmit(true, false, false, true);
-        emit AaveV4ReserveRegistryV2.ReserveDeregistrationProposed(usdcKey, block.timestamp + registry.DEREGISTER_DELAY());
+        emit AaveV4ReserveRegistryV2.ReserveDeregistrationProposed(
+            usdcKey, block.timestamp + registry.DEREGISTER_DELAY()
+        );
         registry.proposeDeregisterReserve(usdcKey);
     }
 
@@ -1184,5 +1190,375 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
         address written = registry.repairLeg(address(spoke), USDC_RESERVE_ID, AaveV4ReserveRegistryV2.Side.DEBT);
         assertEq(written, registry.computeDebtKey(address(spoke), USDC_RESERVE_ID), "its own derived debt key");
         assertTrue(written != usdcKey, "never the supply key");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+          MARKET ENTRIES (SUP-21239) — THE SECOND NAMESPACE
+    //////////////////////////////////////////////////////////////*/
+    // A market is (spoke, collateral/supply reserve, loan/borrow reserve). `setUp` registers the USDC
+    // reserve (both legs); WETH is listed on the spoke but unregistered, which these tests use as the
+    // "leg missing" case. The canonical market below is WETH collateral against a USDC loan.
+
+    /// @dev Register WETH's reserve so the canonical market's collateral SUPPLY leg resolves
+    function _registerWethReserve() internal returns (address wethSupplyKey, address wethDebtKey) {
+        return registry.registerReserve(address(spoke), WETH_RESERVE_ID);
+    }
+
+    /// @dev The canonical market: WETH collateral, USDC loan
+    function _registerCanonicalMarket() internal returns (address marketKey) {
+        _registerWethReserve();
+        return registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    /// @notice The domain separator is re-exported from the library, not re-declared. A drift between the two
+    ///         would mean the registry hands off-chain consumers a formula the hooks do not enforce.
+    function test_marketKeyDomain_reExportsTheLibraryConstant() public view {
+        assertEq(registry.MARKET_KEY_DOMAIN(), AaveV4ReserveKey.MARKET_KEY_DOMAIN, "domain must be re-exported");
+    }
+
+    /// @notice The public derivation delegates to the library — one home for Aave V4 key derivation.
+    function testFuzz_computeMarketKey_delegatesToTheLibrary(
+        address spoke_,
+        uint256 supplyId_,
+        uint256 borrowId_
+    )
+        public
+        view
+    {
+        assertEq(
+            registry.computeMarketKey(spoke_, supplyId_, borrowId_),
+            AaveV4ReserveKey.computeMarketKey(spoke_, supplyId_, borrowId_),
+            "registry derivation must equal the library derivation"
+        );
+    }
+
+    /// @notice Happy path: the returned key is the derived key, both underlyings are read from the SPOKE (never
+    ///         operator-supplied), and the market counts itself against both of its NAV legs.
+    function test_registerMarket_bindsBothLegsFromTheSpoke() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+        address usdcDebtLegKey = registry.computeDebtKey(address(spoke), USDC_RESERVE_ID);
+
+        address expectedKey = registry.computeMarketKey(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+        vm.expectEmit(address(registry));
+        emit AaveV4ReserveRegistryV2.MarketRegistered(
+            expectedKey, address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID, weth, usdc
+        );
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        assertEq(marketKey, expectedKey, "returned key must be the derived market key");
+        assertTrue(registry.isMarketRegistered(marketKey), "market must be registered");
+
+        (address mSpoke, uint256 mSupplyId, uint256 mBorrowId, address mCollateral, address mLoan) =
+            registry.getMarketInfo(marketKey);
+        assertEq(mSpoke, address(spoke), "spoke binding");
+        assertEq(mSupplyId, WETH_RESERVE_ID, "supply reserve id binding");
+        assertEq(mBorrowId, USDC_RESERVE_ID, "borrow reserve id binding");
+        assertEq(mCollateral, weth, "collateral token read from the spoke");
+        assertEq(mLoan, usdc, "loan token read from the spoke");
+
+        assertEq(registry.marketRefs(wethSupplyKey), 1, "market must claim the collateral SUPPLY leg");
+        assertEq(registry.marketRefs(usdcDebtLegKey), 1, "market must claim the loan DEBT leg");
+    }
+
+    /// @notice The two namespaces never answer for each other: a market key is not a reserve and a reserve key
+    ///         is not a market. This is the on-chain half of the namespace split — the oracle resolves
+    ///         `_reserves` only, so a market key can never be read as a position.
+    function test_namespaces_doNotAnswerForEachOther() public {
+        address marketKey = _registerCanonicalMarket();
+
+        assertFalse(registry.isRegistered(marketKey), "a market key must not be a registered reserve");
+        assertFalse(registry.isMarketRegistered(usdcKey), "a SUPPLY key must not be a registered market");
+        assertFalse(registry.isMarketRegistered(usdcDebtKey), "a DEBT key must not be a registered market");
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        registry.getReserveInfo(marketKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        registry.getMarketInfo(usdcKey);
+    }
+
+    /// @notice `getMarketInfo` / `isMarketRegistered` on an unknown key: revert and false, never a zero-filled
+    ///         binding that a consumer could mistake for a real market.
+    function test_getMarketInfo_revertIf_unregistered() public {
+        address unknown = makeAddr("unknownMarket");
+
+        assertFalse(registry.isMarketRegistered(unknown), "unknown key is not registered");
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        registry.getMarketInfo(unknown);
+    }
+
+    function test_registerMarket_revertIf_zeroSpoke() public {
+        vm.expectRevert(AaveV4ReserveRegistryV2.ZERO_ADDRESS.selector);
+        registry.registerMarket(address(0), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    /// @notice A market cannot be a reserve against itself: supplying and borrowing one reserve is not a pair,
+    ///         and allowing it would mint a key whose two legs are the same position.
+    function test_registerMarket_revertIf_identicalReserves() public {
+        vm.expectRevert(AaveV4ReserveRegistryV2.IDENTICAL_RESERVES.selector);
+        registry.registerMarket(address(spoke), USDC_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    /// @notice Registry/hook parity: the hooks refuse `loanToken == collateralToken`, so the registry must too
+    ///         — otherwise it could whitelist a market no hook can execute.
+    function test_registerMarket_revertIf_identicalUnderlyings() public {
+        uint256 secondUsdcReserveId = 21;
+        spoke.setReserve(secondUsdcReserveId, usdc, 6);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.IDENTICAL_UNDERLYINGS.selector);
+        registry.registerMarket(address(spoke), secondUsdcReserveId, USDC_RESERVE_ID);
+    }
+
+    /// @notice An unlisted reserve id reverts inside the spoke call and that revert surfaces, exactly as on the
+    ///         reserve path — the registry never invents a binding.
+    function test_registerMarket_revertIf_reserveUnlistedOnSpoke() public {
+        vm.expectRevert(MockLifecycleSpoke.ReserveNotListed.selector);
+        registry.registerMarket(address(spoke), UNLISTED_RESERVE_ID, USDC_RESERVE_ID);
+
+        vm.expectRevert(MockLifecycleSpoke.ReserveNotListed.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, UNLISTED_RESERVE_ID);
+    }
+
+    /// @notice A listed reserve with a zero underlying is rejected on either leg.
+    function test_registerMarket_revertIf_zeroUnderlying() public {
+        vm.expectRevert(AaveV4ReserveRegistryV2.INVALID_RESERVE.selector);
+        registry.registerMarket(address(spoke), ZERO_UNDERLYING_RESERVE_ID, USDC_RESERVE_ID);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.INVALID_RESERVE.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, ZERO_UNDERLYING_RESERVE_ID);
+    }
+
+    /// @notice BOTH NAV legs must exist first: the collateral reserve's SUPPLY key and the loan reserve's DEBT
+    ///         key are exactly the two keys a consumer reads to value this market, so registering a market
+    ///         whose legs are absent would whitelist an intent whose NAV cannot be read.
+    function test_registerMarket_revertIf_collateralSupplyLegMissing() public {
+        // WETH's reserve was never registered, so its SUPPLY leg does not resolve
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_LEG_NOT_REGISTERED.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    function test_registerMarket_revertIf_loanDebtLegMissing() public {
+        // USDC collateral resolves (registered in setUp) but WETH's DEBT leg does not
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_LEG_NOT_REGISTERED.selector);
+        registry.registerMarket(address(spoke), USDC_RESERVE_ID, WETH_RESERVE_ID);
+    }
+
+    function test_registerMarket_revertIf_alreadyRegistered() public {
+        _registerCanonicalMarket();
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_ALREADY_REGISTERED.selector);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+    }
+
+    /// @notice Ordering is significant end to end: the reversed pair is a DIFFERENT market, registrable
+    ///         alongside the first, with its own key and its own legs.
+    function test_registerMarket_reversedPairIsADifferentMarket() public {
+        address wethCollateral = _registerCanonicalMarket();
+        address usdcCollateral = registry.registerMarket(address(spoke), USDC_RESERVE_ID, WETH_RESERVE_ID);
+
+        assertTrue(wethCollateral != usdcCollateral, "swapping the legs must give a different market key");
+        assertTrue(registry.isMarketRegistered(wethCollateral), "WETH-collateral market registered");
+        assertTrue(registry.isMarketRegistered(usdcCollateral), "USDC-collateral market registered");
+    }
+
+    /// @notice Every market mutator is MARKET_MANAGER_ROLE-gated.
+    function test_marketMutators_revertIf_unauthorised() public {
+        address marketKey = _registerCanonicalMarket();
+
+        vm.startPrank(outsider);
+        vm.expectRevert(_unauthorised(outsider, MANAGER_ROLE));
+        registry.registerMarket(address(spoke), USDC_RESERVE_ID, WETH_RESERVE_ID);
+
+        vm.expectRevert(_unauthorised(outsider, MANAGER_ROLE));
+        registry.proposeDeregisterMarket(marketKey);
+
+        vm.expectRevert(_unauthorised(outsider, MANAGER_ROLE));
+        registry.executeDeregisterMarket(marketKey);
+
+        vm.expectRevert(_unauthorised(outsider, MANAGER_ROLE));
+        registry.cancelDeregisterMarket(marketKey);
+        vm.stopPrank();
+    }
+
+    /// @notice The market deregistration timelock matrix, identical to the reserve one: propose arms the full
+    ///         delay, one second short is rejected, the deadline itself executes, and the key stops resolving.
+    function test_marketDeregistration_timelockMatrix() public {
+        address marketKey = _registerCanonicalMarket();
+        uint256 delay = registry.DEREGISTER_DELAY();
+
+        assertEq(registry.pendingMarketDeregistrations(marketKey), 0, "nothing pending before proposing");
+
+        registry.proposeDeregisterMarket(marketKey);
+        uint256 executeAfter = block.timestamp + delay;
+        assertEq(registry.pendingMarketDeregistrations(marketKey), executeAfter, "propose arms the full delay");
+        assertTrue(registry.isMarketRegistered(marketKey), "a pending proposal deregisters nothing yet");
+
+        vm.warp(executeAfter - 1);
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_TIMELOCK_NOT_ELAPSED.selector);
+        registry.executeDeregisterMarket(marketKey);
+
+        vm.warp(executeAfter);
+        vm.expectEmit(address(registry));
+        emit AaveV4ReserveRegistryV2.MarketDeregistered(marketKey);
+        registry.executeDeregisterMarket(marketKey);
+
+        assertFalse(registry.isMarketRegistered(marketKey), "market removed");
+        assertEq(registry.pendingMarketDeregistrations(marketKey), 0, "proposal consumed");
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        registry.getMarketInfo(marketKey);
+    }
+
+    function test_marketDeregistration_revertIf_notPending() public {
+        address marketKey = _registerCanonicalMarket();
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
+        registry.executeDeregisterMarket(marketKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.DEREGISTRATION_NOT_PENDING.selector);
+        registry.cancelDeregisterMarket(marketKey);
+    }
+
+    function test_proposeDeregisterMarket_revertIf_unregistered() public {
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        registry.proposeDeregisterMarket(makeAddr("unknownMarket"));
+    }
+
+    /// @notice Re-proposing extends the timelock and can never shorten it (OZ TimelockController convention).
+    function test_proposeDeregisterMarket_reProposingExtendsNeverShortens() public {
+        address marketKey = _registerCanonicalMarket();
+        uint256 delay = registry.DEREGISTER_DELAY();
+
+        registry.proposeDeregisterMarket(marketKey);
+        uint256 first = registry.pendingMarketDeregistrations(marketKey);
+
+        vm.warp(block.timestamp + 1 days);
+        registry.proposeDeregisterMarket(marketKey);
+        assertEq(
+            registry.pendingMarketDeregistrations(marketKey),
+            block.timestamp + delay,
+            "re-proposing re-arms the full delay"
+        );
+        assertGt(registry.pendingMarketDeregistrations(marketKey), first, "the deadline can only move later");
+    }
+
+    function test_cancelDeregisterMarket_abortsAndLeavesTheMarketLive() public {
+        address marketKey = _registerCanonicalMarket();
+
+        registry.proposeDeregisterMarket(marketKey);
+        vm.expectEmit(address(registry));
+        emit AaveV4ReserveRegistryV2.MarketDeregistrationCancelled(marketKey);
+        registry.cancelDeregisterMarket(marketKey);
+
+        assertEq(registry.pendingMarketDeregistrations(marketKey), 0, "proposal cleared");
+        assertTrue(registry.isMarketRegistered(marketKey), "market still live after a cancel");
+    }
+
+    /// @notice THE REASON THERE IS NO `repairMarket`. A market is exactly one key, so `registerMarket` and
+    ///         `executeDeregisterMarket` are inverses: no partial state is representable, and because the key
+    ///         is DERIVED rather than operator-chosen, re-registering reproduces the identical key and
+    ///         binding. `repairLeg` exists only because reserve registration is per reserve while
+    ///         deregistration is per key — an asymmetry markets do not have.
+    function test_marketRoundTrip_reRegistrationReproducesTheIdenticalKeyAndBinding() public {
+        address marketKey = _registerCanonicalMarket();
+        (,,, address collateralBefore, address loanBefore) = registry.getMarketInfo(marketKey);
+
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        address reRegistered = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+        (,,, address collateralAfter, address loanAfter) = registry.getMarketInfo(reRegistered);
+
+        assertEq(reRegistered, marketKey, "re-registration must reproduce the identical derived key");
+        assertEq(collateralAfter, collateralBefore, "collateral binding reproduced");
+        assertEq(loanAfter, loanBefore, "loan binding reproduced");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       MARKET REFS — A RESERVE LEG A MARKET NAMES CANNOT GO DARK
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deregistering a reserve leg a registered market depends on is refused at PROPOSE time, so the
+    ///         operator learns immediately instead of 2 days later. Both legs are protected.
+    function test_proposeDeregisterReserve_revertIf_marketReferencesTheLeg() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+        address usdcDebtLegKey = registry.computeDebtKey(address(spoke), USDC_RESERVE_ID);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
+        registry.proposeDeregisterReserve(wethSupplyKey);
+
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
+        registry.proposeDeregisterReserve(usdcDebtLegKey);
+    }
+
+    /// @notice And re-checked at EXECUTE time, because a market can be registered during the 2-day window.
+    ///         Without this the guard would be bypassable by proposing first and registering the market after.
+    function test_executeDeregisterReserve_revertIf_marketRegisteredDuringTheWindow() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+
+        registry.proposeDeregisterReserve(wethSupplyKey);
+        registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
+        registry.executeDeregisterReserve(wethSupplyKey);
+    }
+
+    /// @notice Legs that no market names are unaffected: the guard is per leg, not per reserve. The USDC
+    ///         SUPPLY leg is not part of a WETH-collateral/USDC-loan market, so it stays deregisterable.
+    function test_marketRefs_doNotBlockUnreferencedLegs() public {
+        _registerCanonicalMarket();
+
+        assertEq(registry.marketRefs(usdcKey), 0, "the loan reserve's SUPPLY leg is not claimed");
+        registry.proposeDeregisterReserve(usdcKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(usdcKey);
+        assertFalse(registry.isRegistered(usdcKey), "an unreferenced leg deregisters normally");
+    }
+
+    /// @notice Deregistering the market releases its claim, and the legs become deregisterable again. The
+    ///         removal order markets impose is: markets first, then reserve legs.
+    function test_executeDeregisterMarket_releasesBothLegs() public {
+        (address wethSupplyKey,) = _registerWethReserve();
+        address usdcDebtLegKey = registry.computeDebtKey(address(spoke), USDC_RESERVE_ID);
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        assertEq(registry.marketRefs(wethSupplyKey), 0, "collateral leg released");
+        assertEq(registry.marketRefs(usdcDebtLegKey), 0, "loan leg released");
+
+        registry.proposeDeregisterReserve(wethSupplyKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterReserve(wethSupplyKey);
+        assertFalse(registry.isRegistered(wethSupplyKey), "leg deregisters once no market names it");
+    }
+
+    /// @notice Refs are counted per market, so two markets sharing one leg both have to go before that leg
+    ///         can. On the live MAG7 spoke every equity collateral borrows the one USDC reserve, so its DEBT
+    ///         leg is shared by every market on the spoke — this is the normal case, not a corner one.
+    function test_marketRefs_countEveryMarketSharingALeg() public {
+        _registerWethReserve();
+        address usdcDebtLegKey = registry.computeDebtKey(address(spoke), USDC_RESERVE_ID);
+
+        uint256 secondCollateralId = 22;
+        address wbtc = makeAddr("wbtc");
+        spoke.setReserve(secondCollateralId, wbtc, 8);
+        registry.registerReserve(address(spoke), secondCollateralId);
+
+        address marketA = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+        registry.registerMarket(address(spoke), secondCollateralId, USDC_RESERVE_ID);
+        assertEq(registry.marketRefs(usdcDebtLegKey), 2, "both markets claim the shared loan leg");
+
+        registry.proposeDeregisterMarket(marketA);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketA);
+
+        assertEq(registry.marketRefs(usdcDebtLegKey), 1, "one claim remains");
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_REFERENCES_RESERVE.selector);
+        registry.proposeDeregisterReserve(usdcDebtLegKey);
     }
 }

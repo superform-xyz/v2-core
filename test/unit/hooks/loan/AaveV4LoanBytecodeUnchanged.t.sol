@@ -31,6 +31,17 @@ import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4Re
 ///         Ethereum addresses stay live for old roots. Its final review then consolidated the reserve-key hash
 ///         and `RESERVE_KEY_MISMATCH` into `AaveV4ReserveKey`, which the idle MONEY_MARKET pair (SUP-21142, not
 ///         yet deployed) and `AaveV4ReserveRegistryV2` now share — so the idle pair is re-pinned as well.
+///         SUP-21239 (header = MARKET key) then re-pinned exactly SEVEN artifacts: the six V2 LOAN hooks
+///         (composite trio + standalone trio) and `AaveV4ReserveRegistryV2`, which gained the market
+///         namespace. Deliberately UNMOVED, and asserted below: the V1 LOAN six (legacy, still on the
+///         reserve-key rule), the idle MONEY_MARKET pair (no borrow reserve in its 157-byte layout, and its
+///         header is a SuperLedger key), V1 registry, and `AaveV4ReserveOracle` — its source is untouched,
+///         because market keys are deliberately never oracle-resolvable. Adding `computeMarketKey` to
+///         `AaveV4ReserveKey` moved none of the unmoved eight: being `internal` and unreferenced there it is
+///         dead-code-eliminated, which `test_LoanV1_BytecodePinned` / `test_IdleHooks_BytecodePinned` prove
+///         empirically. The previously deployed V2 hook addresses stay live for roots signed under the old
+///         rule; a NEW address paired with an old reserve-keyed header reverts `MARKET_KEY_MISMATCH`
+///         (fail-closed, the inverse of a silently-accepted stale header).
 contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function _locked(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode/", name, ".json"))));
