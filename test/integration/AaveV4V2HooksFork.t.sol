@@ -1610,11 +1610,12 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
             REAL-LIFE E2E: MIXED-KEY USEROPS AND OMS SIZING FLOWS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice One userOp, four hooks, three distinct header keys and a usePrev chain — PLEDGE(WETH key) →
-    /// BORROW(USDC
-    ///         key) → REPAY(USDC key, cap = BORROW's published delta) → RELEASE(WETH key, max): ends with no debt,
-    /// no
-    ///         position, WETH back within rounding, allowances reset
+    /// @notice One userOp, four hooks and a usePrev chain — PLEDGE → BORROW → REPAY(cap = BORROW's published
+    ///         delta) → RELEASE(max): ends with no debt, no position, WETH back within rounding, allowances
+    ///         reset. SUP-21239 collapsed the key mix this test was written for: all four legs of the one
+    ///         WETH/USDC market now carry the SAME market-key header, where the per-reserve rule gave
+    ///         PLEDGE / RELEASE the WETH key and BORROW / REPAY the USDC one. That collapse is asserted here
+    ///         rather than the old distinctness, and none of the four legacy leg keys may appear.
     function test_E2E_PledgeBorrowRepayRelease_OneUserOp_MixedKeys() external {
         uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
         uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
@@ -1628,10 +1629,15 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         data[1] = _borrowData(BORROW_AMOUNT, false);
         data[2] = _createRepayData(1, true);
         data[3] = _standaloneData(type(uint256).max, false);
-        // the four headers carry two different keys (WETH for PLEDGE / RELEASE, USDC for BORROW / REPAY)
-        assertEq(BytesLib.toAddress(data[0], 32), BytesLib.toAddress(data[3], 32));
-        assertEq(BytesLib.toAddress(data[1], 32), BytesLib.toAddress(data[2], 32));
-        assertTrue(BytesLib.toAddress(data[0], 32) != BytesLib.toAddress(data[1], 32));
+        // all four headers now carry the ONE market key of (WETH collateral, USDC loan)
+        address marketKey = AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        for (uint256 i; i < data.length; ++i) {
+            assertEq(BytesLib.toAddress(data[i], 32), marketKey, "every leg of the market carries one key");
+            assertTrue(marketKey != AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID));
+            assertTrue(marketKey != AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID));
+            assertTrue(marketKey != AaveV4ReserveKey.computeDebtKey(SPOKE_ADDR, WETH_RESERVE_ID));
+            assertTrue(marketKey != AaveV4ReserveKey.computeDebtKey(SPOKE_ADDR, USDC_RESERVE_ID));
+        }
         _executeHooks(hooks, data);
         assertApproxEqAbs(_totalDebt(), 0, 2, "debt cleared to index dust");
         assertEq(_supplied(WETH_RESERVE_ID), 0, "collateral fully released");
@@ -1995,6 +2001,174 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         );
         assertEq(_supplied(WETH_RESERVE_ID), supplied, "position untouched");
         assertEq(_totalDebt(), 0, "no debt");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        MARKET-KEYED HEADERS END TO END ON THE LIVE SPOKE (SUP-21239)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice THE production statement for SUP-21239: a real four-step lifecycle — OPEN, then BORROW more,
+    ///         then a partial REPAY sized from the live debt, then CLOSE(max, max) — runs end to end through
+    ///         the real ERC-4337 path (SuperExecutor + SuperNativePaymaster) against the live Main Spoke with
+    ///         every header carrying the ONE market key of (WETH collateral, USDC loan), and the position
+    ///         moves exactly as the body asks at each step. The same key is also registered in a registry
+    ///         deployed against that live spoke, whose `getMarketInfo` binding is read from
+    ///         `IAaveV4Spoke.getReserve` — so the key a signed intent names and the key an indexer resolves
+    ///         are provably the same 20 bytes.
+    /// @dev Every expectation is a delta against a live read; the only literals are the amounts fed IN. The
+    ///      market key is asserted distinct from all four legacy leg keys of the pair at every step, so this
+    ///      cannot pass by accidentally still being a reserve key.
+    function test_E2E_MarketKeyedLifecycle_OpenBorrowRepayClose_OneKeyThroughout() external {
+        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
+        registry.registerReserve(SPOKE_ADDR, WETH_RESERVE_ID);
+        registry.registerReserve(SPOKE_ADDR, USDC_RESERVE_ID);
+        address marketKey = registry.registerMarket(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertEq(marketKey, AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID));
+        _assertLiveMarketBinding(registry, marketKey);
+
+        // every payload of the lifecycle carries that one key, and it is none of the four legacy leg keys
+        bytes[4] memory legs = [
+            _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT),
+            _borrowData(BORROW_AMOUNT, false),
+            _createRepayData(1, false),
+            _createCloseData(MAX, false, MAX)
+        ];
+        for (uint256 i; i < legs.length; ++i) {
+            assertEq(BytesLib.toAddress(legs[i], 32), marketKey, "lifecycle leg carries the market key");
+        }
+        assertTrue(marketKey != AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID));
+        assertTrue(marketKey != AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID));
+        assertTrue(marketKey != AaveV4ReserveKey.computeDebtKey(SPOKE_ADDR, WETH_RESERVE_ID));
+        assertTrue(marketKey != AaveV4ReserveKey.computeDebtKey(SPOKE_ADDR, USDC_RESERVE_ID));
+
+        // 1. OPEN: collateral in, loan out
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+        _executeHook(address(openHook), legs[0]);
+        assertEq(wethBefore - IERC20(CHAIN_1_WETH).balanceOf(accountEth), SUPPLY_AMOUNT, "OPEN spent the collateral");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - usdcBefore, BORROW_AMOUNT, "OPEN paid out the loan");
+        assertApproxEqAbs(_supplied(WETH_RESERVE_ID), SUPPLY_AMOUNT, 2, "collateral credited");
+        assertApproxEqAbs(_totalDebt(), BORROW_AMOUNT, 1, "debt opened");
+        assertTrue(_isCollateral(WETH_RESERVE_ID), "collateral flag set by the LOAN op");
+
+        // 2. BORROW again on the same market key: debt grows by exactly the second draw
+        uint256 debtAfterOpen = _totalDebt();
+        uint256 usdcAfterOpen = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+        _executeHook(address(borrowHook), legs[1]);
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - usdcAfterOpen, BORROW_AMOUNT, "second draw received");
+        assertApproxEqAbs(_totalDebt() - debtAfterOpen, BORROW_AMOUNT, 1, "debt grew by the second draw");
+
+        // 3. partial REPAY, sized from the LIVE debt (never from a literal)
+        uint256 liveDebt = _totalDebt();
+        uint256 part = liveDebt / 3;
+        assertGt(part, 0, "live debt is large enough to repay a third of it");
+        _executeHook(address(repayHook), _createRepayData(part, false));
+        assertApproxEqAbs(_totalDebt(), liveDebt - part, 2, "debt shrank by exactly the repaid amount");
+        assertApproxEqAbs(_supplied(WETH_RESERVE_ID), SUPPLY_AMOUNT, 2, "collateral untouched by the repay");
+
+        // 4. CLOSE(max, max): the whole position unwinds
+        _getTokens(CHAIN_1_USDC, accountEth, IERC20(CHAIN_1_USDC).balanceOf(accountEth) + _totalDebt());
+        uint256 wethBeforeClose = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 suppliedBeforeClose = _supplied(WETH_RESERVE_ID);
+        _executeHook(address(closeHook), legs[3]);
+        assertEq(_totalDebt(), 0, "debt cleared");
+        assertEq(_supplied(WETH_RESERVE_ID), 0, "collateral fully withdrawn");
+        assertEq(
+            IERC20(CHAIN_1_WETH).balanceOf(accountEth) - wethBeforeClose,
+            suppliedBeforeClose,
+            "CLOSE paid out the whole live position"
+        );
+        assertEq(IERC20(CHAIN_1_WETH).allowance(accountEth, SPOKE_ADDR), 0, "allowance reset");
+        assertEq(IERC20(CHAIN_1_USDC).allowance(accountEth, SPOKE_ADDR), 0, "allowance reset");
+
+        // the market key stayed intent-only throughout: still a market, never a reserve leg
+        assertTrue(registry.isMarketRegistered(marketKey), "still registered as a market");
+        assertFalse(registry.isRegistered(marketKey), "and never as a reserve leg");
+    }
+
+    /// @dev The live-spoke binding of a registered market. Factored out so the five-value `getMarketInfo`
+    ///      destructuring does not blow the (non-via-ir) stack frame of the lifecycle test.
+    function _assertLiveMarketBinding(AaveV4ReserveRegistryV2 registry, address marketKey) internal view {
+        (address spokeOut, uint256 supplyId, uint256 borrowId, address collateralToken, address loanToken) =
+            registry.getMarketInfo(marketKey);
+        assertEq(spokeOut, SPOKE_ADDR, "bound to the live Main Spoke");
+        assertEq(supplyId, WETH_RESERVE_ID, "collateral reserve id");
+        assertEq(borrowId, USDC_RESERVE_ID, "loan reserve id");
+        assertEq(
+            collateralToken,
+            IAaveV4Spoke(SPOKE_ADDR).getReserve(WETH_RESERVE_ID).underlying,
+            "collateral underlying read from the live spoke"
+        );
+        assertEq(
+            loanToken,
+            IAaveV4Spoke(SPOKE_ADDR).getReserve(USDC_RESERVE_ID).underlying,
+            "loan underlying read from the live spoke"
+        );
+        assertEq(collateralToken, CHAIN_1_WETH, "and it is WETH");
+        assertEq(loanToken, CHAIN_1_USDC, "and it is USDC");
+    }
+
+    /// @notice FAIL-CLOSED MIGRATION on the real path: the identical lifecycle payloads, re-headered under the
+    ///         OLD per-reserve rule, are refused on ALL SIX ops through the full userOp path with NO state
+    ///         change. All four legacy leg keys of the pair are tried — both reserves' `computeReserveKey`
+    ///         (the SUP-21143 header) and both reserves' `computeDebtKey` — and every one of the 24
+    ///         combinations reverts `MARKET_KEY_MISMATCH`. Afterwards the live position, the live debt and
+    ///         both wallet balances are bit-identical to before, so nothing was supplied, borrowed, repaid or
+    ///         withdrawn by any of them.
+    /// @dev This is the property that makes the redeployed V2 hook addresses safe against a previously signed
+    ///      reserve-keyed root: fail closed, never fail open. The account is deliberately pre-funded with
+    ///      enough USDC to settle the whole debt and holds a live position first, so every refused op COULD
+    ///      have moved state had the pin been missing — the unchanged reads are evidence, not vacuity.
+    function test_E2E_OldReserveKeyedHeaders_FailClosed_AllSixOps_NoStateChange() external {
+        _openDefaultPosition();
+        _getTokens(CHAIN_1_USDC, accountEth, IERC20(CHAIN_1_USDC).balanceOf(accountEth) + _totalDebt());
+
+        uint256 suppliedBefore = _supplied(WETH_RESERVE_ID);
+        uint256 debtBefore = _totalDebt();
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+        assertGt(suppliedBefore, 0, "there is a live position to protect");
+        assertGt(debtBefore, 0, "there is live debt to protect");
+
+        address[4] memory legacyKeys = [
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, WETH_RESERVE_ID), // SUP-21143 supply-side header
+            AaveV4ReserveKey.computeReserveKey(SPOKE_ADDR, USDC_RESERVE_ID), // SUP-21143 debt-side header
+            AaveV4ReserveKey.computeDebtKey(SPOKE_ADDR, WETH_RESERVE_ID), // NAV-only debt leg
+            AaveV4ReserveKey.computeDebtKey(SPOKE_ADDR, USDC_RESERVE_ID) // NAV-only debt leg
+        ];
+        address[6] memory hooks = [
+            address(openHook),
+            address(borrowHook),
+            address(repayHook),
+            address(closeHook),
+            address(pledgeHook),
+            address(releaseHook)
+        ];
+        bytes[6] memory bodies = [
+            BytesLib.slice(_createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT), 52, 189),
+            BytesLib.slice(_borrowData(BORROW_AMOUNT, false), 52, 189),
+            BytesLib.slice(_createRepayData(MAX, false), 52, 189),
+            BytesLib.slice(_createCloseData(MAX, false, MAX), 52, 189),
+            BytesLib.slice(_standaloneData(SUPPLY_AMOUNT, false), 52, 189),
+            BytesLib.slice(_standaloneData(MAX, false), 52, 189)
+        ];
+
+        for (uint256 h; h < hooks.length; ++h) {
+            for (uint256 k; k < legacyKeys.length; ++k) {
+                _executeHookExpectFailure(
+                    hooks[h],
+                    abi.encodePacked(AAVE_V4_YS_ORACLE_ID, legacyKeys[k], bodies[h]),
+                    AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector
+                );
+            }
+        }
+
+        assertEq(_supplied(WETH_RESERVE_ID), suppliedBefore, "nothing supplied or withdrawn");
+        assertEq(_totalDebt(), debtBefore, "nothing borrowed or repaid");
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBefore, "no collateral token moved");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "no loan token moved");
+        assertEq(IERC20(CHAIN_1_WETH).allowance(accountEth, SPOKE_ADDR), 0, "no allowance left behind");
+        assertEq(IERC20(CHAIN_1_USDC).allowance(accountEth, SPOKE_ADDR), 0, "no allowance left behind");
     }
 
     /// @notice The oracle id (offset 0) is identity only on the live path: any value executes identically

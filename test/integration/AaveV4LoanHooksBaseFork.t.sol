@@ -35,13 +35,15 @@ import { Helpers } from "../utils/Helpers.sol";
 import { InternalHelpers } from "../utils/InternalHelpers.sol";
 
 /// @title AaveV4LoanHooksBaseFork
-/// @notice SUP-21143 on a SECOND live Spoke (Base, MAG7 equities spoke, USDC reserve 7): the header key is per
-///         (spoke, reserveId) — the Base USDC key differs from the Ethereum Main Spoke's USDC key for the same
-/// reserve
-///         id — and the mode partition / reserve binding hold against live MAG7 state (LOAN hooks are asserted
+/// @notice Header identity on a SECOND live Spoke (Base, MAG7 equities spoke, USDC reserve 7): the key is per
+///         SPOKE — the Base market key differs from the Ethereum Main Spoke's key for the same pair of reserve
+///         ids — and the mode partition / reserve binding hold against live MAG7 state (LOAN hooks are asserted
 /// through
 ///         build(): MAG7's equity tokens carry opcodes this fork's EVM cannot execute, so their balance snapshots
 ///         cannot run here; the idle USDC lend executes end to end).
+/// @dev SUP-21239: the V2 LOAN header is `computeMarketKey(spoke, supplyReserveId, borrowReserveId)`, so the
+///      per-spoke statement now lives in the MARKET namespace; the idle lend keeps the reserve SUPPLY key,
+///      which is also its SuperLedger key. Both are checked against the same live registry below.
 contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelpers {
     using BytesLib for bytes;
     using ModuleKitHelpers for AccountInstance;
@@ -87,6 +89,8 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
 
         registry = new AaveV4ReserveRegistryV2(address(this));
         (usdcKey,) = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
+        // the equity reserve's legs are needed too: `registerMarket` requires the loan reserve's DEBT leg
+        registry.registerReserve(MAG7_SPOKE, EQUITY_RESERVE_ID);
         oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -113,12 +117,12 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
 
     receive() external payable { }
 
-    /// @dev LOAN layout on MAG7: collateral = USDC (reserve 7), loan = equity (reserve 0, identity only); header keyed
-    ///      to `primaryId`
-    function _loanData(uint256 primaryId, uint256 a1, bool usePrev) internal view returns (bytes memory) {
+    /// @dev LOAN layout on MAG7: collateral = USDC (reserve 7), loan = equity (reserve 0, identity only); header
+    ///      is the MARKET key of that pair on this spoke (SUP-21239) — the same key for every leg of the market
+    function _loanData(uint256 a1, bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(
             oracleId,
-            AaveV4ReserveKey.computeReserveKey(MAG7_SPOKE, primaryId),
+            AaveV4ReserveKey.computeMarketKey(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID),
             equityToken,
             CHAIN_8453_USDC,
             MAG7_SPOKE,
@@ -174,23 +178,39 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         (f,) = IAaveV4Spoke(MAG7_SPOKE).getUserReserveStatus(USDC_RESERVE_ID, accountBase);
     }
 
-    /// @notice The reserve key is per (spoke, reserveId): the Base MAG7 USDC key resolves through the registry to the
-    ///         MAG7 spoke and differs from the Ethereum Main Spoke's key for the same reserve id 7
-    function test_Base_HeaderKey_IsPerSpoke_ResolvesThroughRegistry() external view {
-        bytes memory id = pledgeHook.inspect(_loanData(USDC_RESERVE_ID, PLEDGE, false));
+    /// @notice The MARKET key is per spoke: the Base MAG7 (USDC collateral, equity loan) key resolves through
+    ///         this registry's MARKET namespace to the MAG7 spoke and both live underlyings, and differs from
+    ///         the Ethereum Main Spoke's key for the SAME pair of reserve ids. It is also none of the four leg
+    ///         keys of the two reserves, so the NAV namespace on this spoke stays untouched.
+    function test_Base_HeaderKey_IsPerSpoke_ResolvesThroughRegistry() external {
+        address marketKey = registry.registerMarket(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID);
+        bytes memory id = pledgeHook.inspect(_loanData(PLEDGE, false));
         address key = id.toAddress(0);
-        assertEq(key, usdcKey, "inspect key == registered Base key");
-        (address spoke, uint256 reserveId, address underlying,, AaveV4ReserveRegistryV2.Side side) =
-            registry.getReserveInfo(key);
-        assertEq(spoke, MAG7_SPOKE);
-        assertEq(reserveId, USDC_RESERVE_ID);
-        assertEq(underlying, CHAIN_8453_USDC);
-        assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "hook headers pin the SUPPLY leg");
+        assertEq(key, marketKey, "inspect key == the registered Base market key");
+        assertTrue(registry.isMarketRegistered(key), "resolves in the MARKET namespace");
+        assertFalse(registry.isRegistered(key), "and never as a reserve leg");
+        assertTrue(key != usdcKey, "not the collateral reserve's SUPPLY key");
+        assertTrue(key != registry.computeDebtKey(MAG7_SPOKE, USDC_RESERVE_ID), "not its DEBT key");
+        assertTrue(key != registry.computeReserveKey(MAG7_SPOKE, EQUITY_RESERVE_ID), "not the loan SUPPLY key");
+        assertTrue(key != registry.computeDebtKey(MAG7_SPOKE, EQUITY_RESERVE_ID), "not the loan DEBT key");
+        _assertBaseMarketBinding(marketKey);
         assertTrue(
-            key != AaveV4ReserveKey.computeReserveKey(ETH_MAIN_SPOKE, USDC_RESERVE_ID),
-            "same reserve id, different spoke, different key"
+            key != AaveV4ReserveKey.computeMarketKey(ETH_MAIN_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID),
+            "same reserve ids, different spoke, different market key"
         );
         assertEq(id.length, 144);
+    }
+
+    /// @dev The Base market's binding, read from the live MAG7 spoke. Factored out so the five-value
+    ///      `getMarketInfo` destructuring does not blow the (non-via-ir) stack frame.
+    function _assertBaseMarketBinding(address marketKey) internal view {
+        (address spoke, uint256 supplyId, uint256 borrowId, address collateralToken, address loanToken) =
+            registry.getMarketInfo(marketKey);
+        assertEq(spoke, MAG7_SPOKE, "live MAG7 spoke");
+        assertEq(supplyId, USDC_RESERVE_ID, "collateral reserve id");
+        assertEq(borrowId, EQUITY_RESERVE_ID, "loan reserve id");
+        assertEq(collateralToken, CHAIN_8453_USDC, "collateral underlying read from the live spoke");
+        assertEq(loanToken, equityToken, "loan underlying read from the live spoke");
     }
 
     /// @notice Mode partition on the second live Spoke. The equity tokens listed on MAG7 carry opcodes this fork's EVM
@@ -200,13 +220,13 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     ///         only touches USDC) PLEDGE is refused (RESERVE_HAS_IDLE_POSITION) and RELEASE is refused
     ///         (RESERVE_NOT_COLLATERAL) on the live MAG7 state
     function test_Base_ModePartition_MAG7_Usdc_LiveState() external {
-        Execution[] memory ex = pledgeHook.build(address(0), accountBase, _loanData(USDC_RESERVE_ID, PLEDGE, false));
+        Execution[] memory ex = pledgeHook.build(address(0), accountBase, _loanData(PLEDGE, false));
         assertEq(ex.length, 7, "fresh reserve: full pledge shape");
         for (uint256 i = 1; i + 1 < ex.length; ++i) {
             assertTrue(ex[i].target == MAG7_SPOKE || ex[i].target == CHAIN_8453_USDC, "MAG7 or USDC only");
         }
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector); // empty position
-        releaseHook.build(address(0), accountBase, _loanData(USDC_RESERVE_ID, type(uint256).max, false));
+        releaseHook.build(address(0), accountBase, _loanData(type(uint256).max, false));
 
         uint256 before = IERC20(CHAIN_8453_USDC).balanceOf(accountBase);
         _execute(address(lendHook), _idleData(PLEDGE));
@@ -215,9 +235,9 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         assertEq(ledger.usersAccumulatorShares(accountBase, usdcKey), _supplied(), "ledger keyed by the Base key");
 
         vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
-        pledgeHook.build(address(0), accountBase, _loanData(USDC_RESERVE_ID, PLEDGE, false));
+        pledgeHook.build(address(0), accountBase, _loanData(PLEDGE, false));
         vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_NOT_COLLATERAL.selector);
-        releaseHook.build(address(0), accountBase, _loanData(USDC_RESERVE_ID, type(uint256).max, false));
+        releaseHook.build(address(0), accountBase, _loanData(type(uint256).max, false));
         // the borrow-side identity binding runs against the live MAG7 reserves too
         vm.expectRevert(BaseAaveV4LoanHookV2.TOKEN_RESERVE_MISMATCH.selector);
         borrowHook.build(
@@ -225,7 +245,7 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
             accountBase,
             abi.encodePacked(
                 oracleId,
-                AaveV4ReserveKey.computeReserveKey(MAG7_SPOKE, EQUITY_RESERVE_ID),
+                AaveV4ReserveKey.computeMarketKey(MAG7_SPOKE, EQUITY_RESERVE_ID, EQUITY_RESERVE_ID),
                 CHAIN_8453_USDC, // wrong: reserve 0's underlying is the equity token
                 equityToken,
                 MAG7_SPOKE,
@@ -238,15 +258,27 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         );
     }
 
-    /// @notice A header keyed to the Ethereum Main Spoke's USDC reserve (the same reserve id on another spoke) is
-    ///         refused on Base before any Spoke call
+    /// @notice On the second live spoke too, a header naming anything but THIS spoke's market is refused before
+    ///         any Spoke call: the Ethereum Main Spoke's market key for the same pair of reserve ids, the
+    ///         reversed pair on MAG7 itself, and either leg's OLD per-reserve key (the SUP-21143 header, which
+    ///         is the fail-closed migration case) all revert `MARKET_KEY_MISMATCH` with nothing supplied and
+    ///         the collateral flag untouched.
     function test_Base_WrongSpokeKey_Refused() external {
-        bytes memory good = _loanData(USDC_RESERVE_ID, PLEDGE, false);
-        bytes memory wrong = abi.encodePacked(
-            oracleId, AaveV4ReserveKey.computeReserveKey(ETH_MAIN_SPOKE, USDC_RESERVE_ID), BytesLib.slice(good, 52, 189)
-        );
-        _executeExpectFailure(address(pledgeHook), wrong, AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
-        assertEq(_supplied(), 0);
-        assertFalse(_flag());
+        bytes memory body = BytesLib.slice(_loanData(PLEDGE, false), 52, 189);
+        address[4] memory wrongKeys = [
+            AaveV4ReserveKey.computeMarketKey(ETH_MAIN_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID),
+            AaveV4ReserveKey.computeMarketKey(MAG7_SPOKE, EQUITY_RESERVE_ID, USDC_RESERVE_ID),
+            AaveV4ReserveKey.computeReserveKey(MAG7_SPOKE, USDC_RESERVE_ID),
+            AaveV4ReserveKey.computeDebtKey(MAG7_SPOKE, EQUITY_RESERVE_ID)
+        ];
+        for (uint256 w; w < wrongKeys.length; ++w) {
+            _executeExpectFailure(
+                address(pledgeHook),
+                abi.encodePacked(oracleId, wrongKeys[w], body),
+                AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector
+            );
+            assertEq(_supplied(), 0);
+            assertFalse(_flag());
+        }
     }
 }
