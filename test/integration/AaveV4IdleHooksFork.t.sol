@@ -26,7 +26,7 @@ import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
 /// @title AaveV4IdleHooksFork
 /// @notice SUP-21142 E2E on Ethereum mainnet: AaveV4LendHook / AaveV4RedeemHook through the REAL
-///         SuperExecutor, SuperLedger and AaveV4ReserveOracle registered at the supply reserve key,
+///         SuperExecutor, SuperLedger and AaveV4ReserveOracle, with the ledger keyed by the MARKET key,
 ///         against the live Main Spoke USDC reserve (id 7). Proves: supply-only (collateral flag never
 ///         flips), exact wallet deltas, identity-PPS ledger netting, fail-closed on unregistered keys.
 contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
@@ -46,6 +46,9 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
     SuperLedger public superLedger;
     address public feeRecipient;
     address public usdcKey;
+    /// @dev SUP-21254: the idle header AND therefore the SuperLedger key. The oracle resolves it to the
+    ///      USDC reserve's SUPPLY leg, so `getBalanceOfOwner(usdcMarketKey) == getBalanceOfOwner(usdcKey)`.
+    address public usdcMarketKey;
     bytes32 public oracleId;
 
     function setUp() public override {
@@ -54,6 +57,12 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
 
         registry = new AaveV4ReserveRegistryV2(address(this));
         (usdcKey,) = registry.registerReserve(SPOKE, USDC_RESERVE_ID);
+        // SUP-21254: the idle header is a MARKET key, and the ledger read goes through
+        // `AaveV4ReserveOracle._resolveLeg`, which reverts for an unregistered market — so an idle op can
+        // only settle under a market the registry has blessed. Register the pair whose SUPPLY leg is the
+        // reserve these tests lend: reserve 0 supplies the identity-only borrow leg.
+        registry.registerReserve(SPOKE, 0);
+        usdcMarketKey = registry.registerMarket(SPOKE, USDC_RESERVE_ID, 0);
         oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         feeRecipient = makeAddr("aaveIdleFeeRecipient");
 
@@ -94,12 +103,25 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            oracleId, registry.computeReserveKey(SPOKE, reserveId), underlying, SPOKE, reserveId, amount, usePrev
+            oracleId,
+            registry.computeMarketKey(SPOKE, reserveId, _idleBorrowLeg(reserveId)),
+            underlying,
+            SPOKE,
+            reserveId,
+            amount,
+            usePrev,
+            _idleBorrowLeg(reserveId)
         );
     }
 
     function _lendData(uint256 amount) internal view returns (bytes memory) {
         return _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, amount, false);
+    }
+
+    /// @dev SUP-21254: the market key needs a borrow leg that is not the reserve being moved. Any other
+    ///      listed reserve serves — it is identity only and is never passed to the Spoke.
+    function _idleBorrowLeg(uint256 supplyReserveId) internal pure returns (uint256) {
+        return supplyReserveId == USDC_RESERVE_ID ? 0 : USDC_RESERVE_ID;
     }
 
     function _redeemData(uint256 amount, bool usePrev) internal view returns (bytes memory) {
@@ -164,9 +186,14 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
     }
 
     /// @dev Lends LEND and returns the credited position (within 1 wei of LEND, Aave rounds down)
+    /// @dev `_execute` goes through the EntryPoint and does NOT bubble a failed userOp, so a silently
+    ///      reverting hook would leave every delta at zero and any test written purely as
+    ///      `delta == credited` would pass as `0 == 0`. Assert the lend actually credited something — this
+    ///      one line is what makes the ledger-netting and chaining tests non-vacuous.
     function _lend() internal returns (uint256 credited) {
         _execute(address(lendHook), _lendData(LEND));
         credited = _supplied();
+        assertGt(credited, 0, "precondition: the idle lend must have executed");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -186,12 +213,19 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
 
         uint256 credited = _supplied();
         assertLe(LEND - credited, 1, "Aave rounds the credited position down by at most 1 wei");
-        // Ledger keyed by the reserve key, in the oracle's units (identity pps), never by the spoke
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), credited, "accumulator shares");
-        assertEq(superLedger.usersAccumulatorCostBasis(accountEth, usdcKey), credited, "cost basis 1:1");
+        // Ledger keyed by the MARKET key, in the oracle's units (identity pps), never by the spoke
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), credited, "accumulator shares");
+        assertEq(superLedger.usersAccumulatorCostBasis(accountEth, usdcMarketKey), credited, "cost basis 1:1");
         assertEq(superLedger.usersAccumulatorShares(accountEth, SPOKE), 0, "spoke never keyed");
         assertEq(oracle.getBalanceOfOwner(usdcKey, accountEth), credited, "oracle balance == ledger shares");
         assertEq(oracle.getPricePerShare(usdcKey), 1e6, "identity pps");
+        // the ledger key is the MARKET key, and the oracle resolves it to exactly the same leg
+        assertEq(
+            oracle.getBalanceOfOwner(usdcMarketKey, accountEth),
+            oracle.getBalanceOfOwner(usdcKey, accountEth),
+            "market key resolves to the reserve this idle op moved"
+        );
+        assertEq(oracle.getPricePerShare(usdcMarketKey), 1e6, "identity pps through the market key too");
     }
 
     function test_Lend_Then_RedeemFull_LedgerNets() public {
@@ -203,8 +237,8 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
 
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - walletBefore, credited, "full redeem pays the position");
         assertEq(_supplied(), 0);
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0, "shares net to zero");
-        assertEq(superLedger.usersAccumulatorCostBasis(accountEth, usdcKey), 0, "cost basis nets to zero");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0, "shares net to zero");
+        assertEq(superLedger.usersAccumulatorCostBasis(accountEth, usdcMarketKey), 0, "cost basis nets to zero");
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(feeRecipient), feeBefore, "feePercent 0: nothing charged");
         assertFalse(_isCollateral());
         assertEq(_collateralEventCount(ret), 0, "redeem needs no collateral toggle");
@@ -219,7 +253,7 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - walletBefore, 400e6, "partial receipt exact");
         uint256 remaining = _supplied();
         assertApproxEqAbs(remaining, credited - 400e6, 1, "position consumed within share rounding");
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), remaining, "ledger tracks the position");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), remaining, "ledger tracks the position");
         assertEq(oracle.getBalanceOfOwner(usdcKey, accountEth), remaining);
     }
 
@@ -234,7 +268,7 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         _execute(address(redeemHook), _redeemData(type(uint256).max, false));
 
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - walletBefore, accrued, "yield paid out");
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0, "capped usedShares clears the slot");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0, "capped usedShares clears the slot");
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(feeRecipient), feeBefore, "feePercent 0: yield untaxed");
     }
 
@@ -245,13 +279,13 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         hooks[1] = address(redeemHook);
         bytes[] memory datas = new bytes[](2);
         datas[0] = _lendData(LEND);
-        datas[1] = _redeemData(0, true); // consumes the lend's outAmount against outToken == reserve key
+        datas[1] = _redeemData(0, true); // consumes the lend's outAmount against outToken == market key
 
         _executeHooks(hooks, datas);
 
         assertEq(_supplied(), 0, "everything the lend credited was redeemed");
         assertLe(walletBefore - IERC20(CHAIN_1_USDC).balanceOf(accountEth), 1, "round trip loses at most 1 wei");
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0);
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0);
     }
 
     function test_Redeem_RevertIf_NothingSupplied() public {
@@ -259,8 +293,8 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
     }
 
     function test_UnregisteredKey_FailsClosed() public {
-        // GHO reserve 13 is listed on the spoke but its key is NOT registered: the hook itself is happy,
-        // accounting reverts through the oracle -> the whole userOp reverts (allowlist by construction).
+        // GHO reserve 13 is listed on the spoke but NEITHER its legs NOR any market over it are registered:
+        // the hook itself is happy, accounting reverts through the oracle -> the whole userOp reverts.
         _getTokens(GHO, accountEth, 1000e18);
         _executeExpectFailure(
             address(lendHook),
@@ -268,6 +302,29 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
             AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector
         );
         assertEq(IAaveV4Spoke(SPOKE).getUserSuppliedAssets(GHO_RESERVE_ID, accountEth), 0, "nothing supplied");
+    }
+
+    /// @notice THE NEW GATE SUP-21254 BUYS, isolated. The reserve's legs ARE registered, so the old
+    ///         per-reserve allowlist would have allowed this op; only the MARKET is missing. The accounting
+    ///         read resolves the header through the oracle, finds no market, and reverts the whole userOp —
+    ///         so the idle allowlist is market-granular, not reserve-granular.
+    /// @dev Distinct from `test_UnregisteredKey_FailsClosed`, which fails for two reasons at once (neither
+    ///      the legs nor a market exist) and therefore cannot isolate this behaviour.
+    function test_RegisteredReserveButUnregisteredMarket_FailsClosed() public {
+        // The USDC reserve the suite funds and lends: BOTH its legs are registered, and market (7, 0) is
+        // registered in setUp. Market (7, 1) is NOT — same moved reserve, different borrow leg, so the only
+        // thing missing is the market itself.
+        uint256 unregisteredBorrowLeg = 1;
+        address unregisteredMarket = registry.computeMarketKey(SPOKE, USDC_RESERVE_ID, unregisteredBorrowLeg);
+        assertTrue(registry.isRegistered(usdcKey), "the moved reserve's SUPPLY leg IS registered");
+        assertTrue(registry.isMarketRegistered(usdcMarketKey), "and market (7,0) is registered");
+        assertFalse(registry.isMarketRegistered(unregisteredMarket), "but market (7,1) is not");
+
+        bytes memory data = abi.encodePacked(
+            oracleId, unregisteredMarket, CHAIN_1_USDC, SPOKE, USDC_RESERVE_ID, LEND, false, unregisteredBorrowLeg
+        );
+        _executeExpectFailure(address(lendHook), data, AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        assertEq(_supplied(), 0, "nothing supplied");
     }
 
     /// @dev One mode per (account, reserve): once the account flags the reserve as collateral (LOAN
@@ -287,13 +344,13 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
             address(lendHook), _lendData(LEND), BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector
         );
         assertEq(_supplied(), credited, "nothing moved");
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), credited, "ledger untouched");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), credited, "ledger untouched");
 
         vm.prank(accountEth);
         IAaveV4Spoke(SPOKE).setUsingAsCollateral(USDC_RESERVE_ID, false, accountEth);
         _execute(address(redeemHook), _redeemData(type(uint256).max, false));
         assertEq(_supplied(), 0);
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0);
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0);
     }
 
     /// @notice A reserve the account already borrows is refused by lend (RESERVE_IS_BORROWED) while
@@ -319,20 +376,24 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
 
         _execute(address(redeemHook), _redeemData(type(uint256).max, false));
         assertEq(_supplied(), 0, "idle position exited despite the debt");
-        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0, "ledger nets");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0, "ledger nets");
     }
 
+    /// @dev SUP-21254 fail-closed, through the real userOp path: the spoke-as-header case AND both of the
+    ///      reserve's legacy leg keys are refused. The reserve-key cases are the migration property — an old
+    ///      reserve-keyed idle root against the redeployed hook cannot execute.
     function test_Lend_RevertIf_HeaderKeyMismatch() public {
-        bytes memory data = abi.encodePacked(
-            oracleId,
-            SPOKE,
-            CHAIN_1_USDC,
-            SPOKE,
-            USDC_RESERVE_ID,
-            LEND,
-            false // LOAN-style: spoke in the header
-        );
-        _executeExpectFailure(address(lendHook), data, AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        uint256 borrowLeg = _idleBorrowLeg(USDC_RESERVE_ID);
+        address[3] memory wrong = [
+            SPOKE, // LOAN-style: spoke in the header
+            registry.computeReserveKey(SPOKE, USDC_RESERVE_ID), // the old SUP-21142 idle header
+            registry.computeDebtKey(SPOKE, USDC_RESERVE_ID) // the reserve's other leg
+        ];
+        for (uint256 i; i < wrong.length; ++i) {
+            bytes memory data =
+                abi.encodePacked(oracleId, wrong[i], CHAIN_1_USDC, SPOKE, USDC_RESERVE_ID, LEND, false, borrowLeg);
+            _executeExpectFailure(address(lendHook), data, AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        }
     }
 
     function test_Lend_RevertIf_UnderlyingMismatch() public {

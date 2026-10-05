@@ -1,5 +1,15 @@
 # Aave V4 Idle MONEY_MARKET Lend/Redeem Hooks — Technical Specification
 
+> **SUPERSEDED IN PART BY SUP-21254.** The header identity and the calldata length in this document
+> describe the SUP-21142 design. As implemented, offset 32 is the MARKET key
+> `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` — NOT
+> `computeReserveKey(spoke, reserveId)` — and the body is 189 bytes, with `borrowReserveId` appended at
+> offset 157 so every pre-existing offset is unchanged. The market key is also the SuperLedger key for this
+> pair, and `AaveV4ReserveOracle` resolves it to the market's COLLATERAL leg, which the decoder guarantees is
+> the reserve the op moves. Everything else below — the one-mode-per-(account, reserve) guard, the
+> reserve/underlying binding, the inspector's 92-byte shape and field order, and the fail-closed accounting
+> allowlist (now market-granular) — still holds.
+
 Ticket: SUP-21142. Branch: `cosmin-sup-21142-feature-add-aave-v4-idle-money_market-lendredeem-hooks`.
 Planning notes: `.claude/sessions/context_session_sup21142.md` (local, git-ignored; not part of the PR).
 
@@ -65,7 +75,7 @@ INFLOW / OUTFLOW keyed by that address; the oracle resolves the same key through
 would collapse every reserve of a spoke, and every LOAN position on it, onto one accounting slot
 (`group_bindings_by_position` fail-closed in pricing).
 
-### Calldata (exact 157 bytes)
+### Calldata (exact 189 bytes)
 
 | offset | field | validation |
 |---|---|---|
@@ -194,7 +204,7 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
 | Lend calls `supply`, never `setUsingAsCollateral` | unit `test_Build_Lend_FourExecutions_NeverEnablesCollateral`, `test_Lend_Cycle_*` (`collateralCalls == 0`); fork `test_Lend_SupplyOnly_CollateralFlagNotFlipped` (ETH + Base): status `(false,false)`, 0 events, `expectCall(…, 0)` |
 | Redeem calls `withdraw` only; no collateral-disable needed | unit `test_Build_Redeem_SingleWithdraw_MaxPassesThrough`; fork full/partial redeems with 0 collateral events; live probes above |
 | One mode per (account, reserve): collateral-flagged reserve refused | unit `test_RevertIf_ReserveIsCollateral`; fork `test_CollateralFlaggedReserve_IsRefusedByBothHooks` (ETH) |
-| Exact 157-byte calldata, wrong length reverts; oracle id @0, reserve key @32, Spoke not `yieldSource` | unit `test_Decode_RevertIf_WrongLength`, `test_Decode_RevertIf_HeaderKeyMismatch` (spoke-as-key case); sizing `test_*_AaveV4Idle` |
+| Exact 189-byte calldata, wrong length reverts; oracle id @0, reserve key @32, Spoke not `yieldSource` | unit `test_Decode_RevertIf_WrongLength`, `test_Decode_RevertIf_HeaderKeyMismatch` (spoke-as-key case); sizing `test_*_AaveV4Idle` |
 | `extractYieldSource() == computeReserveKey(spoke, id)` or revert | unit `test_ReserveKey_MatchesRegistryFormula`, `test_Decode_RevertIf_HeaderKeyMismatch`; fork `test_Lend_RevertIf_HeaderKeyMismatch` |
 | `inspect()` = key + spoke + underlying + reserveId, stable under amount changes | unit `test_Inspect_ShapeAndStability`, `test_Inspect_ChangesWithReserveSpokeOrUnderlying` |
 | INFLOW / ASSETS-in lend, OUTFLOW / SHARES-in redeem; executor untouched | unit `test_HookTypes_IdleFlipsLoanStays`, `test_AmountRoles`; sizing `test_AmountRoles_*_AaveV4*`; `git diff` of `src/executors` is empty |

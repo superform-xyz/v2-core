@@ -30,6 +30,41 @@ contract SeedHarness is ConfigureAaveV4ReserveRegistry {
     function executeDrop(AaveV4ReserveRegistryV2 registry, address key) external {
         registry.executeDeregisterReserve(key);
     }
+
+    function seedMarkets(
+        AaveV4ReserveRegistryV2 registry,
+        uint64 chainId,
+        address spoke
+    )
+        external
+        returns (MarketResult memory)
+    {
+        return _seedMarkets(registry, chainId, spoke);
+    }
+
+    function registerOne(
+        AaveV4ReserveRegistryV2 registry,
+        address spoke,
+        uint256 supplyId,
+        uint256 borrowId
+    )
+        external
+        returns (bool)
+    {
+        return _registerOneMarket(registry, spoke, supplyId, borrowId);
+    }
+
+    function assertFullyConfigured(AaveV4ReserveRegistryV2 registry, uint64 chainId, address spoke) external view {
+        _assertSpokeFullyConfigured(registry, chainId, spoke);
+    }
+
+    function loanReserveId(uint64 chainId) external pure returns (uint256) {
+        return _defaultLoanReserveId(chainId);
+    }
+
+    function noLoanReserve() external pure returns (uint256) {
+        return NO_LOAN_RESERVE;
+    }
 }
 
 /// @title ConfigureAaveV4ReserveRegistryTest
@@ -224,5 +259,104 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
 
         vm.expectRevert(bytes("MIGRATION_PARITY_FOUND_NOTHING_IN_V1"));
         harness.assertMigrationParity(emptyLegacy, registry, spoke);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                MARKET SEEDING (SUP-21239)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice THE ONE-SHOT CLAIM, on live Base state: seeding then market-seeding registers a market for
+    ///         EVERY tokenized stock the MAG7 spoke lists, each against the USDC loan reserve — 7 markets
+    ///         from 8 listed reserves — with every binding read from the live spoke.
+    /// @dev Enumerated from the spoke rather than a hardcoded pair list, so an eighth equity listed by Aave
+    ///         is picked up by a re-run instead of being silently skipped. That is what this asserts: the
+    ///         candidate count equals "listed reserves minus the loan reserve", not a magic 7.
+    function test_SeedMarkets_RegistersEveryStockAgainstUsdc() public {
+        harness.seed(registry, spoke);
+        uint256 loanId = harness.loanReserveId(uint64(block.chainid));
+        assertEq(loanId, 7, "USDC is the curated loan reserve on Base");
+
+        ConfigureAaveV4ReserveRegistry.MarketResult memory r =
+            harness.seedMarkets(registry, uint64(block.chainid), spoke);
+
+        assertEq(r.candidates, MAG7_LISTED_RESERVES - 1, "every listed reserve except the loan reserve");
+        assertEq(r.registered, MAG7_LISTED_RESERVES - 1, "all registered on the first run");
+        assertEq(r.skipped, 0, "nothing skipped on a fresh registry");
+
+        // every stock resolves, bound to the live spoke's tokens, and claims its two NAV legs
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            if (id == loanId) continue;
+            address marketKey = registry.computeMarketKey(spoke, id, loanId);
+            assertTrue(registry.isMarketRegistered(marketKey), "stock market registered");
+            (address mSpoke, uint256 mSupply, uint256 mBorrow,, address loanToken) = registry.getMarketInfo(marketKey);
+            assertEq(mSpoke, spoke, "spoke binding");
+            assertEq(mSupply, id, "collateral reserve binding");
+            assertEq(mBorrow, loanId, "loan reserve binding");
+            assertEq(loanToken, USDC_BASE, "every stock borrows USDC");
+            assertEq(registry.marketRefs(registry.computeReserveKey(spoke, id)), 1, "collateral leg claimed once");
+        }
+
+        // the shared USDC debt leg is claimed by all seven — the 7-to-1 shape that makes the guard matter
+        assertEq(
+            registry.marketRefs(registry.computeDebtKey(spoke, loanId)),
+            MAG7_LISTED_RESERVES - 1,
+            "one debt leg, seven claims"
+        );
+    }
+
+    /// @notice A second run registers nothing and reverts nothing — `configureAll` is re-runnable after a
+    ///         partial failure or a newly listed reserve.
+    function test_SeedMarkets_SecondRunIsANoOp() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+
+        ConfigureAaveV4ReserveRegistry.MarketResult memory second =
+            harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        assertEq(second.candidates, MAG7_LISTED_RESERVES - 1, "same candidates");
+        assertEq(second.registered, 0, "nothing written twice");
+        assertEq(second.skipped, MAG7_LISTED_RESERVES - 1, "all skipped as already registered");
+    }
+
+    /// @notice Markets cannot be seeded before reserves: both NAV legs must exist first. This is why
+    ///         `configureAll` orders reserves -> parity -> markets, and the ordering is load-bearing rather
+    ///         than cosmetic.
+    function test_SeedMarkets_RevertIf_ReservesNotSeededFirst() public {
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_LEG_NOT_REGISTERED.selector);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+    }
+
+    /// @notice An explicit non-default pair (stock against stock) registers through the same primitive, and
+    ///         the reversed pair is a DIFFERENT market — the ordering rule, on live state.
+    function test_RegisterOne_ExplicitPair_AndReversedIsDistinct() public {
+        harness.seed(registry, spoke);
+
+        assertTrue(harness.registerOne(registry, spoke, 0, 1), "stock/stock pair registers");
+        assertTrue(harness.registerOne(registry, spoke, 1, 0), "the reversed pair is a separate market");
+        assertFalse(harness.registerOne(registry, spoke, 0, 1), "re-registering the same pair is a no-op");
+
+        assertTrue(
+            registry.computeMarketKey(spoke, 0, 1) != registry.computeMarketKey(spoke, 1, 0), "ordering is significant"
+        );
+    }
+
+    /// @notice The final gate of `configureAll` fails on a half-configured registry rather than reporting
+    ///         success — reserves seeded but markets missing must not pass.
+    function test_AssertFullyConfigured_RevertIf_MarketsMissing() public {
+        harness.seed(registry, spoke);
+
+        vm.expectRevert(bytes("VERIFY_MARKET_MISSING"));
+        harness.assertFullyConfigured(registry, uint64(block.chainid), spoke);
+
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        harness.assertFullyConfigured(registry, uint64(block.chainid), spoke); // now passes
+    }
+
+    /// @notice Only Base has a curated market set. Other chains' pairs are a strategy decision, so
+    ///         `_defaultLoanReserveId` returns the sentinel and market seeding is a documented no-op there
+    ///         instead of inventing pairs.
+    function test_DefaultLoanReserve_OnlyBaseHasACuratedSet() public view {
+        assertEq(harness.loanReserveId(8453), 7, "Base MAG7 borrows USDC");
+        assertEq(harness.loanReserveId(1), harness.noLoanReserve(), "Ethereum has no curated set");
+        assertEq(harness.loanReserveId(42_161), harness.noLoanReserve(), "nor any other chain");
     }
 }

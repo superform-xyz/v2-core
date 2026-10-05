@@ -52,7 +52,7 @@ type PackedUserOperation struct {
 
 // SuperSponsorshipPaymasterMetaData contains all meta data concerning the SuperSponsorshipPaymaster contract.
 var SuperSponsorshipPaymasterMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"entryPoint_\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"},{\"name\":\"admin_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"payable\"},{\"type\":\"receive\",\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"FUNDING_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MAX_POST_OP_GAS_OVERHEAD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MIN_POST_OP_OVERHEAD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"VERSION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"creditStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyWithdrawFromEntryPoint\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"entryPoint\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"fundStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"getDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getStrategyBudget\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperSponsorshipPaymaster.StrategyBudget\",\"components\":[{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"totalDebited\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxSingleOpCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paused\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"globalPaused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pauseStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"postOp\",\"inputs\":[{\"name\":\"mode\",\"type\":\"uint8\",\"internalType\":\"enumIPaymaster.PostOpMode\"},{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualUserOpFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"postOpGasOverhead\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"reconcile\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setGlobalPause\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMaxSingleOpCost\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setPostOpGasOverhead\",\"inputs\":[{\"name\":\"overhead\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"sweepETH\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"totalAllocated\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unallocatedBalance\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unpauseStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validatePaymasterUserOp\",\"inputs\":[{\"name\":\"userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"validationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawStrategyFunds\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"ETHSwept\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawn\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"GlobalPauseSet\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxSingleOpCostSet\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PostOpGasOverheadSet\",\"inputs\":[{\"name\":\"overhead\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Reconciled\",\"inputs\":[{\"name\":\"drift\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyCredited\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyDebited\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyFunded\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyPaused\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyUnpaused\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyWithdrawn\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"ETH_TRANSFER_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXCEEDS_MAX_POST_OP_OVERHEAD\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXCEEDS_SINGLE_OP_CAP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GLOBAL_PAUSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_ENTRYPOINT_DEPOSIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_STRATEGY_BUDGET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_UNALLOCATED_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"POST_OP_OVERHEAD_BELOW_MINIMUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGY_PAUSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"WITHDRAW_EXCEEDS_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"entryPoint_\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"},{\"name\":\"admin_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"payable\"},{\"type\":\"receive\",\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEFAULT_ALLOWED_SENDER\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEFAULT_MAX_GAS\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"FUNDING_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MAX_POST_OP_GAS_OVERHEAD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MIN_POST_OP_OVERHEAD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"VERSION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"allowedSender\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"creditStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyWithdrawFromEntryPoint\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"entryPoint\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"fundStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"getDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getStrategyBudget\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperSponsorshipPaymaster.StrategyBudget\",\"components\":[{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"totalDebited\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxSingleOpCost\",\"type\":\"uint128\",\"internalType\":\"uint128\"},{\"name\":\"paused\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"globalPaused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pauseStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"postOp\",\"inputs\":[{\"name\":\"mode\",\"type\":\"uint8\",\"internalType\":\"enumIPaymaster.PostOpMode\"},{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualUserOpFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"postOpGasOverhead\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"reconcile\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAllowedSender\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setGlobalPause\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMaxSingleOpCost\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"maxCost\",\"type\":\"uint128\",\"internalType\":\"uint128\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setPostOpGasOverhead\",\"inputs\":[{\"name\":\"overhead\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"sweepETH\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"totalAllocated\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unallocatedBalance\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unpauseStrategy\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validatePaymasterUserOp\",\"inputs\":[{\"name\":\"userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"validationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawStrategyFunds\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AllowedSenderSet\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ETHReceived\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ETHSwept\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawn\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"GlobalPauseSet\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxSingleOpCostSet\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"maxCost\",\"type\":\"uint128\",\"indexed\":false,\"internalType\":\"uint128\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PostOpGasOverheadSet\",\"inputs\":[{\"name\":\"overhead\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Reconciled\",\"inputs\":[{\"name\":\"drift\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyCredited\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyDebited\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyFunded\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyPaused\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyUnpaused\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategyWithdrawn\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"ETH_TRANSFER_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXCEEDS_MAX_POST_OP_OVERHEAD\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXCEEDS_SINGLE_OP_CAP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GLOBAL_PAUSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_ENTRYPOINT_DEPOSIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_STRATEGY_BUDGET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_UNALLOCATED_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CALLDATA\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"POST_OP_OVERHEAD_BELOW_MINIMUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGY_PAUSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED_SENDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"WITHDRAW_EXCEEDS_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
 }
 
 // SuperSponsorshipPaymasterABI is the input ABI used to generate the binding from.
@@ -232,6 +232,68 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) DEFAUL
 	return _SuperSponsorshipPaymaster.Contract.DEFAULTADMINROLE(&_SuperSponsorshipPaymaster.CallOpts)
 }
 
+// DEFAULTALLOWEDSENDER is a free data retrieval call binding the contract method 0x8028489e.
+//
+// Solidity: function DEFAULT_ALLOWED_SENDER() view returns(address)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCaller) DEFAULTALLOWEDSENDER(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperSponsorshipPaymaster.contract.Call(opts, &out, "DEFAULT_ALLOWED_SENDER")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// DEFAULTALLOWEDSENDER is a free data retrieval call binding the contract method 0x8028489e.
+//
+// Solidity: function DEFAULT_ALLOWED_SENDER() view returns(address)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) DEFAULTALLOWEDSENDER() (common.Address, error) {
+	return _SuperSponsorshipPaymaster.Contract.DEFAULTALLOWEDSENDER(&_SuperSponsorshipPaymaster.CallOpts)
+}
+
+// DEFAULTALLOWEDSENDER is a free data retrieval call binding the contract method 0x8028489e.
+//
+// Solidity: function DEFAULT_ALLOWED_SENDER() view returns(address)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) DEFAULTALLOWEDSENDER() (common.Address, error) {
+	return _SuperSponsorshipPaymaster.Contract.DEFAULTALLOWEDSENDER(&_SuperSponsorshipPaymaster.CallOpts)
+}
+
+// DEFAULTMAXGAS is a free data retrieval call binding the contract method 0x64317f26.
+//
+// Solidity: function DEFAULT_MAX_GAS() view returns(uint256)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCaller) DEFAULTMAXGAS(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperSponsorshipPaymaster.contract.Call(opts, &out, "DEFAULT_MAX_GAS")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// DEFAULTMAXGAS is a free data retrieval call binding the contract method 0x64317f26.
+//
+// Solidity: function DEFAULT_MAX_GAS() view returns(uint256)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) DEFAULTMAXGAS() (*big.Int, error) {
+	return _SuperSponsorshipPaymaster.Contract.DEFAULTMAXGAS(&_SuperSponsorshipPaymaster.CallOpts)
+}
+
+// DEFAULTMAXGAS is a free data retrieval call binding the contract method 0x64317f26.
+//
+// Solidity: function DEFAULT_MAX_GAS() view returns(uint256)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) DEFAULTMAXGAS() (*big.Int, error) {
+	return _SuperSponsorshipPaymaster.Contract.DEFAULTMAXGAS(&_SuperSponsorshipPaymaster.CallOpts)
+}
+
 // FUNDINGROLE is a free data retrieval call binding the contract method 0xd7bd51f5.
 //
 // Solidity: function FUNDING_ROLE() view returns(bytes32)
@@ -387,6 +449,37 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) VERSIO
 	return _SuperSponsorshipPaymaster.Contract.VERSION(&_SuperSponsorshipPaymaster.CallOpts)
 }
 
+// AllowedSender is a free data retrieval call binding the contract method 0x0361b39c.
+//
+// Solidity: function allowedSender(address strategy) view returns(address)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCaller) AllowedSender(opts *bind.CallOpts, strategy common.Address) (common.Address, error) {
+	var out []interface{}
+	err := _SuperSponsorshipPaymaster.contract.Call(opts, &out, "allowedSender", strategy)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// AllowedSender is a free data retrieval call binding the contract method 0x0361b39c.
+//
+// Solidity: function allowedSender(address strategy) view returns(address)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) AllowedSender(strategy common.Address) (common.Address, error) {
+	return _SuperSponsorshipPaymaster.Contract.AllowedSender(&_SuperSponsorshipPaymaster.CallOpts, strategy)
+}
+
+// AllowedSender is a free data retrieval call binding the contract method 0x0361b39c.
+//
+// Solidity: function allowedSender(address strategy) view returns(address)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) AllowedSender(strategy common.Address) (common.Address, error) {
+	return _SuperSponsorshipPaymaster.Contract.AllowedSender(&_SuperSponsorshipPaymaster.CallOpts, strategy)
+}
+
 // EntryPoint is a free data retrieval call binding the contract method 0xb0d691fe.
 //
 // Solidity: function entryPoint() view returns(address)
@@ -482,7 +575,7 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) GetRol
 
 // GetStrategyBudget is a free data retrieval call binding the contract method 0x2893ed34.
 //
-// Solidity: function getStrategyBudget(address strategy) view returns((uint256,uint256,uint256,bool))
+// Solidity: function getStrategyBudget(address strategy) view returns((uint256,uint256,uint128,bool))
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCaller) GetStrategyBudget(opts *bind.CallOpts, strategy common.Address) (ISuperSponsorshipPaymasterStrategyBudget, error) {
 	var out []interface{}
 	err := _SuperSponsorshipPaymaster.contract.Call(opts, &out, "getStrategyBudget", strategy)
@@ -499,14 +592,14 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCaller) GetStrategyBu
 
 // GetStrategyBudget is a free data retrieval call binding the contract method 0x2893ed34.
 //
-// Solidity: function getStrategyBudget(address strategy) view returns((uint256,uint256,uint256,bool))
+// Solidity: function getStrategyBudget(address strategy) view returns((uint256,uint256,uint128,bool))
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) GetStrategyBudget(strategy common.Address) (ISuperSponsorshipPaymasterStrategyBudget, error) {
 	return _SuperSponsorshipPaymaster.Contract.GetStrategyBudget(&_SuperSponsorshipPaymaster.CallOpts, strategy)
 }
 
 // GetStrategyBudget is a free data retrieval call binding the contract method 0x2893ed34.
 //
-// Solidity: function getStrategyBudget(address strategy) view returns((uint256,uint256,uint256,bool))
+// Solidity: function getStrategyBudget(address strategy) view returns((uint256,uint256,uint128,bool))
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterCallerSession) GetStrategyBudget(strategy common.Address) (ISuperSponsorshipPaymasterStrategyBudget, error) {
 	return _SuperSponsorshipPaymaster.Contract.GetStrategyBudget(&_SuperSponsorshipPaymaster.CallOpts, strategy)
 }
@@ -886,6 +979,27 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactorSession) Re
 	return _SuperSponsorshipPaymaster.Contract.RevokeRole(&_SuperSponsorshipPaymaster.TransactOpts, role, account)
 }
 
+// SetAllowedSender is a paid mutator transaction binding the contract method 0x118fffa1.
+//
+// Solidity: function setAllowedSender(address strategy, address sender) returns()
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactor) SetAllowedSender(opts *bind.TransactOpts, strategy common.Address, sender common.Address) (*types.Transaction, error) {
+	return _SuperSponsorshipPaymaster.contract.Transact(opts, "setAllowedSender", strategy, sender)
+}
+
+// SetAllowedSender is a paid mutator transaction binding the contract method 0x118fffa1.
+//
+// Solidity: function setAllowedSender(address strategy, address sender) returns()
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) SetAllowedSender(strategy common.Address, sender common.Address) (*types.Transaction, error) {
+	return _SuperSponsorshipPaymaster.Contract.SetAllowedSender(&_SuperSponsorshipPaymaster.TransactOpts, strategy, sender)
+}
+
+// SetAllowedSender is a paid mutator transaction binding the contract method 0x118fffa1.
+//
+// Solidity: function setAllowedSender(address strategy, address sender) returns()
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactorSession) SetAllowedSender(strategy common.Address, sender common.Address) (*types.Transaction, error) {
+	return _SuperSponsorshipPaymaster.Contract.SetAllowedSender(&_SuperSponsorshipPaymaster.TransactOpts, strategy, sender)
+}
+
 // SetGlobalPause is a paid mutator transaction binding the contract method 0x69a6b3db.
 //
 // Solidity: function setGlobalPause(bool paused) returns()
@@ -907,23 +1021,23 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactorSession) Se
 	return _SuperSponsorshipPaymaster.Contract.SetGlobalPause(&_SuperSponsorshipPaymaster.TransactOpts, paused)
 }
 
-// SetMaxSingleOpCost is a paid mutator transaction binding the contract method 0x3a00cf58.
+// SetMaxSingleOpCost is a paid mutator transaction binding the contract method 0x38957d2a.
 //
-// Solidity: function setMaxSingleOpCost(address strategy, uint256 maxCost) returns()
+// Solidity: function setMaxSingleOpCost(address strategy, uint128 maxCost) returns()
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactor) SetMaxSingleOpCost(opts *bind.TransactOpts, strategy common.Address, maxCost *big.Int) (*types.Transaction, error) {
 	return _SuperSponsorshipPaymaster.contract.Transact(opts, "setMaxSingleOpCost", strategy, maxCost)
 }
 
-// SetMaxSingleOpCost is a paid mutator transaction binding the contract method 0x3a00cf58.
+// SetMaxSingleOpCost is a paid mutator transaction binding the contract method 0x38957d2a.
 //
-// Solidity: function setMaxSingleOpCost(address strategy, uint256 maxCost) returns()
+// Solidity: function setMaxSingleOpCost(address strategy, uint128 maxCost) returns()
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) SetMaxSingleOpCost(strategy common.Address, maxCost *big.Int) (*types.Transaction, error) {
 	return _SuperSponsorshipPaymaster.Contract.SetMaxSingleOpCost(&_SuperSponsorshipPaymaster.TransactOpts, strategy, maxCost)
 }
 
-// SetMaxSingleOpCost is a paid mutator transaction binding the contract method 0x3a00cf58.
+// SetMaxSingleOpCost is a paid mutator transaction binding the contract method 0x38957d2a.
 //
-// Solidity: function setMaxSingleOpCost(address strategy, uint256 maxCost) returns()
+// Solidity: function setMaxSingleOpCost(address strategy, uint128 maxCost) returns()
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactorSession) SetMaxSingleOpCost(strategy common.Address, maxCost *big.Int) (*types.Transaction, error) {
 	return _SuperSponsorshipPaymaster.Contract.SetMaxSingleOpCost(&_SuperSponsorshipPaymaster.TransactOpts, strategy, maxCost)
 }
@@ -1052,6 +1166,304 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterSession) Receive() (*
 // Solidity: receive() payable returns()
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterTransactorSession) Receive() (*types.Transaction, error) {
 	return _SuperSponsorshipPaymaster.Contract.Receive(&_SuperSponsorshipPaymaster.TransactOpts)
+}
+
+// SuperSponsorshipPaymasterAllowedSenderSetIterator is returned from FilterAllowedSenderSet and is used to iterate over the raw logs and unpacked data for AllowedSenderSet events raised by the SuperSponsorshipPaymaster contract.
+type SuperSponsorshipPaymasterAllowedSenderSetIterator struct {
+	Event *SuperSponsorshipPaymasterAllowedSenderSet // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperSponsorshipPaymasterAllowedSenderSetIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperSponsorshipPaymasterAllowedSenderSet)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperSponsorshipPaymasterAllowedSenderSet)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperSponsorshipPaymasterAllowedSenderSetIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperSponsorshipPaymasterAllowedSenderSetIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperSponsorshipPaymasterAllowedSenderSet represents a AllowedSenderSet event raised by the SuperSponsorshipPaymaster contract.
+type SuperSponsorshipPaymasterAllowedSenderSet struct {
+	Strategy common.Address
+	Sender   common.Address
+	Raw      types.Log // Blockchain specific contextual infos
+}
+
+// FilterAllowedSenderSet is a free log retrieval operation binding the contract event 0x13e94e9365f5f2210a93de377460e99ea12bbbf981ff6eead1b16c7a83d24ad2.
+//
+// Solidity: event AllowedSenderSet(address indexed strategy, address indexed sender)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) FilterAllowedSenderSet(opts *bind.FilterOpts, strategy []common.Address, sender []common.Address) (*SuperSponsorshipPaymasterAllowedSenderSetIterator, error) {
+
+	var strategyRule []interface{}
+	for _, strategyItem := range strategy {
+		strategyRule = append(strategyRule, strategyItem)
+	}
+	var senderRule []interface{}
+	for _, senderItem := range sender {
+		senderRule = append(senderRule, senderItem)
+	}
+
+	logs, sub, err := _SuperSponsorshipPaymaster.contract.FilterLogs(opts, "AllowedSenderSet", strategyRule, senderRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperSponsorshipPaymasterAllowedSenderSetIterator{contract: _SuperSponsorshipPaymaster.contract, event: "AllowedSenderSet", logs: logs, sub: sub}, nil
+}
+
+// WatchAllowedSenderSet is a free log subscription operation binding the contract event 0x13e94e9365f5f2210a93de377460e99ea12bbbf981ff6eead1b16c7a83d24ad2.
+//
+// Solidity: event AllowedSenderSet(address indexed strategy, address indexed sender)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) WatchAllowedSenderSet(opts *bind.WatchOpts, sink chan<- *SuperSponsorshipPaymasterAllowedSenderSet, strategy []common.Address, sender []common.Address) (event.Subscription, error) {
+
+	var strategyRule []interface{}
+	for _, strategyItem := range strategy {
+		strategyRule = append(strategyRule, strategyItem)
+	}
+	var senderRule []interface{}
+	for _, senderItem := range sender {
+		senderRule = append(senderRule, senderItem)
+	}
+
+	logs, sub, err := _SuperSponsorshipPaymaster.contract.WatchLogs(opts, "AllowedSenderSet", strategyRule, senderRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperSponsorshipPaymasterAllowedSenderSet)
+				if err := _SuperSponsorshipPaymaster.contract.UnpackLog(event, "AllowedSenderSet", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseAllowedSenderSet is a log parse operation binding the contract event 0x13e94e9365f5f2210a93de377460e99ea12bbbf981ff6eead1b16c7a83d24ad2.
+//
+// Solidity: event AllowedSenderSet(address indexed strategy, address indexed sender)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) ParseAllowedSenderSet(log types.Log) (*SuperSponsorshipPaymasterAllowedSenderSet, error) {
+	event := new(SuperSponsorshipPaymasterAllowedSenderSet)
+	if err := _SuperSponsorshipPaymaster.contract.UnpackLog(event, "AllowedSenderSet", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperSponsorshipPaymasterETHReceivedIterator is returned from FilterETHReceived and is used to iterate over the raw logs and unpacked data for ETHReceived events raised by the SuperSponsorshipPaymaster contract.
+type SuperSponsorshipPaymasterETHReceivedIterator struct {
+	Event *SuperSponsorshipPaymasterETHReceived // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperSponsorshipPaymasterETHReceivedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperSponsorshipPaymasterETHReceived)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperSponsorshipPaymasterETHReceived)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperSponsorshipPaymasterETHReceivedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperSponsorshipPaymasterETHReceivedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperSponsorshipPaymasterETHReceived represents a ETHReceived event raised by the SuperSponsorshipPaymaster contract.
+type SuperSponsorshipPaymasterETHReceived struct {
+	From   common.Address
+	Amount *big.Int
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterETHReceived is a free log retrieval operation binding the contract event 0xbfe611b001dfcd411432f7bf0d79b82b4b2ee81511edac123a3403c357fb972a.
+//
+// Solidity: event ETHReceived(address indexed from, uint256 amount)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) FilterETHReceived(opts *bind.FilterOpts, from []common.Address) (*SuperSponsorshipPaymasterETHReceivedIterator, error) {
+
+	var fromRule []interface{}
+	for _, fromItem := range from {
+		fromRule = append(fromRule, fromItem)
+	}
+
+	logs, sub, err := _SuperSponsorshipPaymaster.contract.FilterLogs(opts, "ETHReceived", fromRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperSponsorshipPaymasterETHReceivedIterator{contract: _SuperSponsorshipPaymaster.contract, event: "ETHReceived", logs: logs, sub: sub}, nil
+}
+
+// WatchETHReceived is a free log subscription operation binding the contract event 0xbfe611b001dfcd411432f7bf0d79b82b4b2ee81511edac123a3403c357fb972a.
+//
+// Solidity: event ETHReceived(address indexed from, uint256 amount)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) WatchETHReceived(opts *bind.WatchOpts, sink chan<- *SuperSponsorshipPaymasterETHReceived, from []common.Address) (event.Subscription, error) {
+
+	var fromRule []interface{}
+	for _, fromItem := range from {
+		fromRule = append(fromRule, fromItem)
+	}
+
+	logs, sub, err := _SuperSponsorshipPaymaster.contract.WatchLogs(opts, "ETHReceived", fromRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperSponsorshipPaymasterETHReceived)
+				if err := _SuperSponsorshipPaymaster.contract.UnpackLog(event, "ETHReceived", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseETHReceived is a log parse operation binding the contract event 0xbfe611b001dfcd411432f7bf0d79b82b4b2ee81511edac123a3403c357fb972a.
+//
+// Solidity: event ETHReceived(address indexed from, uint256 amount)
+func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) ParseETHReceived(log types.Log) (*SuperSponsorshipPaymasterETHReceived, error) {
+	event := new(SuperSponsorshipPaymasterETHReceived)
+	if err := _SuperSponsorshipPaymaster.contract.UnpackLog(event, "ETHReceived", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // SuperSponsorshipPaymasterETHSweptIterator is returned from FilterETHSwept and is used to iterate over the raw logs and unpacked data for ETHSwept events raised by the SuperSponsorshipPaymaster contract.
@@ -1552,9 +1964,9 @@ type SuperSponsorshipPaymasterMaxSingleOpCostSet struct {
 	Raw      types.Log // Blockchain specific contextual infos
 }
 
-// FilterMaxSingleOpCostSet is a free log retrieval operation binding the contract event 0x0d39e25b23eefdb97cc74b567080ccc4ec5695b8b5dacea60bd464bcc7a6bafe.
+// FilterMaxSingleOpCostSet is a free log retrieval operation binding the contract event 0x8086da90fd25529adf018f6487711340d420e7e3bdc6ced90d06a81e189e94e3.
 //
-// Solidity: event MaxSingleOpCostSet(address indexed strategy, uint256 maxCost)
+// Solidity: event MaxSingleOpCostSet(address indexed strategy, uint128 maxCost)
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) FilterMaxSingleOpCostSet(opts *bind.FilterOpts, strategy []common.Address) (*SuperSponsorshipPaymasterMaxSingleOpCostSetIterator, error) {
 
 	var strategyRule []interface{}
@@ -1569,9 +1981,9 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) FilterMaxSi
 	return &SuperSponsorshipPaymasterMaxSingleOpCostSetIterator{contract: _SuperSponsorshipPaymaster.contract, event: "MaxSingleOpCostSet", logs: logs, sub: sub}, nil
 }
 
-// WatchMaxSingleOpCostSet is a free log subscription operation binding the contract event 0x0d39e25b23eefdb97cc74b567080ccc4ec5695b8b5dacea60bd464bcc7a6bafe.
+// WatchMaxSingleOpCostSet is a free log subscription operation binding the contract event 0x8086da90fd25529adf018f6487711340d420e7e3bdc6ced90d06a81e189e94e3.
 //
-// Solidity: event MaxSingleOpCostSet(address indexed strategy, uint256 maxCost)
+// Solidity: event MaxSingleOpCostSet(address indexed strategy, uint128 maxCost)
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) WatchMaxSingleOpCostSet(opts *bind.WatchOpts, sink chan<- *SuperSponsorshipPaymasterMaxSingleOpCostSet, strategy []common.Address) (event.Subscription, error) {
 
 	var strategyRule []interface{}
@@ -1611,9 +2023,9 @@ func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) WatchMaxSin
 	}), nil
 }
 
-// ParseMaxSingleOpCostSet is a log parse operation binding the contract event 0x0d39e25b23eefdb97cc74b567080ccc4ec5695b8b5dacea60bd464bcc7a6bafe.
+// ParseMaxSingleOpCostSet is a log parse operation binding the contract event 0x8086da90fd25529adf018f6487711340d420e7e3bdc6ced90d06a81e189e94e3.
 //
-// Solidity: event MaxSingleOpCostSet(address indexed strategy, uint256 maxCost)
+// Solidity: event MaxSingleOpCostSet(address indexed strategy, uint128 maxCost)
 func (_SuperSponsorshipPaymaster *SuperSponsorshipPaymasterFilterer) ParseMaxSingleOpCostSet(log types.Log) (*SuperSponsorshipPaymasterMaxSingleOpCostSet, error) {
 	event := new(SuperSponsorshipPaymasterMaxSingleOpCostSet)
 	if err := _SuperSponsorshipPaymaster.contract.UnpackLog(event, "MaxSingleOpCostSet", log); err != nil {

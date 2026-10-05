@@ -3195,15 +3195,27 @@ contract HookSizingInterfaceTest is Helpers {
 
 
     /*//////////////////////////////////////////////////////////////
-           AAVE V4 IDLE MONEY_MARKET (SUP-21142): exact 157-byte layout
+        AAVE V4 IDLE MONEY_MARKET (SUP-21254): exact 189-byte layout
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev oracleId(32) + reserveKey(20) + underlying(20) + spoke(20) + reserveId(32) + amount@124(32) + bool@156 = 157
+    /// @dev oracleId(32) + marketKey(20) + underlying(20) + spoke(20) + supplyId(32), then amount at
+    ///      offset 124, the canonical bool at 156, and borrowReserveId at 157 = 189 total
     function _buildAaveV4IdleData(uint256 amt, bool usePrev) internal pure returns (bytes memory) {
         address spoke = address(0xCC);
-        uint256 reserveId = 7;
-        address key = address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))));
-        return abi.encodePacked(bytes32(uint256(1)), key, address(0xAA), spoke, reserveId, amt, usePrev);
+        uint256 supplyReserveId = 7;
+        uint256 borrowReserveId = 1; // SUP-21254: identity only, completes the market key
+        address key = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encode(spoke, supplyReserveId, borrowReserveId, keccak256("AaveV4ReserveKey.MARKET"))
+                    )
+                )
+            )
+        );
+        return abi.encodePacked(
+            bytes32(uint256(1)), key, address(0xAA), spoke, supplyReserveId, amt, usePrev, borrowReserveId
+        );
     }
 
     function test_AmountRoles_ASSETS_AaveV4Lend() public view {
@@ -3216,11 +3228,11 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_DecodeReplace_Roundtrip_AaveV4Lend() public view {
         bytes memory data = _buildAaveV4IdleData(2e6, false);
-        assertEq(data.length, 157);
+        assertEq(data.length, 189);
         uint256[] memory a = new uint256[](1);
         a[0] = 8e6;
         bytes memory replaced = aaveV4Lend.replaceCalldataAmounts(data, a);
-        assertEq(replaced.length, 157);
+        assertEq(replaced.length, 189);
         assertEq(aaveV4Lend.decodeAmounts(replaced)[0], 8e6);
         assertEq(aaveV4Lend.inspect(replaced), aaveV4Lend.inspect(data), "identity survives sizing");
     }

@@ -31,7 +31,7 @@ var (
 
 // IPendlePTAmortizedOracleMetaData contains all meta data concerning the IPendlePTAmortizedOracle contract.
 var IPendlePTAmortizedOracleMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"getBookValue\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"bookValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"hasPosition\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"exists\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"recordPurchase\",\"inputs\":[{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sySpent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"ptAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"recordRedemption\",\"inputs\":[{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ptSold\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"TWAP_DURATION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutput\",\"inputs\":[{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"expectedUnderlying\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sharesIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"assetsOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBookValue\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"bookValue\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"hasPosition\",\"inputs\":[{\"name\":\"strategy\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"exists\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"recordPurchase\",\"inputs\":[{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sySpent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"ptAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"recordRedemption\",\"inputs\":[{\"name\":\"market\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ptSold\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"}]",
 }
 
 // IPendlePTAmortizedOracleABI is the input ABI used to generate the binding from.
@@ -178,6 +178,68 @@ func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleTransactorRaw) Transfer
 // Transact invokes the (paid) contract method with params as input values.
 func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _IPendlePTAmortizedOracle.Contract.contract.Transact(opts, method, params...)
+}
+
+// TWAPDURATION is a free data retrieval call binding the contract method 0x879ac8f8.
+//
+// Solidity: function TWAP_DURATION() view returns(uint32)
+func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleCaller) TWAPDURATION(opts *bind.CallOpts) (uint32, error) {
+	var out []interface{}
+	err := _IPendlePTAmortizedOracle.contract.Call(opts, &out, "TWAP_DURATION")
+
+	if err != nil {
+		return *new(uint32), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(uint32)).(*uint32)
+
+	return out0, err
+
+}
+
+// TWAPDURATION is a free data retrieval call binding the contract method 0x879ac8f8.
+//
+// Solidity: function TWAP_DURATION() view returns(uint32)
+func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleSession) TWAPDURATION() (uint32, error) {
+	return _IPendlePTAmortizedOracle.Contract.TWAPDURATION(&_IPendlePTAmortizedOracle.CallOpts)
+}
+
+// TWAPDURATION is a free data retrieval call binding the contract method 0x879ac8f8.
+//
+// Solidity: function TWAP_DURATION() view returns(uint32)
+func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleCallerSession) TWAPDURATION() (uint32, error) {
+	return _IPendlePTAmortizedOracle.Contract.TWAPDURATION(&_IPendlePTAmortizedOracle.CallOpts)
+}
+
+// GetAssetOutput is a free data retrieval call binding the contract method 0xaa5815fd.
+//
+// Solidity: function getAssetOutput(address market, address expectedUnderlying, uint256 sharesIn) view returns(uint256 assetsOut)
+func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleCaller) GetAssetOutput(opts *bind.CallOpts, market common.Address, expectedUnderlying common.Address, sharesIn *big.Int) (*big.Int, error) {
+	var out []interface{}
+	err := _IPendlePTAmortizedOracle.contract.Call(opts, &out, "getAssetOutput", market, expectedUnderlying, sharesIn)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetAssetOutput is a free data retrieval call binding the contract method 0xaa5815fd.
+//
+// Solidity: function getAssetOutput(address market, address expectedUnderlying, uint256 sharesIn) view returns(uint256 assetsOut)
+func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleSession) GetAssetOutput(market common.Address, expectedUnderlying common.Address, sharesIn *big.Int) (*big.Int, error) {
+	return _IPendlePTAmortizedOracle.Contract.GetAssetOutput(&_IPendlePTAmortizedOracle.CallOpts, market, expectedUnderlying, sharesIn)
+}
+
+// GetAssetOutput is a free data retrieval call binding the contract method 0xaa5815fd.
+//
+// Solidity: function getAssetOutput(address market, address expectedUnderlying, uint256 sharesIn) view returns(uint256 assetsOut)
+func (_IPendlePTAmortizedOracle *IPendlePTAmortizedOracleCallerSession) GetAssetOutput(market common.Address, expectedUnderlying common.Address, sharesIn *big.Int) (*big.Int, error) {
+	return _IPendlePTAmortizedOracle.Contract.GetAssetOutput(&_IPendlePTAmortizedOracle.CallOpts, market, expectedUnderlying, sharesIn)
 }
 
 // GetBookValue is a free data retrieval call binding the contract method 0x38caeb2a.

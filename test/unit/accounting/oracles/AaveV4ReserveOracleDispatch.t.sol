@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import "forge-std/Test.sol";
 
 import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { IAaveV4MarketPosition } from "../../../../src/interfaces/accounting/IAaveV4MarketPosition.sol";
 import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { IAaveV4Spoke } from "../../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
@@ -1054,41 +1055,80 @@ contract AaveV4ReserveOracleDispatchTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-      MARKET KEYS ARE NOT ORACLE-RESOLVABLE (SUP-21239)
-    //////////////////////////////////////////////////////////////*/
+    MARKET KEYS RESOLVE TO THE COLLATERAL LEG ONLY (SUP-21255)
+     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The namespace split, pinned at the oracle boundary: a REGISTERED market key is still not a
-    ///         reserve, so every registry-resolving read fails closed on it. This is what makes it safe for
-    ///         the V2 LOAN hooks to carry a market key in the same header field the idle pair uses for a
-    ///         reserve key — a market key can never be mistaken for a position.
-    /// @dev If a future change ever makes the oracle resolve `_markets`, market-keyed NAV would report the
-    ///      collateral reserve's supplied amount once per market sharing it — on the live MAG7 spoke, seven
-    ///      times, since all seven equity reserves borrow the one USDC reserve. A caller summing a portfolio
-    ///      would inflate it accordingly; nothing in the aggregator de-duplicates by underlying position.
-    ///      That is the double count this test exists to prevent.
-    function test_marketKey_isNotResolvableByTheOracle() public {
+    /// @notice SUP-21255: a registered market key RESOLVES, and resolves to exactly one thing — the
+    ///         COLLATERAL (supply) leg. The sideless `IYieldSourceOracle` surface still returns one number
+    ///         in one asset, debt is never reachable through a market key, and the two legs are never
+    ///         netted. `getMarketPosition` is the only read that returns both.
+    /// @dev WHY THE DEBT LEG MUST STAY UNREACHABLE HERE: one reserve participates in N markets (on live
+    ///      MAG7 all seven equity markets borrow the one USDC reserve), so if a market key resolved to its
+    ///      debt leg, seven market keys would each report the same USDC debt and a caller summing them would
+    ///      inflate the liability sevenfold. Nothing in the aggregator de-duplicates by underlying position.
+    ///      Collateral legs differ per market, so resolving to the supply leg is summable; that asymmetry is
+    ///      the whole reason the resolution is one-directional.
+    function test_marketKey_resolvesToTheCollateralSupplyLegOnly() public {
         address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
 
         assertTrue(registry.isMarketRegistered(marketKey), "precondition: the market IS registered");
         assertFalse(registry.isRegistered(marketKey), "precondition: it is not a reserve");
 
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.decimals(marketKey);
-
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getPricePerShare(marketKey);
-
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getBalanceOfOwner(marketKey, account1);
-
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getTVL(marketKey);
-
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getTVLByOwnerOfShares(marketKey, account1);
-
+        // resolves to the collateral reserve's SUPPLY leg, in that asset's units, identity PPS
+        assertEq(oracle.decimals(marketKey), oracle.decimals(wethKey), "collateral leg decimals");
+        assertEq(oracle.getPricePerShare(marketKey), oracle.getPricePerShare(wethKey), "identity PPS");
+        assertEq(
+            oracle.getBalanceOfOwner(marketKey, account1),
+            oracle.getBalanceOfOwner(wethKey, account1),
+            "balance is the collateral reserve's supplied assets"
+        );
+        assertEq(oracle.getTVL(marketKey), oracle.getTVL(wethKey), "TVL is the collateral reserve's");
+        assertEq(
+            oracle.getTVLByOwnerOfShares(marketKey, account1),
+            oracle.getTVLByOwnerOfShares(wethKey, account1),
+            "owner TVL follows the balance"
+        );
+        // `sideOf` is the one registry-resolving read that deliberately does NOT resolve market keys: it is
+        // the RESERVE-namespace classifier and the probe migrations use to tell the namespaces apart, so
+        // answering SUPPLY for a key whose `isRegistered` is false would destroy exactly the discrimination
+        // it exists to provide.
         vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
         oracle.sideOf(marketKey);
+
+        // and NEVER to the debt leg: the loan reserve's debt is not reachable through the market key
+        assertTrue(
+            oracle.getBalanceOfOwner(marketKey, account1) != oracle.getBalanceOfOwner(usdcDebtKey, account1),
+            "a market key must not report the debt leg"
+        );
+    }
+
+    /// @notice `getMarketPosition` is the read that returns BOTH legs, un-netted, with the decimals needed
+    ///         to price them — and it refuses a reserve key, so the two namespaces never fall back onto each
+    ///         other in either direction.
+    function test_getMarketPosition_returnsBothLegsRawAndRefusesReserveKeys() public {
+        address marketKey = registry.registerMarket(address(spoke), WETH_RESERVE_ID, USDC_RESERVE_ID);
+
+        IAaveV4MarketPosition.MarketPosition memory p = oracle.getMarketPosition(marketKey, account1);
+
+        assertEq(p.spoke, address(spoke), "spoke");
+        assertEq(p.supplyReserveId, WETH_RESERVE_ID, "collateral reserve id");
+        assertEq(p.borrowReserveId, USDC_RESERVE_ID, "loan reserve id");
+        assertEq(p.collateralToken, weth, "collateral token");
+        assertEq(p.loanToken, usdc, "loan token");
+        assertEq(p.collateralDecimals, 18, "collateral decimals");
+        assertEq(p.loanDecimals, 6, "loan decimals");
+
+        // raw, un-netted, and each equal to the matching per-leg read
+        assertEq(p.suppliedAssets, oracle.getBalanceOfOwner(wethKey, account1), "supplied leg is raw");
+        assertEq(p.debtAssets, oracle.getBalanceOfOwner(usdcDebtKey, account1), "debt leg is drawn + premium");
+        assertGt(p.suppliedAssets, 0, "fixture sanity: collateral is nonzero");
+        assertGt(p.debtAssets, 0, "fixture sanity: debt is nonzero");
+
+        // a reserve key is not a market
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        oracle.getMarketPosition(wethKey, account1);
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        oracle.getMarketPosition(usdcDebtKey, account1);
     }
 
     /// @notice The market key of a pair is distinct from all four of its legs' NAV keys, so the oracle keeps

@@ -52,16 +52,21 @@ import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/
 ///      is never called: `marketKey` appears only in the zero-check, the pin and the inspector payload, never
 ///      as an `Execution.target` or an approve spender. (The Spoke is the only PROVIDER target; the builds also
 ///      target `loanToken` / `collateralToken` for `IERC20.approve`, with the Spoke as spender.) The key is
-///      also not oracle-resolvable: `AaveV4ReserveOracle` reads reserve legs only, so a market key passed to
-///      any of its REGISTRY-RESOLVING reads reverts `RESERVE_NOT_REGISTERED`. Its `pure` identity converters
-///      (`getShareOutput` / `getAssetOutput` / …) ignore the yield-source argument and still return a number
-///      for any address — they read no state, so that is arithmetic, not a NAV read. `yieldSourceOracleId` (offset 0)
+///      resolvable by `AaveV4ReserveOracle` only one-directionally (SUP-21255): a market key resolves to its
+///      COLLATERAL leg, so a sideless read returns that reserve's supplied assets in that asset's units. The
+///      DEBT leg is never reachable from a market key and the legs are never netted; `getMarketPosition`
+///      returns both. Its `pure` identity converters (`getShareOutput` / `getAssetOutput` / …) ignore the
+///      yield-source argument and return a number for any address — they read no state, so that is
+///      arithmetic, not a NAV read. `yieldSourceOracleId` (offset 0)
 /// must be nonzero (ORACLE_ID_NOT_VALID) and is otherwise identity for off-chain consumers: LOAN hooks are
-///      NONACCOUNTING, so the executor never reads the header for them and the market key is never a
-///      SuperLedger key. NAV stays per reserve leg (`computeReserveKey` / `computeDebtKey`), which is also why
-///      the V1 LOAN six and the idle INFLOW/OUTFLOW pair deliberately keep the reserve-key rule.
-///      Registering a market in `AaveV4ReserveRegistryV2` records its binding for off-chain consumers; it does
-///      NOT gate execution, because these hooks never call the registry.
+///      NONACCOUNTING, so the executor never reads the header for THESE hooks and a market key is never a
+///      SuperLedger key for them. NAV stays per reserve leg (`computeReserveKey` / `computeDebtKey`).
+///      TWO SCOPE NOTES, both changed after this file was first written: the V1 LOAN six still pin the
+///      RESERVE key (legacy, not re-pinned), while the idle INFLOW/OUTFLOW pair moved to the MARKET key in
+///      SUP-21254 — and for that pair the header IS a SuperLedger key and an oracle argument, which is why
+///      an unregistered market reverts their accounting. Registering a market records its binding for
+///      off-chain consumers; for THESE hooks it does not gate execution, because they never call the
+///      registry.
 ///      SECURITY INVARIANT: onBehalfOf is always hardcoded to `account` — never arbitrary.
 abstract contract BaseAaveV4LoanHookV2 is BaseLoanHookV2 {
     using HookDataDecoder for bytes;

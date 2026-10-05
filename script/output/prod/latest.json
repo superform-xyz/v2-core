@@ -585,11 +585,11 @@
         "AaveV3WithdrawHook": "0xA8c040e9C4108A4d8Ed301bdd20A66126265AA5C",
         "AaveV4BorrowHookV2": "0xa8f63E4B3bB2b5204ad0C4a2a6a15B0F11729ed8",
         "AaveV4DebtOracle": "0xeb097a8e0219938e25D5eAB0724aa92715cD54C8",
-        "AaveV4LendHook": "0x51a2C8c6c427f5EB14b0dF826F87D518c8fFfEa0",
-        "AaveV4RedeemHook": "0x320Fa43658093BA332293AA85D86608fb0ffFEbA",
+        "AaveV4LendHook": "0xD39deF3542B33d5b309A8D4e69D7a8075e736Fd5",
+        "AaveV4RedeemHook": "0x06fD9C9272a343aab5919fA3041D0a763E3cB4cC",
         "AaveV4RepayAndWithdrawHookV2": "0x068709a98221898FE27635f47d93bf20bAA21982",
         "AaveV4RepayHookV2": "0x86E7A61500925aFd9B5786823d7ae40A5DfF0fbF",
-        "AaveV4ReserveOracle": "0x1Cc0C873Ac9397D5e0aA301B2f594A95E8d573bC",
+        "AaveV4ReserveOracle": "0x5B79460f8e3587dF646AEc5B159EECEFA4A9d146",
         "AaveV4ReserveRegistry": "0x6f0d5f0Ed77511F5f23942e0c49ae5503DA9fa93",
         "AaveV4ReserveRegistryV2": "0x9cc14A9d6826427b6af5533a4613bB67784BB4Db",
         "AaveV4SupplyAndBorrowHookV2": "0xF048EbB90af93cC8783645E3E790a8E770f54cb2",
@@ -2473,5 +2473,5 @@
       }
     }
   },
-  "updated_at": "2026-10-04T22:09:05Z"
+  "updated_at": "2026-10-05T07:48:15Z"
 }

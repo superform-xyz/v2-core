@@ -82,9 +82,13 @@ import { AaveV4ReserveKey } from "../../libraries/AaveV4ReserveKey.sol";
 ///        * reserve keys (`_reserves`) are ACCOUNTING / NAV identity: `AaveV4ReserveOracle` resolves them,
 ///          and the idle INFLOW / OUTFLOW pair posts SuperLedger accounting under them.
 ///        * market keys (`_markets`) are INTENT identity: the header `yieldSource` of the V2 LOAN hooks,
-///          hence merkle leaves, vault whitelists and off-chain indexing. A market key is NEVER passed to an
-///          oracle and is NEVER a ledger key — `AaveV4ReserveOracle` reads `_reserves` only, so a market key
-///          handed to it reverts `RESERVE_NOT_REGISTERED` (fail-closed), which is pinned by test.
+///          hence merkle leaves, vault whitelists and off-chain indexing. `AaveV4ReserveOracle` resolves a
+///          market key ONE-DIRECTIONALLY (SUP-21255): through `getMarketInfo` to the market's COLLATERAL
+///          leg, so its sideless reads keep returning one number in one asset. The DEBT leg is never
+///          reachable from a market key — one reserve is borrowed by N markets, so market-keyed debt would
+///          be counted once per market — and the legs are never netted. `getMarketPosition` returns both
+///          raw legs, and `getOwnerSnapshot` de-duplicates legs across a requested set; both are pinned by
+///          test.
 ///      Separate mappings, plus the defensive `KEY_NAMESPACE_COLLISION` guard on all THREE registration paths
 ///      (`registerReserve` checks both leg keys, `repairLeg` checks the repaired key, `registerMarket` checks
 ///      the market key), are what keep one 20-byte value from meaning a reserve leg here and a market there.
@@ -331,9 +335,11 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     mapping(address reserveKey => uint256 executeAfter) public pendingDeregistrations;
 
     /// @notice Registered markets indexed by their pseudo-address market key
-    /// @dev A SEPARATE mapping from `_reserves` on purpose: market keys are intent identity and must never be
-    ///      resolvable as a reserve leg. `AaveV4ReserveOracle` only ever reads `_reserves`, so a market key
-    ///      handed to it reverts `RESERVE_NOT_REGISTERED` — fail-closed by construction.
+    /// @dev A SEPARATE mapping from `_reserves` on purpose: a key means a market here or a reserve leg
+    ///      there, never both (`KEY_NAMESPACE_COLLISION` guards all three write paths). The oracle crosses
+    ///      the two namespaces in ONE direction only (SUP-21255): it resolves a market key to that market's
+    ///      COLLATERAL leg for its sideless reads, and the DEBT leg is never reachable that way, because one
+    ///      reserve is borrowed by N markets and market-keyed debt would be counted once per market.
     mapping(address marketKey => MarketInfo) private _markets;
 
     /// @notice Pending market deregistrations: marketKey => timestamp after which execution is allowed
@@ -681,9 +687,24 @@ contract AaveV4ReserveRegistryV2 is AccessControl {
     /// @dev Mirrors the reserve flow: `executeDeregisterMarket` after the timelock, `cancelDeregisterMarket`
     ///      to abort, re-proposing extends but never shortens, and proposals never expire (same ops runbook
     ///      rule — alert on a proposal with no matching Deregistered/Cancelled event).
-    /// @dev SAFETY: a deregistered market key stops resolving through `getMarketInfo`, which off-chain
-    ///      consumers use to join a signed intent back to its reserve legs. Deregister only after no root
-    ///      names this market. It does NOT stop the hooks accepting the key — the pin is pure derivation.
+    /// @dev SAFETY — READ THIS BEFORE PROPOSING. Two distinct hazards, and the second is new:
+    ///      (1) a deregistered market key stops resolving through `getMarketInfo`, which off-chain consumers
+    ///          use to join a signed intent back to its reserve legs, so deregister only after no root names
+    ///          this market. The pin itself is pure derivation, so this does NOT stop the hooks accepting
+    ///          the key.
+    ///      (2) SINCE SUP-21254 THE IDLE PAIR'S LEDGER KEY IS A MARKET KEY. `AaveV4LendHook` is INFLOW and
+    ///          `AaveV4RedeemHook` is OUTFLOW, so `SuperExecutorBase._updateAccounting` resolves the header
+    ///          through `AaveV4ReserveOracle`, which reverts `RESERVE_NOT_REGISTERED` for an unregistered
+    ///          market. Deregistering a market under which an account still holds an OPEN idle position
+    ///          therefore bricks that account's redeem through Superform accounting — it could only exit by
+    ///          calling the Spoke directly, outside the ledger. There is no on-chain refcount for this: the
+    ///          registry cannot see user positions, so it cannot enforce it the way `marketRefs` enforces the
+    ///          reserve-leg direction.
+    ///      OPS RULE, therefore: before proposing a market used by the idle pair, confirm no account holds a
+    ///      live idle position under it (`AaveV4ReserveOracle.getBalanceOfOwner(marketKey, account)` and the
+    ///      ledger's `usersAccumulatorShares(account, marketKey)` must both be zero for every holder). The
+    ///      2-day timelock is the window in which to check. Deregistering a LOAN-only market carries hazard
+    ///      (1) alone, because LOAN hooks are NONACCOUNTING.
     /// @param marketKey The pseudo-address to deregister
     function proposeDeregisterMarket(address marketKey) external onlyRole(MARKET_MANAGER_ROLE) {
         if (!_markets[marketKey].registered) revert MARKET_NOT_REGISTERED();

@@ -33,15 +33,20 @@ import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4Re
 ///         yet deployed) and `AaveV4ReserveRegistryV2` now share — so the idle pair is re-pinned as well.
 ///         SUP-21239 (header = MARKET key) then re-pinned exactly SEVEN artifacts: the six V2 LOAN hooks
 ///         (composite trio + standalone trio) and `AaveV4ReserveRegistryV2`, which gained the market
-///         namespace. Deliberately UNMOVED, and asserted below: the V1 LOAN six (legacy, still on the
-///         reserve-key rule), the idle MONEY_MARKET pair (no borrow reserve in its 157-byte layout, and its
-///         header is a SuperLedger key), V1 registry, and `AaveV4ReserveOracle` — its source is untouched,
-///         because market keys are deliberately never oracle-resolvable. Adding `computeMarketKey` to
-///         `AaveV4ReserveKey` moved none of the unmoved eight: being `internal` and unreferenced there it is
-///         dead-code-eliminated, which `test_LoanV1_BytecodePinned` / `test_IdleHooks_BytecodePinned` prove
-///         empirically. The previously deployed V2 hook addresses stay live for roots signed under the old
-///         rule; a NEW address paired with an old reserve-keyed header reverts `MARKET_KEY_MISMATCH`
-///         (fail-closed, the inverse of a silently-accepted stale header).
+///         namespace.
+///         SUP-21254 then moved the idle MONEY_MARKET pair onto the market key too — its layout grew
+///         157 -> 189 bytes (`borrowReserveId` appended, every prior offset unchanged) and its header became
+///         both a market key and a SuperLedger key — and SUP-21255 / SUP-21256 moved `AaveV4ReserveOracle`
+///         (market-key resolution, `getMarketPosition`, market-keyed `getOwnerSnapshot`). So TEN artifacts
+///         have moved in total across the three tickets: registry V2, the six V2 LOAN hooks, the idle pair
+///         and the oracle.
+///         Deliberately UNMOVED, and asserted below: the V1 LOAN six (legacy, still on the reserve-key rule
+///         via `AaveV4ReserveKey.requireHeaderKey`) and the V1 registry. Adding `computeMarketKey` to
+///         `AaveV4ReserveKey` moved neither: being `internal` and unreferenced by them it is
+///         dead-code-eliminated, which `test_LoanV1_BytecodePinned` proves empirically.
+///         The previously deployed addresses stay live for roots signed under the old rules; a NEW address
+///         paired with an old header reverts (`MARKET_KEY_MISMATCH` for a stale key, `INVALID_DATA_LENGTH`
+///         for a stale 157-byte idle body) — fail-closed in both directions, never fail-open.
 contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function _locked(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode/", name, ".json"))));
@@ -81,6 +86,8 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         bytes32 fresh = keccak256(type(AaveV4ReserveOracle).creationCode);
         assertEq(fresh, _generated("AaveV4ReserveOracle"), "oracle generated artifact matches source");
         assertEq(fresh, _locked("AaveV4ReserveOracle"), "oracle locked artifact matches source");
+        // the oracle IS deployed through `DeployV2Core`, so its env 1/2 copy is live code
+        assertEq(fresh, _lockedDev("AaveV4ReserveOracle"), "oracle locked-dev artifact matches source");
     }
 
     /// @notice V1 is kept in-repo unmodified so the deployed, seeded registry stays reproducible. This fails
@@ -115,9 +122,20 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         assertEq(keccak256(type(AaveV4RepayAndWithdrawHookV2).creationCode), _locked("AaveV4RepayAndWithdrawHookV2"));
     }
 
+    /// @dev All three directories, not just `locked-bytecode/`: SUP-21254 moved this pair, and a re-pin that
+    ///      updated prod but forgot `generated` or `locked-bytecode-dev` would leave this suite green while a
+    ///      vnet/staging run deployed different code. (The idle pair deploys via `DeployV2OtherHooks`, which
+    ///      hardcodes `locked-bytecode/` for every env — so the dev copy is belt-and-braces for this family,
+    ///      and load-bearing only for contracts `DeployV2Core` deploys.)
     function test_IdleHooks_BytecodePinned() public {
-        assertEq(keccak256(type(AaveV4LendHook).creationCode), _locked("AaveV4LendHook"));
-        assertEq(keccak256(type(AaveV4RedeemHook).creationCode), _locked("AaveV4RedeemHook"));
+        bytes32 lend = keccak256(type(AaveV4LendHook).creationCode);
+        bytes32 redeem = keccak256(type(AaveV4RedeemHook).creationCode);
+        assertEq(lend, _locked("AaveV4LendHook"), "lend locked");
+        assertEq(lend, _generated("AaveV4LendHook"), "lend generated");
+        assertEq(lend, _lockedDev("AaveV4LendHook"), "lend locked-dev");
+        assertEq(redeem, _locked("AaveV4RedeemHook"), "redeem locked");
+        assertEq(redeem, _generated("AaveV4RedeemHook"), "redeem generated");
+        assertEq(redeem, _lockedDev("AaveV4RedeemHook"), "redeem locked-dev");
     }
 
     /// @dev SUP-21143 guard: LOAN hooks do not validate `yieldSourceOracleId` because the executor never reads the

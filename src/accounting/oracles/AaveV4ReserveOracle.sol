@@ -9,6 +9,7 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { AaveV4ReserveRegistryV2 } from "./AaveV4ReserveRegistryV2.sol";
 import { AaveV4ReserveKey } from "../../libraries/AaveV4ReserveKey.sol";
 import { IAaveV4OwnerSnapshot } from "../../interfaces/accounting/IAaveV4OwnerSnapshot.sol";
+import { IAaveV4MarketPosition } from "../../interfaces/accounting/IAaveV4MarketPosition.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /// @title AaveV4ReserveOracle
@@ -116,7 +117,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 ///      methods in `AbstractYieldSourceOracle` isolate reverts via try/catch in
 ///      `getTVLByOwnerOfSharesMultiple` only; `getPricePerShareMultiple` / `getTVLMultiple` loop without
 ///      isolation (inherited behavior — one reverting key aborts those batch calls).
-contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot {
+contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot, IAaveV4MarketPosition {
     /// @notice Requested discovery coverage exceeds the caller's explicit bound.
     error SNAPSHOT_RESERVE_LIMIT();
     /// @notice Debt positions for the same token have inconsistent registry decimal metadata.
@@ -171,7 +172,7 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     /// @dev Registry-stored underlying decimals, bound at registration from the spoke's Reserve struct.
     ///      Side-independent: both legs of a reserve share one underlying asset.
     function decimals(address yieldSourceAddress) external view override returns (uint8) {
-        (,,, uint8 decimals_,) = REGISTRY.getReserveInfo(yieldSourceAddress);
+        (,, uint8 decimals_,) = _resolveLeg(yieldSourceAddress);
         return decimals_;
     }
 
@@ -179,7 +180,7 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     /// @dev Returns 10 ** decimals (always 1:1 identity, never zero) on both legs. Reverts via checked
     ///      arithmetic if decimals >= 78, which cannot occur with real ERC-20 tokens (max 18 in practice).
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
-        (,,, uint8 decimals_,) = REGISTRY.getReserveInfo(yieldSourceAddress);
+        (,, uint8 decimals_,) = _resolveLeg(yieldSourceAddress);
         return 10 ** uint256(decimals_);
     }
 
@@ -189,16 +190,7 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getWithdrawalShareOutput(
-        address,
-        address,
-        uint256 assetsIn
-    )
-        external
-        pure
-        override
-        returns (uint256)
-    {
+    function getWithdrawalShareOutput(address, address, uint256 assetsIn) external pure override returns (uint256) {
         return assetsIn;
     }
 
@@ -242,8 +234,7 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
         override
         returns (uint256)
     {
-        (address spoke, uint256 reserveId,,, AaveV4ReserveRegistryV2.Side side) =
-            REGISTRY.getReserveInfo(yieldSourceAddress);
+        (address spoke, uint256 reserveId,, AaveV4ReserveRegistryV2.Side side) = _resolveLeg(yieldSourceAddress);
 
         if (side == AaveV4ReserveRegistryV2.Side.SUPPLY) {
             return IAaveV4Spoke(spoke).getUserSuppliedAssets(reserveId, ownerOfShares);
@@ -274,8 +265,7 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     ///      reserve-level aggregate outstanding debt (`spoke.getReserveDebt`, drawn + premium) — the
     ///      `totalBorrows()` analog, NOT total supplied assets.
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        (address spoke, uint256 reserveId,,, AaveV4ReserveRegistryV2.Side side) =
-            REGISTRY.getReserveInfo(yieldSourceAddress);
+        (address spoke, uint256 reserveId,, AaveV4ReserveRegistryV2.Side side) = _resolveLeg(yieldSourceAddress);
 
         if (side == AaveV4ReserveRegistryV2.Side.SUPPLY) {
             return IAaveV4Spoke(spoke).getReserveSuppliedAssets(reserveId);
@@ -302,16 +292,87 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     ///      Use this to ASSERT the side of every carried-over `(oracle, key)` pair at configuration time, in
     ///      a deployment script's check phase or an indexer's startup validation, rather than trusting a
     ///      runbook. Reverts `RESERVE_NOT_REGISTERED` for unknown keys, so it is also a registration probe.
+    /// @dev DELIBERATELY NOT market-key-resolving, unlike every other registry-resolving read here. This is
+    ///      the RESERVE-namespace classifier and the probe migrations use to tell the two namespaces apart;
+    ///      resolving a market key to `SUPPLY` would make it answer for a key that `isRegistered` reports as
+    ///      false, i.e. it would stop discriminating exactly where discrimination is the point. A market key
+    ///      therefore still reverts `RESERVE_NOT_REGISTERED` here. Use `getMarketInfo` / `isMarketRegistered`
+    ///      to classify the other namespace.
     /// @param yieldSourceAddress The reserve key to classify
     /// @return side SUPPLY or DEBT
     function sideOf(address yieldSourceAddress) external view returns (AaveV4ReserveRegistryV2.Side side) {
         (,,,, side) = REGISTRY.getReserveInfo(yieldSourceAddress);
     }
 
+    /// @inheritdoc IAaveV4MarketPosition
+    function getMarketPosition(address marketKey, address owner)
+        external
+        view
+        returns (MarketPosition memory position)
+    {
+        if (owner == address(0)) revert ZERO_ADDRESS();
+
+        // Reverts MARKET_NOT_REGISTERED for an unknown key AND for a reserve key: the namespaces do not
+        // fall back onto each other in either direction.
+        (
+            position.spoke,
+            position.supplyReserveId,
+            position.borrowReserveId,
+            position.collateralToken,
+            position.loanToken
+        ) = REGISTRY.getMarketInfo(marketKey);
+
+        // Decimals come from the registry's leg bindings, which `registerMarket` required to exist, rather
+        // than from a second token call — one source of truth per leg. Read directly rather than through
+        // `_resolveLeg`: these are reserve keys by construction, so the market probe would always miss.
+        (,,, position.collateralDecimals,) =
+            REGISTRY.getReserveInfo(AaveV4ReserveKey.computeReserveKey(position.spoke, position.supplyReserveId));
+        (,,, position.loanDecimals,) =
+            REGISTRY.getReserveInfo(AaveV4ReserveKey.computeDebtKey(position.spoke, position.borrowReserveId));
+
+        position.suppliedAssets = IAaveV4Spoke(position.spoke).getUserSuppliedAssets(position.supplyReserveId, owner);
+        (uint256 drawn, uint256 premium) = IAaveV4Spoke(position.spoke).getUserDebt(position.borrowReserveId, owner);
+        position.debtAssets = drawn + premium;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        KEY RESOLUTION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Resolve any key this oracle accepts into ONE reserve leg.
+    ///      A reserve key resolves to itself. A MARKET key (SUP-21255) resolves to its COLLATERAL leg —
+    ///      `computeReserveKey(spoke, supplyReserveId)` — so the sideless `IYieldSourceOracle` surface keeps
+    ///      returning one number in one asset for a market key, and that number is the supplied assets of
+    ///      the reserve an idle lend settled. Debt is NEVER reachable through a market key here, and the two
+    ///      legs are never netted: `getMarketPosition` is the read that returns both.
+    ///      An unknown key still reverts `RESERVE_NOT_REGISTERED`, exactly as before this resolver existed —
+    ///      the market probe is non-reverting, so the final `getReserveInfo` produces the error.
+    ///      VALUATION CAVEAT: summing `getBalanceOfOwner` over several market keys is correct only while
+    ///      their COLLATERAL reserves differ. Two markets over one collateral reserve resolve to the same
+    ///      leg and would count that position twice — portfolio valuation belongs in `getOwnerSnapshot`,
+    ///      which de-duplicates legs across the whole requested set.
+    /// @param key A reserve-leg key or a market key
+    /// @return spoke The spoke holding the resolved reserve
+    /// @return reserveId The resolved reserve id
+    /// @return decimals_ The resolved reserve's underlying decimals
+    /// @return side The resolved leg's side
+    function _resolveLeg(address key)
+        private
+        view
+        returns (address spoke, uint256 reserveId, uint8 decimals_, AaveV4ReserveRegistryV2.Side side)
+    {
+        address legKey = key;
+        if (REGISTRY.isMarketRegistered(key)) {
+            (address marketSpoke, uint256 supplyReserveId,,,) = REGISTRY.getMarketInfo(key);
+            legKey = REGISTRY.computeReserveKey(marketSpoke, supplyReserveId);
+        }
+        (spoke, reserveId,, decimals_, side) = REGISTRY.getReserveInfo(legKey);
+    }
+
     /// @inheritdoc IAaveV4OwnerSnapshot
     function getOwnerSnapshot(
         address owner,
-        address[] calldata sourceKeys,
+        address[] calldata marketKeys,
         address[] calldata configuredSpokes,
         address[] calldata cashTokens,
         address vaultAsset,
@@ -319,18 +380,55 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
     )
         external
         view
-        returns (OwnerPosition[] memory positions, WalletBalance[] memory balances)
+        returns (MarketBinding[] memory markets, OwnerPosition[] memory positions, WalletBalance[] memory balances)
     {
-        if (owner == address(0) || vaultAsset == address(0)) revert ZERO_ADDRESS();
+        if (owner == address(0) || vaultAsset == address(0)) {
+            revert ZERO_ADDRESS();
+        }
         if (maxReservesPerSpoke == 0 || maxReservesPerSpoke > 65_536) revert SNAPSHOT_RESERVE_LIMIT();
 
-        positions = _ownerPositions(owner, sourceKeys, configuredSpokes, maxReservesPerSpoke);
+        markets = _marketBindings(marketKeys);
+        positions = _ownerPositions(owner, markets, configuredSpokes, maxReservesPerSpoke);
         balances = _cashBalances(owner, positions, cashTokens, vaultAsset);
     }
 
+    /// @dev Resolve each requested market exactly once, in request order, deriving both of its leg keys.
+    ///      `getMarketInfo` reverts `MARKET_NOT_REGISTERED` for an unknown key and for a reserve key, so an
+    ///      unregistered or mis-namespaced source fails the whole snapshot rather than being skipped.
+    function _marketBindings(address[] calldata marketKeys) private view returns (MarketBinding[] memory markets) {
+        markets = new MarketBinding[](marketKeys.length);
+        uint256 count;
+        for (uint256 i; i < marketKeys.length; ++i) {
+            address marketKey = marketKeys[i];
+            if (marketKey == address(0)) revert ZERO_ADDRESS();
+            if (_hasMarket(markets, count, marketKey)) continue;
+
+            (address spoke, uint256 supplyReserveId, uint256 borrowReserveId,,) = REGISTRY.getMarketInfo(marketKey);
+            markets[count++] = MarketBinding({
+                marketKey: marketKey,
+                spoke: spoke,
+                supplyReserveId: supplyReserveId,
+                borrowReserveId: borrowReserveId,
+                // SAME derivation source as `_borrowKeys`, deliberately: the dedup at `_ownerPositions`
+                // compares keys produced here against keys produced there, and a divergence would
+                // silently reproduce the per-market debt double count this whole function exists to
+                // prevent. One library, one formula, both sides.
+                supplyKey: AaveV4ReserveKey.computeReserveKey(spoke, supplyReserveId),
+                debtKey: AaveV4ReserveKey.computeDebtKey(spoke, borrowReserveId)
+            });
+        }
+        assembly ("memory-safe") {
+            mstore(markets, count)
+        }
+    }
+
+    /// @dev Expand the resolved markets into their accounting legs. EVERY leg is deduplicated against the
+    ///      legs already collected, which is what collapses a borrow reserve shared by N markets into one
+    ///      debt position and a collateral reserve shared by two markets into one supply position. Legs with
+    ///      a zero balance are still returned, so a caller can verify coverage of both expected legs.
     function _ownerPositions(
         address owner,
-        address[] calldata sourceKeys,
+        MarketBinding[] memory markets,
         address[] calldata configuredSpokes,
         uint256 maxReservesPerSpoke
     )
@@ -338,18 +436,21 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
         view
         returns (OwnerPosition[] memory positions)
     {
-        address[] memory spokes = new address[](configuredSpokes.length + sourceKeys.length);
+        address[] memory spokes = new address[](configuredSpokes.length + markets.length);
         uint256 spokeCount;
         for (uint256 i; i < configuredSpokes.length; ++i) {
             spokeCount = _appendAddress(spokes, spokeCount, configuredSpokes[i]);
         }
-        OwnerPosition[] memory registered = new OwnerPosition[](sourceKeys.length);
+        OwnerPosition[] memory registered = new OwnerPosition[](markets.length * 2);
         uint256 registeredCount;
-        for (uint256 i; i < sourceKeys.length; ++i) {
-            if (_hasPosition(registered, registeredCount, sourceKeys[i])) continue;
-            OwnerPosition memory position = _ownerPosition(sourceKeys[i], owner);
-            registered[registeredCount++] = position;
-            spokeCount = _appendAddress(spokes, spokeCount, position.spoke);
+        for (uint256 i; i < markets.length; ++i) {
+            spokeCount = _appendAddress(spokes, spokeCount, markets[i].spoke);
+            if (!_hasPosition(registered, registeredCount, markets[i].supplyKey)) {
+                registered[registeredCount++] = _ownerPosition(markets[i].supplyKey, owner);
+            }
+            if (!_hasPosition(registered, registeredCount, markets[i].debtKey)) {
+                registered[registeredCount++] = _ownerPosition(markets[i].debtKey, owner);
+            }
         }
 
         address[] memory debtKeys = _borrowKeys(owner, spokes, spokeCount, maxReservesPerSpoke);
@@ -473,15 +574,15 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot 
         return count + 1;
     }
 
-    function _hasPosition(
-        OwnerPosition[] memory positions,
-        uint256 count,
-        address key
-    )
-        private
-        pure
-        returns (bool)
-    {
+    /// @dev Whether a market key is already among the collected bindings
+    function _hasMarket(MarketBinding[] memory markets, uint256 count, address marketKey) private pure returns (bool) {
+        for (uint256 i; i < count; ++i) {
+            if (markets[i].marketKey == marketKey) return true;
+        }
+        return false;
+    }
+
+    function _hasPosition(OwnerPosition[] memory positions, uint256 count, address key) private pure returns (bool) {
         for (uint256 i; i < count; ++i) {
             if (positions[i].sourceKey == key) return true;
         }

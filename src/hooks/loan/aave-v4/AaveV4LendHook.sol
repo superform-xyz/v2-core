@@ -13,9 +13,9 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 
 /// @title AaveV4LendHook
 /// @author Superform Labs
-/// @dev data has the following structure (exact 157 bytes; standard 52-byte strategy header + hook-specific):
+/// @dev data has the following structure (exact 189 bytes; standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 supply YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // registry reserve key (spoke, supplyReserveId)
+/// @notice         address yieldSource = data.extractYieldSource(); // computeMarketKey(spoke, supplyId, borrowId)
 /// @notice         address underlying = BytesLib.toAddress(data, 52);
 /// @notice         address spoke = BytesLib.toAddress(data, 72);
 /// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 92);
@@ -24,7 +24,7 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 /// @dev MONEY_MARKET / INFLOW. Idle supply into an Aave V4 reserve: `supply` only — this hook NEVER
 ///      calls `setUsingAsCollateral`, so the reserve stays a plain deposit (no collateral bit, no
 ///      debt). For a collateral pledge use the standalone AaveV4SupplyHookV2 (LOAN, SUP-21141). See
-///      BaseAaveV4MoneyMarketHook for the header identity (reserve key at offset 32), the fail-closed
+///      BaseAaveV4MoneyMarketHook for the header identity (the MARKET key at offset 32), the fail-closed
 ///      allowlist and the mode guards: a reserve the account has flagged as collateral OR already
 ///      borrows is refused (RESERVE_IS_COLLATERAL / RESERVE_IS_BORROWED); the redeem hook applies only
 ///      the collateral rule so an exit is never trapped.
@@ -36,7 +36,7 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 ///      equated with the spend.
 /// @dev OMS sizing: one IN / ASSETS slot at offset 124 (underlying wei), the same value-flow as an
 ///      ERC-4626 deposit; the 1:1 share side is the measured outAmount.
-/// @dev WARNING: outToken is the header RESERVE KEY (a codeless pseudo-address), not the underlying,
+/// @dev WARNING: outToken is the header MARKET KEY (a codeless pseudo-address), not the underlying,
 ///      mirroring MorphoLendHook. Asset-denominated downstream hooks that verify the previous output
 ///      token fail closed; legacy usePrevHookAmount consumers without a token check would receive the
 ///      supplied-assets figure (<= 1 wei below the spend). Chain only into AaveV4RedeemHook.
@@ -46,7 +46,7 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev INFLOW: SuperExecutor posts outAmount (supplied assets credited) to SuperLedger keyed by
-    ///      the header reserve key, never by the Spoke.
+    ///      the header market key, never by the Spoke.
     constructor() BaseAaveV4MoneyMarketHook(ISuperHook.HookType.INFLOW) { }
 
     /// @notice Human-readable name for UI display
@@ -93,7 +93,7 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
         executions[2] = Execution({
             target: vars.spoke,
             value: 0,
-            callData: abi.encodeCall(IAaveV4Spoke.supply, (vars.reserveId, amount, account))
+            callData: abi.encodeCall(IAaveV4Spoke.supply, (vars.supplyReserveId, amount, account))
         });
         // 4. Reset approval after supply to prevent dangling allowance
         executions[3] =
@@ -101,7 +101,7 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    /// @dev Identity = reserve key + spoke + underlying + supplyReserveId (92 bytes). Changes when any
+    /// @dev Identity = market key + spoke + underlying + supplyReserveId (92 bytes). Changes when any
     ///      of those change; unchanged when only amount / usePrevHookAmount change.
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectIdle(_decodeIdle(data));
@@ -144,7 +144,7 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
 
     /// @inheritdoc BaseHook
     /// @dev Wallet spend must equal the resolved amount exactly; outAmount = supplied-assets credited
-    ///      (position after - before, in oracle units); outToken = the header reserve key.
+    ///      (position after - before, in oracle units); outToken = the header market key.
     function _postExecute(address, address account, bytes calldata data) internal override {
         IdleVars memory vars = _decodeIdle(data);
 
@@ -156,6 +156,6 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
         if (credited == 0) revert AMOUNT_NOT_VALID();
 
         _setOutAmount(credited, account);
-        _setOutToken(vars.reserveKey, account);
+        _setOutToken(vars.marketKey, account);
     }
 }

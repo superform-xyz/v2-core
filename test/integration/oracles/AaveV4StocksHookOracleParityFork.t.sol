@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 
 import { AaveV4ReserveRegistryV2 } from "../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { IAaveV4OwnerSnapshot } from "../../../src/interfaces/accounting/IAaveV4OwnerSnapshot.sol";
+import { IAaveV4MarketPosition } from "../../../src/interfaces/accounting/IAaveV4MarketPosition.sol";
 import { AaveV4ReserveOracle } from "../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { AaveV4ReserveKey } from "../../../src/libraries/AaveV4ReserveKey.sol";
@@ -316,9 +318,11 @@ contract AaveV4StocksHookOracleParityFork is Test {
         vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         ISuperHookInspector(address(borrowHook)).inspect(borrowWithDebtHeader);
 
-        // idle lend on a stock reserve: header carrying the DEBT key must fail
+        // idle lend on a stock reserve: header carrying the DEBT key must fail. Since SUP-21254 the idle
+        // pair rejects it as a MARKET key mismatch, like the V2 LOAN hooks — the rejection, not its name,
+        // is the invariant.
         bytes memory idleWithDebtHeader = _idleData(debtKeys[TSLA_ID], TSLAc, TSLA_ID, 1e8);
-        vm.expectRevert(AaveV4ReserveKey.RESERVE_KEY_MISMATCH.selector);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         ISuperHookInspector(address(lendHook)).inspect(idleWithDebtHeader);
     }
 
@@ -431,12 +435,14 @@ contract AaveV4StocksHookOracleParityFork is Test {
     /// @notice The same parity for the idle MONEY_MARKET side: `BaseAaveV4MoneyMarketHook._suppliedAssets`
     ///         equals the oracle's SUPPLY-key read, on a tokenized stock reserve and on USDC, for a
     ///         supply-only live account (the WHALE). Read through the deployed lend hook's own decoder.
-    function test_StocksParity_IdleHookReadsEqualOracleReads_SupplyOnlyAccount() public view {
+    function test_StocksParity_IdleHookReadsEqualOracleReads_SupplyOnlyAccount() public {
         uint256[2] memory ids = [TSLA_ID, USDC_ID];
         address[2] memory tokens = [TSLAc, USDC];
 
         for (uint256 i; i < ids.length; ++i) {
-            bytes memory data = _idleData(supplyKeys[ids[i]], tokens[i], ids[i], 1);
+            // SUP-21254: the idle payload is market-keyed; the read it drives is still the SUPPLY leg's
+            uint256 borrowLeg = ids[i] == USDC_ID ? AAPL_ID : USDC_ID;
+            bytes memory data = _idleData(keyLib.computeMarketKey(MAG7_SPOKE, ids[i], borrowLeg), tokens[i], ids[i], 1);
             uint256 hookSupplied = idleReader.idleSuppliedAssets(data, WHALE);
             assertGt(hookSupplied, 0, "live supply-only position on this reserve");
             assertEq(
@@ -623,27 +629,49 @@ contract AaveV4StocksHookOracleParityFork is Test {
     /// @notice Idle MONEY_MARKET headers: the lend and redeem hooks' primary is their single supply reserve, so
     ///         the header key equals that reserve's SUPPLY key — pinned for a tokenized stock (TSLAc, 8dp) and
     ///         for USDC (6dp), with the registry confirming `Side.SUPPLY` and the underlying binding.
-    function test_StocksIdleHookHeaders_PinTheSupplyKeyOfTheirReserve() public view {
+    function test_StocksIdleHookHeaders_PinTheMarketKeyWhoseSupplyLegIsTheirReserve() public {
         address[2] memory idleHooks = [address(lendHook), address(redeemHook)];
         uint256[2] memory ids = [TSLA_ID, USDC_ID];
         address[2] memory tokens = [TSLAc, USDC];
 
         for (uint256 h; h < idleHooks.length; ++h) {
             for (uint256 i; i < ids.length; ++i) {
-                bytes memory data = _idleData(supplyKeys[ids[i]], tokens[i], ids[i], 1e6);
+                uint256 borrowLeg = ids[i] == USDC_ID ? AAPL_ID : USDC_ID;
+                address market = keyLib.computeMarketKey(MAG7_SPOKE, ids[i], borrowLeg);
+                if (!registry.isMarketRegistered(market)) registry.registerMarket(MAG7_SPOKE, ids[i], borrowLeg);
+
+                bytes memory data = _idleData(market, tokens[i], ids[i], 1e6);
                 address header = BytesLib.toAddress(ISuperHookInspector(idleHooks[h]).inspect(data), 0);
 
-                assertEq(header, supplyKeys[ids[i]], "idle header == SUPPLY key of its reserve");
-                assertEq(header, registry.computeReserveKey(MAG7_SPOKE, ids[i]), "and the legacy derivation");
-                assertTrue(header != debtKeys[ids[i]], "idle header is never a debt key");
+                assertEq(header, market, "idle header == the market key of (its reserve, a borrow leg)");
 
-                (address spoke, uint256 reserveId, address underlying, uint8 dec, AaveV4ReserveRegistryV2.Side side) =
-                    registry.getReserveInfo(header);
+                // it is NONE of the four leg keys of the two reserves involved
+                assertTrue(header != supplyKeys[ids[i]], "not its own reserve's SUPPLY key (the old rule)");
+                assertTrue(header != debtKeys[ids[i]], "not its own reserve's DEBT key");
+                assertTrue(header != supplyKeys[borrowLeg], "not the borrow leg's SUPPLY key");
+                assertTrue(header != debtKeys[borrowLeg], "not the borrow leg's DEBT key");
+
+                // the market's SUPPLY leg is exactly the reserve this op moves — the convention that makes
+                // the ledger read unambiguous
+                (address spoke, uint256 supplyId,,,) = registry.getMarketInfo(header);
                 assertEq(spoke, MAG7_SPOKE, "live MAG7 spoke");
-                assertEq(reserveId, ids[i], "the idle op's own reserve");
-                assertEq(underlying, tokens[i], "underlying binding");
-                assertEq(dec, IAaveV4Spoke(MAG7_SPOKE).getReserve(ids[i]).decimals, "live decimals");
-                assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "idle headers pin the SUPPLY leg");
+                assertEq(supplyId, ids[i], "the market's SUPPLY leg is the idle op's own reserve");
+
+                // ... and the oracle resolves the header to that leg, so ledger and NAV agree
+                assertEq(
+                    oracle.getBalanceOfOwner(header, BORROWER),
+                    oracle.getBalanceOfOwner(supplyKeys[ids[i]], BORROWER),
+                    "market key reads the reserve the idle op moved"
+                );
+                assertEq(oracle.decimals(header), IAaveV4Spoke(MAG7_SPOKE).getReserve(ids[i]).decimals, "decimals");
+
+                // ONE ledger key per idle position: no second market may name this reserve as its supply leg
+                assertEq(registry.marketRefs(supplyKeys[ids[i]]), 1, "exactly one market names this supply leg");
+
+                // and every old-rule header is refused
+                bytes memory wrongHeader = _idleData(supplyKeys[ids[i]], tokens[i], ids[i], 1e6);
+                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+                ISuperHookInspector(idleHooks[h]).inspect(wrongHeader);
             }
         }
     }
@@ -808,7 +836,7 @@ contract AaveV4StocksHookOracleParityFork is Test {
     /// @dev The oracle reverts are what make a mis-wired consumer (a NAV config carrying a market key) fail
     ///      loudly instead of reading a zero. The before/after equality is what makes the re-identification
     ///      provably accounting-neutral on live state.
-    function test_StocksMarkets_MarketKeyIsNotOracleResolvable_AndLegNavIsUnchanged() public {
+    function test_StocksMarkets_MarketKeyResolvesToCollateralOnly_AndLegNavIsUnchanged() public {
         address marketKey = _marketKey(AAPL_ID, USDC_ID);
         LegNav memory before = _readLegNav();
 
@@ -820,21 +848,28 @@ contract AaveV4StocksHookOracleParityFork is Test {
         assertEq(supplyId, AAPL_ID, "collateral leg");
         assertEq(borrowId, USDC_ID, "loan leg");
 
-        // ... and in no other: every registry-resolving read fails closed on it
+        // ... and NOT in the reserve namespace: the registry keeps the two mappings disjoint
         vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
         registry.getReserveInfo(marketKey);
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getBalanceOfOwner(marketKey, BORROWER);
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getTVLByOwnerOfShares(marketKey, BORROWER);
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getTVL(marketKey);
+
+        // SUP-21255: the ORACLE resolves it one-directionally, to the COLLATERAL leg only
+        assertEq(
+            oracle.getBalanceOfOwner(marketKey, BORROWER),
+            oracle.getBalanceOfOwner(supplyKeys[AAPL_ID], BORROWER),
+            "market key reads the collateral leg's supplied assets"
+        );
+        assertEq(oracle.getTVL(marketKey), oracle.getTVL(supplyKeys[AAPL_ID]), "and its reserve TVL");
+        assertEq(oracle.decimals(marketKey), oracle.decimals(supplyKeys[AAPL_ID]), "and its decimals");
+        assertEq(oracle.getPricePerShare(marketKey), oracle.getPricePerShare(supplyKeys[AAPL_ID]), "identity PPS");
+        // `sideOf` stays strict on purpose: it is the reserve-namespace classifier, so a market key reverts
         vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
         oracle.sideOf(marketKey);
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.decimals(marketKey);
-        vm.expectRevert(AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
-        oracle.getPricePerShare(marketKey);
+
+        // and NEVER to the shared debt leg — that is the sevenfold-liability double count this forbids
+        assertTrue(
+            oracle.getBalanceOfOwner(marketKey, BORROWER) != oracle.getBalanceOfOwner(debtKeys[USDC_ID], BORROWER),
+            "a market key must not report the shared USDC debt"
+        );
 
         // the live market key is none of the 16 live leg keys of this market
         for (uint256 id; id < RESERVE_COUNT; ++id) {
@@ -991,7 +1026,7 @@ contract AaveV4StocksHookOracleParityFork is Test {
         );
     }
 
-    /// @dev Canonical 157-byte idle MONEY_MARKET layout: oracle id | header key | underlying | spoke |
+    /// @dev Canonical 189-byte idle MONEY_MARKET layout: oracle id | MARKET key | underlying | spoke |
     ///      reserveId | amount | usePrevHookAmount
     function _idleData(
         address headerKey,
@@ -1003,6 +1038,112 @@ contract AaveV4StocksHookOracleParityFork is Test {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(HEADER_ORACLE_ID, headerKey, underlying, MAG7_SPOKE, reserveId, amount, false);
+        // SUP-21254: the body now also carries the market's borrow leg. USDC(7) is the borrow leg for every
+        // equity; for the USDC reserve itself an equity is, so the two ids are always distinct.
+        uint256 borrowLeg = reserveId == USDC_ID ? AAPL_ID : USDC_ID;
+        return
+            abi.encodePacked(HEADER_ORACLE_ID, headerKey, underlying, MAG7_SPOKE, reserveId, amount, false, borrowLeg);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       SUP-21255 / SUP-21256 ON THE LIVE MAG7 MARKET
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice THE ACCEPTANCE CRITERION, on real chain state: requesting all SEVEN live MAG7 equity/USDC
+    ///         markets in one snapshot returns seven distinct collateral positions and exactly ONE shared
+    ///         USDC debt position — not seven. Every amount is compared against the oracle's own per-leg
+    ///         read, so the de-duplication cannot be hiding a wrong number.
+    /// @dev This is the production shape of the double count the design exists to prevent: all seven equity
+    ///      reserves borrow the one USDC reserve, so a caller summing seven independent per-market reads
+    ///      would inflate the liability sevenfold. The snapshot is the only safe portfolio path.
+    function test_StocksSnapshot_SevenMarkets_SevenCollateralLegsOneSharedDebtLeg() public {
+        address[] memory markets = new address[](RESERVE_COUNT - 1);
+        for (uint256 id; id < RESERVE_COUNT - 1; ++id) {
+            markets[id] = registry.registerMarket(MAG7_SPOKE, id, USDC_ID);
+        }
+
+        (IAaveV4OwnerSnapshot.MarketBinding[] memory bindings, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+            oracle.getOwnerSnapshot(BORROWER, markets, new address[](0), new address[](0), AAPLc, 64);
+
+        assertEq(bindings.length, RESERVE_COUNT - 1, "seven unique markets bound");
+        address sharedDebtKey = debtKeys[USDC_ID];
+        for (uint256 i; i < bindings.length; ++i) {
+            assertEq(bindings[i].marketKey, markets[i], "binding echoes the requested key in order");
+            assertEq(bindings[i].supplyKey, supplyKeys[i], "collateral leg is reserve i's SUPPLY key");
+            assertEq(bindings[i].debtKey, sharedDebtKey, "every market shares the USDC DEBT leg");
+        }
+
+        // seven collateral legs + one shared debt leg
+        assertEq(positions.length, RESERVE_COUNT, "7 collateral + 1 debt, not 14");
+        uint256 debtRows;
+        for (uint256 i; i < positions.length; ++i) {
+            if (positions[i].sourceKey == sharedDebtKey) ++debtRows;
+        }
+        assertEq(debtRows, 1, "the live shared USDC debt appears exactly once");
+
+        // and every returned amount equals the oracle's own per-leg read on live state
+        for (uint256 i; i < positions.length; ++i) {
+            assertEq(
+                positions[i].assets,
+                oracle.getBalanceOfOwner(positions[i].sourceKey, BORROWER),
+                "snapshot amount equals the per-leg read"
+            );
+        }
+        assertGt(oracle.getBalanceOfOwner(sharedDebtKey, BORROWER), 0, "fixture sanity: live debt is nonzero");
+    }
+
+    /// @notice Duplicate requested markets collapse on live state, and a reserve key passed where a market
+    ///         belongs fails the whole snapshot — no fallback to the old reserve-key input.
+    function test_StocksSnapshot_DuplicateMarketsCollapse_AndReserveKeysAreRefused() public {
+        address market = registry.registerMarket(MAG7_SPOKE, AAPL_ID, USDC_ID);
+        address[] memory dupes = new address[](3);
+        dupes[0] = market;
+        dupes[1] = market;
+        dupes[2] = market;
+
+        (IAaveV4OwnerSnapshot.MarketBinding[] memory bindings,,) =
+            oracle.getOwnerSnapshot(BORROWER, dupes, new address[](0), new address[](0), AAPLc, 64);
+        assertEq(bindings.length, 1, "three copies of one market collapse to one binding");
+
+        address[] memory reserveKeyed = new address[](1);
+        reserveKeyed[0] = supplyKeys[AAPL_ID];
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        oracle.getOwnerSnapshot(BORROWER, reserveKeyed, new address[](0), new address[](0), AAPLc, 64);
+    }
+
+    /// @notice SUP-21255 on the live borrower: `getMarketPosition` returns both raw legs of the MAG7 pair
+    ///         that is actually in use, each equal to the matching per-leg oracle read and to the raw spoke
+    ///         read, with the decimals needed to price them (8 for the equity, 6 for USDC). Nothing netted.
+    function test_StocksMarketPosition_ReturnsBothLiveLegsRaw() public {
+        uint256 collateralId = 5; // the equity reserve of the live Mag7 market
+        address market = registry.registerMarket(MAG7_SPOKE, collateralId, USDC_ID);
+
+        IAaveV4MarketPosition.MarketPosition memory p = oracle.getMarketPosition(market, BORROWER);
+
+        assertEq(p.spoke, MAG7_SPOKE, "live spoke");
+        assertEq(p.supplyReserveId, collateralId);
+        assertEq(p.borrowReserveId, USDC_ID);
+        assertEq(p.collateralToken, IAaveV4Spoke(MAG7_SPOKE).getReserve(collateralId).underlying, "collateral");
+        assertEq(p.loanToken, USDC, "loan token is USDC");
+        assertEq(p.collateralDecimals, 8, "tokenized equities are 8dp");
+        assertEq(p.loanDecimals, 6, "USDC is 6dp");
+
+        assertEq(
+            p.suppliedAssets,
+            IAaveV4Spoke(MAG7_SPOKE).getUserSuppliedAssets(collateralId, BORROWER),
+            "supplied leg is the raw spoke read"
+        );
+        (uint256 drawn, uint256 premium) = IAaveV4Spoke(MAG7_SPOKE).getUserDebt(USDC_ID, BORROWER);
+        assertEq(p.debtAssets, drawn + premium, "debt leg is drawn + premium, raw");
+        assertEq(p.debtAssets, oracle.getBalanceOfOwner(debtKeys[USDC_ID], BORROWER), "equals the per-leg read");
+        assertGt(p.debtAssets, 0, "fixture sanity: the live borrower owes USDC");
+
+        // the sideless surface still returns ONE number for the market key, and it is the collateral leg
+        assertEq(
+            oracle.getBalanceOfOwner(market, BORROWER),
+            p.suppliedAssets,
+            "a market key resolves to its collateral leg, never the debt leg"
+        );
+        assertTrue(oracle.getBalanceOfOwner(market, BORROWER) != p.debtAssets, "and the two legs are not conflated");
     }
 }

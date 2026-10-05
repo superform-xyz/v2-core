@@ -270,9 +270,11 @@ contract AaveV4ReserveKeyDerivationTest is Test {
         );
     }
 
-    /// @notice Namespace separation: a market key never equals either of its own legs' NAV keys. This is what
-    ///         keeps the two namespaces of `AaveV4ReserveKey` disjoint in practice — a market key is identity
-    ///         only and must never be resolvable as a reserve leg (the oracle must fail closed on it).
+    /// @notice Namespace separation: a market key never equals either of its own legs' NAV keys. That is what
+    ///         keeps the two derivations of `AaveV4ReserveKey` disjoint — a market key is never ITSELF a
+    ///         registered reserve leg. (Since SUP-21255 the oracle does resolve a market key to its
+    ///         collateral leg; it looks the market up and reads that leg's key, which is why the keys staying
+    ///         distinct is what makes the projection unambiguous.)
     ///         Separation is probabilistic (~2^-160), as the library documents: a passing fuzz run shows
     ///         infeasibility, not impossibility.
     function testFuzz_MarketKey_NeverEqualsEitherLegsNavKey(
