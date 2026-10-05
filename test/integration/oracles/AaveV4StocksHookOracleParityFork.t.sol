@@ -1073,13 +1073,29 @@ contract AaveV4StocksHookOracleParityFork is Test {
             assertEq(bindings[i].debtKey, sharedDebtKey, "every market shares the USDC DEBT leg");
         }
 
-        // seven collateral legs + one shared debt leg
-        assertEq(positions.length, RESERVE_COUNT, "7 collateral + 1 debt, not 14");
+        // seven collateral legs + one shared debt leg + the borrower's residual USDC collateral (SUP-21259)
+        assertEq(positions.length, RESERVE_COUNT + 1, "7 collateral + 1 shared debt + 1 residual, not 14");
         uint256 debtRows;
         for (uint256 i; i < positions.length; ++i) {
             if (positions[i].sourceKey == sharedDebtKey) ++debtRows;
         }
         assertEq(debtRows, 1, "the live shared USDC debt appears exactly once");
+
+        // SUP-21259 ON LIVE STATE, and this is why the row count moved. This borrower also SUPPLIES 31 USDC
+        // on reserve 7, which no requested market accounts for: the seven markets claim USDC's DEBT leg, not
+        // its SUPPLY leg. `getUserReserveStatus(7, BORROWER)` reads `(false, true)` — unpledged, so the
+        // status check cannot see the supply at all — and the pre-SUP-21259 snapshot therefore dropped 31
+        // USDC of real collateral while still counting the USDC debt. Asserted against the live amount, not
+        // just the count, so a regression cannot reinstate the dropout behind a row that merely exists.
+        uint256 residualRows;
+        for (uint256 i; i < positions.length; ++i) {
+            if (positions[i].sourceKey == supplyKeys[USDC_ID]) {
+                ++residualRows;
+                assertEq(positions[i].side, 0, "residual collateral is a SUPPLY leg");
+                assertEq(positions[i].assets, 31e6, "the live unpledged USDC collateral, not zero");
+            }
+        }
+        assertEq(residualRows, 1, "residual collateral appears exactly once");
 
         // and every returned amount equals the oracle's own per-leg read on live state
         for (uint256 i; i < positions.length; ++i) {

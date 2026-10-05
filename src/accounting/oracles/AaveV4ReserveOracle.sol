@@ -123,6 +123,15 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot,
     /// @notice Debt positions for the same token have inconsistent registry decimal metadata.
     error SNAPSHOT_DECIMALS_MISMATCH();
 
+    /// @notice A covered spoke holds supplied collateral that no requested market accounts for, and whose
+    ///         SUPPLY leg is not registered, so it cannot be included either (SUP-21259).
+    /// @dev The asymmetry this closes: debt was always DISCOVERED on covered spokes while supply arrived
+    ///      only through requested market bindings. Removing the last market naming a supply reserve
+    ///      therefore dropped its collateral out of NAV while its debt kept being discovered — PPS falls, or
+    ///      a negative-NAV guard rejects, with the supply key still registered. Residual collateral is now
+    ///      INCLUDED when its leg is registered and REJECTED when it is not; it is never silently omitted.
+    error UNCOVERED_COLLATERAL(address spoke, uint256 reserveId);
+
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -453,15 +462,24 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot,
             }
         }
 
-        address[] memory debtKeys = _borrowKeys(owner, spokes, spokeCount, maxReservesPerSpoke);
-        positions = new OwnerPosition[](registeredCount + debtKeys.length);
+        // ONE scan of the covered spokes yields both directions (SUP-21259): every reserve the owner has
+        // debt on, and every reserve the owner still has collateral on that no requested market covers.
+        (address[] memory debtKeys, address[] memory residualSupplyKeys) =
+            _discoverKeys(owner, spokes, spokeCount, maxReservesPerSpoke, registered, registeredCount);
+
+        positions = new OwnerPosition[](registeredCount + debtKeys.length + residualSupplyKeys.length);
         for (uint256 i; i < registeredCount; ++i) {
             positions[i] = registered[i];
         }
         uint256 positionCount = registeredCount;
         for (uint256 i; i < debtKeys.length; ++i) {
-            if (!_hasPosition(registered, registeredCount, debtKeys[i])) {
+            if (!_hasPosition(positions, positionCount, debtKeys[i])) {
                 positions[positionCount++] = _ownerPosition(debtKeys[i], owner);
+            }
+        }
+        for (uint256 i; i < residualSupplyKeys.length; ++i) {
+            if (!_hasPosition(positions, positionCount, residualSupplyKeys[i])) {
+                positions[positionCount++] = _ownerPosition(residualSupplyKeys[i], owner);
             }
         }
         assembly ("memory-safe") {
@@ -469,15 +487,56 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot,
         }
     }
 
-    function _borrowKeys(
+    /// @dev ONE pass over every reserve of every covered spoke, collecting BOTH directions:
+    ///      - `debtKeys`: reserves the owner has drawn debt on (unchanged behaviour);
+    ///      - `residualSupplyKeys`: reserves the owner still has supplied collateral on that NONE of the
+    ///        requested markets accounts for (SUP-21259).
+    ///      WHY THE SECOND LIST EXISTS. Debt was always discovered here, while supply arrived only through
+    ///      the requested market bindings. That asymmetry meant removing the last market naming a supply
+    ///      reserve dropped its collateral from NAV while its debt kept being counted — PPS falls, or a
+    ///      negative-NAV guard rejects a snapshot that is merely incomplete. Residual collateral is now
+    ///      included when its SUPPLY leg is registered, and the whole call reverts `UNCOVERED_COLLATERAL`
+    ///      when it is not: never silently omitted, and never resolved through an unregistered key.
+    ///      COVERAGE BOUNDARY, stated so it is not over-read: this protects the snapshot only WHEN IT IS
+    ///      REQUESTED. A consumer whose strategy no longer lists ANY Aave source requests no Aave snapshot
+    ///      at all, so complete-removal coverage remains a manager/lifecycle guarantee, not something this
+    ///      contract can enforce.
+    ///      DETECTION COST: a pledged reserve is visible in `getUserReserveStatus`'s first return value,
+    ///      but a plain IDLE supply reads `(false, false)` there — so catching that case needs
+    ///      `getUserSuppliedAssets`, one extra staticcall per reserve per covered spoke. Both shapes count
+    ///      as collateral for NAV, so the read is taken unconditionally rather than only for pledged
+    ///      reserves.
+    /// @param owner The account being snapshotted
+    /// @param spokes Covered spokes (configured + the requested markets')
+    /// @param spokeCount Live length of `spokes`
+    /// @param maxReservesPerSpoke Caller's bound; exceeding it reverts rather than truncating
+    /// @param covered Positions the requested markets already contributed
+    /// @param coveredCount Live length of `covered`
+    /// @return debtKeys Discovered DEBT leg keys
+    /// @return residualSupplyKeys Discovered SUPPLY leg keys for collateral no market covered
+    /// @dev Scan context, passed by reference so the per-reserve helper can append without widening any
+    ///      caller's stack frame (this file builds without `via_ir`, and the flat version overflowed).
+    struct ScanContext {
+        address owner;
+        OwnerPosition[] covered;
+        uint256 coveredCount;
+        address[] debtKeys;
+        uint256 debtCount;
+        address[] residualSupplyKeys;
+        uint256 residualCount;
+    }
+
+    function _discoverKeys(
         address owner,
         address[] memory spokes,
         uint256 spokeCount,
-        uint256 maxReservesPerSpoke
+        uint256 maxReservesPerSpoke,
+        OwnerPosition[] memory covered,
+        uint256 coveredCount
     )
         private
         view
-        returns (address[] memory debtKeys)
+        returns (address[] memory debtKeys, address[] memory residualSupplyKeys)
     {
         uint256[] memory counts = new uint256[](spokeCount);
         uint256 totalReserves;
@@ -486,18 +545,52 @@ contract AaveV4ReserveOracle is AbstractYieldSourceOracle, IAaveV4OwnerSnapshot,
             if (counts[i] > maxReservesPerSpoke) revert SNAPSHOT_RESERVE_LIMIT();
             totalReserves += counts[i];
         }
-        // Provision keys for the scan; allocate/read full position records only for actual debt.
-        debtKeys = new address[](totalReserves);
-        uint256 debtCount;
+
+        // Provision keys for the scan; full position records are read later, only for what was found.
+        ScanContext memory ctx = ScanContext({
+            owner: owner,
+            covered: covered,
+            coveredCount: coveredCount,
+            debtKeys: new address[](totalReserves),
+            debtCount: 0,
+            residualSupplyKeys: new address[](totalReserves),
+            residualCount: 0
+        });
+
         for (uint256 i; i < spokeCount; ++i) {
             for (uint256 reserveId; reserveId < counts[i]; ++reserveId) {
-                (, bool borrowing) = IAaveV4Spoke(spokes[i]).getUserReserveStatus(reserveId, owner);
-                if (borrowing) debtKeys[debtCount++] = AaveV4ReserveKey.computeDebtKey(spokes[i], reserveId);
+                _scanReserve(ctx, spokes[i], reserveId);
             }
         }
+
+        debtKeys = ctx.debtKeys;
+        residualSupplyKeys = ctx.residualSupplyKeys;
+        uint256 debtCount = ctx.debtCount;
+        uint256 residualCount = ctx.residualCount;
         assembly ("memory-safe") {
             mstore(debtKeys, debtCount)
+            mstore(residualSupplyKeys, residualCount)
         }
+    }
+
+    /// @dev One reserve of one covered spoke, both directions.
+    ///      DEBT: discovered exactly as before.
+    ///      SUPPLY (SUP-21259): collateral no requested market accounts for is appended when its SUPPLY leg
+    ///      is registered, and reverts `UNCOVERED_COLLATERAL` when it is not — never silently omitted, and
+    ///      never resolved through an unregistered key. A pledged reserve is visible in
+    ///      `getUserReserveStatus`'s first return value, but a plain IDLE supply reads `(false, false)`
+    ///      there, so `getUserSuppliedAssets` is read unconditionally: both shapes are collateral for NAV.
+    function _scanReserve(ScanContext memory ctx, address spoke, uint256 reserveId) private view {
+        (, bool borrowing) = IAaveV4Spoke(spoke).getUserReserveStatus(reserveId, ctx.owner);
+        if (borrowing) {
+            ctx.debtKeys[ctx.debtCount++] = AaveV4ReserveKey.computeDebtKey(spoke, reserveId);
+        }
+
+        if (IAaveV4Spoke(spoke).getUserSuppliedAssets(reserveId, ctx.owner) == 0) return;
+        address supplyKey = AaveV4ReserveKey.computeReserveKey(spoke, reserveId);
+        if (_hasPosition(ctx.covered, ctx.coveredCount, supplyKey)) return;
+        if (!REGISTRY.isRegistered(supplyKey)) revert UNCOVERED_COLLATERAL(spoke, reserveId);
+        ctx.residualSupplyKeys[ctx.residualCount++] = supplyKey;
     }
 
     function _cashBalances(

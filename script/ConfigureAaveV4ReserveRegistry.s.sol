@@ -199,7 +199,20 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
     /// @param env Environment (0 = prod, 2 = staging) — used to resolve sibling addresses from the output records
     /// @param chainId Chain ID
     /// @param registryAddr Deployed AaveV4ReserveRegistryV2
+    /// @param ledgerOracleId The `yieldSourceOracleId` the oracle was registered under in
+    ///        SuperLedgerConfiguration. NOT DERIVABLE: it is chosen at `AddToSuperLedgerConfiguration` time
+    ///        and bears no required relation to the CREATE2 salt string, so the 3-argument overload reports
+    ///        the wiring as UNKNOWN rather than querying a guessed id and printing a confident wrong answer.
+    function runCheckAll(uint256 env, uint64 chainId, address registryAddr, bytes32 ledgerOracleId) external {
+        _runCheckAll(env, chainId, registryAddr, ledgerOracleId);
+    }
+
+    /// @notice As above, without the ledger oracle id: the ledger-wiring section reports UNKNOWN.
     function runCheckAll(uint256 env, uint64 chainId, address registryAddr) external {
+        _runCheckAll(env, chainId, registryAddr, bytes32(0));
+    }
+
+    function _runCheckAll(uint256 env, uint64 chainId, address registryAddr, bytes32 ledgerOracleId) internal {
         require(env == 0 || env == 2, "INVALID_ENV: only prod (0) or staging (2) supported");
         require(block.chainid == chainId, "CHAIN_MISMATCH: --rpc-url does not match chainId");
         _setBaseConfiguration(env, "");
@@ -214,14 +227,19 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         AaveV4ReserveRegistryV2 registry = AaveV4ReserveRegistryV2(registryAddr);
 
         address[] memory spokes = _defaultSpokes(chainId);
+        uint256 overClaimed;
         for (uint256 i; i < spokes.length; ++i) {
             _printReserveStatus(chainId, registryAddr, spokes[i]);
-            _printMarketStatus(registry, chainId, spokes[i]);
+            overClaimed += _printMarketStatus(registry, chainId, spokes[i]);
         }
         if (spokes.length == 0) console2.log("(no default spoke for this chain: pass one to runCheck)");
 
         _printRoleStatus(registry);
-        _printLedgerStatus(env, chainId);
+        _printLedgerStatus(env, chainId, ledgerOracleId);
+
+        // F1: the audit must not bless an ambiguous registry. Printed first, then failed, so the operator
+        // gets the whole picture — including WHICH reserves are over-claimed — out of the same run.
+        require(overClaimed == 0, "COLLATERAL_LEG_CLAIMED_TWICE: see the flagged reserves above");
     }
 
     /// @notice Print each listed reserve of a spoke and whether it is registered. No broadcast.
@@ -359,6 +377,10 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
     /// @dev Register one pair if missing. Returns true when it wrote, false when it was already there.
     ///      Asserts the returned key against an independent derivation and the stored binding against the
     ///      spoke, so a registry whose derivation or binding drifted cannot pass silently.
+    ///      THE ALREADY-REGISTERED BRANCH ASSERTS TOO (F1): skipping it meant a rerun over a registry that
+    ///      had acquired an ambiguous second supply claim out-of-band completed cleanly and reported
+    ///      success. Re-running is how this script is meant to be used, so it is also where the ambiguity
+    ///      has to surface.
     function _registerOneMarket(
         AaveV4ReserveRegistryV2 registry,
         address spoke,
@@ -380,6 +402,7 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
                     vm.toString(marketKey)
                 )
             );
+            _assertMarketBound(registry, spoke, supplyId, borrowId, marketKey);
             return false;
         }
 
@@ -413,6 +436,30 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         require(loanToken == IAaveV4Spoke(spoke).getReserve(borrowId).underlying, "LOAN_TOKEN_MISMATCH");
         require(registry.marketRefs(registry.computeReserveKey(spoke, supplyId)) > 0, "COLLATERAL_LEG_UNCLAIMED");
         require(registry.marketRefs(registry.computeDebtKey(spoke, borrowId)) > 0, "LOAN_LEG_UNCLAIMED");
+        _assertIdleCanonical(registry, spoke, supplyId);
+    }
+
+    /// @dev THE F1 GUARD (PR #1025 review, P2). At most ONE registered market may name a given reserve as
+    ///      its SUPPLY leg. The idle MONEY_MARKET pair's SuperLedger key is the MARKET key, which the oracle
+    ///      resolves to the market's collateral leg — so a reserve claimed by two markets gives ONE Aave
+    ///      supply position TWO accepted ledger identities: lend under market A, redeem under market B, and
+    ///      B's accumulator is empty while A's shares and cost basis are stranded. That is a stale
+    ///      accumulator, a double count for any consumer summing both keys, and a fee bypass the day
+    ///      `feePercent = 0` stops holding.
+    ///      WHY `<= 1` AND NOT `== 1`: a reserve with no market at all is legal (it is simply not
+    ///      idle-lendable yet); two is the ambiguity. The loan reserve is unaffected — markets claim its
+    ///      DEBT key, and that leg is SHARED BY DESIGN (all seven Base equity markets borrow USDC, so its
+    ///      debt refcount is 7 and must stay allowed).
+    ///      SCOPE, stated plainly: this is a SCRIPT-level guard. It protects this configuration process and
+    ///      a `runCheckAll` audit of the result; it cannot stop a manager calling `registerMarket` on the
+    ///      registry directly. The registry-level fix (a canonical-idle marker) is the stronger option and
+    ///      is deliberately NOT taken here, because it would mean redeploying and re-seeding a registry that
+    ///      is already live and configured.
+    function _assertIdleCanonical(AaveV4ReserveRegistryV2 registry, address spoke, uint256 supplyId) internal view {
+        require(
+            registry.marketRefs(registry.computeReserveKey(spoke, supplyId)) <= 1,
+            "COLLATERAL_LEG_CLAIMED_TWICE: reserve is the supply leg of two markets, idle identity is ambiguous"
+        );
     }
 
     function _defaultSpokes(uint64 chainId) internal pure returns (address[] memory spokes) {
@@ -600,6 +647,9 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
             if (!listed) break;
             require(registry.isRegistered(registry.computeReserveKey(spoke, id)), "VERIFY_SUPPLY_LEG_MISSING");
             require(registry.isRegistered(registry.computeDebtKey(spoke, id)), "VERIFY_DEBT_LEG_MISSING");
+            // F1: every listed reserve, not only the ones this run touched — an ambiguous claim written
+            // out-of-band fails the gate rather than being inherited silently.
+            _assertIdleCanonical(registry, spoke, id);
             if (loanId == NO_LOAN_RESERVE || id == loanId) continue;
             require(registry.isMarketRegistered(registry.computeMarketKey(spoke, id, loanId)), "VERIFY_MARKET_MISSING");
         }
@@ -608,13 +658,23 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
     /// @dev Print every default market of a spoke: the derived key, whether it is registered, and its
     ///      binding. This is the output to hand to Erebor / snapshotd — the keys printed here are what a
     ///      signed header must carry.
-    function _printMarketStatus(AaveV4ReserveRegistryV2 registry, uint64 chainId, address spoke) internal view {
+    function _printMarketStatus(
+        AaveV4ReserveRegistryV2 registry,
+        uint64 chainId,
+        address spoke
+    )
+        internal
+        view
+        returns (uint256 overClaimed)
+    {
         uint256 loanId = _defaultLoanReserveId(chainId);
         console2.log("");
         console2.log("  --- markets ---");
         if (loanId == NO_LOAN_RESERVE) {
             console2.log("  no default market set for this chain");
-            return;
+            // still audited: markets registered out-of-band on this chain can be ambiguous too, and
+            // canonicality does not depend on there being a curated loan reserve.
+            return _printIdleCanonicality(registry, spoke);
         }
         uint256 missing;
         for (uint256 id; id < MAX_RESERVES_PER_SPOKE; ++id) {
@@ -639,7 +699,7 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         console2.log(
             "  loan DEBT leg claimed by N markets:", registry.marketRefs(registry.computeDebtKey(spoke, loanId))
         );
-        _printIdleCanonicality(registry, spoke);
+        overClaimed = _printIdleCanonicality(registry, spoke);
         console2.log(missing == 0 ? "  Status: ALL DEFAULT MARKETS REGISTERED" : "  Status: MARKETS NEED REGISTRATION");
     }
 
@@ -659,7 +719,12 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
 
     /// @dev Whether the oracle is wired into SuperLedger. Only required if the idle MONEY_MARKET pair is
     ///      ever driven; the LOAN hooks are NONACCOUNTING and never consult it.
-    function _printLedgerStatus(uint256 env, uint64 chainId) internal view {
+    /// @param ledgerOracleId The id the oracle was registered under. `bytes32(0)` means "not supplied":
+    ///        the section then reports UNKNOWN. An earlier version queried
+    ///        `bytes32(bytes(AAVE_V4_RESERVE_ORACLE_KEY))` — the CREATE2 SALT STRING — which is not the
+    ///        ledger id and resolves to an empty config on Base, i.e. it printed "ORACLE NOT REGISTERED"
+    ///        whether or not the oracle was in fact wired.
+    function _printLedgerStatus(uint256 env, uint64 chainId, bytes32 ledgerOracleId) internal view {
         console2.log("");
         console2.log("  --- ledger wiring (idle pair only) ---");
         address oracle = _outputAddress(env, chainId, "AaveV4ReserveOracle");
@@ -669,8 +734,14 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
             console2.log("  SuperLedgerConfiguration not recorded for this chain");
             return;
         }
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory cfg = ISuperLedgerConfiguration(ledgerConfig)
-            .getYieldSourceOracleConfig(bytes32(bytes(AAVE_V4_RESERVE_ORACLE_KEY)));
+        if (ledgerOracleId == bytes32(0)) {
+            console2.log("  Status: UNKNOWN - no yieldSourceOracleId supplied, and it cannot be inferred.");
+            console2.log("  Re-run with --sig 'runCheckAll(uint256,uint64,address,bytes32)' and the id used at");
+            console2.log("  AddToSuperLedgerConfiguration time. SuperLedgerConfiguration:", ledgerConfig);
+            return;
+        }
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory cfg =
+            ISuperLedgerConfiguration(ledgerConfig).getYieldSourceOracleConfig(ledgerOracleId);
         if (cfg.yieldSourceOracle == address(0)) {
             console2.log("  Status: ORACLE NOT REGISTERED (idle pair would revert MANAGER_NOT_SET)");
             return;
@@ -708,8 +779,16 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
     ///      fee bypass the day `feePercent = 0` stops holding). The registry cannot enforce this without
     ///      forbidding legitimate multi-borrow-leg LOAN markets, so it is a curation rule — printed here and
     ///      asserted by `_assertMarketBound` at registration time.
-    function _printIdleCanonicality(AaveV4ReserveRegistryV2 registry, address spoke) internal view {
-        uint256 overClaimed;
+    ///      Returns the number of over-claimed reserves so the caller can FAIL rather than merely report:
+    ///      `runCheckAll` reverts on a non-zero count after printing the full diagnostic.
+    function _printIdleCanonicality(
+        AaveV4ReserveRegistryV2 registry,
+        address spoke
+    )
+        internal
+        view
+        returns (uint256 overClaimed)
+    {
         for (uint256 id; id < MAX_RESERVES_PER_SPOKE; ++id) {
             (bool listed,,) = _probe(spoke, id);
             if (!listed) break;
