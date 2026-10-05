@@ -120,6 +120,14 @@ contract AaveV4ReserveRegistryHandler is Test {
     /// @notice Static derivation metadata per key — what the key must always re-derive to
     mapping(address reserveKey => KeyMeta) public keyMeta;
 
+    /// @notice What a market key must always re-derive from, and which legs it claims
+    struct MarketMeta {
+        address spoke;
+        uint256 supplyReserveId;
+        uint256 borrowReserveId;
+        bool seen;
+    }
+
     /*//////////////////////////////////////////////////////////////
                              GHOST STATE
     //////////////////////////////////////////////////////////////*/
@@ -132,6 +140,15 @@ contract AaveV4ReserveRegistryHandler is Test {
 
     /// @notice True once a key has been removed by a successful `executeDeregisterReserve`
     mapping(address reserveKey => bool) public ghostEverDeregistered;
+
+    /// @notice Every market key the campaign has ever registered, for the market invariants to sweep
+    address[] public allMarketKeys;
+
+    /// @notice Expected current registration state per market key
+    mapping(address marketKey => bool) public ghostMarketRegistered;
+
+    /// @notice The (spoke, supplyId, borrowId) triple a market key was registered with
+    mapping(address marketKey => MarketMeta) public marketMeta;
 
     /// @notice True once a key has been restored by a successful `repairLeg`
     /// @dev Deliberately SEPARATE from `ghostEverRegistered`: a repair must never be what makes INV-4's
@@ -248,6 +265,11 @@ contract AaveV4ReserveRegistryHandler is Test {
     /// @notice Number of keys in the tracked universe
     function allKeysLength() external view returns (uint256) {
         return allKeys.length;
+    }
+
+    /// @notice Number of market keys the campaign has ever registered
+    function allMarketKeysLength() external view returns (uint256) {
+        return allMarketKeys.length;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -394,6 +416,61 @@ contract AaveV4ReserveRegistryHandler is Test {
 
     /// @notice Advance time so deregistration timelocks can ripen
     /// @param seed Fuzzed time delta, bounded to 1 hour .. 3 days
+    /// @notice Register a market pair, exercising the INTENT namespace alongside the NAV one
+    /// @dev THE ACTION THE MARKET INVARIANTS NEED. Without it INV-12/13/14 are vacuously true, which is the
+    ///      trap the merged-oracle review flagged on `UNHANDLED_SIDE`. Both legs and both guards
+    ///      (`MARKET_LEG_NOT_REGISTERED`, `RESERVE_DEREGISTRATION_PENDING`) are reachable from here because
+    ///      the reserve actions churn leg registration and proposals underneath it.
+    /// @param seed Fuzzed selector for the spoke, both reserve ids and the caller
+    function registerMarket(uint256 seed) external {
+        address spoke = spokes[seed % spokes.length];
+        uint256 supplyId = reserveIds[(seed >> 8) % reserveIds.length];
+        uint256 borrowId = reserveIds[(seed >> 16) % reserveIds.length];
+        address caller = _actor(seed >> 24);
+        if (supplyId == borrowId) return;
+
+        address marketKey = REGISTRY.computeMarketKey(spoke, supplyId, borrowId);
+
+        if (caller != address(this)) vm.prank(caller);
+        try REGISTRY.registerMarket(spoke, supplyId, borrowId) returns (address returned) {
+            if (!REGISTRY.hasRole(MANAGER_ROLE, caller)) ++ghostUnauthorisedSuccesses;
+            if (returned != marketKey) ++ghostUnexpectedSuccesses;
+            if (!marketMeta[marketKey].seen) {
+                allMarketKeys.push(marketKey);
+                marketMeta[marketKey] =
+                    MarketMeta({ spoke: spoke, supplyReserveId: supplyId, borrowReserveId: borrowId, seen: true });
+            }
+            ghostMarketRegistered[marketKey] = true;
+        } catch { }
+    }
+
+    /// @notice Propose a market deregistration
+    /// @param seed Fuzzed selector for the market key and the caller
+    function proposeDeregisterMarket(uint256 seed) external {
+        if (allMarketKeys.length == 0) return;
+        address marketKey = allMarketKeys[seed % allMarketKeys.length];
+        address caller = _actor(seed >> 16);
+
+        if (caller != address(this)) vm.prank(caller);
+        try REGISTRY.proposeDeregisterMarket(marketKey) {
+            if (!REGISTRY.hasRole(MANAGER_ROLE, caller)) ++ghostUnauthorisedSuccesses;
+        } catch { }
+    }
+
+    /// @notice Execute a ripe market deregistration
+    /// @param seed Fuzzed selector for the market key and the caller
+    function executeDeregisterMarket(uint256 seed) external {
+        if (allMarketKeys.length == 0) return;
+        address marketKey = allMarketKeys[seed % allMarketKeys.length];
+        address caller = _actor(seed >> 16);
+
+        if (caller != address(this)) vm.prank(caller);
+        try REGISTRY.executeDeregisterMarket(marketKey) {
+            if (!REGISTRY.hasRole(MANAGER_ROLE, caller)) ++ghostUnauthorisedSuccesses;
+            ghostMarketRegistered[marketKey] = false;
+        } catch { }
+    }
+
     function warp(uint256 seed) external {
         vm.warp(block.timestamp + bound(seed, 1 hours, 3 days));
     }
@@ -519,7 +596,7 @@ contract AaveV4ReserveRegistryInvariantsTest is Test {
         // `repairLeg` MUST stay in this list: it is the only role-gated write that can create a single
         // key, so it is the only action able to falsify INV-4 / INV-10. Dropping it would make both
         // invariants vacuously true.
-        bytes4[] memory selectors = new bytes4[](8);
+        bytes4[] memory selectors = new bytes4[](11);
         selectors[0] = AaveV4ReserveRegistryHandler.registerReserve.selector;
         selectors[1] = AaveV4ReserveRegistryHandler.proposeDeregister.selector;
         selectors[2] = AaveV4ReserveRegistryHandler.executeDeregister.selector;
@@ -528,6 +605,11 @@ contract AaveV4ReserveRegistryInvariantsTest is Test {
         selectors[5] = AaveV4ReserveRegistryHandler.grantManager.selector;
         selectors[6] = AaveV4ReserveRegistryHandler.revokeManager.selector;
         selectors[7] = AaveV4ReserveRegistryHandler.repairLeg.selector;
+        // The three market actions MUST stay here for the same reason `repairLeg` must: they are the only
+        // writes to the INTENT namespace, so INV-12 / INV-13 / INV-14 are vacuous without them.
+        selectors[8] = AaveV4ReserveRegistryHandler.registerMarket.selector;
+        selectors[9] = AaveV4ReserveRegistryHandler.proposeDeregisterMarket.selector;
+        selectors[10] = AaveV4ReserveRegistryHandler.executeDeregisterMarket.selector;
 
         targetContract(address(handler));
         targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
@@ -542,7 +624,9 @@ contract AaveV4ReserveRegistryInvariantsTest is Test {
     ///         `computeReserveKey`, debt keys through `computeDebtKey`.
     /// @dev This is the core safety property of a derived-key registry. If a key could ever be bound
     ///      to a reserve it does not hash to, the pseudo-address stops naming a reserve: a hook header
-    ///      pinned to `computeReserveKey(spoke, id)` would resolve through the oracle to a DIFFERENT
+    ///      pinned to `computeReserveKey(spoke, id)` — which since SUP-21239 means the V1 LOAN six and the
+    ///      idle MONEY_MARKET pair, the V2 six having moved to the market key — would resolve through the
+    ///      oracle to a DIFFERENT
     ///      spoke/reserve, so NAV, TVL and ledger accounting would be read from the wrong market. The
     ///      contract achieves this by computing the key from the inputs rather than accepting one, and
     ///      this invariant holds that true across re-registration after deregistration.
@@ -908,6 +992,114 @@ contract AaveV4ReserveRegistryInvariantsTest is Test {
             assertTrue(
                 handler.ghostEverDeregistered(key), "INV-10: repairLeg created a leg that was never deregistered"
             );
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       INV-12: EVERY LIVE MARKET'S TWO CLAIMED LEGS ARE REGISTERED
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice For every registered market, the collateral reserve's SUPPLY leg and the loan reserve's DEBT
+    ///         leg are BOTH still registered. This is what guarantees a whitelisted market is always
+    ///         valuable: those two keys are exactly what a consumer reads to price it.
+    /// @dev `registerMarket` enforces it at registration; `marketRefs` is what keeps it true afterwards, by
+    ///      refusing to deregister a claimed leg. The campaign churns leg deregistration freely, so if
+    ///      `marketRefs` ever failed to protect the right two legs, this is where it shows up — a market
+    ///      whose NAV silently went dark.
+    function invariant_12_everyMarketKeepsBothClaimedLegsRegistered() public view {
+        uint256 count = handler.allMarketKeysLength();
+        for (uint256 i; i < count; ++i) {
+            address marketKey = handler.allMarketKeys(i);
+            if (!registry.isMarketRegistered(marketKey)) continue;
+
+            (address spoke, uint256 supplyId, uint256 borrowId,,) = registry.getMarketInfo(marketKey);
+            assertTrue(
+                registry.isRegistered(registry.computeReserveKey(spoke, supplyId)),
+                "INV-12: a live market's collateral SUPPLY leg must stay registered"
+            );
+            assertTrue(
+                registry.isRegistered(registry.computeDebtKey(spoke, borrowId)),
+                "INV-12: a live market's loan DEBT leg must stay registered"
+            );
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       INV-13: NO KEY IS EVER LIVE IN BOTH NAMESPACES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice No 20-byte value is simultaneously a registered reserve leg and a registered market. The two
+    ///         namespaces must stay disjoint or one key would mean a position to the oracle and a market to an
+    ///         off-chain whitelist at the same time.
+    /// @dev Swept in both directions over the whole universe: every reserve leg the campaign can create and
+    ///      every market key it has registered. Under the real derivations a collision is ~2^-160, so this
+    ///      invariant is really a guard against a future edit that makes the two mappings share a key by
+    ///      construction (e.g. a market key derived without its domain separator).
+    function invariant_13_noKeyIsLiveInBothNamespaces() public view {
+        uint256 keyCount = handler.allKeysLength();
+        for (uint256 i; i < keyCount; ++i) {
+            address reserveKey = handler.allKeys(i);
+            if (!registry.isRegistered(reserveKey)) continue;
+            assertFalse(registry.isMarketRegistered(reserveKey), "INV-13: a live reserve leg must not also be a market");
+        }
+
+        uint256 marketCount = handler.allMarketKeysLength();
+        for (uint256 i; i < marketCount; ++i) {
+            address marketKey = handler.allMarketKeys(i);
+            if (!registry.isMarketRegistered(marketKey)) continue;
+            assertFalse(registry.isRegistered(marketKey), "INV-13: a live market must not also be a reserve leg");
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       INV-14: marketRefs EQUALS THE NUMBER OF MARKETS CLAIMING A LEG
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice `marketRefs[leg]` equals, exactly, the number of currently registered markets that claim that
+    ///         leg — recounted from scratch here rather than tracked incrementally, so a drifted counter
+    ///         cannot hide behind the same bookkeeping that produced it.
+    /// @dev The counter is the whole basis of the deregistration guard: too low and a claimed leg can be
+    ///      removed under a live market (INV-12 goes red), too high and a leg is permanently unremovable.
+    ///      On the live MAG7 spoke seven markets share one USDC debt leg, so the shared-leg case this checks
+    ///      is the production shape, not a corner case.
+    function invariant_14_marketRefsEqualsTheClaimCount() public view {
+        uint256 keyCount = handler.allKeysLength();
+        uint256 marketCount = handler.allMarketKeysLength();
+
+        for (uint256 i; i < keyCount; ++i) {
+            address leg = handler.allKeys(i);
+            uint256 expected;
+
+            for (uint256 j; j < marketCount; ++j) {
+                address marketKey = handler.allMarketKeys(j);
+                if (!registry.isMarketRegistered(marketKey)) continue;
+                (address spoke, uint256 supplyId, uint256 borrowId,,) = registry.getMarketInfo(marketKey);
+                if (
+                    leg == registry.computeReserveKey(spoke, supplyId)
+                        || leg == registry.computeDebtKey(spoke, borrowId)
+                ) {
+                    ++expected;
+                }
+            }
+
+            assertEq(registry.marketRefs(leg), expected, "INV-14: marketRefs must equal the live claim count");
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       INV-15: A CLAIMED LEG NEVER HAS A PENDING DEREGISTRATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice No leg is ever both claimed by a market and pending deregistration. The two guards
+    ///         (`MARKET_REFERENCES_RESERVE` on propose, `RESERVE_DEREGISTRATION_PENDING` on registerMarket)
+    ///         close that state from both sides, which is what stops a proposal from sitting un-executable
+    ///         behind `marketRefs` and then firing with no warning window once the market is removed.
+    function invariant_15_noClaimedLegHasAPendingProposal() public view {
+        uint256 keyCount = handler.allKeysLength();
+        for (uint256 i; i < keyCount; ++i) {
+            address leg = handler.allKeys(i);
+            if (registry.marketRefs(leg) == 0) continue;
+            assertEq(registry.pendingDeregistrations(leg), 0, "INV-15: a claimed leg must have no pending proposal");
         }
     }
 }

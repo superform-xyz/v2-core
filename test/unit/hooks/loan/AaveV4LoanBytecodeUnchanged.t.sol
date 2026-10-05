@@ -31,6 +31,17 @@ import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4Re
 ///         Ethereum addresses stay live for old roots. Its final review then consolidated the reserve-key hash
 ///         and `RESERVE_KEY_MISMATCH` into `AaveV4ReserveKey`, which the idle MONEY_MARKET pair (SUP-21142, not
 ///         yet deployed) and `AaveV4ReserveRegistryV2` now share — so the idle pair is re-pinned as well.
+///         SUP-21239 (header = MARKET key) then re-pinned exactly SEVEN artifacts: the six V2 LOAN hooks
+///         (composite trio + standalone trio) and `AaveV4ReserveRegistryV2`, which gained the market
+///         namespace. Deliberately UNMOVED, and asserted below: the V1 LOAN six (legacy, still on the
+///         reserve-key rule), the idle MONEY_MARKET pair (no borrow reserve in its 157-byte layout, and its
+///         header is a SuperLedger key), V1 registry, and `AaveV4ReserveOracle` — its source is untouched,
+///         because market keys are deliberately never oracle-resolvable. Adding `computeMarketKey` to
+///         `AaveV4ReserveKey` moved none of the unmoved eight: being `internal` and unreferenced there it is
+///         dead-code-eliminated, which `test_LoanV1_BytecodePinned` / `test_IdleHooks_BytecodePinned` prove
+///         empirically. The previously deployed V2 hook addresses stay live for roots signed under the old
+///         rule; a NEW address paired with an old reserve-keyed header reverts `MARKET_KEY_MISMATCH`
+///         (fail-closed, the inverse of a silently-accepted stale header).
 contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function _locked(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode/", name, ".json"))));
@@ -38,6 +49,13 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
 
     function _generated(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/generated-bytecode/", name, ".json"))));
+    }
+
+    /// @dev What an env 1 (vnet) / env 2 (staging) deploy consumes, per `DeployV2Base.__getBytecodeArtifactPath`.
+    ///      Only contracts deployed through `DeployV2Core` are read from here — `DeployV2OtherHooks`
+    ///      hardcodes `locked-bytecode/` for every env, so the LOAN hooks' dev artifacts are never consulted.
+    function _lockedDev(string memory name) internal returns (bytes32) {
+        return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode-dev/", name, ".json"))));
     }
 
     /// @dev V2 is a NEW contract under a new deploy name, not an edit to the deployed V1 — the struct gained
@@ -49,6 +67,11 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         bytes32 fresh = keccak256(type(AaveV4ReserveRegistryV2).creationCode);
         assertEq(fresh, _generated("AaveV4ReserveRegistryV2"), "V2 generated artifact matches source");
         assertEq(fresh, _locked("AaveV4ReserveRegistryV2"), "V2 locked artifact matches source");
+        // The registry is the one moved artifact deployed via `DeployV2Core`, so its env 1/2 copy is live
+        // code, not a dead file. Without this a re-pin could update prod + generated, leave dev stale, keep
+        // this suite green, and have a staging run deploy the OLD registry at a different CREATE2 address —
+        // which silently moves `AaveV4ReserveOracle` too, since the registry is its constructor argument.
+        assertEq(fresh, _lockedDev("AaveV4ReserveRegistryV2"), "V2 locked-dev artifact matches source");
     }
 
     /// @notice The merged oracle is under the same locked-bytecode release model as everything else here, so

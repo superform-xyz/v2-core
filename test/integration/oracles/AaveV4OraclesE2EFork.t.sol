@@ -184,12 +184,11 @@ contract AaveV4OraclesE2EForkTest is Test {
         pure
         returns (bytes memory)
     {
-        return _hookDataKeyed(
-            supplyReserveId, loanToken, collateralToken, supplyReserveId, borrowReserveId, amount1, amount2
-        );
+        return _hookDataKeyed(loanToken, collateralToken, supplyReserveId, borrowReserveId, amount1, amount2);
     }
 
-    /// @dev Standalone REPAY payload: header keyed to the BORROW reserve (SUP-21143 primary for REPAY)
+    /// @dev Standalone REPAY payload. Since SUP-21239 it carries the SAME market key as every other op on the
+    ///      pair — the SUP-21143 per-op primary reserve (the BORROW reserve, for REPAY) no longer exists.
     function _repayHookData(
         address loanToken,
         address collateralToken,
@@ -201,12 +200,12 @@ contract AaveV4OraclesE2EForkTest is Test {
         pure
         returns (bytes memory)
     {
-        return _hookDataKeyed(borrowReserveId, loanToken, collateralToken, supplyReserveId, borrowReserveId, cap, 0);
+        return _hookDataKeyed(loanToken, collateralToken, supplyReserveId, borrowReserveId, cap, 0);
     }
 
-    /// @dev SUP-21143 header: opaque oracle id + AaveV4ReserveKey(spoke, primaryReserveId) at offset 32
+    /// @dev SUP-21239 header: opaque oracle id + AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId,
+    ///      borrowReserveId) at offset 32 — one key per market pair, identical for every leg of that market.
     function _hookDataKeyed(
-        uint256 primaryReserveId,
         address loanToken,
         address collateralToken,
         uint256 supplyReserveId,
@@ -220,7 +219,7 @@ contract AaveV4OraclesE2EForkTest is Test {
     {
         return abi.encodePacked(
             AAVE_V4_SUPPLY_YS_ORACLE_ID,
-            AaveV4ReserveKey.computeReserveKey(SPOKE, primaryReserveId),
+            AaveV4ReserveKey.computeMarketKey(SPOKE, supplyReserveId, borrowReserveId),
             loanToken,
             collateralToken,
             SPOKE,
@@ -262,7 +261,8 @@ contract AaveV4OraclesE2EForkTest is Test {
             assertTrue(side_ == AaveV4ReserveRegistryV2.Side.SUPPLY, "legacy derivation is the supply leg");
 
             // the debt leg of the same reserve: same binding, DEBT side, distinct key
-            (,, address debtUnderlying_,, AaveV4ReserveRegistryV2.Side debtSide_) = registry.getReserveInfo(debtKeys[id]);
+            (,, address debtUnderlying_,, AaveV4ReserveRegistryV2.Side debtSide_) =
+                registry.getReserveInfo(debtKeys[id]);
             assertEq(debtUnderlying_, underlyings[id], "debt leg shares the underlying binding");
             assertEq(debtKeys[id], registry.computeDebtKey(SPOKE, id), "debt key derivation parity");
             assertTrue(debtSide_ == AaveV4ReserveRegistryV2.Side.DEBT);

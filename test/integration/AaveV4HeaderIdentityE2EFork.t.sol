@@ -33,11 +33,15 @@ import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { IAaveV4Spoke } from "../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 
 /// @title AaveV4HeaderIdentityE2EFork
-/// @notice SUP-21143 end-to-end on the live Ethereum Main Spoke through the real SuperExecutor, SuperLedger,
-///         AaveV4ReserveRegistryV2 and the merged Aave V4 reserve oracle: the reserve key carried in every Aave V4
-///         hook header is the identity the registry, the oracle's supply leg and the ledger agree on — idle USDC
-///         lending and a WETH-collateral USDC borrow on the SAME spoke are keyed apart, the two-way mode partition
-///         holds, and an operator can recover from routing an OPEN onto an idle reserve.
+/// @notice Header identity end-to-end on the live Ethereum Main Spoke through the real SuperExecutor,
+///         SuperLedger, AaveV4ReserveRegistryV2 and the merged Aave V4 reserve oracle: every Aave V4 hook
+///         header resolves through the registry to the thing the hook acts on — idle USDC lending and a
+///         WETH-collateral USDC borrow on the SAME spoke are keyed apart, the two-way mode partition holds,
+///         and an operator can recover from routing an OPEN onto an idle reserve.
+/// @dev SUP-21239 split the header namespace in two, and both halves are exercised here against one live
+///      spoke: the idle INFLOW / OUTFLOW pair keeps the reserve SUPPLY key (which is also its SuperLedger
+///      key and an oracle argument), while the six V2 LOAN hooks carry the MARKET key of their pair, which
+///      resolves only through `getMarketInfo` and never reaches the ledger or the oracle.
 contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     address public constant SPOKE = 0x94e7A5dCbE816e498b89aB752661904E2F56c485;
     uint256 public constant WETH_RESERVE_ID = 0;
@@ -132,13 +136,14 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         );
     }
 
-    /// @dev LOAN 241-byte layout keyed to `primaryId`
+    /// @dev LOAN 241-byte layout, header = the MARKET key of (SPOKE, supplyId, borrowId) (SUP-21239). The
+    ///      idle builder above deliberately stays on the reserve SUPPLY key: idle has no borrow leg and its
+    ///      header IS a SuperLedger key.
     function _loanData(
         address loanToken,
         address collateralToken,
         uint256 supplyId,
         uint256 borrowId,
-        uint256 primaryId,
         uint256 a1,
         uint256 a2,
         bool usePrev
@@ -149,7 +154,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     {
         return abi.encodePacked(
             oracleId,
-            AaveV4ReserveKey.computeReserveKey(SPOKE, primaryId),
+            AaveV4ReserveKey.computeMarketKey(SPOKE, supplyId, borrowId),
             loanToken,
             collateralToken,
             SPOKE,
@@ -162,8 +167,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     }
 
     function _pledge(uint256 amount) internal view returns (bytes memory) {
-        return
-            _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, WETH_RESERVE_ID, amount, 0, false);
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, 0, false);
     }
 
     function _release(uint256 amount) internal view returns (bytes memory) {
@@ -171,24 +175,19 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     }
 
     function _borrow(uint256 amount) internal view returns (bytes memory) {
-        return
-            _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, USDC_RESERVE_ID, amount, 0, false);
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, amount, 0, false);
     }
 
     function _repay(uint256 cap, bool usePrev) internal view returns (bytes memory) {
-        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, USDC_RESERVE_ID, cap, 0, usePrev);
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, cap, 0, usePrev);
     }
 
     function _open(uint256 supply, uint256 borrow) internal view returns (bytes memory) {
-        return _loanData(
-            CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, WETH_RESERVE_ID, supply, borrow, false
-        );
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, supply, borrow, false);
     }
 
     function _close(uint256 cap, uint256 withdraw) internal view returns (bytes memory) {
-        return _loanData(
-            CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, WETH_RESERVE_ID, cap, withdraw, false
-        );
+        return _loanData(CHAIN_1_USDC, CHAIN_1_WETH, WETH_RESERVE_ID, USDC_RESERVE_ID, cap, withdraw, false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -248,13 +247,25 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
                     E2E-1: KEY RESOLUTION FOR EVERY AAVE V4 HOOK
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice inspect()[0:20] of all eight Aave V4 hooks resolves through the deployed registry to the (spoke,
-    ///         reserveId) each op acts on as its primary: idle lend / redeem → their reserve; OPEN / CLOSE / PLEDGE /
-    ///         RELEASE → the supply reserve; REPAY / BORROW → the borrow reserve
-    function test_E2E_HeaderKey_ResolvesThroughRegistry_AllEightOps() external view {
-        address[8] memory hooks = [
-            address(lendHook),
-            address(redeemHook),
+    /// @notice inspect()[0:20] of all eight Aave V4 hooks resolves through the deployed registry — but through
+    ///         the namespace that op belongs to (SUP-21239). The idle lend / redeem pair resolves through
+    ///         `getReserveInfo` to the SUPPLY leg of its own reserve, still a NAV and SuperLedger key. The six
+    ///         V2 LOAN ops resolve through `getMarketInfo` to the ONE market key of (WETH collateral, USDC
+    ///         loan) — the same 20 bytes for all six, where the per-reserve rule gave OPEN / CLOSE / PLEDGE /
+    ///         RELEASE the WETH key and REPAY / BORROW the USDC one — and are asserted NOT to be registered
+    ///         reserve keys at all, which is what keeps the oracle fail-closed on them.
+    function test_E2E_HeaderKey_ResolvesThroughRegistry_AllEightOps() external {
+        address marketKey = registry.registerMarket(SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertEq(marketKey, AaveV4ReserveKey.computeMarketKey(SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID));
+
+        // the idle pair: reserve namespace, SUPPLY leg, its own reserve
+        _assertIdleHeaderResolvesAsReserveLeg(address(lendHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false));
+        _assertIdleHeaderResolvesAsReserveLeg(
+            address(redeemHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false)
+        );
+
+        // the six V2 LOAN ops: market namespace, one key, never a reserve leg
+        address[6] memory loanHooks = [
             address(openHook),
             address(closeHook),
             address(pledgeHook),
@@ -262,9 +273,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
             address(repayHook),
             address(borrowHook)
         ];
-        bytes[8] memory datas = [
-            _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false),
-            _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false),
+        bytes[6] memory loanDatas = [
             _open(PLEDGE, BORROW),
             _close(BORROW, PLEDGE),
             _pledge(PLEDGE),
@@ -272,28 +281,87 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
             _repay(BORROW, false),
             _borrow(BORROW)
         ];
-        uint256[8] memory expectedReserve = [
-            USDC_RESERVE_ID,
-            USDC_RESERVE_ID,
-            WETH_RESERVE_ID,
-            WETH_RESERVE_ID,
-            WETH_RESERVE_ID,
-            WETH_RESERVE_ID,
-            USDC_RESERVE_ID,
-            USDC_RESERVE_ID
-        ];
-        for (uint256 i; i < hooks.length; ++i) {
-            bytes memory id = ISuperHookInspector(hooks[i]).inspect(datas[i]);
-            address key = BytesLib.toAddress(id, 0);
-            assertEq(key, BytesLib.toAddress(datas[i], 32), "inspect key == header key");
-            assertTrue(registry.isRegistered(key), "key is a registered reserve");
-            (address spoke, uint256 reserveId, address underlying,, AaveV4ReserveRegistryV2.Side side) =
-                registry.getReserveInfo(key);
-            assertEq(spoke, SPOKE);
-            assertEq(reserveId, expectedReserve[i]);
-            assertEq(underlying, expectedReserve[i] == USDC_RESERVE_ID ? CHAIN_1_USDC : CHAIN_1_WETH);
-            assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "headers always pin the SUPPLY leg");
+        for (uint256 i; i < loanHooks.length; ++i) {
+            address key = BytesLib.toAddress(ISuperHookInspector(loanHooks[i]).inspect(loanDatas[i]), 0);
+            assertEq(key, BytesLib.toAddress(loanDatas[i], 32), "inspect key == header key");
+            assertEq(key, marketKey, "all six V2 ops resolve to the one market key");
+            assertTrue(registry.isMarketRegistered(key), "resolves in the MARKET namespace");
+            assertFalse(registry.isRegistered(key), "and is never a registered reserve leg");
+            assertTrue(key != wethKey && key != wethDebtKey && key != usdcKey && key != usdcDebtKey, "no leg key");
         }
+        _assertMarketBinding(marketKey);
+    }
+
+    /// @dev One idle header's resolution through the reserve namespace. Factored out so the five-value
+    ///      `getReserveInfo` destructuring does not blow the (non-via-ir) stack frame.
+    function _assertIdleHeaderResolvesAsReserveLeg(address hook, bytes memory data) internal view {
+        address key = BytesLib.toAddress(ISuperHookInspector(hook).inspect(data), 0);
+        assertEq(key, BytesLib.toAddress(data, 32), "inspect key == header key");
+        assertEq(key, usdcKey, "the idle pair keeps its reserve's SUPPLY key");
+        assertTrue(registry.isRegistered(key), "key is a registered reserve leg");
+        assertFalse(registry.isMarketRegistered(key), "and never a market");
+        (address spoke, uint256 reserveId, address underlying,, AaveV4ReserveRegistryV2.Side side) =
+            registry.getReserveInfo(key);
+        assertEq(spoke, SPOKE, "live Main Spoke");
+        assertEq(reserveId, USDC_RESERVE_ID, "the idle op's own reserve");
+        assertEq(underlying, CHAIN_1_USDC, "underlying binding");
+        assertTrue(side == AaveV4ReserveRegistryV2.Side.SUPPLY, "idle headers pin the SUPPLY leg");
+    }
+
+    /// @dev The market binding read from the live spoke. Separate for the same stack-frame reason.
+    function _assertMarketBinding(address marketKey) internal view {
+        (address spoke, uint256 supplyId, uint256 borrowId, address collateralToken, address loanToken) =
+            registry.getMarketInfo(marketKey);
+        assertEq(spoke, SPOKE, "live Main Spoke");
+        assertEq(supplyId, WETH_RESERVE_ID, "collateral reserve id");
+        assertEq(borrowId, USDC_RESERVE_ID, "loan reserve id");
+        assertEq(collateralToken, IAaveV4Spoke(SPOKE).getReserve(WETH_RESERVE_ID).underlying, "live collateral");
+        assertEq(loanToken, IAaveV4Spoke(SPOKE).getReserve(USDC_RESERVE_ID).underlying, "live loan token");
+    }
+
+    /// @notice Market registration does NOT gate execution, proved on the live spoke rather than asserted in
+    ///         prose: the full PLEDGE → BORROW → REPAY(max) → RELEASE(max) sequence runs to completion with
+    ///         the market UNREGISTERED, and then again after registering it, with identical live deltas. The
+    ///         market key is simultaneously shown never to become a SuperLedger key — the accumulator under it
+    ///         is zero throughout, while the idle pair's reserve key is the only Aave V4 key the ledger ever
+    ///         holds.
+    /// @dev This is the fail-closed/fail-open boundary stated plainly: the hooks pin the key by DERIVATION, so
+    ///      an unregistered market still executes, and whitelisting which markets a vault may touch remains an
+    ///      off-chain (Erebor) decision. If a future change ever made the hooks consult the registry, the
+    ///      first half of this test would fail.
+    function test_E2E_MarketRegistration_DoesNotGateExecution_AndIsNeverALedgerKey() external {
+        address marketKey = AaveV4ReserveKey.computeMarketKey(SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertFalse(registry.isMarketRegistered(marketKey), "unregistered to start with");
+
+        (uint256 unregisteredWethDelta, uint256 unregisteredUsdcDelta) = _runLoanRoundTrip();
+        assertEq(superLedger.usersAccumulatorShares(accountEth, marketKey), 0, "market key is never a ledger key");
+
+        registry.registerMarket(SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        assertTrue(registry.isMarketRegistered(marketKey), "now registered");
+
+        (uint256 registeredWethDelta, uint256 registeredUsdcDelta) = _runLoanRoundTrip();
+        assertEq(registeredWethDelta, unregisteredWethDelta, "registration changed no collateral outcome");
+        assertEq(registeredUsdcDelta, unregisteredUsdcDelta, "registration changed no loan outcome");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, marketKey), 0, "still never a ledger key");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, wethKey), 0, "LOAN legs never reach the ledger");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcKey), 0, "no idle leg was opened here");
+    }
+
+    /// @dev One full PLEDGE → BORROW → REPAY(max) → RELEASE(max) round trip on the live spoke, returning the
+    ///      net wallet deltas (collateral shortfall from share rounding, loan token net). Ends with no
+    ///      position and no debt, so the caller can run it twice and compare.
+    function _runLoanRoundTrip() internal returns (uint256 wethShortfall, uint256 usdcNet) {
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+        _exec(address(pledgeHook), _pledge(PLEDGE));
+        _exec(address(borrowHook), _borrow(BORROW));
+        assertApproxEqAbs(_debt(USDC_RESERVE_ID), BORROW, 1, "borrowed");
+        _exec(address(repayHook), _repay(type(uint256).max, false));
+        _exec(address(releaseHook), _release(type(uint256).max));
+        assertEq(_debt(USDC_RESERVE_ID), 0, "round trip clears the debt");
+        assertEq(_supplied(WETH_RESERVE_ID), 0, "round trip clears the position");
+        wethShortfall = wethBefore - IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        usdcNet = usdcBefore - IERC20(CHAIN_1_USDC).balanceOf(accountEth);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -375,13 +443,11 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         _exec(address(lendHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false));
         // LOAN hooks on the USDC reserve as COLLATERAL (borrowing WETH against it) are refused while it is idle
         bytes memory pledgeUsdc =
-            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 100e6, 0, false);
-        bytes memory openUsdc = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 100e6, 0.01 ether, false
-        );
-        bytes memory releaseUsdc = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, type(uint256).max, 0, false
-        );
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 100e6, 0, false);
+        bytes memory openUsdc =
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 100e6, 0.01 ether, false);
+        bytes memory releaseUsdc =
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, type(uint256).max, 0, false);
         _execExpectFailure(address(pledgeHook), pledgeUsdc, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         _execExpectFailure(address(openHook), openUsdc, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         _execExpectFailure(address(releaseHook), releaseUsdc, bytes4(keccak256("RESERVE_NOT_COLLATERAL()")));
@@ -399,9 +465,8 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     ///         longer ledger-tracked; the idle LEND is refused from then on
     function test_E2E_OpenOverIdle_Refused_ThenRedeemAndOpen_Succeeds() external {
         _exec(address(lendHook), _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false));
-        bytes memory openUsdcCollateral = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 1000e6, 0.05 ether, false
-        );
+        bytes memory openUsdcCollateral =
+            _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 1000e6, 0.05 ether, false);
         _execExpectFailure(
             address(openHook), openUsdcCollateral, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector
         );
@@ -440,9 +505,7 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         hooks[1] = address(openHook);
         bytes[] memory datas = new bytes[](2);
         datas[0] = _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, LEND, false);
-        datas[1] = _loanData(
-            CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, USDC_RESERVE_ID, 1000e6, 0.05 ether, false
-        );
+        datas[1] = _loanData(CHAIN_1_WETH, CHAIN_1_USDC, USDC_RESERVE_ID, WETH_RESERVE_ID, 1000e6, 0.05 ether, false);
         uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
         _execHooksExpectFailure(hooks, datas, BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "lend rolled back");

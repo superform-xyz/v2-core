@@ -4,7 +4,9 @@ pragma solidity 0.8.30;
 import "forge-std/Test.sol";
 
 import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveKey } from "../../../../src/libraries/AaveV4ReserveKey.sol";
 import { MockAaveV4Spoke } from "./AaveV4Oracles.t.sol";
+import { AaveV4ReserveKeyLibHarness } from "./AaveV4ReserveOracleDispatch.t.sol";
 
 /// @title AaveV4ReserveKeyDerivationTest
 /// @author Superform Labs
@@ -32,6 +34,7 @@ import { MockAaveV4Spoke } from "./AaveV4Oracles.t.sol";
 contract AaveV4ReserveKeyDerivationTest is Test {
     AaveV4ReserveRegistryV2 internal registry;
     MockAaveV4Spoke internal spoke;
+    AaveV4ReserveKeyLibHarness internal lib;
 
     address internal underlying = makeAddr("underlying");
 
@@ -41,6 +44,7 @@ contract AaveV4ReserveKeyDerivationTest is Test {
         registry = new AaveV4ReserveRegistryV2(address(this));
         spoke = new MockAaveV4Spoke();
         spoke.setReserve(RESERVE_ID, underlying, 8);
+        lib = new AaveV4ReserveKeyLibHarness();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -209,5 +213,167 @@ contract AaveV4ReserveKeyDerivationTest is Test {
         assertEq(dDecimals, sDecimals, "one decimals value across both legs");
         assertTrue(sSide == AaveV4ReserveRegistryV2.Side.SUPPLY, "the legacy key is the SUPPLY leg");
         assertTrue(dSide == AaveV4ReserveRegistryV2.Side.DEBT, "the domain-separated key is the DEBT leg");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       F. MARKET KEY — THE INTENT NAMESPACE (SUP-21239)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The market domain separator is the literal namespaced string off-chain consumers must hash.
+    ///         Pinned independently because no market key is reproducible without this exact value, and it is
+    ///         FROZEN the moment a market key is signed into a merkle root.
+    /// @dev Deliberately named after the LIBRARY, not after a registry version, unlike its `DEBT_KEY_DOMAIN`
+    ///      sibling — see the library docs. A reviewer "aligning" the two literals must fail here.
+    function test_MarketKeyDomain_IsTheNamespacedConstant() public view {
+        assertEq(
+            lib.marketDomain(),
+            keccak256("AaveV4ReserveKey.MARKET"),
+            "MARKET_KEY_DOMAIN must be keccak256 of the namespaced literal"
+        );
+    }
+
+    /// @notice THE FROZEN FORMULA. The market key is the lower 20 bytes of the FOUR-word preimage
+    ///         `keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN))`. Asserted
+    ///         against the literal expression written out in full — never against `AaveV4ReserveKey` — because
+    ///         Erebor merkle leaves, the vault whitelist, snapshotd and the Superman UI all re-derive it from
+    ///         this expression. Pinning the library against itself would pass through any edit and silently
+    ///         desynchronise every signed intent from the V2 LOAN hooks that enforce it.
+    function testFuzz_ComputeMarketKey_MatchesLiteralFormula(
+        address spoke_,
+        uint256 supplyId_,
+        uint256 borrowId_
+    )
+        public
+        view
+    {
+        assertEq(
+            lib.marketKey(spoke_, supplyId_, borrowId_),
+            address(
+                uint160(
+                    uint256(keccak256(abi.encode(spoke_, supplyId_, borrowId_, keccak256("AaveV4ReserveKey.MARKET"))))
+                )
+            ),
+            "MARKET key must be the lower 20 bytes of keccak256(abi.encode(spoke, supplyId, borrowId, MARKET_KEY_DOMAIN))"
+        );
+    }
+
+    /// @notice ORDER IS SIGNIFICANT. The legs are asymmetric: "equity collateral, borrow USDC" and "USDC
+    ///         collateral, borrow equity" are different strategies with different risk, so the derivation must
+    ///         NOT sort its ids. A sorted preimage would collapse the two into one key and let a signed intent
+    ///         for one execute as the other.
+    function testFuzz_MarketKey_OrderingIsSignificant(address spoke_, uint256 idA_, uint256 idB_) public view {
+        vm.assume(idA_ != idB_);
+
+        assertTrue(
+            lib.marketKey(spoke_, idA_, idB_) != lib.marketKey(spoke_, idB_, idA_),
+            "swapping the supply and borrow legs must yield a different market key"
+        );
+    }
+
+    /// @notice Namespace separation: a market key never equals either of its own legs' NAV keys. This is what
+    ///         keeps the two namespaces of `AaveV4ReserveKey` disjoint in practice — a market key is identity
+    ///         only and must never be resolvable as a reserve leg (the oracle must fail closed on it).
+    ///         Separation is probabilistic (~2^-160), as the library documents: a passing fuzz run shows
+    ///         infeasibility, not impossibility.
+    function testFuzz_MarketKey_NeverEqualsEitherLegsNavKey(
+        address spoke_,
+        uint256 supplyId_,
+        uint256 borrowId_
+    )
+        public
+        view
+    {
+        address market = lib.marketKey(spoke_, supplyId_, borrowId_);
+
+        assertTrue(market != registry.computeReserveKey(spoke_, supplyId_), "market key vs collateral SUPPLY key");
+        assertTrue(market != registry.computeDebtKey(spoke_, supplyId_), "market key vs collateral DEBT key");
+        assertTrue(market != registry.computeReserveKey(spoke_, borrowId_), "market key vs loan SUPPLY key");
+        assertTrue(market != registry.computeDebtKey(spoke_, borrowId_), "market key vs loan DEBT key");
+    }
+
+    /// @notice The market key depends on the spoke: the same reserve pair on two spokes gets two keys. Aave V4
+    ///         allows multiple spokes per chain and reserve ids restart per spoke, so dropping the spoke would
+    ///         alias unrelated markets onto one key.
+    function testFuzz_MarketKey_DependsOnSpoke(
+        address spokeA_,
+        address spokeB_,
+        uint256 supplyId_,
+        uint256 borrowId_
+    )
+        public
+        view
+    {
+        vm.assume(spokeA_ != spokeB_);
+
+        assertTrue(
+            lib.marketKey(spokeA_, supplyId_, borrowId_) != lib.marketKey(spokeB_, supplyId_, borrowId_),
+            "distinct spokes must yield distinct market keys"
+        );
+    }
+
+    /// @notice The market key depends on BOTH ids independently: changing either leg changes the key. If either
+    ///         were dropped from the preimage, every market sharing the surviving leg would collide — on the
+    ///         live MAG7 spoke, where seven equity reserves all borrow the one USDC reserve, that is every
+    ///         market on the spoke.
+    function testFuzz_MarketKey_DependsOnBothLegs(
+        address spoke_,
+        uint256 supplyId_,
+        uint256 borrowId_,
+        uint256 otherId_
+    )
+        public
+        view
+    {
+        vm.assume(otherId_ != supplyId_ && otherId_ != borrowId_);
+
+        address market = lib.marketKey(spoke_, supplyId_, borrowId_);
+
+        assertTrue(market != lib.marketKey(spoke_, otherId_, borrowId_), "changing the supply leg must move the key");
+        assertTrue(market != lib.marketKey(spoke_, supplyId_, otherId_), "changing the borrow leg must move the key");
+    }
+
+    /// @notice The header pin accepts exactly the derived key and rejects everything else. This is the
+    ///         on-chain guarantee the V2 LOAN hooks buy: a crafted header cannot name a different market — nor
+    ///         either leg's reserve key — than the body acts on.
+    function testFuzz_RequireHeaderIsMarketKey_AcceptsTheDerivedKeyAndRejectsOthers(
+        address spoke_,
+        uint256 supplyId_,
+        uint256 borrowId_,
+        address wrongKey_
+    )
+        public
+    {
+        address market = lib.marketKey(spoke_, supplyId_, borrowId_);
+
+        // the derived key passes
+        lib.requireHeaderIsMarketKey(market, spoke_, supplyId_, borrowId_);
+
+        vm.assume(wrongKey_ != market);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lib.requireHeaderIsMarketKey(wrongKey_, spoke_, supplyId_, borrowId_);
+    }
+
+    /// @notice The reserve-key pin and the market-key pin are not interchangeable: a reserve key presented to
+    ///         the market pin is rejected. A V2 hook deployed at its NEW address therefore fails closed against
+    ///         an old reserve-key header instead of silently accepting it — the migration property that makes
+    ///         "no flag day" safe.
+    function test_RequireHeaderIsMarketKey_RejectsEitherLegsReserveKey() public {
+        uint256 supplyId = 5;
+        uint256 borrowId = 7;
+
+        // Derive BEFORE arming the cheatcode: an external call inside the argument list would be the call
+        // `vm.expectRevert` observes.
+        address collateralSupplyKey = registry.computeReserveKey(address(spoke), supplyId);
+        address loanSupplyKey = registry.computeReserveKey(address(spoke), borrowId);
+        address loanDebtKey = registry.computeDebtKey(address(spoke), borrowId);
+
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lib.requireHeaderIsMarketKey(collateralSupplyKey, address(spoke), supplyId, borrowId);
+
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lib.requireHeaderIsMarketKey(loanSupplyKey, address(spoke), supplyId, borrowId);
+
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lib.requireHeaderIsMarketKey(loanDebtKey, address(spoke), supplyId, borrowId);
     }
 }

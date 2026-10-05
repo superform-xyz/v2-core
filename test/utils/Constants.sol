@@ -221,8 +221,10 @@ abstract contract Constants {
     /// @dev Superform Morpho Blue yield-source oracle id carried in the 52-byte hook header (offset 0).
     ///      The yield source (offset 32) is the Morpho Blue singleton `MORPHO`.
     bytes32 public constant MORPHO_YS_ORACLE_ID = MORPHO_BLUE_YS_ORACLE_ID;
-    /// @dev Aave V4 LOAN-hook header: this id is carried at offset 0 (must be nonzero; otherwise identity only);
-    ///      offset 32 is `AaveV4ReserveKey.computeReserveKey(spoke, primaryReserveId)`
+    /// @dev Aave V4 LOAN-hook header: this id is carried at offset 0 (must be nonzero; otherwise identity only).
+    ///      Offset 32 depends on the hook family: the six V2 LOAN hooks carry
+    ///      `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` (SUP-21239), while the
+    ///      V1 six and the idle MONEY_MARKET pair keep `computeReserveKey(spoke, reserveId)`.
     bytes32 public constant AAVE_V4_YS_ORACLE_ID = AAVE_V4_SUPPLY_YS_ORACLE_ID;
 
     // Base USDC-WETH Market Constants
