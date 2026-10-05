@@ -31,7 +31,7 @@ var (
 
 // AcrossV3AdapterV2MetaData contains all meta data concerning the AcrossV3AdapterV2 contract.
 var AcrossV3AdapterV2MetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"acrossSpokePool_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superDestinationExecutor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"ACROSS_SPOKE_POOL\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_DESTINATION_EXECUTOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperDestinationExecutor\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"claimFailedTransfer\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"failedTransfers\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleV3AcrossMessage\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"message\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedAndExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButExecutionFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutionFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FailedTransferClaimed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TransferFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TransferSucceeded\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenSent\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"DESTINATION_EXECUTION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_FAILED_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SENDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_DST_PROOF_FOR_CHAIN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TRANSFER_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"acrossSpokePool_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superDestinationExecutor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"ACROSS_SPOKE_POOL\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_DESTINATION_EXECUTOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperDestinationExecutor\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_DESTINATION_VALIDATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleV3AcrossMessage\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"message\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedAndExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButExecutionFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutionFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"selector\",\"type\":\"bytes4\",\"indexed\":false,\"internalType\":\"bytes4\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TransferSucceeded\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"DESTINATION_EXECUTION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXECUTOR_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SENDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_DST_PROOF_FOR_CHAIN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TRANSFER_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"VALIDATOR_NOT_VALID\",\"inputs\":[]}]",
 }
 
 // AcrossV3AdapterV2ABI is the input ABI used to generate the binding from.
@@ -242,56 +242,35 @@ func (_AcrossV3AdapterV2 *AcrossV3AdapterV2CallerSession) SUPERDESTINATIONEXECUT
 	return _AcrossV3AdapterV2.Contract.SUPERDESTINATIONEXECUTOR(&_AcrossV3AdapterV2.CallOpts)
 }
 
-// FailedTransfers is a free data retrieval call binding the contract method 0x1b60f266.
+// SUPERDESTINATIONVALIDATOR is a free data retrieval call binding the contract method 0x5a0ed186.
 //
-// Solidity: function failedTransfers(address account, address token) view returns(uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Caller) FailedTransfers(opts *bind.CallOpts, account common.Address, token common.Address) (*big.Int, error) {
+// Solidity: function SUPER_DESTINATION_VALIDATOR() view returns(address)
+func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Caller) SUPERDESTINATIONVALIDATOR(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _AcrossV3AdapterV2.contract.Call(opts, &out, "failedTransfers", account, token)
+	err := _AcrossV3AdapterV2.contract.Call(opts, &out, "SUPER_DESTINATION_VALIDATOR")
 
 	if err != nil {
-		return *new(*big.Int), err
+		return *new(common.Address), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 
 	return out0, err
 
 }
 
-// FailedTransfers is a free data retrieval call binding the contract method 0x1b60f266.
+// SUPERDESTINATIONVALIDATOR is a free data retrieval call binding the contract method 0x5a0ed186.
 //
-// Solidity: function failedTransfers(address account, address token) view returns(uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Session) FailedTransfers(account common.Address, token common.Address) (*big.Int, error) {
-	return _AcrossV3AdapterV2.Contract.FailedTransfers(&_AcrossV3AdapterV2.CallOpts, account, token)
+// Solidity: function SUPER_DESTINATION_VALIDATOR() view returns(address)
+func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Session) SUPERDESTINATIONVALIDATOR() (common.Address, error) {
+	return _AcrossV3AdapterV2.Contract.SUPERDESTINATIONVALIDATOR(&_AcrossV3AdapterV2.CallOpts)
 }
 
-// FailedTransfers is a free data retrieval call binding the contract method 0x1b60f266.
+// SUPERDESTINATIONVALIDATOR is a free data retrieval call binding the contract method 0x5a0ed186.
 //
-// Solidity: function failedTransfers(address account, address token) view returns(uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2CallerSession) FailedTransfers(account common.Address, token common.Address) (*big.Int, error) {
-	return _AcrossV3AdapterV2.Contract.FailedTransfers(&_AcrossV3AdapterV2.CallOpts, account, token)
-}
-
-// ClaimFailedTransfer is a paid mutator transaction binding the contract method 0x9ceb3049.
-//
-// Solidity: function claimFailedTransfer(address token, uint256 amount) returns()
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Transactor) ClaimFailedTransfer(opts *bind.TransactOpts, token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _AcrossV3AdapterV2.contract.Transact(opts, "claimFailedTransfer", token, amount)
-}
-
-// ClaimFailedTransfer is a paid mutator transaction binding the contract method 0x9ceb3049.
-//
-// Solidity: function claimFailedTransfer(address token, uint256 amount) returns()
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Session) ClaimFailedTransfer(token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _AcrossV3AdapterV2.Contract.ClaimFailedTransfer(&_AcrossV3AdapterV2.TransactOpts, token, amount)
-}
-
-// ClaimFailedTransfer is a paid mutator transaction binding the contract method 0x9ceb3049.
-//
-// Solidity: function claimFailedTransfer(address token, uint256 amount) returns()
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2TransactorSession) ClaimFailedTransfer(token common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _AcrossV3AdapterV2.Contract.ClaimFailedTransfer(&_AcrossV3AdapterV2.TransactOpts, token, amount)
+// Solidity: function SUPER_DESTINATION_VALIDATOR() view returns(address)
+func (_AcrossV3AdapterV2 *AcrossV3AdapterV2CallerSession) SUPERDESTINATIONVALIDATOR() (common.Address, error) {
+	return _AcrossV3AdapterV2.Contract.SUPERDESTINATIONVALIDATOR(&_AcrossV3AdapterV2.CallOpts)
 }
 
 // HandleV3AcrossMessage is a paid mutator transaction binding the contract method 0x3a5be8cb.
@@ -816,13 +795,14 @@ func (it *AcrossV3AdapterV2ExecutionFailedIterator) Close() error {
 
 // AcrossV3AdapterV2ExecutionFailed represents a ExecutionFailed event raised by the AcrossV3AdapterV2 contract.
 type AcrossV3AdapterV2ExecutionFailed struct {
-	Account common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+	Account  common.Address
+	Selector [4]byte
+	Raw      types.Log // Blockchain specific contextual infos
 }
 
-// FilterExecutionFailed is a free log retrieval operation binding the contract event 0x0cddc7f3a22f81520638293af12599a9ad1cc7a1a0b41c4e49b85d3ed8fdafad.
+// FilterExecutionFailed is a free log retrieval operation binding the contract event 0x74c824cbfa28ea7b48d49ef06cc5c9d7aea14c6d09207f758d7c63996f60c98c.
 //
-// Solidity: event ExecutionFailed(address indexed account)
+// Solidity: event ExecutionFailed(address indexed account, bytes4 selector)
 func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterExecutionFailed(opts *bind.FilterOpts, account []common.Address) (*AcrossV3AdapterV2ExecutionFailedIterator, error) {
 
 	var accountRule []interface{}
@@ -837,9 +817,9 @@ func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterExecutionFailed(opts 
 	return &AcrossV3AdapterV2ExecutionFailedIterator{contract: _AcrossV3AdapterV2.contract, event: "ExecutionFailed", logs: logs, sub: sub}, nil
 }
 
-// WatchExecutionFailed is a free log subscription operation binding the contract event 0x0cddc7f3a22f81520638293af12599a9ad1cc7a1a0b41c4e49b85d3ed8fdafad.
+// WatchExecutionFailed is a free log subscription operation binding the contract event 0x74c824cbfa28ea7b48d49ef06cc5c9d7aea14c6d09207f758d7c63996f60c98c.
 //
-// Solidity: event ExecutionFailed(address indexed account)
+// Solidity: event ExecutionFailed(address indexed account, bytes4 selector)
 func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchExecutionFailed(opts *bind.WatchOpts, sink chan<- *AcrossV3AdapterV2ExecutionFailed, account []common.Address) (event.Subscription, error) {
 
 	var accountRule []interface{}
@@ -879,320 +859,12 @@ func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchExecutionFailed(opts *
 	}), nil
 }
 
-// ParseExecutionFailed is a log parse operation binding the contract event 0x0cddc7f3a22f81520638293af12599a9ad1cc7a1a0b41c4e49b85d3ed8fdafad.
+// ParseExecutionFailed is a log parse operation binding the contract event 0x74c824cbfa28ea7b48d49ef06cc5c9d7aea14c6d09207f758d7c63996f60c98c.
 //
-// Solidity: event ExecutionFailed(address indexed account)
+// Solidity: event ExecutionFailed(address indexed account, bytes4 selector)
 func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) ParseExecutionFailed(log types.Log) (*AcrossV3AdapterV2ExecutionFailed, error) {
 	event := new(AcrossV3AdapterV2ExecutionFailed)
 	if err := _AcrossV3AdapterV2.contract.UnpackLog(event, "ExecutionFailed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// AcrossV3AdapterV2FailedTransferClaimedIterator is returned from FilterFailedTransferClaimed and is used to iterate over the raw logs and unpacked data for FailedTransferClaimed events raised by the AcrossV3AdapterV2 contract.
-type AcrossV3AdapterV2FailedTransferClaimedIterator struct {
-	Event *AcrossV3AdapterV2FailedTransferClaimed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *AcrossV3AdapterV2FailedTransferClaimedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(AcrossV3AdapterV2FailedTransferClaimed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(AcrossV3AdapterV2FailedTransferClaimed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *AcrossV3AdapterV2FailedTransferClaimedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *AcrossV3AdapterV2FailedTransferClaimedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// AcrossV3AdapterV2FailedTransferClaimed represents a FailedTransferClaimed event raised by the AcrossV3AdapterV2 contract.
-type AcrossV3AdapterV2FailedTransferClaimed struct {
-	Account common.Address
-	Token   common.Address
-	Amount  *big.Int
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterFailedTransferClaimed is a free log retrieval operation binding the contract event 0x6f65559b767bf231652bb6bbc613c03da1500c2af09834b0c638fc41d4b21616.
-//
-// Solidity: event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterFailedTransferClaimed(opts *bind.FilterOpts, account []common.Address, token []common.Address) (*AcrossV3AdapterV2FailedTransferClaimedIterator, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var tokenRule []interface{}
-	for _, tokenItem := range token {
-		tokenRule = append(tokenRule, tokenItem)
-	}
-
-	logs, sub, err := _AcrossV3AdapterV2.contract.FilterLogs(opts, "FailedTransferClaimed", accountRule, tokenRule)
-	if err != nil {
-		return nil, err
-	}
-	return &AcrossV3AdapterV2FailedTransferClaimedIterator{contract: _AcrossV3AdapterV2.contract, event: "FailedTransferClaimed", logs: logs, sub: sub}, nil
-}
-
-// WatchFailedTransferClaimed is a free log subscription operation binding the contract event 0x6f65559b767bf231652bb6bbc613c03da1500c2af09834b0c638fc41d4b21616.
-//
-// Solidity: event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchFailedTransferClaimed(opts *bind.WatchOpts, sink chan<- *AcrossV3AdapterV2FailedTransferClaimed, account []common.Address, token []common.Address) (event.Subscription, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var tokenRule []interface{}
-	for _, tokenItem := range token {
-		tokenRule = append(tokenRule, tokenItem)
-	}
-
-	logs, sub, err := _AcrossV3AdapterV2.contract.WatchLogs(opts, "FailedTransferClaimed", accountRule, tokenRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(AcrossV3AdapterV2FailedTransferClaimed)
-				if err := _AcrossV3AdapterV2.contract.UnpackLog(event, "FailedTransferClaimed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseFailedTransferClaimed is a log parse operation binding the contract event 0x6f65559b767bf231652bb6bbc613c03da1500c2af09834b0c638fc41d4b21616.
-//
-// Solidity: event FailedTransferClaimed(address indexed account, address indexed token, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) ParseFailedTransferClaimed(log types.Log) (*AcrossV3AdapterV2FailedTransferClaimed, error) {
-	event := new(AcrossV3AdapterV2FailedTransferClaimed)
-	if err := _AcrossV3AdapterV2.contract.UnpackLog(event, "FailedTransferClaimed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// AcrossV3AdapterV2TransferFailedIterator is returned from FilterTransferFailed and is used to iterate over the raw logs and unpacked data for TransferFailed events raised by the AcrossV3AdapterV2 contract.
-type AcrossV3AdapterV2TransferFailedIterator struct {
-	Event *AcrossV3AdapterV2TransferFailed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *AcrossV3AdapterV2TransferFailedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(AcrossV3AdapterV2TransferFailed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(AcrossV3AdapterV2TransferFailed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *AcrossV3AdapterV2TransferFailedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *AcrossV3AdapterV2TransferFailedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// AcrossV3AdapterV2TransferFailed represents a TransferFailed event raised by the AcrossV3AdapterV2 contract.
-type AcrossV3AdapterV2TransferFailed struct {
-	Account common.Address
-	Token   common.Address
-	Amount  *big.Int
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterTransferFailed is a free log retrieval operation binding the contract event 0xbf182be802245e8ed88e4b8d3e4344c0863dd2a70334f089fd07265389306fcf.
-//
-// Solidity: event TransferFailed(address indexed account, address indexed token, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterTransferFailed(opts *bind.FilterOpts, account []common.Address, token []common.Address) (*AcrossV3AdapterV2TransferFailedIterator, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var tokenRule []interface{}
-	for _, tokenItem := range token {
-		tokenRule = append(tokenRule, tokenItem)
-	}
-
-	logs, sub, err := _AcrossV3AdapterV2.contract.FilterLogs(opts, "TransferFailed", accountRule, tokenRule)
-	if err != nil {
-		return nil, err
-	}
-	return &AcrossV3AdapterV2TransferFailedIterator{contract: _AcrossV3AdapterV2.contract, event: "TransferFailed", logs: logs, sub: sub}, nil
-}
-
-// WatchTransferFailed is a free log subscription operation binding the contract event 0xbf182be802245e8ed88e4b8d3e4344c0863dd2a70334f089fd07265389306fcf.
-//
-// Solidity: event TransferFailed(address indexed account, address indexed token, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchTransferFailed(opts *bind.WatchOpts, sink chan<- *AcrossV3AdapterV2TransferFailed, account []common.Address, token []common.Address) (event.Subscription, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var tokenRule []interface{}
-	for _, tokenItem := range token {
-		tokenRule = append(tokenRule, tokenItem)
-	}
-
-	logs, sub, err := _AcrossV3AdapterV2.contract.WatchLogs(opts, "TransferFailed", accountRule, tokenRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(AcrossV3AdapterV2TransferFailed)
-				if err := _AcrossV3AdapterV2.contract.UnpackLog(event, "TransferFailed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseTransferFailed is a log parse operation binding the contract event 0xbf182be802245e8ed88e4b8d3e4344c0863dd2a70334f089fd07265389306fcf.
-//
-// Solidity: event TransferFailed(address indexed account, address indexed token, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) ParseTransferFailed(log types.Log) (*AcrossV3AdapterV2TransferFailed, error) {
-	event := new(AcrossV3AdapterV2TransferFailed)
-	if err := _AcrossV3AdapterV2.contract.UnpackLog(event, "TransferFailed", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -1268,27 +940,27 @@ func (it *AcrossV3AdapterV2TransferSucceededIterator) Close() error {
 
 // AcrossV3AdapterV2TransferSucceeded represents a TransferSucceeded event raised by the AcrossV3AdapterV2 contract.
 type AcrossV3AdapterV2TransferSucceeded struct {
-	Account   common.Address
-	TokenSent common.Address
-	Amount    *big.Int
-	Raw       types.Log // Blockchain specific contextual infos
+	Account common.Address
+	Token   common.Address
+	Amount  *big.Int
+	Raw     types.Log // Blockchain specific contextual infos
 }
 
 // FilterTransferSucceeded is a free log retrieval operation binding the contract event 0xb4f875d925805b35ef8df5a5cfb3e81cd4cff682cdc8ac555507c51508525259.
 //
-// Solidity: event TransferSucceeded(address indexed account, address indexed tokenSent, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterTransferSucceeded(opts *bind.FilterOpts, account []common.Address, tokenSent []common.Address) (*AcrossV3AdapterV2TransferSucceededIterator, error) {
+// Solidity: event TransferSucceeded(address indexed account, address indexed token, uint256 amount)
+func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterTransferSucceeded(opts *bind.FilterOpts, account []common.Address, token []common.Address) (*AcrossV3AdapterV2TransferSucceededIterator, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
 		accountRule = append(accountRule, accountItem)
 	}
-	var tokenSentRule []interface{}
-	for _, tokenSentItem := range tokenSent {
-		tokenSentRule = append(tokenSentRule, tokenSentItem)
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
 	}
 
-	logs, sub, err := _AcrossV3AdapterV2.contract.FilterLogs(opts, "TransferSucceeded", accountRule, tokenSentRule)
+	logs, sub, err := _AcrossV3AdapterV2.contract.FilterLogs(opts, "TransferSucceeded", accountRule, tokenRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1297,19 +969,19 @@ func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) FilterTransferSucceeded(opt
 
 // WatchTransferSucceeded is a free log subscription operation binding the contract event 0xb4f875d925805b35ef8df5a5cfb3e81cd4cff682cdc8ac555507c51508525259.
 //
-// Solidity: event TransferSucceeded(address indexed account, address indexed tokenSent, uint256 amount)
-func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchTransferSucceeded(opts *bind.WatchOpts, sink chan<- *AcrossV3AdapterV2TransferSucceeded, account []common.Address, tokenSent []common.Address) (event.Subscription, error) {
+// Solidity: event TransferSucceeded(address indexed account, address indexed token, uint256 amount)
+func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchTransferSucceeded(opts *bind.WatchOpts, sink chan<- *AcrossV3AdapterV2TransferSucceeded, account []common.Address, token []common.Address) (event.Subscription, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
 		accountRule = append(accountRule, accountItem)
 	}
-	var tokenSentRule []interface{}
-	for _, tokenSentItem := range tokenSent {
-		tokenSentRule = append(tokenSentRule, tokenSentItem)
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
 	}
 
-	logs, sub, err := _AcrossV3AdapterV2.contract.WatchLogs(opts, "TransferSucceeded", accountRule, tokenSentRule)
+	logs, sub, err := _AcrossV3AdapterV2.contract.WatchLogs(opts, "TransferSucceeded", accountRule, tokenRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1343,7 +1015,7 @@ func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) WatchTransferSucceeded(opts
 
 // ParseTransferSucceeded is a log parse operation binding the contract event 0xb4f875d925805b35ef8df5a5cfb3e81cd4cff682cdc8ac555507c51508525259.
 //
-// Solidity: event TransferSucceeded(address indexed account, address indexed tokenSent, uint256 amount)
+// Solidity: event TransferSucceeded(address indexed account, address indexed token, uint256 amount)
 func (_AcrossV3AdapterV2 *AcrossV3AdapterV2Filterer) ParseTransferSucceeded(log types.Log) (*AcrossV3AdapterV2TransferSucceeded, error) {
 	event := new(AcrossV3AdapterV2TransferSucceeded)
 	if err := _AcrossV3AdapterV2.contract.UnpackLog(event, "TransferSucceeded", log); err != nil {
