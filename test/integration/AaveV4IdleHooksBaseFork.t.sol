@@ -51,6 +51,10 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     AaveV4LendHook public lendHook;
     AaveV4RedeemHook public redeemHook;
     address public usdcKey;
+    /// @dev SUP-21254: the idle header and therefore the SuperLedger key — the market whose SUPPLY leg is
+    ///      the USDC reserve these tests lend. An equity reserve supplies the identity-only borrow leg.
+    address public usdcMarketKey;
+    uint256 public constant IDLE_BORROW_LEG_ID = 0;
     bytes32 public oracleId;
     address public feeRecipient;
 
@@ -70,6 +74,10 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
 
         registry = new AaveV4ReserveRegistryV2(address(this));
         (usdcKey,) = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
+        registry.registerReserve(MAG7_SPOKE, IDLE_BORROW_LEG_ID);
+        // the oracle resolves the idle header through `_resolveLeg`, which reverts for an unregistered
+        // market, so the market must exist before any idle op can settle
+        usdcMarketKey = registry.registerMarket(MAG7_SPOKE, USDC_RESERVE_ID, IDLE_BORROW_LEG_ID);
         oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         feeRecipient = makeAddr("feeRecipient");
 
@@ -93,7 +101,9 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     receive() external payable { }
 
     function _data(uint256 amount, bool usePrev) internal view returns (bytes memory) {
-        return abi.encodePacked(oracleId, usdcKey, CHAIN_8453_USDC, MAG7_SPOKE, USDC_RESERVE_ID, amount, usePrev);
+        return abi.encodePacked(
+            oracleId, usdcMarketKey, CHAIN_8453_USDC, MAG7_SPOKE, USDC_RESERVE_ID, amount, usePrev, IDLE_BORROW_LEG_ID
+        );
     }
 
     function _execute(address hook, bytes memory data) internal returns (ExecutionReturnData memory) {
@@ -132,7 +142,7 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         assertEq(walletBefore - IERC20(CHAIN_8453_USDC).balanceOf(accountBase), LEND);
         uint256 credited = _supplied();
         assertLe(LEND - credited, 1);
-        assertEq(ledger.usersAccumulatorShares(accountBase, usdcKey), credited, "keyed by reserve key");
+        assertEq(ledger.usersAccumulatorShares(accountBase, usdcMarketKey), credited, "keyed by the header market key");
         assertEq(ledger.usersAccumulatorShares(accountBase, MAG7_SPOKE), 0, "never by the spoke");
         assertEq(oracle.getBalanceOfOwner(usdcKey, accountBase), credited);
     }
@@ -146,8 +156,8 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
 
         assertEq(IERC20(CHAIN_8453_USDC).balanceOf(accountBase) - walletBefore, credited);
         assertEq(_supplied(), 0);
-        assertEq(ledger.usersAccumulatorShares(accountBase, usdcKey), 0);
-        assertEq(ledger.usersAccumulatorCostBasis(accountBase, usdcKey), 0);
+        assertEq(ledger.usersAccumulatorShares(accountBase, usdcMarketKey), 0);
+        assertEq(ledger.usersAccumulatorCostBasis(accountBase, usdcMarketKey), 0);
         assertEq(IERC20(CHAIN_8453_USDC).balanceOf(feeRecipient), 0, "feePercent 0");
     }
 
@@ -160,6 +170,6 @@ contract AaveV4IdleHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
 
         assertEq(IERC20(CHAIN_8453_USDC).balanceOf(accountBase) - walletBefore, 250e6, "exact receipt");
         assertApproxEqAbs(_supplied(), credited - 250e6, 1);
-        assertEq(ledger.usersAccumulatorShares(accountBase, usdcKey), _supplied());
+        assertEq(ledger.usersAccumulatorShares(accountBase, usdcMarketKey), _supplied());
     }
 }

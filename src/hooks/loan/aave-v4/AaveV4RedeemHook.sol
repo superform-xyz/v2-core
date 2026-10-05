@@ -13,9 +13,9 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 
 /// @title AaveV4RedeemHook
 /// @author Superform Labs
-/// @dev data has the following structure (exact 157 bytes; standard 52-byte strategy header + hook-specific):
+/// @dev data has the following structure (exact 189 bytes; standard 52-byte strategy header + hook-specific):
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 supply YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // registry reserve key (spoke, supplyReserveId)
+/// @notice         address yieldSource = data.extractYieldSource(); // computeMarketKey(spoke, supplyId, borrowId)
 /// @notice         address underlying = BytesLib.toAddress(data, 52);
 /// @notice         address spoke = BytesLib.toAddress(data, 72);
 /// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 92);
@@ -26,7 +26,7 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 ///      without any `setUsingAsCollateral(false)` call (verified on the live Base and Ethereum spokes).
 ///      If the reserve was made collateral elsewhere and backs debt, the Spoke enforces its own health
 ///      factor and may revert; this hook never changes the flag. See BaseAaveV4MoneyMarketHook for the
-///      header identity (reserve key at offset 32).
+///      header identity (the MARKET key at offset 32).
 /// @dev Accounting: outAmount = underlying received in the wallet, asserted to equal exactly
 ///      min(amount, supplied-before) (exact-in withdraw pays `amount`; full withdrawal pays the pre-read
 ///      supplied assets); `usedShares` = supplied-assets position consumed (before - after), the same
@@ -35,8 +35,9 @@ import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../
 ///      wallet receipt. outToken = underlying (a real ERC-20), so this hook chains cleanly into swaps
 ///      and deposits.
 /// @dev OMS sizing: one IN / SHARES slot at offset 124 (1:1 share wei). A previous hook feeding this
-///      slot must have produced the reserve key as its output token (i.e. AaveV4LendHook); a chained
-///      full withdrawal is impossible by design (the prev pipe rejects max) — use an explicit max in
+///      slot must have produced the SAME market key as its output token (so lend and redeem must name the same market,
+/// not merely the same reserve — a different borrow leg reverts PREV_TOKEN_MISMATCH) (i.e. AaveV4LendHook); a chained
+/// full withdrawal is impossible by design (the prev pipe rejects max) — use an explicit max in
 ///      calldata.
 contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
     /*//////////////////////////////////////////////////////////////
@@ -44,7 +45,7 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev OUTFLOW: SuperExecutor posts outAmount (underlying received) and `usedShares` (supplied
-    ///      assets consumed) to SuperLedger keyed by the header reserve key, and charges any
+    ///      assets consumed) to SuperLedger keyed by the header market key, and charges any
     ///      realized-profit fee in `asset` (the underlying). feePercent is 0 by operational invariant.
     constructor() BaseAaveV4MoneyMarketHook(ISuperHook.HookType.OUTFLOW) { }
 
@@ -77,7 +78,7 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
         _requireUnderlyingMatchesReserve(vars);
         _requireNotCollateral(vars, account);
 
-        uint256 amount = _resolveIdleAmount(prevHook, account, vars, vars.reserveKey);
+        uint256 amount = _resolveIdleAmount(prevHook, account, vars, vars.marketKey);
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
         // type(uint256).max (or any amount above the supplied position) passes straight through as a
@@ -86,12 +87,12 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
         executions[0] = Execution({
             target: vars.spoke,
             value: 0,
-            callData: abi.encodeCall(IAaveV4Spoke.withdraw, (vars.reserveId, amount, account))
+            callData: abi.encodeCall(IAaveV4Spoke.withdraw, (vars.supplyReserveId, amount, account))
         });
     }
 
     /// @inheritdoc ISuperHookInspector
-    /// @dev Identity = reserve key + spoke + underlying + supplyReserveId (92 bytes) — identical bytes to
+    /// @dev Identity = market key + spoke + underlying + supplyReserveId (92 bytes) — identical bytes to
     ///      AaveV4LendHook for the same reserve.
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectIdle(_decodeIdle(data));
@@ -128,7 +129,7 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
         // Nothing to redeem: fail closed rather than post a zero outflow.
         if (suppliedBefore == 0) revert AMOUNT_NOT_VALID();
 
-        uint256 amount = _resolveIdleAmount(prevHook, account, vars, vars.reserveKey);
+        uint256 amount = _resolveIdleAmount(prevHook, account, vars, vars.marketKey);
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
         expectedPrimaryAmount = amount > suppliedBefore ? suppliedBefore : amount;

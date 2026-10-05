@@ -631,9 +631,18 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     ///         refuse that reserve for this account by design (one mode per (account, reserve)).
     function test_AaveV4V2_Pledge_FlipsFlag_IdleRedeemRefuses() external {
         _executeHook(address(pledgeHook), _standaloneData(SUPPLY_AMOUNT, false));
-        address key = address(uint160(uint256(keccak256(abi.encode(SPOKE_ADDR, WETH_RESERVE_ID)))));
+        // SUP-21254: the idle body carries both reserve ids and the header is their market key. The WETH
+        // reserve is the one this redeem would move, so it is the market's SUPPLY leg.
+        uint256 idleBorrowLeg = USDC_RESERVE_ID;
         bytes memory idleData = abi.encodePacked(
-            bytes32(uint256(1)), key, CHAIN_1_WETH, SPOKE_ADDR, WETH_RESERVE_ID, type(uint256).max, false
+            bytes32(uint256(1)),
+            AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, idleBorrowLeg),
+            CHAIN_1_WETH,
+            SPOKE_ADDR,
+            WETH_RESERVE_ID,
+            type(uint256).max,
+            false,
+            idleBorrowLeg
         );
         _executeHookExpectFailure(
             address(idleRedeemHook), idleData, BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector

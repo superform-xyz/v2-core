@@ -1260,9 +1260,10 @@ contract AaveV4ReserveRegistryLifecycleTest is Test {
         assertEq(registry.marketRefs(usdcDebtLegKey), 1, "market must claim the loan DEBT leg");
     }
 
-    /// @notice The two namespaces never answer for each other: a market key is not a reserve and a reserve key
-    ///         is not a market. This is the on-chain half of the namespace split — the oracle resolves
-    ///         `_reserves` only, so a market key can never be read as a position.
+    /// @notice The two namespaces never answer for each other IN STORAGE: a market key is not a reserve and
+    ///         a reserve key is not a market. (The ORACLE does cross them one-directionally since SUP-21255,
+    ///         resolving a market key to its collateral leg — but that is a read-side projection, not a
+    ///         second registration, which is exactly what this test pins.)
     function test_namespaces_doNotAnswerForEachOther() public {
         address marketKey = _registerCanonicalMarket();
 

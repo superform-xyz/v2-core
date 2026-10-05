@@ -224,7 +224,8 @@ abstract contract Constants {
     /// @dev Aave V4 LOAN-hook header: this id is carried at offset 0 (must be nonzero; otherwise identity only).
     ///      Offset 32 depends on the hook family: the six V2 LOAN hooks carry
     ///      `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` (SUP-21239), while the
-    ///      V1 six and the idle MONEY_MARKET pair keep `computeReserveKey(spoke, reserveId)`.
+    ///      V1 six keep `computeReserveKey(spoke, reserveId)`. The idle MONEY_MARKET pair moved to the
+    ///      market key too (SUP-21254) and its body is 189 bytes.
     bytes32 public constant AAVE_V4_YS_ORACLE_ID = AAVE_V4_SUPPLY_YS_ORACLE_ID;
 
     // Base USDC-WETH Market Constants

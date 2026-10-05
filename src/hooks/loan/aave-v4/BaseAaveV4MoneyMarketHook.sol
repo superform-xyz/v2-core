@@ -21,23 +21,36 @@ import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../..
 /// @dev Inherited ONLY by the two idle leaves. It deliberately does NOT inherit BaseAaveV4LoanHook /
 ///      BaseAaveV4LoanHookV2: those are the LOAN PLEDGE / BORROW / RELEASE bases (241-byte layout, a
 ///      borrow reserve is mandatory, and the supply leaf enables collateral). Idle supply is a
-///      deposit/withdraw vault-main — no collateral bit, no debt — so it gets its own 157-byte layout.
+///      deposit/withdraw vault-main — no collateral bit, no debt — so it gets its own 189-byte layout.
 ///      BaseLoanHookV2 is used for its strict decoding and exact wallet-delta settlement helpers; the
 ///      shared loan bases fix `HookType.NONACCOUNTING` and stay untouched — `hookType` is plain storage
 ///      on BaseHook, so this base reassigns it after construction (INFLOW lend / OUTFLOW redeem) with
 ///      zero impact on any LOAN sibling (the same trick as BaseMorphoMoneyMarketHook).
 ///
-/// @dev Data layout (exact 157 bytes; standard 52-byte strategy header + hook-specific):
+/// @dev Data layout (exact 189 bytes; standard 52-byte strategy header + hook-specific). SUP-21254 APPENDED
+///      `borrowReserveId` rather than inserting it, so every pre-existing offset is unchanged and the whole
+///      sizing surface moved by one constant:
 /// @notice         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId(); // Superform Aave V4 supply YS id
-/// @notice         address yieldSource = data.extractYieldSource(); // registry reserve key (spoke, supplyReserveId)
+/// @notice         address yieldSource = data.extractYieldSource(); // computeMarketKey(spoke, supplyId, borrowId)
 /// @notice         address underlying = BytesLib.toAddress(data, 52);
 /// @notice         address spoke = BytesLib.toAddress(data, 72);
-/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 92);
+/// @notice         uint256 supplyReserveId = BytesLib.toUint256(data, 92); // THE reserve this op moves
 /// @notice         uint256 amount = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeStrictBool(data, 156); // canonical 0x00 / 0x01
+/// @notice         uint256 borrowReserveId = BytesLib.toUint256(data, 157); // identity only; never called
 ///
-///      HEADER IDENTITY: offset 32 carries the RESERVE KEY — `keccak256(abi.encode(spoke, reserveId))`
-///      truncated to an address, byte-identical to `AaveV4ReserveRegistryV2.computeReserveKey` — never the
+///      HEADER IDENTITY (SUP-21254): offset 32 carries the MARKET KEY —
+///      `keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN))` truncated to an
+///      address, byte-identical to `AaveV4ReserveRegistryV2.computeMarketKey`, the same key the six V2 LOAN
+///      hooks pin. Unlike theirs, THIS header is also a SuperLedger key and an oracle argument: the pair is
+///      INFLOW / OUTFLOW, so `SuperExecutorBase._updateAccounting` reads it and `AaveV4ReserveOracle`
+///      resolves it to the market's SUPPLY leg — which, by the one-word construction above, is the reserve
+///      this op moved. A consequence worth stating: because the oracle reverts
+///      `RESERVE_NOT_REGISTERED` for an unregistered market, an idle op can only settle under a market the
+///      registry has blessed, so the accounting allowlist is now market-granular for free. The ops invariant
+///      that keeps ONE ledger key per idle position is `marketRefs[computeReserveKey(spoke, supplyReserveId)]
+///      <= 1` for every idle-lendable reserve — curated in the registry, not enforceable from calldata, and
+///      satisfied naturally by the Base MAG7 topology. The header was never the
 ///      Spoke. SuperExecutorBase posts INFLOW / OUTFLOW to SuperLedger keyed by that address and
 ///      AaveV4ReserveOracle resolves the same key through the registry (identity PPS, asset
 ///      units). Keying by the Spoke would collide every reserve of a spoke, and every LOAN position on
@@ -48,9 +61,11 @@ import { ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../..
 ///      template that sizes must also pass inspect() / build(). The Spoke stays on the hook as the only
 ///      call target and approve spender.
 ///
-///      FAIL-CLOSED ALLOWLIST: the hooks never consult the registry; a reserve whose key is not
-///      registered reverts at accounting (`RESERVE_NOT_REGISTERED` from the oracle), so the whole
-///      userOp reverts. Registration is an ops precondition, exactly like Morpho markets.
+///      FAIL-CLOSED ALLOWLIST, now MARKET-granular: the hooks never consult the registry, but the header is
+///      a ledger key, so an unregistered MARKET reverts at accounting (`RESERVE_NOT_REGISTERED`, raised by
+///      the oracle while resolving the market key) and the whole userOp reverts. SUP-21254 therefore tightened
+///      this allowlist from per-reserve to per-market for free. Registration is an ops precondition, exactly
+///      like Morpho markets.
 ///      SECURITY INVARIANT: onBehalfOf is always hardcoded to `account` — never arbitrary.
 ///      ONE MODE PER (ACCOUNT, RESERVE): a reserve the account has flagged as collateral is refused by
 ///      both hooks (RESERVE_IS_COLLATERAL) — see _requireNotCollateral.
@@ -73,19 +88,22 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     uint256 internal constant IDLE_RESERVE_ID_OFFSET = 92;
     uint256 internal constant IDLE_AMOUNT_OFFSET = 124;
     uint256 internal constant IDLE_USE_PREV_OFFSET = 156;
+    /// @notice The market's borrow leg — identity only, appended after the bool so no prior offset moved
+    uint256 internal constant IDLE_BORROW_RESERVE_ID_OFFSET = 157;
 
-    /// @notice Exact hook-data length for both idle hooks
-    uint256 internal constant IDLE_DATA_LENGTH = 157;
+    /// @notice Exact hook-data length for both idle hooks (157 before SUP-21254)
+    uint256 internal constant IDLE_DATA_LENGTH = 189;
 
     /*//////////////////////////////////////////////////////////////
                                STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     struct IdleVars {
-        address reserveKey; // header offset 32 — registry reserve key (accounting / PPS key)
+        address marketKey; // header offset 32 — the market key; ledger / PPS key, resolved to its SUPPLY leg
         address underlying;
         address spoke;
-        uint256 reserveId;
+        uint256 supplyReserveId; // the reserve the Spoke call moves AND the market's supply leg — one word
+        uint256 borrowReserveId; // identity only: completes the market key, never passed to the Spoke
         uint256 amount;
         bool usePrevHookAmount;
     }
@@ -105,6 +123,11 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
 
     /// @notice Thrown on lend when the account already borrows the same reserve (supply + debt on one key)
     error RESERVE_IS_BORROWED();
+
+    /// @notice Thrown when the body names one reserve as both the market's supply and borrow leg
+    /// @dev Same name as `AaveV4ReserveRegistryV2.IDENTICAL_RESERVES`, so registry/hook parity is nominal
+    ///      as well as semantic: a header these hooks accept is always a market the registry could register.
+    error IDENTICAL_RESERVES();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -160,26 +183,40 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Strictly decodes the idle layout: exact 157-byte length, nonzero oracle id, nonzero
-    ///      addresses, canonical boolean, and the header reserve key pinned to the body. Pure, so
+    /// @dev Strictly decodes the idle layout: exact 189-byte length, nonzero oracle id, nonzero addresses,
+    ///      distinct reserve ids, canonical boolean, and the header MARKET key pinned to the body. Pure, so
     ///      `inspect()` shares it and fails closed on the same malformed inputs.
+    ///      THE SUPPLY-LEG CONVENTION, BY CONSTRUCTION: the single word at offset 92 is both the
+    ///      `supplyReserveId` argument to `computeMarketKey` AND the `reserveId` argument to the Spoke's
+    ///      `supply` / `withdraw`. There is no second variable, so "the reserve this op moves is the
+    ///      market's supply leg" cannot be violated — the same bug class SUP-21239 closed for the V2 LOAN
+    ///      hooks by deleting `_primaryReserveId`, closed here the same way.
+    ///      That matters because this header is a SuperLedger key: `AaveV4ReserveOracle` resolves a market
+    ///      key to its SUPPLY leg, so the balance the ledger reads is the reserve this op actually moved.
     /// @param data The hook data
     /// @return vars The decoded idle parameters
     function _decodeIdle(bytes memory data) internal pure returns (IdleVars memory vars) {
         if (data.length != IDLE_DATA_LENGTH) revert INVALID_DATA_LENGTH();
         if (data.extractYieldSourceOracleId() == bytes32(0)) revert ORACLE_ID_NOT_VALID();
 
-        vars.reserveKey = data.extractYieldSource();
+        vars.marketKey = data.extractYieldSource();
         vars.underlying = BytesLib.toAddress(data, IDLE_UNDERLYING_OFFSET);
         vars.spoke = BytesLib.toAddress(data, IDLE_SPOKE_OFFSET);
-        vars.reserveId = BytesLib.toUint256(data, IDLE_RESERVE_ID_OFFSET);
+        vars.supplyReserveId = BytesLib.toUint256(data, IDLE_RESERVE_ID_OFFSET);
         vars.amount = BytesLib.toUint256(data, IDLE_AMOUNT_OFFSET);
         vars.usePrevHookAmount = _decodeStrictBool(data, IDLE_USE_PREV_OFFSET);
+        vars.borrowReserveId = BytesLib.toUint256(data, IDLE_BORROW_RESERVE_ID_OFFSET);
 
-        if (vars.reserveKey == address(0) || vars.underlying == address(0) || vars.spoke == address(0)) {
+        if (vars.marketKey == address(0) || vars.underlying == address(0) || vars.spoke == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        AaveV4ReserveKey.requireHeaderKey(vars.reserveKey, vars.spoke, vars.reserveId);
+        // Self-consistency, before identity: `computeMarketKey(spoke, R, R)` is derivable but is a market
+        // `AaveV4ReserveRegistryV2.registerMarket` can never register (its own IDENTICAL_RESERVES), so
+        // refusing it here keeps the set of headers these hooks accept a subset of the registry's.
+        if (vars.supplyReserveId == vars.borrowReserveId) revert IDENTICAL_RESERVES();
+        AaveV4ReserveKey.requireHeaderIsMarketKey(
+            vars.marketKey, vars.spoke, vars.supplyReserveId, vars.borrowReserveId
+        );
     }
 
     /// @dev Binds the calldata underlying to the reserve through the Spoke's canonical
@@ -187,7 +224,7 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     ///      token and the fee `asset`, so a mismatch fails here with a specific error instead of a
     ///      late transferFrom / DELTA_MISMATCH revert. View — called from build and _preExecute only.
     function _requireUnderlyingMatchesReserve(IdleVars memory vars) internal view {
-        if (IAaveV4Spoke(vars.spoke).getReserve(vars.reserveId).underlying != vars.underlying) {
+        if (IAaveV4Spoke(vars.spoke).getReserve(vars.supplyReserveId).underlying != vars.underlying) {
             revert TOKEN_RESERVE_MISMATCH();
         }
     }
@@ -208,7 +245,7 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @param vars The decoded idle parameters
     /// @param account The executing smart account
     function _requireNotCollateral(IdleVars memory vars, address account) internal view {
-        (bool isUsingAsCollateral,) = IAaveV4Spoke(vars.spoke).getUserReserveStatus(vars.reserveId, account);
+        (bool isUsingAsCollateral,) = IAaveV4Spoke(vars.spoke).getUserReserveStatus(vars.supplyReserveId, account);
         if (isUsingAsCollateral) revert RESERVE_IS_COLLATERAL();
     }
 
@@ -222,7 +259,7 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @param account The executing smart account
     function _requireIdleLendable(IdleVars memory vars, address account) internal view {
         (bool isUsingAsCollateral, bool isBorrowing) =
-            IAaveV4Spoke(vars.spoke).getUserReserveStatus(vars.reserveId, account);
+            IAaveV4Spoke(vars.spoke).getUserReserveStatus(vars.supplyReserveId, account);
         if (isUsingAsCollateral) revert RESERVE_IS_COLLATERAL();
         if (isBorrowing) revert RESERVE_IS_BORROWED();
     }
@@ -230,7 +267,7 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @dev The account's supplied assets on the reserve — the SAME read
     ///      AaveV4ReserveOracle performs, so hook units equal oracle units by construction.
     function _suppliedAssets(IdleVars memory vars, address account) internal view returns (uint256) {
-        return IAaveV4Spoke(vars.spoke).getUserSuppliedAssets(vars.reserveId, account);
+        return IAaveV4Spoke(vars.spoke).getUserSuppliedAssets(vars.supplyReserveId, account);
     }
 
     /// @dev Resolves the amount to move: the previous hook's output (which must be denominated in
@@ -239,8 +276,8 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param vars The decoded idle parameters
-    /// @param expectedPrevToken Token the previous hook must have produced (lend: underlying; redeem: reserve key)
-    /// @return The exact amount to move
+    /// @param expectedPrevToken Token the previous hook must have produced (lend: underlying; redeem: the header market
+    /// key) @return The exact amount to move
     function _resolveIdleAmount(
         address prevHook,
         address account,
@@ -254,10 +291,17 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
         return vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, expectedPrevToken) : vars.amount;
     }
 
-    /// @dev Inspector payload: reserve key FIRST (the ledger / PPS key, same rule as the Morpho idle
-    ///      hooks — leaves are hashed over these raw bytes), then spoke, underlying and reserve id.
-    ///      92 bytes. Amount, usePrevHookAmount and the oracle id are intentionally excluded.
+    /// @dev Inspector payload: MARKET key FIRST (the ledger / PPS key, same rule as the Morpho idle hooks —
+    ///      leaves are hashed over these raw bytes), then spoke, underlying and the SUPPLY reserve id.
+    ///      Still 92 bytes in the same field order: SUP-21254 changed only what the leading 20 bytes mean.
+    ///      Amount, usePrevHookAmount, the oracle id AND `borrowReserveId` are intentionally excluded.
+    ///      WHY EXCLUDING `borrowReserveId` LOSES NO IDENTITY — AND THE CONDITION THAT MAKES IT TRUE: the
+    ///      market key is a cryptographic commitment to `(spoke, supplyReserveId, borrowReserveId,
+    ///      MARKET_KEY_DOMAIN)`, so two bodies differing only in the borrow leg produce different keys,
+    ///      different payloads and different leaves. That argument holds ONLY while the header is pinned to
+    ///      `computeMarketKey`. If the pin were ever weakened back to a reserve key, offset 157 would become
+    ///      32 bytes of signed-but-uncommitted calldata and this field would have to be added here.
     function _inspectIdle(IdleVars memory vars) internal pure returns (bytes memory) {
-        return abi.encodePacked(vars.reserveKey, vars.spoke, vars.underlying, vars.reserveId);
+        return abi.encodePacked(vars.marketKey, vars.spoke, vars.underlying, vars.supplyReserveId);
     }
 }

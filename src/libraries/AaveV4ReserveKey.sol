@@ -9,10 +9,13 @@ pragma solidity 0.8.30;
 ///            via the idle INFLOW / OUTFLOW pair. These are oracle-resolvable and can be ledger keys.
 ///         2. INTENT / IDENTITY — one key per market PAIR: `computeMarketKey(spoke, supplyReserveId,
 ///            borrowReserveId)` (SUP-21239). Consumed by the header `yieldSource` of the V2 LOAN hooks, and
-///            hence by merkle leaves, vault whitelists and off-chain indexing. NEVER passed to an oracle and
-///            never a ledger key: the V2 LOAN hooks are NONACCOUNTING, so the executor never reads their
-///            header, and a market key handed to `AaveV4ReserveOracle` correctly reverts
-///            `RESERVE_NOT_REGISTERED` (fail-closed).
+///            hence by merkle leaves, vault whitelists and off-chain indexing. The V2 LOAN hooks are
+///            NONACCOUNTING, so the executor never reads their header and a market key is never a ledger
+///            key for them. `AaveV4ReserveOracle` DOES resolve a market key (SUP-21255), but
+///            one-directionally and to one thing only: its COLLATERAL (supply) leg, so the sideless
+///            `IYieldSourceOracle` surface still returns one number in one asset. Debt is never reachable
+///            through a market key, the legs are never netted, and portfolio valuation belongs in the
+///            batched `getOwnerSnapshot`, which de-duplicates legs across the whole requested set.
 /// @dev Single definition: `AaveV4ReserveRegistryV2.computeReserveKey` / `.computeMarketKey` (the `public pure`
 ///      ones off-chain indexers call), the idle `BaseAaveV4MoneyMarketHook` decoder and both LOAN bases all
 ///      delegate here. The literal formulas are what off-chain consumers derive; each is pinned independently
@@ -128,7 +131,14 @@ library AaveV4ReserveKey {
     /// @notice Header pin for the V2 LOAN hooks (SUP-21239): the header yield source must equal the market key of
     ///         the (Spoke, supply reserve, borrow reserve) triple the body acts on, so a crafted header can never
     ///         name a different market — nor either leg's reserve key — than the one the body acts on. Pure, so
-    ///         build, preExecute, inspect, decodeAmounts and replaceCalldataAmounts all fail closed.
+    ///         build, preExecute, inspect and — for the V2 LOAN hooks only — decodeAmounts and
+    ///         replaceCalldataAmounts all fail closed. The idle pair deliberately leaves its three sizing
+    ///         views length-and-bool-only (they are transformation APIs a bundler calls before
+    ///         authentication); its resize window at offsets 124-155 is disjoint from every identity field,
+    ///         so a resize can never turn a mis-keyed payload into a well-keyed one.
+    ///         FOR THE IDLE PAIR the key is additionally a SuperLedger key and an oracle argument: the
+    ///         oracle resolves it to the market's SUPPLY leg, which the decoder guarantees is the reserve
+    ///         the op moved.
     /// @dev Replaces the per-hook `_primaryReserveId` selection the reserve-key pin needed: the market key is a
     ///      function of the WHOLE body, so there is no leg left to choose and the "override picked the wrong leg"
     ///      bug class is closed by construction rather than by convention.

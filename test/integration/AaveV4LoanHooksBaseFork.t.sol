@@ -42,7 +42,7 @@ import { InternalHelpers } from "../utils/InternalHelpers.sol";
 ///         build(): MAG7's equity tokens carry opcodes this fork's EVM cannot execute, so their balance snapshots
 ///         cannot run here; the idle USDC lend executes end to end).
 /// @dev SUP-21239: the V2 LOAN header is `computeMarketKey(spoke, supplyReserveId, borrowReserveId)`, so the
-///      per-spoke statement now lives in the MARKET namespace; the idle lend keeps the reserve SUPPLY key,
+///      per-spoke statement now lives in the MARKET namespace; since SUP-21254 the idle lend carries a market key too,
 ///      which is also its SuperLedger key. Both are checked against the same live registry below.
 contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelpers {
     using BytesLib for bytes;
@@ -91,6 +91,10 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         (usdcKey,) = registry.registerReserve(MAG7_SPOKE, USDC_RESERVE_ID);
         // the equity reserve's legs are needed too: `registerMarket` requires the loan reserve's DEBT leg
         registry.registerReserve(MAG7_SPOKE, EQUITY_RESERVE_ID);
+        // SUP-21254: the idle header is a market key and the ledger read resolves it through the oracle,
+        // which reverts for an unregistered market — so the idle pair's market must exist up front. Its
+        // SUPPLY leg is the USDC reserve the idle ops here move.
+        registry.registerMarket(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID);
         oracle = new AaveV4ReserveOracle(address(ledgerConfig), address(registry));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -135,7 +139,18 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     }
 
     function _idleData(uint256 amount) internal view returns (bytes memory) {
-        return abi.encodePacked(oracleId, usdcKey, CHAIN_8453_USDC, MAG7_SPOKE, USDC_RESERVE_ID, amount, false);
+        // SUP-21254: market key whose SUPPLY leg is the USDC reserve this idle op moves
+        uint256 borrowLeg = EQUITY_RESERVE_ID;
+        return abi.encodePacked(
+            oracleId,
+            AaveV4ReserveKey.computeMarketKey(MAG7_SPOKE, USDC_RESERVE_ID, borrowLeg),
+            CHAIN_8453_USDC,
+            MAG7_SPOKE,
+            USDC_RESERVE_ID,
+            amount,
+            false,
+            borrowLeg
+        );
     }
 
     function _execute(address hook, bytes memory data) internal returns (ExecutionReturnData memory) {
@@ -183,7 +198,8 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
     ///         the Ethereum Main Spoke's key for the SAME pair of reserve ids. It is also none of the four leg
     ///         keys of the two reserves, so the NAV namespace on this spoke stays untouched.
     function test_Base_HeaderKey_IsPerSpoke_ResolvesThroughRegistry() external {
-        address marketKey = registry.registerMarket(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID);
+        address marketKey = registry.computeMarketKey(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID);
+        assertTrue(registry.isMarketRegistered(marketKey), "registered in setUp for the idle pair");
         bytes memory id = pledgeHook.inspect(_loanData(PLEDGE, false));
         address key = id.toAddress(0);
         assertEq(key, marketKey, "inspect key == the registered Base market key");
@@ -232,7 +248,17 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         _execute(address(lendHook), _idleData(PLEDGE));
         assertEq(before - IERC20(CHAIN_8453_USDC).balanceOf(accountBase), PLEDGE, "idle lend executed on MAG7");
         assertFalse(_flag(), "idle: un-flagged");
-        assertEq(ledger.usersAccumulatorShares(accountBase, usdcKey), _supplied(), "ledger keyed by the Base key");
+        // SUP-21254: the ledger key is the idle header, i.e. the MARKET key whose SUPPLY leg is this
+        // reserve — not the reserve key. The oracle resolves the two to the same leg, which is why the
+        // accumulator equals the live supplied amount.
+        address idleMarketKey = registry.computeMarketKey(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID);
+        assertEq(ledger.usersAccumulatorShares(accountBase, idleMarketKey), _supplied(), "ledger keyed by the market");
+        assertEq(ledger.usersAccumulatorShares(accountBase, usdcKey), 0, "and never by the reserve key");
+        assertEq(
+            oracle.getBalanceOfOwner(idleMarketKey, accountBase),
+            oracle.getBalanceOfOwner(usdcKey, accountBase),
+            "both keys read the same leg"
+        );
 
         vm.expectRevert(BaseAaveV4LoanHookV2.RESERVE_HAS_IDLE_POSITION.selector);
         pledgeHook.build(address(0), accountBase, _loanData(PLEDGE, false));

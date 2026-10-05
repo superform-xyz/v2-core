@@ -639,6 +639,7 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         console2.log(
             "  loan DEBT leg claimed by N markets:", registry.marketRefs(registry.computeDebtKey(spoke, loanId))
         );
+        _printIdleCanonicality(registry, spoke);
         console2.log(missing == 0 ? "  Status: ALL DEFAULT MARKETS REGISTERED" : "  Status: MARKETS NEED REGISTRATION");
     }
 
@@ -698,5 +699,38 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         console2.log("     --sig 'run(uint256,uint64,address)'", env);
         console2.log("     chainId / registry:", uint256(chainId), registryAddr);
         console2.log("Then publish the market keys printed above to Erebor / snapshotd / Superman.");
+    }
+
+    /// @dev IDLE CANONICALITY (SUP-21254): the idle pair's SuperLedger key is the MARKET key, which the oracle
+    ///      resolves to the market's COLLATERAL leg. If two registered markets named the same collateral
+    ///      reserve as their supply leg, one idle position on it would have TWO ledger keys — lend under one,
+    ///      redeem under the other, and `usedShares` caps to zero (stale accumulator, NAV double count, and a
+    ///      fee bypass the day `feePercent = 0` stops holding). The registry cannot enforce this without
+    ///      forbidding legitimate multi-borrow-leg LOAN markets, so it is a curation rule — printed here and
+    ///      asserted by `_assertMarketBound` at registration time.
+    function _printIdleCanonicality(AaveV4ReserveRegistryV2 registry, address spoke) internal view {
+        uint256 overClaimed;
+        for (uint256 id; id < MAX_RESERVES_PER_SPOKE; ++id) {
+            (bool listed,,) = _probe(spoke, id);
+            if (!listed) break;
+            uint256 refs = registry.marketRefs(registry.computeReserveKey(spoke, id));
+            if (refs > 1) {
+                ++overClaimed;
+                console2.log(
+                    string.concat(
+                        "  [!] reserve ",
+                        vm.toString(id),
+                        " is the supply leg of ",
+                        vm.toString(refs),
+                        " markets - NOT idle-lendable unambiguously"
+                    )
+                );
+            }
+        }
+        console2.log(
+            overClaimed == 0
+                ? "  Idle canonicality: OK (every collateral reserve has at most one market)"
+                : "  Idle canonicality: VIOLATED - see the reserves flagged above"
+        );
     }
 }

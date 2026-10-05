@@ -62,8 +62,10 @@ snapshots cost basis for these positions, any configured fee taxes principal as 
 such an oracle with `FlatFeeLedger` fees the full principal on every outflow. Operational
 invariant: these oracle ids are registered with feePercent = 0 or not registered at all, and
 never with FlatFeeLedger — this covers `AaveV4ReserveOracle` explicitly, whose registration is
-asymmetric by leg. Its SUPPLY keys MUST be registered at feePercent = 0 if the already-deployed idle
-MONEY_MARKET pair is ever driven: `AaveV4LendHook` is `HookType.INFLOW` and `AaveV4RedeemHook` is
+asymmetric by leg. Its oracle id MUST be registered at feePercent = 0 if the idle MONEY_MARKET pair is ever
+driven. NOTE THE KEY: since SUP-21254 the key that pair posts under is the MARKET key, not the SUPPLY reserve
+key (the oracle resolves the former to the latter). The fee wiring is by `yieldSourceOracleId`, not by key, so
+the rule is unchanged in substance — only the noun moved: `AaveV4LendHook` is `HookType.INFLOW` and `AaveV4RedeemHook` is
 `HookType.OUTFLOW`, and `SuperExecutorBase` reverts `MANAGER_NOT_SET` for those hooks unless the
 header's yieldSourceOracleId resolves to a configured oracle. Its DEBT keys must never be
 ledger-wired at all (every LOAN hook is NONACCOUNTING). Today no Aave V4 oracleId is configured
@@ -91,38 +93,77 @@ blocklist/pause semantics understood, donations accounted for (balanceOf include
 transfers; off-chain pricing should reconcile balance deltas against executed flows), decimals
 <= 18, and `getTVL` (global totalSupply) never used as a pricing input.
 
-#### 16. Aave V4 market keys are intent identity, never accounting identity
+#### 16. Aave V4 market keys: intent identity for LOAN, and the ledger key for the idle pair
 
-`AaveV4ReserveRegistryV2` holds TWO disjoint key namespaces (SUP-21239) and the separation is load-bearing:
+`AaveV4ReserveRegistryV2` holds TWO key namespaces (SUP-21239), kept disjoint as *storage* by
+`KEY_NAMESPACE_COLLISION` on all three write paths, and crossed by the oracle in exactly ONE direction
+(SUP-21255):
 
 - **NAV / accounting** — `computeReserveKey(spoke, reserveId)` (SUPPLY) and
-  `computeDebtKey(spoke, reserveId)` (DEBT), stored in `_reserves`. Only these resolve through
-  `AaveV4ReserveOracle`, and only these can ever be `SuperLedger` keys (via the idle MONEY_MARKET pair).
-- **Intent / identity** — `computeMarketKey(spoke, supplyReserveId, borrowReserveId)`, stored in `_markets`.
-  This is the header `yieldSource` of the six V2 LOAN hooks, and therefore what merkle leaves, the vault
-  whitelist and off-chain indexing name. The V2 LOAN hooks are `NONACCOUNTING`, so the executor never reads
-  it; the oracle reads `_reserves` only, so a market key passed to any registry-resolving oracle read reverts
-  `RESERVE_NOT_REGISTERED`.
+  `computeDebtKey(spoke, reserveId)` (DEBT), stored in `_reserves`. Every per-leg NAV read is keyed by these.
+- **Market** — `computeMarketKey(spoke, supplyReserveId, borrowReserveId)`, stored in `_markets`. This is the
+  header `yieldSource` of the six V2 LOAN hooks AND, since SUP-21254, of the idle `AaveV4LendHook` /
+  `AaveV4RedeemHook` pair. It is therefore what merkle leaves, the vault whitelist and off-chain indexing
+  name.
+
+Who reads it, precisely — the distinction that matters:
+
+- For the **six V2 LOAN hooks** the market key is intent identity only. They are `NONACCOUNTING`, so
+  `SuperExecutorBase._updateAccounting` never reads their header and a market key is never a SuperLedger key
+  for them.
+- For the **idle pair** the market key IS the SuperLedger key and an oracle argument: lend is INFLOW, redeem
+  is OUTFLOW. `AaveV4ReserveOracle` resolves the market key to that market's COLLATERAL leg, which the idle
+  decoder guarantees is the reserve the op actually moved (one calldata word feeds both `computeMarketKey`'s
+  supply slot and the Spoke call). Two consequences: an UNREGISTERED market reverts the whole userOp, so the
+  accounting allowlist is market-granular; and the ops invariant in item 3 below is what keeps one ledger key
+  per idle position.
 
 Operational invariants:
 
-1. **Never make a market key oracle-resolvable.** Aave V4 positions are reserve-granular —
-   `getUserSuppliedAssets(reserveId, owner)` takes no market parameter — so one reserve participates in N
-   markets. On the live Base MAG7 spoke all seven equity reserves borrow the one USDC reserve, so
-   market-keyed supply NAV would report the same amount seven times. Nothing in the aggregator de-duplicates
-   by underlying position. Market-keyed NAV is a double count by construction, which is why Morpho Blue's
-   side-agnostic market key is NOT a template here: Morpho stores `position[marketId][user]`, so the market
-   IS its accounting unit. Aave V4's is the reserve.
-2. **Market registration does not gate execution.** The V2 LOAN hooks never call the registry; they only pin
-   that the header equals the market key of the body. Registering a market records its binding for off-chain
-   consumers. Deciding which markets a vault may touch remains an off-chain whitelist decision.
-3. **Removal order is markets, then reserve legs.** A market claims exactly two of its two reserves' four
-   legs — the collateral reserve's SUPPLY leg and the loan reserve's DEBT leg — and `marketRefs` refuses to
-   deregister either while the market lives (`MARKET_REFERENCES_RESERVE`). Symmetrically, a leg with a
-   pending deregistration cannot be claimed by a new market (`RESERVE_DEREGISTRATION_PENDING`), so the two
-   timelocks never overlap. Taking a claimed leg dark would abort whole-batch reads in
-   `getPricePerShareMultiple` / `getTVLMultiple` (which, unlike `getTVLByOwnerOfSharesMultiple`, have no
-   per-entry isolation).
+1. **A market key resolves ONE-DIRECTIONALLY, to the collateral leg only** (SUP-21255). Aave V4 positions
+   are reserve-granular — `getUserSuppliedAssets(reserveId, owner)` takes no market parameter — so one
+   reserve participates in N markets. Collateral reserves differ per market, so resolving a market key to
+   its COLLATERAL leg is summable and is what the sideless `IYieldSourceOracle` reads return. The DEBT leg
+   must stay unreachable from a market key: on the live Base MAG7 spoke all seven equity markets borrow the
+   one USDC reserve, so market-keyed debt would report the same liability seven times, and nothing in the
+   aggregator de-duplicates by underlying position. `getMarketPosition` returns both legs raw and un-netted
+   for a caller that prices them; `getOwnerSnapshot` is the portfolio path and de-duplicates legs across the
+   whole requested set (SUP-21256). Independent per-market reads must never be summed into a portfolio.
+   This is also why Morpho Blue's side-agnostic market key is NOT a template here: Morpho stores
+   `position[marketId][user]`, so the market IS its accounting unit. Aave V4's is the reserve.
+   TWO RESIDUAL RULES: (a) two markets sharing a COLLATERAL reserve resolve to the same leg, so summing
+   their sideless reads double counts — use the snapshot; (b) a market key is still never a SuperLedger key
+   for a LOAN hook, because those hooks are NONACCOUNTING.
+2. **Market registration gates execution for the idle pair, and NOT for the LOAN hooks.** No Aave V4 hook
+   calls the registry; they only pin that the header equals the market key of the body. But because the idle
+   pair is INFLOW / OUTFLOW, its accounting read resolves the header through the oracle, so an unregistered
+   market reverts the userOp — a real, if indirect, gate. The LOAN hooks have no such gate: registering a
+   market merely records its binding for off-chain consumers, and deciding which markets a vault may touch
+   remains an off-chain whitelist decision.
+3. **Removal order is markets, then reserve legs — and a market with a live idle position must not be
+   removed at all.** A market claims exactly two of its two reserves' four legs — the collateral reserve's
+   SUPPLY leg and the loan reserve's DEBT leg — and `marketRefs` refuses to deregister either while the
+   market lives (`MARKET_REFERENCES_RESERVE`). Symmetrically, a leg with a pending deregistration cannot be
+   claimed by a new market (`RESERVE_DEREGISTRATION_PENDING`), so the two timelocks never overlap. Taking a
+   claimed leg dark would abort whole-batch reads in `getPricePerShareMultiple` / `getTVLMultiple` (which,
+   unlike `getTVLByOwnerOfSharesMultiple`, DO isolate per entry).
+   **UNGUARDED, OPS-ENFORCED (SUP-21254):** deregistering a market under which an account still holds an open
+   IDLE position bricks that account's redeem through Superform accounting — the oracle reverts
+   `RESERVE_NOT_REGISTERED` inside `_updateAccounting`, and the only exit is calling the Spoke directly,
+   outside the ledger. The registry cannot see user positions, so there is no `marketRefs` analogue for this
+   direction. Before proposing such a market, confirm `getBalanceOfOwner(marketKey, account)` and
+   `usersAccumulatorShares(account, marketKey)` are zero for every holder; the 2-day timelock is the window
+   to check in.
+4. **ONE market per idle-lendable reserve: `marketRefs[computeReserveKey(spoke, supplyReserveId)] <= 1`.**
+   NOT enforced on-chain — `registerMarket` will accept `(R, 0)`, `(R, 1)`, `(R, 2)` and the idle hooks
+   accept any of them, giving reserve R's single idle position one ledger key per such market. `BaseLedger`
+   accumulators are keyed `(user, yieldSource)` with no oracle id, so lending under one and redeeming under
+   another caps `usedShares` to zero (`UsedSharesCapped`): a permanently stale accumulator, a NAV double
+   count for anyone summing both keys, and a performance-fee bypass the day the `feePercent = 0` invariant in
+   item 15 stops holding. Curate it: one market per reserve ops intends to idle-lend, asserted at seeding
+   time by `ConfigureAaveV4ReserveRegistry`. The by-construction fix, if this ever needs to be structural, is
+   a registry flag marking a market as the idle-supply market for its collateral reserve and refusing a
+   second one.
 4. **Off-chain consumers must key on `(chainId, marketKey)`.** Like the two leg derivations, the market
    preimage contains no chainId, and Aave V4 spoke addresses are not guaranteed chain-unique. On-chain this
    is harmless — the pin is evaluated on the executing chain and the signed envelope binds chainId — but any
