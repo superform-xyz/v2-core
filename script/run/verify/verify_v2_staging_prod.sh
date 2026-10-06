@@ -577,6 +577,14 @@ generate_constructor_args() {
             aave_v4_registry_addr=$(get_contract_address "$chain_id" "AaveV4ReserveRegistryV2")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$aave_v4_registry_addr")"
             ;;
+        "AaveV4LendHook"|"AaveV4RedeemHook")
+            # SUP-21263 gave the idle pair one constructor arg: the V2 registry they resolve market keys
+            # through. Without this branch both fall through to the `constructor()` default below and
+            # verification fails on every chain.
+            local aave_v4_idle_registry_addr
+            aave_v4_idle_registry_addr=$(get_contract_address "$chain_id" "AaveV4ReserveRegistryV2")
+            echo "$(cast abi-encode "constructor(address)" "$aave_v4_idle_registry_addr")"
+            ;;
         # All other contracts (no constructor args)
         *)
             echo "$(cast abi-encode "constructor()")"

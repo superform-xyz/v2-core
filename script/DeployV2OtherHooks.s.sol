@@ -265,9 +265,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
-    /// @notice Deploys the idle Aave V4 MONEY_MARKET lend / redeem hooks (SUP-21142). No constructor
-    ///         args: deployed on every network. Reserve-keyed accounting: the reserve key must be
-    ///         registered in AaveV4ReserveRegistryV2 and the ledger before these hooks are used.
+    /// @notice Deploys the idle Aave V4 MONEY_MARKET lend / redeem hooks (SUP-21142, reshaped by
+    ///         SUP-21263). Deployed on every network, now with ONE constructor arg (the
+    ///         AaveV4ReserveRegistryV2 address, derived — see `_deployAaveV4IdleHooksSet`), so
+    ///         `DeployV2Core` MUST have run on this chain first or the deploy reverts.
+    /// @dev MARKET-keyed accounting: the MARKET (not merely the reserve) must be registered in
+    ///      AaveV4ReserveRegistryV2 before these hooks are used, and the oracle id must be registered in
+    ///      SuperLedgerConfiguration with feePercent = 0. Since SUP-21263 an unregistered market fails at
+    ///      BUILD time (`MARKET_NOT_REGISTERED`) rather than inside SuperLedger.
+    ///      Ops precondition beyond registration: designate exactly ONE registered market key per
+    ///      (spoke, reserveId) as that reserve's idle settlement key — a reserve that is the borrow leg of
+    ///      N markets can otherwise settle under any of them. `ConfigureAaveV4ReserveRegistry.runCheckAll`
+    ///      prints the ambiguity.
     function runAaveV4Idle(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Aave V4 idle Hooks on chainId: ", chainId);
@@ -331,16 +340,29 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployAaveV4Hooks(chainId, env);
         }
 
-        // Aave V4 V2 composite (OPEN / REPAY / CLOSE), idle MONEY_MARKET (SUP-21142) and standalone V2
-        // (SUP-21141) sets — no constructor args (the Spoke comes from calldata), so the bytecode is
-        // chain-agnostic and is deployed on every configured network for uniform addresses. Inert on
-        // chains without an Aave V4 spoke; usable once a spoke, its oracles and the reserve registry exist.
+        // Aave V4 V2 composite (OPEN / REPAY / CLOSE) and standalone V2 (SUP-21141) sets — no constructor
+        // args (the Spoke comes from calldata), so the bytecode is chain-agnostic and is deployed on every
+        // configured network for uniform addresses. Inert on chains without an Aave V4 spoke; usable once a
+        // spoke, its oracles and the reserve registry exist.
         console2.log("Deploying Aave V4 V2 Hooks on chainId: ", chainId);
         _deployAaveV4V2Hooks(chainId, env);
-        console2.log("Deploying Aave V4 idle Hooks on chainId: ", chainId);
-        _deployAaveV4IdleHooks(chainId, env);
         console2.log("Deploying Aave V4 V2 standalone Hooks on chainId: ", chainId);
         _deployAaveV4V2StandaloneHooks(chainId, env);
+
+        // The idle MONEY_MARKET pair (SUP-21142) is the ONE family here with a hard external precondition:
+        // since SUP-21263 it takes the AaveV4ReserveRegistryV2 address as a constructor argument, so
+        // `DeployV2Core` must have run on this chain first. GATED, not asserted, deliberately — the
+        // targeted `runAaveV4Idle` reverts loudly on a missing registry, but in the deploy-everything path a
+        // revert here would lose every OTHER hook family on the chain too, which is the wrong trade for a
+        // new-chain bring-up where other-hooks may legitimately run first.
+        address idleRegistry = __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_V2_KEY, abi.encode(DEPLOYER), env);
+        if (idleRegistry.code.length > 0) {
+            console2.log("Deploying Aave V4 idle Hooks on chainId: ", chainId);
+            _deployAaveV4IdleHooks(chainId, env);
+        } else {
+            console2.log("SKIPPED Aave V4 idle Hooks: AaveV4ReserveRegistryV2 not deployed on chainId", chainId);
+            console2.log("  run DeployV2Core first, then: --sig 'runAaveV4Idle(uint256,uint64)'");
+        }
 
         // HyperCore hooks — only on HyperEVM, where CoreWriter exists
         if (otherHooksConfiguration.coreWriters[chainId] != address(0)) {
@@ -738,7 +760,23 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _deployAaveV4IdleHooksSet(chainId, env);
     }
 
-    /// @notice Deploy the 2 idle Aave V4 MONEY_MARKET hooks (no constructor args — Spoke comes from calldata)
+    /// @notice Deploy the 2 idle Aave V4 MONEY_MARKET hooks. ONE constructor arg since SUP-21263: the
+    ///         AaveV4ReserveRegistryV2 the hooks resolve a market key's two legs through. The Spoke still
+    ///         comes from calldata.
+    /// @dev THE REGISTRY ADDRESS IS DERIVED, NOT CONFIGURED — deliberately. `__computeContractAddress`
+    ///      reproduces the CREATE2 address `DeployV2Core` deployed the registry at (same salt namespace,
+    ///      same `abi.encode(DEPLOYER)` argument), which is identical on every chain within an environment.
+    ///      That keeps the two idle hooks at one address per env across all chains, needs no new
+    ///      `ConfigOtherHooks` mapping or `Constants` key, and cannot drift from the real registry.
+    ///      NOTE THE DELIBERATE ASYMMETRY: `__getOtherHooksBytecode` reads `locked-bytecode/` for EVERY
+    ///      env, while `__computeContractAddress(..., env)` reads the env-specific directory
+    ///      (`locked-bytecode-dev/` for env 1/2). That is correct and must not be "fixed": the registry was
+    ///      deployed by `DeployV2Core` from the env-specific artifact, so only the env-aware lookup is
+    ///      guaranteed to reproduce its live address. (In practice the three artifact directories are
+    ///      byte-identical today, so what actually separates the prod and staging registry addresses is
+    ///      `saltNamespace`; the env-aware read is what keeps this correct if they ever diverge.)
+    ///      `__computeContractAddress` calls `vm.getCode`, which reverts inside the cheatcode if the
+    ///      artifact is missing — that failure precedes the `require` below.
     function _deployAaveV4IdleHooksSet(
         uint64 chainId,
         uint256 env
@@ -750,8 +788,19 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
-        hooks[0] = HookDeployment(AAVE_V4_LEND_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4LendHook", env));
-        hooks[1] = HookDeployment(AAVE_V4_REDEEM_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4RedeemHook", env));
+        address registryAddr = __computeContractAddress(AAVE_V4_RESERVE_REGISTRY_V2_KEY, abi.encode(DEPLOYER), env);
+        // Fail loudly rather than deploy an idle hook whose every op would revert on a codeless registry.
+        // One check, not two: CREATE2 cannot yield the zero address, so a zero-address guard is unreachable.
+        require(registryAddr.code.length > 0, "AAVE_V4_REGISTRY_NOT_DEPLOYED: run DeployV2Core first");
+        console2.log("Aave V4 idle hooks will bind registry:", registryAddr);
+        bytes memory registryArg = abi.encode(registryAddr);
+
+        hooks[0] = HookDeployment(
+            AAVE_V4_LEND_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("AaveV4LendHook", env), registryArg)
+        );
+        hooks[1] = HookDeployment(
+            AAVE_V4_REDEEM_HOOK_KEY, "", abi.encodePacked(__getOtherHooksBytecode("AaveV4RedeemHook", env), registryArg)
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];

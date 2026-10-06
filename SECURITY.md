@@ -112,11 +112,23 @@ Who reads it, precisely — the distinction that matters:
   `SuperExecutorBase._updateAccounting` never reads their header and a market key is never a SuperLedger key
   for them.
 - For the **idle pair** the market key IS the SuperLedger key and an oracle argument: lend is INFLOW, redeem
-  is OUTFLOW. `AaveV4ReserveOracle` resolves the market key to that market's COLLATERAL leg, which the idle
-  decoder guarantees is the reserve the op actually moved (one calldata word feeds both `computeMarketKey`'s
-  supply slot and the Spoke call). Two consequences: an UNREGISTERED market reverts the whole userOp, so the
-  accounting allowlist is market-granular; and the ops invariant in item 3 below is what keeps one ledger key
-  per idle position.
+  is OUTFLOW. Since **SUP-21263** the body carries ONE `targetReserveId` which may be EITHER leg of that
+  market — idle USDC on a MAG7 pair must settle under the same key as idle NVDAc, and USDC is that market's
+  LOAN leg — and membership is a REGISTRY READ inside the hook (`getMarketInfo(headerKey)`, in `build` and
+  `preExecute`). Three consequences, all deliberate:
+  - the market allowlist is enforced EARLIER: an unregistered market reverts `MARKET_NOT_REGISTERED` in the
+    hook, before any Spoke call, instead of inside SuperLedger;
+  - `inspect` is `pure` and therefore NO LONGER authenticates the header — it is a transformation API like
+    the three sizing views, and a template that inspects must also pass `build` / `preExecute`;
+  - **`getBalanceOfOwner(marketKey)` may not describe the moved asset.** `_resolveLeg` maps a market key to
+    its COLLATERAL leg, so when `targetReserveId` is the BORROW leg the scalar read reports the collateral
+    reserve's supplied assets instead. Portfolio valuation for this family MUST come from `getOwnerSnapshot`,
+    which discovers every leg, de-duplicates across the requested set, and (since SUP-21259) reports
+    residual collateral no requested market covers. Never value an idle position from the scalar market-key
+    read or from the ledger accumulators.
+
+  One ledger key per idle position is an OPS INVARIANT, not a property — item 4 below has the two reasons and
+  the two controls that stand in for enforcement.
 
 Operational invariants:
 
@@ -163,15 +175,36 @@ Operational invariants:
    item 15 stops holding.
    **WHERE IT IS ACTUALLY ENFORCED, precisely.** `ConfigureAaveV4ReserveRegistry` rejects a second supply
    claim with `COLLATERAL_LEG_CLAIMED_TWICE` in three places: when registering a market
-   (`_registerOneMarket`, including its already-registered branch, so a re-run cannot inherit an ambiguity),
-   in `configureAll`'s final gate over every listed reserve, and in `runCheckAll`, which prints the offending
-   reserves and then fails. That is a **script-level** guard: it covers this configuration process and an
+   (`_registerOneMarket`, including its already-registered branch, so a re-run cannot inherit an ambiguity)
+   and in `configureAll`'s final gate over every listed reserve. `runCheckAll` prints the offending reserves
+   and then fails too, but under the broader `IDLE_IDENTITY_AMBIGUOUS` message, since it now gates the
+   SUP-21263 settlement-designation violations as well. That is a **script-level** guard: it covers this configuration process and an
    audit of its result, and it does NOT constrain a manager who calls `registerMarket` on the registry
    directly. Only the SUPPLY leg is constrained — the loan reserve's DEBT leg is shared by design (all seven
    Base equity markets borrow the one USDC reserve, refcount 7).
    The by-construction fix, if this needs to be structural, is a registry flag marking a market as the
    idle-supply market for its collateral reserve and refusing a second one; it is not taken today because it
    means redeploying and re-seeding a registry that is already live and configured.
+   **SUP-21263 ADDED A SECOND, WIDER DIRECTION that the supply-leg gate above does NOT cover.** Once the idle
+   hooks accept either leg of the header market, a reserve that is the BORROW leg of N registered markets can
+   settle an idle position under any of those N keys: N = 7 on the Base MAG7 spoke, where every equity market
+   borrows the one USDC reserve and that refcount of 7 is REQUIRED for the LOAN hooks, so it cannot be
+   tightened. Lending under market A and redeeming under market B SUCCEEDS —
+   `BaseLedger.calculateCostBasisView` caps `usedShares` at B's empty accumulator rather than reverting — and
+   strands A's shares and cost basis permanently. Separately, both legs of ONE market may be idled at once
+   (the feature requires it), so one accumulator can sum two reserves' positions in incommensurable units.
+   Neither loses funds nor blocks an exit **while `feePercent == 0` for this oracle id**: the identity PPS
+   makes cost basis equal the amount, and every realized-profit fee is multiplied by zero. The two controls
+   that stand in for on-chain enforcement are therefore load-bearing:
+   1. **`feePercent` MUST stay 0** for the Aave V4 reserve oracle id (see item 15).
+   2. **Exactly ONE registered market key per `(spoke, reserveId)` is designated that reserve's idle
+      settlement key**, and the OMS allowlist must never sign an idle leaf naming any other.
+      `ConfigureAaveV4ReserveRegistry._assertIdleSettlementDesignated` enforces that a designation exists, is
+      registered, and really names the reserve — for every reserve with more than one candidate market — in
+      `configureAll`'s final gate and in `runCheckAll`, which prints the candidate count per reserve and then
+      fails. On Base the designation for the shared USDC loan reserve is `computeMarketKey(spoke, 0, 7)`.
+      Changing it after an idle position exists would strand that position's accumulator under the old key,
+      so it must stay stable.
 5. **Off-chain consumers must key on `(chainId, marketKey)`.** Like the two leg derivations, the market
    preimage contains no chainId, and Aave V4 spoke addresses are not guaranteed chain-unique. On-chain this
    is harmless — the pin is evaluated on the executing chain and the signed envelope binds chainId — but any

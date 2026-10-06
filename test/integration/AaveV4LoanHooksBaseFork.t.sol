@@ -110,7 +110,7 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         oracleId = _getYieldSourceOracleId(ORACLE_SALT, address(this));
 
         equityToken = IAaveV4Spoke(MAG7_SPOKE).getReserve(EQUITY_RESERVE_ID).underlying;
-        lendHook = new AaveV4LendHook();
+        lendHook = new AaveV4LendHook(address(registry));
         pledgeHook = new AaveV4SupplyHookV2();
         borrowHook = new AaveV4BorrowHookV2();
         releaseHook = new AaveV4WithdrawHookV2();
@@ -138,18 +138,17 @@ contract AaveV4LoanHooksBaseFork is Helpers, RhinestoneModuleKit, InternalHelper
         );
     }
 
+    /// @dev SUP-21263: 157 bytes, one `targetReserveId`. The header is the REGISTERED market whose supply
+    ///      leg is the USDC reserve this idle op moves.
     function _idleData(uint256 amount) internal view returns (bytes memory) {
-        // SUP-21254: market key whose SUPPLY leg is the USDC reserve this idle op moves
-        uint256 borrowLeg = EQUITY_RESERVE_ID;
         return abi.encodePacked(
             oracleId,
-            AaveV4ReserveKey.computeMarketKey(MAG7_SPOKE, USDC_RESERVE_ID, borrowLeg),
+            AaveV4ReserveKey.computeMarketKey(MAG7_SPOKE, USDC_RESERVE_ID, EQUITY_RESERVE_ID),
             CHAIN_8453_USDC,
             MAG7_SPOKE,
             USDC_RESERVE_ID,
             amount,
-            false,
-            borrowLeg
+            false
         );
     }
 

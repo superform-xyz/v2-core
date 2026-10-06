@@ -51,6 +51,10 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     AaveV4BorrowHookV2 public borrowHook;
     AaveV4WithdrawHookV2 public releaseHook;
     AaveV4RedeemHook public idleRedeemHook;
+    /// @dev SUP-21263: the idle pair resolves its header market through a registry, so this suite needs one
+    ///      even though it only drives the idle redeem as a negative test. Named `idleRegistry` so the
+    ///      local `registry` instances inside individual tests do not shadow it.
+    AaveV4ReserveRegistryV2 public idleRegistry;
     ApproveERC20Hook public approveErc20Hook;
     ISuperNativePaymaster public superNativePaymaster;
 
@@ -80,7 +84,11 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         pledgeHook = new AaveV4SupplyHookV2();
         borrowHook = new AaveV4BorrowHookV2();
         releaseHook = new AaveV4WithdrawHookV2();
-        idleRedeemHook = new AaveV4RedeemHook();
+        idleRegistry = new AaveV4ReserveRegistryV2(address(this));
+        idleRegistry.registerReserve(SPOKE_ADDR, WETH_RESERVE_ID);
+        idleRegistry.registerReserve(SPOKE_ADDR, USDC_RESERVE_ID);
+        idleRegistry.registerMarket(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID);
+        idleRedeemHook = new AaveV4RedeemHook(address(idleRegistry));
         approveErc20Hook = new ApproveERC20Hook();
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
 
@@ -631,18 +639,16 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     ///         refuse that reserve for this account by design (one mode per (account, reserve)).
     function test_AaveV4V2_Pledge_FlipsFlag_IdleRedeemRefuses() external {
         _executeHook(address(pledgeHook), _standaloneData(SUPPLY_AMOUNT, false));
-        // SUP-21254: the idle body carries both reserve ids and the header is their market key. The WETH
-        // reserve is the one this redeem would move, so it is the market's SUPPLY leg.
-        uint256 idleBorrowLeg = USDC_RESERVE_ID;
+        // SUP-21263: the body carries ONE reserve id — the reserve this redeem moves — and the header is a
+        // REGISTERED market key naming it on one leg (here the supply leg of the WETH/USDC market).
         bytes memory idleData = abi.encodePacked(
             bytes32(uint256(1)),
-            AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, idleBorrowLeg),
+            AaveV4ReserveKey.computeMarketKey(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID),
             CHAIN_1_WETH,
             SPOKE_ADDR,
             WETH_RESERVE_ID,
             type(uint256).max,
-            false,
-            idleBorrowLeg
+            false
         );
         _executeHookExpectFailure(
             address(idleRedeemHook), idleData, BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector
