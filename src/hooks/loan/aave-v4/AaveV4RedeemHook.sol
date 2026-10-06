@@ -10,7 +10,6 @@ import { IAaveV4Spoke } from "../../../vendor/aave-v4/IAaveV4Spoke.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseAaveV4MoneyMarketHook } from "./BaseAaveV4MoneyMarketHook.sol";
 import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
-import { AaveV4ReserveKey } from "../../../libraries/AaveV4ReserveKey.sol";
 
 /// @title AaveV4RedeemHook
 /// @author Superform Labs
@@ -37,11 +36,12 @@ import { AaveV4ReserveKey } from "../../../libraries/AaveV4ReserveKey.sol";
 ///      wallet receipt. outToken = underlying (a real ERC-20), so this hook chains cleanly into swaps
 ///      and deposits.
 /// @dev OMS sizing: one IN / SHARES slot at offset 124 (1:1 share wei). A previous hook feeding this slot
-///      must have produced this leg's RESERVE key — `computeReserveKey(spoke, targetReserveId)` — as its
-///      output token, i.e. AaveV4LendHook on the SAME LEG. SUP-21263 tightened this from the market key on
-///      purpose: one market key now covers both legs, so a market-keyed check would have let a lend of the
-///      collateral leg feed a redeem of the loan leg (different assets, different decimals). A chained full
-///      withdrawal is impossible by design (the prev pipe rejects max) — use an explicit max in calldata.
+///      must have produced `_idleChainToken` for this (MARKET, LEG) pair as its output token — i.e.
+///      AaveV4LendHook on the SAME MARKET and the SAME LEG. Neither half is optional: a market-keyed check
+///      would let a lend of the collateral leg feed a redeem of the loan leg (different assets, different
+///      decimals), and a reserve-keyed one would let a lend under market A feed a redeem under market B over
+///      a shared loan reserve, stranding A's accumulator and zeroing the fee. A chained full withdrawal is
+///      impossible by design (the prev pipe rejects max) — use an explicit max in calldata.
 contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -84,9 +84,7 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
         _requireUnderlyingMatchesReserve(vars);
         _requireNotCollateral(vars, account);
 
-        uint256 amount = _resolveIdleAmount(
-            prevHook, account, vars, AaveV4ReserveKey.computeReserveKey(vars.spoke, vars.targetReserveId)
-        );
+        uint256 amount = _resolveIdleAmount(prevHook, account, vars, _idleChainToken(vars));
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
         // type(uint256).max (or any amount above the supplied position) passes straight through as a
@@ -138,9 +136,7 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
         // Nothing to redeem: fail closed rather than post a zero outflow.
         if (suppliedBefore == 0) revert AMOUNT_NOT_VALID();
 
-        uint256 amount = _resolveIdleAmount(
-            prevHook, account, vars, AaveV4ReserveKey.computeReserveKey(vars.spoke, vars.targetReserveId)
-        );
+        uint256 amount = _resolveIdleAmount(prevHook, account, vars, _idleChainToken(vars));
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
         expectedPrimaryAmount = amount > suppliedBefore ? suppliedBefore : amount;
@@ -159,8 +155,11 @@ contract AaveV4RedeemHook is BaseAaveV4MoneyMarketHook {
         // targeting the hook — so an unvalidated body cannot reach here through the executor. Re-checking
         // anyway costs one WARM `getMarketInfo` (~1.1k gas) and removes the hook's dependence on that
         // executor invariant: an out-of-band `postExecute` can no longer measure a position on an arbitrary
-        // (spoke, reserve) pair or publish an arbitrary `outToken`.
+        // (spoke, reserve) pair, nor publish an arbitrary `outToken`. The underlying is re-pinned too — it
+        // is the one identity field `_requireTargetIsMarketLeg` does not cover, it drives the wallet-delta
+        // assertion, and the redeem hook publishes it AS its output token.
         _requireTargetIsMarketLeg(vars);
+        _requireUnderlyingMatchesReserve(vars);
 
         uint256 received = _balanceIncrease(preLoanTokenBalance, IERC20(vars.underlying).balanceOf(account));
         if (received != expectedPrimaryAmount) revert DELTA_MISMATCH(expectedPrimaryAmount, received);

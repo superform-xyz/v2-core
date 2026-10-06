@@ -524,6 +524,24 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
 
     /// @dev Count the registered markets that name `reserveId` on EITHER leg — the number of distinct
     ///      SuperLedger identities an idle position on that reserve could acquire.
+    /// @dev READS THE REGISTRY'S OWN REFCOUNTS rather than enumerating pairs, and the equality is exact:
+    ///      `registerMarket` increments `marketRefs` on the supply leg's RESERVE key and the borrow leg's
+    ///      DEBT key (`AaveV4ReserveRegistryV2:678-679`), `executeDeregisterMarket` decrements both
+    ///      (`:739-740`), and nothing else in the registry writes that mapping. So
+    ///      `marketRefs[reserveKey(R)]` is "markets where R is the supply leg", `marketRefs[debtKey(R)]` is
+    ///      "markets where R is the borrow leg", and the sum is exactly "markets naming R on either leg".
+    ///      This is the same source `_assertIdleCanonical` and `_printIdleCanonicality` already read.
+    ///      WHY NOT A PAIR LOOP (it was one, and it was WRONG): enumerating `other` over the listed reserves
+    ///      and breaking at the first unlisted id truncates a COUNT, not merely an enumeration. With a gap in
+    ///      the reserve id space — reserve 3 delisted, 4..7 live — the loop would miss markets `(R,4)..(R,7)`,
+    ///      under-count to `<= 1`, and make `_assertIdleSettlementDesignated` return early: the designation
+    ///      requirement would be silently SKIPPED for exactly the ambiguous reserve it exists to protect.
+    ///      Fail-open in a gate that must fail closed. The refcount form cannot under-count, and is O(1)
+    ///      instead of O(N^2) — roughly 11x fewer live calls per `runCheckAll` on the Base MAG7 spoke.
+    /// @param registry The reserve registry
+    /// @param spoke The spoke holding the reserve
+    /// @param reserveId The reserve an idle op would move
+    /// @return candidates Registered markets naming `reserveId` on either leg
     function _idleSettlementCandidates(
         AaveV4ReserveRegistryV2 registry,
         address spoke,
@@ -533,13 +551,8 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         view
         returns (uint256 candidates)
     {
-        for (uint256 other; other < MAX_RESERVES_PER_SPOKE; ++other) {
-            (bool listed,,) = _probe(spoke, other);
-            if (!listed) break;
-            if (other == reserveId) continue;
-            if (registry.isMarketRegistered(registry.computeMarketKey(spoke, reserveId, other))) ++candidates;
-            if (registry.isMarketRegistered(registry.computeMarketKey(spoke, other, reserveId))) ++candidates;
-        }
+        candidates = registry.marketRefs(registry.computeReserveKey(spoke, reserveId))
+            + registry.marketRefs(registry.computeDebtKey(spoke, reserveId));
     }
 
     /// @dev Enforce the designation for every listed reserve that has MORE THAN ONE candidate settlement
@@ -575,6 +588,7 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
                 )
             );
             console2.log("      Add one to _idleSettlementMarket before signing ANY idle leaf on it.");
+            console2.log("  >>> STATUS: IDLE DESIGNATION MISSING - DO NOT SIGN IDLE LEAVES ON THIS RESERVE <<<");
             return;
         }
         require(registry.isMarketRegistered(designated), "IDLE_SETTLEMENT_MARKET_NOT_REGISTERED");
@@ -597,6 +611,17 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         require(block.chainid == chainId, "CHAIN_MISMATCH: --rpc-url does not match chainId");
         _setBaseConfiguration(env, "");
         require(registryAddr.code.length > 0, "REGISTRY_NOT_DEPLOYED");
+        // P2-4: the registry ops SEEDS and the registry the hooks BIND must provably be the same contract.
+        // `registryAddr` is operator-supplied here, while the idle hooks derive theirs from the locked
+        // artifact at deploy time — three independently-chosen addresses (seeded / bound / oracle-resolved)
+        // with nothing previously asserting they agree. A mismatch is not theft but a silent full-family
+        // outage: every idle op, redeems included, would revert MARKET_NOT_REGISTERED against an unseeded
+        // registry while this script reported success. Cross-check against the committed record.
+        address recorded = _outputAddress(env, chainId, "AaveV4ReserveRegistryV2");
+        require(
+            recorded == address(0) || recorded == registryAddr,
+            "REGISTRY_ADDRESS_DRIFT: argument disagrees with the committed deployment record"
+        );
         AaveV4ReserveRegistryV2 registry = AaveV4ReserveRegistryV2(registryAddr);
         require(
             registry.hasRole(registry.MARKET_MANAGER_ROLE(), DEPLOYER),
@@ -799,7 +824,12 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
             // neither canonicality nor idle settlement depends on there being a curated loan reserve. An
             // earlier version returned before `_printIdleSettlement`, which meant the one chain where the
             // designation is NOT curated was also the one chain whose audit never mentioned it.
-            return _printIdleCanonicality(registry, spoke) + _printIdleSettlement(registry, chainId, spoke);
+            // Two locals, not `a + b`: both operands EMIT LOGS, and Solidity does not specify operand
+            // evaluation order (it differs between the legacy and IR pipelines), so the audit's section
+            // order would otherwise be compiler-dependent.
+            uint256 canonicalityViolations = _printIdleCanonicality(registry, spoke);
+            uint256 settlementViolations = _printIdleSettlement(registry, chainId, spoke);
+            return canonicalityViolations + settlementViolations;
         }
         uint256 missing;
         for (uint256 id; id < MAX_RESERVES_PER_SPOKE; ++id) {
@@ -824,8 +854,10 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
         console2.log(
             "  loan DEBT leg claimed by N markets:", registry.marketRefs(registry.computeDebtKey(spoke, loanId))
         );
+        // Sequenced deliberately — see the note in the early-return branch above.
         overClaimed = _printIdleCanonicality(registry, spoke);
-        overClaimed += _printIdleSettlement(registry, chainId, spoke);
+        uint256 settlementViolations = _printIdleSettlement(registry, chainId, spoke);
+        overClaimed += settlementViolations;
         console2.log(missing == 0 ? "  Status: ALL DEFAULT MARKETS REGISTERED" : "  Status: MARKETS NEED REGISTRATION");
     }
 
@@ -879,12 +911,22 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
                 ? "  Status: ORACLE REGISTERED"
                 : "  Status: REGISTERED ORACLE IS STALE - points at a superseded deployment"
         );
+        // NOT a printed hope — a gate. `feePercent = 0` is load-bearing for this family after SUP-21263:
+        // one market key can accumulate two legs' positions, and a reserve that is the borrow leg of N
+        // markets can settle under any of them. Both are harmless ONLY because the identity PPS makes cost
+        // basis equal the amount and every realized-profit fee is multiplied by zero. A non-zero fee turns
+        // a documented accounting quirk into a value leak, so the audit refuses to bless it.
+        require(cfg.feePercent == 0, "AAVE_V4_FEE_PERCENT_MUST_BE_ZERO: see SECURITY.md section 16 item 4");
     }
 
     /// @dev The two steps `configureAll` deliberately does not take, with their exact commands
     function _printRemainingSteps(uint256 env, uint64 chainId, address registryAddr) internal view {
         console2.log("");
         console2.log("--- REMAINING STEPS (not performed by configureAll) ---");
+        console2.log("0. RUN THE AUDIT, and read it before signing anything:");
+        console2.log("   --sig 'runCheckAll(uint256,uint64,address,bytes32)' <env> <chainId> <registry> <ledgerId>");
+        console2.log("   It is the ONLY gate that FAILS on an ambiguous idle topology: configureAll warns and");
+        console2.log("   continues on a chain with no curated designation, by design, so this step is the gate.");
         console2.log("1. SuperLedger registration, ONLY if the idle MONEY_MARKET pair is to be driven.");
         console2.log("   feePercent MUST be 0 (identity-PPS oracle; see SECURITY.md).");
         console2.log("   script/AddToSuperLedgerConfiguration.s.sol, salt string:", AAVE_V4_RESERVE_ORACLE_KEY);
@@ -961,8 +1003,12 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
             uint256 candidates = _idleSettlementCandidates(registry, spoke, id);
             if (candidates == 0) continue;
             address designated = _idleSettlementMarket(chainId, spoke, id, registry);
-            bool ok = designated != address(0) && registry.isMarketRegistered(designated);
+            bool curated = designated != address(0);
+            bool ok = curated && registry.isMarketRegistered(designated);
             if (candidates > 1 && !ok) ++undesignated;
+            // The two !ok cases are different problems and must not both print "NONE": a missing table is an
+            // ops/curation gap, whereas a curated-but-unregistered designation is what
+            // `_assertIdleSettlementDesignated` REVERTS on, so the audit must be at least as informative.
             console2.log(
                 string.concat(
                     "  reserve ",
@@ -970,7 +1016,11 @@ contract ConfigureAaveV4ReserveRegistry is DeployV2Base {
                     ": ",
                     vm.toString(candidates),
                     " candidate market(s), designated ",
-                    ok ? vm.toString(designated) : "NONE",
+                    ok
+                        ? vm.toString(designated)
+                        : curated
+                            ? string.concat(vm.toString(designated), " [NOT REGISTERED]")
+                            : "NONE (no curated designation for this chain)",
                     candidates > 1 ? "  [AMBIGUOUS - sign only the designated key]" : ""
                 )
             );

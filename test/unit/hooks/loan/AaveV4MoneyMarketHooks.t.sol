@@ -568,7 +568,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
 
     /// @dev SUP-21263 renamed the requirement: the share slot must be fed by the moved LEG's reserve key.
     function test_UsePrev_Redeem_RequiresTargetLegReserveKeyOutput() public {
-        prevHook.set(400e6, _key(spoke, RESERVE_ID));
+        prevHook.set(400e6, _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID));
         Execution[] memory ex = redeemHook.build(address(prevHook), account, _data(0, true));
         assertEq(
             _spokeCallArgs(ex, IAaveV4Spoke.withdraw.selector),
@@ -695,7 +695,11 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         assertEq(lendHook.getOutAmount(account), AMOUNT - 1, "credited position (1-wei round-down), not the spend");
         // SUP-21263: leg-exact, not market-exact — a market key covers both legs, so it cannot be the
         // chaining token any more. The LEDGER key is still the market key (header offset 32).
-        assertEq(lendHook.getOutToken(account), _key(spoke, RESERVE_ID), "outToken = the moved leg's reserve key");
+        assertEq(
+            lendHook.getOutToken(account),
+            _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID),
+            "outToken = the (market, leg) chain token"
+        );
         assertEq(lendHook.asset(), underlying, "fee asset = underlying");
         assertEq(mockSpoke.collateralCalls(), 0, "never enabled collateral");
         assertFalse(mockSpoke.isCollateral(RESERVE_ID, account));
@@ -794,7 +798,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     function test_Redeem_Cycle_UsePrevFromLend() public {
         _run(lendHook, _data(AMOUNT, false));
         uint256 credited = lendHook.getOutAmount(account);
-        prevHook.set(credited, _key(spoke, RESERVE_ID));
+        prevHook.set(credited, _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID));
         _run(redeemHook, _data(0, true));
         assertEq(redeemHook.getOutAmount(account), credited);
         assertEq(mockSpoke.getUserSuppliedAssets(RESERVE_ID, account), 0);
@@ -849,8 +853,8 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         _run(lendHook, othData);
         address keyOth = lendHook.getOutToken(account);
 
-        assertEq(keyUsdc, _key(spoke, RESERVE_ID), "outToken is the moved leg's reserve key");
-        assertEq(keyOth, _key(spoke, 0));
+        assertEq(keyUsdc, _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID));
+        assertEq(keyOth, _chainToken(_marketKey(spoke, 0, BORROW_LEG_ID), 0));
         assertTrue(keyUsdc != keyOth, "distinct accounting keys per reserve");
         assertTrue(keccak256(lendHook.inspect(usdcData)) != keccak256(lendHook.inspect(othData)));
         // a RESERVE key in the header is not a market: fails closed
@@ -1105,15 +1109,15 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
         mockSpoke.setSupplied(BORROW_LEG_ID, account, AMOUNT);
 
-        // a lend of the SUPPLY leg advertises that leg's reserve key
-        prevHook.set(AMOUNT, _key(spoke, RESERVE_ID));
+        // a lend of the SUPPLY leg advertises THIS market's supply-leg chain token
+        prevHook.set(AMOUNT, _chainToken(header, RESERVE_ID));
         vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
         redeemHook.build(
             address(prevHook), account, _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, 0, 0x01)
         );
 
         // ...and the SAME leg chains cleanly
-        prevHook.set(AMOUNT, _key(spoke, BORROW_LEG_ID));
+        prevHook.set(AMOUNT, _chainToken(header, BORROW_LEG_ID));
         Execution[] memory executions = redeemHook.build(
             address(prevHook), account, _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, 0, 0x01)
         );
@@ -1130,6 +1134,56 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         redeemHook.build(
             address(prevHook), account, _dataRaw(ORACLE_ID, header, underlying, spoke, RESERVE_ID, 0, 0x01)
         );
+    }
+
+    /// @notice THE CROSS-MARKET CHAIN, closed in code rather than by the ops allowlist. Reserve
+    ///         BORROW_LEG_ID is the loan leg of BOTH markets here, exactly as USDC is the loan leg of all
+    ///         seven Base equity markets. With a market-blind chaining token (a bare reserve key, which is
+    ///         what the first cut of this fix used) `lend(market A, leg R)` and `redeem(market B, leg R)`
+    ///         published and expected the SAME token, so ONE signed bundle credited A's accumulator and
+    ///         consumed B's — and `BaseLedger` CAPS `usedShares` at B's empty accumulator instead of
+    ///         reverting, stranding A's basis and zeroing the performance fee whatever `feePercent` is.
+    ///         Committing the (market, leg) PAIR makes that chain fail `PREV_TOKEN_MISMATCH`.
+    function test_UsePrev_CrossMarketChain_FailsClosed() public {
+        address marketA = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        // market B over the SAME loan leg: reserve 0 collateral, BORROW_LEG_ID borrow
+        registry.registerReserve(spoke, 0);
+        address marketB = registry.registerMarket(spoke, 0, BORROW_LEG_ID);
+        assertTrue(marketA != marketB, "two markets sharing one loan leg");
+
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, AMOUNT);
+
+        // a lend under market A, targeting the shared loan leg, advertises A's pair token
+        prevHook.set(AMOUNT, _chainToken(marketA, BORROW_LEG_ID));
+
+        // redeeming the SAME reserve under market B must NOT accept it
+        bytes memory underB = _dataRaw(ORACLE_ID, marketB, address(thirdToken), spoke, BORROW_LEG_ID, 0, 0x01);
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        redeemHook.build(address(prevHook), account, underB);
+
+        // ...and the bare reserve key — market-blind, the defective form — is refused too
+        prevHook.set(AMOUNT, _key(spoke, BORROW_LEG_ID));
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        redeemHook.build(address(prevHook), account, underB);
+
+        // same market, same leg still chains
+        prevHook.set(AMOUNT, _chainToken(marketB, BORROW_LEG_ID));
+        Execution[] memory ok = redeemHook.build(address(prevHook), account, underB);
+        assertTrue(_hasSelector(ok, IAaveV4Spoke.withdraw.selector), "same market + same leg is unaffected");
+    }
+
+    /// @notice The chain token is distinct for every (market, leg) combination, and collides with none of
+    ///         the three key namespaces it sits beside.
+    function test_ChainToken_IsUniquePerMarketAndLeg() public view {
+        address marketA = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        address marketB = _marketKey(spoke, 0, BORROW_LEG_ID);
+
+        assertTrue(_chainToken(marketA, RESERVE_ID) != _chainToken(marketA, BORROW_LEG_ID), "legs differ");
+        assertTrue(_chainToken(marketA, BORROW_LEG_ID) != _chainToken(marketB, BORROW_LEG_ID), "markets differ");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != marketA, "not the market key");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != _key(spoke, RESERVE_ID), "not the reserve key");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != _debtKey(spoke, RESERVE_ID), "not the debt key");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != underlying, "not a real token");
     }
 
     /// @notice Neither hook can be deployed without a registry — every op would otherwise revert.
@@ -1284,6 +1338,14 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
             return out;
         }
         revert("SPOKE_CALL_NOT_FOUND");
+    }
+
+    /// @dev The (market, leg) chaining token, as the literal domain-separated formula rather than via the
+    ///      hook — so a change to `_idleChainToken` breaks this test instead of silently agreeing with it.
+    function _chainToken(address marketKey, uint256 targetReserveId) internal pure returns (address) {
+        return address(
+            uint160(uint256(keccak256(abi.encode(marketKey, targetReserveId, keccak256("AaveV4Idle.CHAIN_TOKEN")))))
+        );
     }
 
     /// @dev The DEBT-leg derivation, for the legacy-header test above

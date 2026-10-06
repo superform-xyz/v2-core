@@ -100,8 +100,10 @@ library AaveV4ReserveKey {
     ///      keys name one market.
     ///      Being `internal` and unused by the V1 LOAN six, it is dead-code-eliminated from THEIR creation
     ///      code — `AaveV4LoanBytecodeUnchanged.t.sol` pins that empirically. The idle pair DOES reach it
-    ///      since SUP-21263, through `requireHeaderIsMarketKey` in `_requireTargetIsMarketLeg` (and reaches
-    ///      `computeReserveKey` too, for the lend hook's leg-exact `outToken`).
+    ///      since SUP-21263, through `requireHeaderIsMarketKey` in `_requireTargetIsMarketLeg` — in
+    ///      `BaseAaveV4MoneyMarketHook`, so both idle leaves link it in. They do NOT reach
+    ///      `computeReserveKey`: the chaining token is `_idleChainToken`, derived in the base from the
+    ///      (market, leg) pair, because a reserve key is market-blind.
     /// @param spoke The Aave V4 spoke address
     /// @param supplyReserveId The collateral (supply) reserve identifier within the spoke
     /// @param borrowReserveId The loan (borrow) reserve identifier within the spoke

@@ -112,6 +112,9 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     uint256 internal constant IDLE_AMOUNT_OFFSET = 124;
     uint256 internal constant IDLE_USE_PREV_OFFSET = 156;
 
+    /// @notice Domain separator for the `usePrevHookAmount` chaining token — see `_idleChainToken`
+    bytes32 internal constant IDLE_CHAIN_TOKEN_DOMAIN = keccak256("AaveV4Idle.CHAIN_TOKEN");
+
     /// @notice Exact hook-data length for both idle hooks
     /// @dev 157 is also the PRE-SUP-21254 length, so length alone no longer separates this revision from the
     ///      original reserve-keyed one. Fail-closed still holds in all four directions, via the HEADER:
@@ -257,9 +260,13 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     ///      disagreed with the key they are filed under would fail here rather than move the wrong reserve.
     ///      NOT CHECKED HERE: that `targetReserveId` is idle-SETTLEMENT-canonical for its reserve. A reserve
     ///      that is the borrow leg of N markets can settle under any of them; see the contract docblock.
-    ///      Called from `_buildHookExecutions` and `_preExecute` only — `_postExecute` runs in the same
-    ///      transaction, after both, so a third registry read would be pure gas. NOT called from
-    ///      `_decodeIdle`, which must stay `pure` so `inspect` can.
+    ///      Called from `_buildHookExecutions`, `_preExecute` AND `_postExecute`. The third call was added
+    ///      in review and is deliberate defence in depth — one WARM `getMarketInfo` (~1.1k gas): it removes
+    ///      the hooks' dependence on `SuperExecutorBase.validateHookCompliance` for the guarantee that a
+    ///      body reaching `_postExecute` was validated earlier in the same transaction. It matters most on
+    ///      the redeem side, where `usedShares -= suppliedAfter` reads `targetReserveId`, so a swapped
+    ///      target could under-report consumption without failing any delta assertion.
+    ///      NOT called from `_decodeIdle`, which must stay `pure` so `inspect` can.
     /// @param vars The decoded idle parameters
     function _requireTargetIsMarketLeg(IdleVars memory vars) internal view {
         (, uint256 supplyReserveId, uint256 borrowReserveId,,) = REGISTRY.getMarketInfo(vars.marketKey);
@@ -328,8 +335,10 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
     /// @param prevHook The previous hook in the chain
     /// @param account The executing smart account
     /// @param vars The decoded idle parameters
-    /// @param expectedPrevToken Token the previous hook must have produced (lend: underlying; redeem: the header market
-    /// key) @return The exact amount to move
+    /// @param expectedPrevToken Token the previous hook must have produced — lend: the underlying; redeem:
+    ///        `_idleChainToken(vars)`, this (market, leg) pair's chaining token. NOT the header market key,
+    ///        which is leg-ambiguous since SUP-21263, and NOT a bare reserve key, which is market-blind.
+    /// @return The exact amount to move
     function _resolveIdleAmount(
         address prevHook,
         address account,
@@ -341,6 +350,28 @@ abstract contract BaseAaveV4MoneyMarketHook is BaseLoanHookV2 {
         returns (uint256)
     {
         return vars.usePrevHookAmount ? _resolvePrevHookOutput(prevHook, account, expectedPrevToken) : vars.amount;
+    }
+
+    /// @dev THE CHAINING TOKEN for `usePrevHookAmount`: unique per (MARKET, LEG), domain-separated.
+    ///      WHY NOT THE RESERVE KEY (which this replaced, and which was a real defect): a reserve key is
+    ///      `keccak(spoke, reserveId)` — it carries NO market component. On the Base MAG7 spoke reserve 7 is
+    ///      the borrow leg of all seven equity markets, so `lend(market A, target 7)` and
+    ///      `redeem(market B, target 7)` published and expected the SAME token, and a cross-market chain
+    ///      passed `expectedPrevToken` inside ONE signed bundle. The INFLOW credited A's accumulator while
+    ///      the OUTFLOW consumed B's — empty, so `BaseLedger.calculateCostBasisView` CAPS `usedShares` to
+    ///      zero rather than reverting; `_processOutflow` then prices `mulDiv(0, pps, 10 ** decimals) = 0`,
+    ///      so the performance fee is zero REGARDLESS of `feePercent` and A's basis is stranded forever.
+    ///      That made the R6 ops hazard atomically reachable in one intent instead of requiring two.
+    ///      WHY NOT THE MARKET KEY EITHER: it is leg-ambiguous since SUP-21263, so it would let
+    ///      `lend(collateral leg)` feed `redeem(loan leg)` — an 18-decimal figure driving a 6-decimal
+    ///      withdraw. Only the PAIR is safe, so the pair is what the token commits.
+    ///      Domain-separated so it can never collide with a market key, a reserve key or a debt key.
+    /// @param vars The decoded idle parameters
+    /// @return The chaining pseudo-token for this (market, leg)
+    function _idleChainToken(IdleVars memory vars) internal pure returns (address) {
+        return address(
+            uint160(uint256(keccak256(abi.encode(vars.marketKey, vars.targetReserveId, IDLE_CHAIN_TOKEN_DOMAIN))))
+        );
     }
 
     /// @dev Inspector payload: MARKET key FIRST (the ledger / PPS key, same rule as the Morpho idle hooks —

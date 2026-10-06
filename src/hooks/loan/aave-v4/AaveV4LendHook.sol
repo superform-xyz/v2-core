@@ -10,7 +10,6 @@ import { IAaveV4Spoke } from "../../../vendor/aave-v4/IAaveV4Spoke.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseAaveV4MoneyMarketHook } from "./BaseAaveV4MoneyMarketHook.sol";
 import { ISuperHook, ISuperHookInspector, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
-import { AaveV4ReserveKey } from "../../../libraries/AaveV4ReserveKey.sol";
 
 /// @title AaveV4LendHook
 /// @author Superform Labs
@@ -45,17 +44,20 @@ import { AaveV4ReserveKey } from "../../../libraries/AaveV4ReserveKey.sol";
 ///      equated with the spend.
 /// @dev OMS sizing: one IN / ASSETS slot at offset 124 (underlying wei), the same value-flow as an
 ///      ERC-4626 deposit; the 1:1 share side is the measured outAmount.
-/// @dev WARNING: outToken is the moved leg's RESERVE KEY — `computeReserveKey(spoke, targetReserveId)`, a
-///      codeless pseudo-address — NOT the underlying and NOT the header market key. It differs from this
-///      hook's ledger key on purpose (SUP-21263): a market key is now leg-ambiguous, so using it as the
-///      chaining token would let `lend(collateral leg)` feed `redeem(loan leg, usePrevHookAmount)` through
-///      `expectedPrevToken` unchallenged — an 8-decimal position figure driving a 6-decimal withdraw, which
-///      neither hook would reject. The reserve key is leg-exact, so that chain now fails closed with
-///      PREV_TOKEN_MISMATCH. Accounting is unaffected: `SuperExecutorBase._updateAccounting` keys the ledger
-///      off header offset 32, never off `outToken`.
+/// @dev WARNING: outToken is `_idleChainToken(vars)` — a domain-separated pseudo-address unique per
+///      (MARKET, LEG) — NOT the underlying, NOT the header market key, and NOT the leg's reserve key. It
+///      differs from this hook's ledger key on purpose (SUP-21263), and BOTH simpler choices are wrong:
+///      the MARKET key is leg-ambiguous, so it would let `lend(collateral leg)` feed
+///      `redeem(loan leg, usePrevHookAmount)` — an 8-decimal position figure driving a 6-decimal withdraw;
+///      the RESERVE key is market-blind, so it would let `lend(market A, leg R)` feed
+///      `redeem(market B, leg R)` over a shared loan reserve — crediting A's accumulator while consuming
+///      B's, which `BaseLedger` CAPS to zero instead of reverting, stranding A's basis and zeroing the
+///      performance fee whatever `feePercent` is. Committing the PAIR closes both; a cross-market or
+///      cross-leg chain now fails PREV_TOKEN_MISMATCH. Accounting is unaffected:
+///      `SuperExecutorBase._updateAccounting` keys the ledger off header offset 32, never off `outToken`.
 ///      Asset-denominated downstream hooks that verify the previous output token still fail closed; legacy
 ///      usePrevHookAmount consumers without a token check would receive the supplied-assets figure
-///      (<= 1 wei below the spend). Chain only into AaveV4RedeemHook, on the SAME leg.
+///      (<= 1 wei below the spend). Chain only into AaveV4RedeemHook, on the SAME MARKET and SAME LEG.
 contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -119,8 +121,9 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    /// @dev Identity = market key + spoke + underlying + supplyReserveId (92 bytes). Changes when any
-    ///      of those change; unchanged when only amount / usePrevHookAmount change.
+    /// @dev Identity = market key + spoke + underlying + targetReserveId (92 bytes). Changes when any
+    ///      of those change; unchanged when only amount / usePrevHookAmount change. `pure`: it does NOT
+    ///      authenticate the header — build and preExecute do.
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return _inspectIdle(_decodeIdle(data));
     }
@@ -172,8 +175,11 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
         // targeting the hook — so an unvalidated body cannot reach here through the executor. Re-checking
         // anyway costs one WARM `getMarketInfo` (~1.1k gas) and removes the hook's dependence on that
         // executor invariant: an out-of-band `postExecute` can no longer measure a position on an arbitrary
-        // (spoke, reserve) pair or publish an arbitrary `outToken`.
+        // (spoke, reserve) pair, nor publish an arbitrary `outToken`. The underlying is re-pinned too — it
+        // is the one identity field `_requireTargetIsMarketLeg` does not cover, it drives the wallet-delta
+        // assertion, and the redeem hook publishes it AS its output token.
         _requireTargetIsMarketLeg(vars);
+        _requireUnderlyingMatchesReserve(vars);
 
         uint256 spent = _balanceDecrease(preLoanTokenBalance, IERC20(vars.underlying).balanceOf(account));
         if (spent != expectedPrimaryAmount) revert DELTA_MISMATCH(expectedPrimaryAmount, spent);
@@ -183,6 +189,6 @@ contract AaveV4LendHook is BaseAaveV4MoneyMarketHook {
         if (credited == 0) revert AMOUNT_NOT_VALID();
 
         _setOutAmount(credited, account);
-        _setOutToken(AaveV4ReserveKey.computeReserveKey(vars.spoke, vars.targetReserveId), account);
+        _setOutToken(_idleChainToken(vars), account);
     }
 }
