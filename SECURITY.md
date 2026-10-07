@@ -159,13 +159,41 @@ Operational invariants:
    claimed by a new market (`RESERVE_DEREGISTRATION_PENDING`), so the two timelocks never overlap. Taking a
    claimed leg dark would abort whole-batch reads in `getPricePerShareMultiple` / `getTVLMultiple` (which,
    unlike `getTVLByOwnerOfSharesMultiple`, DO isolate per entry).
-   **UNGUARDED, OPS-ENFORCED (SUP-21254):** deregistering a market under which an account still holds an open
-   IDLE position bricks that account's redeem through Superform accounting — the oracle reverts
-   `RESERVE_NOT_REGISTERED` inside `_updateAccounting`, and the only exit is calling the Spoke directly,
-   outside the ledger. The registry cannot see user positions, so there is no `marketRefs` analogue for this
-   direction. Before proposing such a market, confirm `getBalanceOfOwner(marketKey, account)` and
-   `usersAccumulatorShares(account, marketKey)` are zero for every holder; the 2-day timelock is the window
-   to check in.
+   **UNGUARDED, OPS-ENFORCED (SUP-21254, corrected in SUP-21263):** deregistering a market under which an
+   account still holds an open IDLE position bricks that account's redeem through Superform, and the only
+   exit is calling the Spoke directly, outside the ledger. The registry cannot see user positions, so there
+   is no `marketRefs` analogue for this direction.
+   **WHERE IT FAILS, precisely.** Since SUP-21263 the first failure is in the HOOK, not the oracle:
+   `_requireTargetIsMarketLeg` calls `REGISTRY.getMarketInfo(marketKey)` — from `_buildHookExecutions`,
+   `_preExecute` AND `_postExecute` — and an unregistered key reverts `MARKET_NOT_REGISTERED` before any
+   accounting runs. The oracle's `RESERVE_NOT_REGISTERED` inside `_updateAccounting` is the second-order
+   failure, reachable only by a path that does not go through the idle hooks.
+   **THE DRAIN CHECK: `getBalanceOfOwner` + `usersAccumulatorShares` IS NOT SUFFICIENT.** It was the
+   documented check through SUP-21254 and it no longer establishes what it claims, for two independent
+   reasons:
+   - `getBalanceOfOwner(marketKey, account)` resolves a market key to its **collateral** leg only
+     (SUP-21255, one-directional by design so the sideless reads stay summable). SUP-21263 enables idle
+     positions on the market's **borrow** reserve, and such a position is invisible to this scalar — it
+     reads zero while the borrow leg is still supplied.
+   - `usersAccumulatorShares(account, marketKey)` counts deposited **accounting units**, not current
+     supplied assets. Aave converts supplied assets through the Hub, so an interest-bearing supply exceeds
+     the units ever credited: redeeming every credited unit takes the accumulator to zero and leaves the
+     accrued remainder supplied.
+   Both therefore read zero with real user funds still in the market. Regression:
+   `test_RetirementDocumentedZeroChecksPassWithBorrowLegYieldRemaining`.
+   **THE CHECK THAT DOES ESTABLISH IT.** Before proposing, and again immediately before executing:
+   1. `IAaveV4Spoke.getUserSuppliedAssets(reserveId, holder)` is zero for **both** of the market's
+      reserves — the supply leg AND the borrow leg — for **every** holder, read at **one pinned block**.
+      A complete `getOwnerSnapshot` is equally acceptable once its spoke and holder coverage is established;
+      what is not acceptable is a market-scalar read or a ledger read standing in for the Spoke's own
+      accounting.
+   2. Keep the two ledger checks as a secondary signal. They do not prove the position is drained, but a
+      non-zero accumulator against a drained Spoke position is itself a reconciliation defect worth
+      catching before removal.
+   3. Quiesce the affected roots first, so no new idle op can settle into the market during the window.
+   4. **Re-run step 1 after the 2-day timelock, immediately before `executeDeregisterMarket`.** The timelock
+      is a delay, not a freeze: without quiesced roots a holder can open a position inside it, and interest
+      accrues throughout regardless.
 4. **ONE market per idle-lendable reserve: `marketRefs[computeReserveKey(spoke, supplyReserveId)] <= 1`.**
    NOT enforced on-chain — `registerMarket` will accept `(R, 0)`, `(R, 1)`, `(R, 2)` and the idle hooks
    accept any of them, giving reserve R's single idle position one ledger key per such market. `BaseLedger`

@@ -32,6 +32,10 @@ import { AaveV4WithdrawHook } from "../../../../src/hooks/loan/aave-v4/AaveV4Wit
 import { AaveV4SupplyAndBorrowHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol";
 import { AaveV4RepayHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4RepayHookV2.sol";
 import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
+import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
+import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { IAaveV4MarketRegistry } from "../../../../src/interfaces/accounting/IAaveV4MarketRegistry.sol";
 
 /// @dev Stateful idle-spoke mock: pulls the underlying on supply, credits the position rounded DOWN by
@@ -1352,6 +1356,116 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     function _debtKey(address spoke_, uint256 reserveId) internal pure returns (address) {
         return address(
             uint160(uint256(keccak256(abi.encode(spoke_, reserveId, keccak256("AaveV4ReserveRegistryV2.DEBT")))))
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            RETIREMENT: THE DOCUMENTED DRAIN CHECK IS NOT ENOUGH
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice REGRESSION for the PR #1027 review's P2. SECURITY.md section 16 item 3 used to tell operators
+    ///         that `getBalanceOfOwner(marketKey, account)` and `usersAccumulatorShares(account, marketKey)`
+    ///         both reading zero means a market's idle positions are drained and it is safe to retire. Since
+    ///         SUP-21263 enabled idle positions on a market's BORROW reserve, that is false for two
+    ///         independent reasons, and this test makes both of them fail the old gate while real user funds
+    ///         are still supplied:
+    ///           1. the market scalar resolves a market key to its COLLATERAL leg only (SUP-21255,
+    ///              one-directional by design), so a borrow-leg position is invisible to it;
+    ///           2. ledger shares count deposited ACCOUNTING UNITS, so redeeming every credited unit zeroes
+    ///              the accumulator and leaves accrued interest supplied.
+    ///         The consequence is the thing worth preventing: retirement passes the old checklist and the
+    ///         holder can then no longer exit through Superform at all.
+    /// @dev Real registry, real oracle, real `SuperLedger`, real hooks; only the Spoke is a mock, which is
+    ///      what lets interest be modelled exactly rather than waited for. The ledger is driven directly
+    ///      because this suite runs hooks the way `SuperExecutor` does but is not `SuperExecutor`.
+    function test_RetirementDocumentedZeroChecksPassWithBorrowLegYieldRemaining() public {
+        address marketKey = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+
+        address ledgerConfig = address(new SuperLedgerConfiguration());
+        AaveV4ReserveOracle oracle = new AaveV4ReserveOracle(ledgerConfig, address(registry));
+        address[] memory allowed = new address[](1);
+        allowed[0] = account;
+        SuperLedger ledger = new SuperLedger(ledgerConfig, allowed);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(oracle),
+            feePercent: 0,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = ORACLE_ID;
+        SuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(salts, configs);
+        bytes32 oracleId = keccak256(abi.encodePacked(ORACLE_ID, account));
+
+        // 1. Lend on the market's BORROW leg — the mode SUP-21263 newly allows.
+        _run(lendHook, _dataRaw(ORACLE_ID, marketKey, address(thirdToken), spoke, BORROW_LEG_ID, AMOUNT, bytes1(0x00)));
+        uint256 credited = lendHook.getOutAmount(account);
+        assertGt(credited, 0, "nothing was lent");
+        ledger.updateAccounting(account, marketKey, oracleId, true, credited, 0);
+
+        // 2. Model Aave interest: supplied assets now exceed the credited accounting units.
+        uint256 residue = 1e6;
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, credited + residue);
+        thirdToken.mint(address(mockSpoke), residue);
+
+        // 3. Redeem every credited unit under the same market.
+        _run(
+            redeemHook,
+            _dataRaw(ORACLE_ID, marketKey, address(thirdToken), spoke, BORROW_LEG_ID, credited, bytes1(0x00))
+        );
+        ledger.updateAccounting(account, marketKey, oracleId, false, credited, credited);
+
+        // 4. THE BUG. Both checks the old runbook relied on read zero...
+        assertEq(oracle.getBalanceOfOwner(marketKey, account), 0, "market scalar reads the collateral leg only");
+        assertEq(ledger.usersAccumulatorShares(account, marketKey), 0, "every credited unit was consumed");
+
+        // ...while real user funds are still supplied on the market's borrow leg.
+        assertEq(
+            IAaveV4Spoke(spoke).getUserSuppliedAssets(BORROW_LEG_ID, account), residue, "borrow-leg supply must remain"
+        );
+
+        // 5. The check SECURITY.md now mandates -- the Spoke's own accounting for BOTH of the market's
+        //    reserves -- is what catches it.
+        assertGt(
+            IAaveV4Spoke(spoke).getUserSuppliedAssets(RESERVE_ID, account)
+                + IAaveV4Spoke(spoke).getUserSuppliedAssets(BORROW_LEG_ID, account),
+            0,
+            "the two-reserve Spoke read must see the residue"
+        );
+
+        // 6. Retirement sails through the old gate.
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        // 7. And the holder's ordinary exit is gone. The failure is in the HOOK's registry validation,
+        //    before any accounting runs -- not the oracle's `RESERVE_NOT_REGISTERED` that item 3 used to
+        //    describe. Asserted on `build` AND `preExecute` -- both gates a bundler hits before anything
+        //    moves -- each from a fresh execution context, as `SuperExecutorBase` would issue them.
+        //    `postExecute` is deliberately not asserted here: its own ordering guard
+        //    (`PRE_EXECUTE_ALREADY_CALLED` / not-called) fires first, which would make this test about
+        //    hook sequencing rather than about the retired market.
+        bytes memory exitData =
+            _dataRaw(ORACLE_ID, marketKey, address(thirdToken), spoke, BORROW_LEG_ID, residue, bytes1(0x00));
+        bytes4 retired = AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector;
+
+        redeemHook.setExecutionContext(account);
+        vm.expectRevert(retired);
+        redeemHook.build(address(prevHook), account, exitData);
+
+        redeemHook.setExecutionContext(account);
+        vm.expectRevert(retired);
+        redeemHook.preExecute(address(prevHook), account, exitData);
+
+        // The funds are still on the Spoke: stranded, not lost. Recovery needs the binding restored or a
+        // direct Spoke exit with ledger reconciliation.
+        assertEq(
+            IAaveV4Spoke(spoke).getUserSuppliedAssets(BORROW_LEG_ID, account),
+            residue,
+            "the residue is stranded, not lost"
         );
     }
 }
