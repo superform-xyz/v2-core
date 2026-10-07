@@ -62,6 +62,25 @@ contract SeedHarness is ConfigureAaveV4ReserveRegistry {
         return _defaultLoanReserveId(chainId);
     }
 
+    /// @dev Registers a market on the registry DIRECTLY, bypassing `_registerOneMarket`'s guards. This is
+    ///      how an ambiguous configuration can really arise — a manager calling the registry rather than
+    ///      this script — and it is the only way to build the pre-existing state the check path must reject.
+    function registerMarketRaw(
+        AaveV4ReserveRegistryV2 registry,
+        address spoke,
+        uint256 supplyId,
+        uint256 borrowId
+    )
+        external
+        returns (address)
+    {
+        return registry.registerMarket(spoke, supplyId, borrowId);
+    }
+
+    function printIdleCanonicality(AaveV4ReserveRegistryV2 registry, address spoke) external view returns (uint256) {
+        return _printIdleCanonicality(registry, spoke);
+    }
+
     function noLoanReserve() external pure returns (uint256) {
         return NO_LOAN_RESERVE;
     }
@@ -349,6 +368,91 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
 
         harness.seedMarkets(registry, uint64(block.chainid), spoke);
         harness.assertFullyConfigured(registry, uint64(block.chainid), spoke); // now passes
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       F1 (PR #1025 review, P2): COLLATERAL_LEG_CLAIMED_TWICE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The exact revert string, so a test cannot pass against a differently-named guard.
+    bytes internal constant CLAIMED_TWICE =
+        bytes("COLLATERAL_LEG_CLAIMED_TWICE: reserve is the supply leg of two markets, idle identity is ambiguous");
+
+    /// @notice THE FINDING. The idle MONEY_MARKET pair's ledger key is the MARKET key, resolved to the
+    ///         market's collateral leg — so a reserve claimed as the supply leg of two markets gives one
+    ///         Aave position two accepted ledger identities. The seeder must refuse the second claim.
+    ///         Reserve 0 is already AAPLc/USDC's collateral after `seedMarkets`; pairing it against another
+    ///         stock would claim it a second time.
+    function test_RegisterOne_RevertIf_CollateralLegAlreadyClaimed() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        assertEq(registry.marketRefs(registry.computeReserveKey(spoke, 0)), 1, "claimed exactly once");
+
+        vm.expectRevert(CLAIMED_TWICE);
+        harness.registerOne(registry, spoke, 0, 1);
+    }
+
+    /// @notice The SHARED LOAN LEG stays legal. All seven Base equity markets borrow USDC, so the USDC DEBT
+    ///         key's refcount is 7 by design — the guard constrains SUPPLY legs only, and a test that
+    ///         confused the two would break the live configuration.
+    function test_SeedMarkets_SharedLoanLegIsNotAViolation() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+
+        uint256 loanId = harness.loanReserveId(uint64(block.chainid));
+        assertEq(
+            registry.marketRefs(registry.computeDebtKey(spoke, loanId)),
+            MAG7_LISTED_RESERVES - 1,
+            "every equity market claims the one USDC debt leg"
+        );
+        assertEq(harness.printIdleCanonicality(registry, spoke), 0, "and that is not an ambiguity");
+    }
+
+    /// @notice CHECKING an already-ambiguous registry fails too. The ambiguity is built the way it would
+    ///         really happen — a manager registering on the registry directly, outside this script — and the
+    ///         verification gate must reject it rather than inherit it.
+    function test_AssertFullyConfigured_RevertIf_CollateralLegClaimedTwice() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        harness.assertFullyConfigured(registry, uint64(block.chainid), spoke); // canonical: passes
+
+        harness.registerMarketRaw(registry, spoke, 0, 1); // out-of-band second claim on reserve 0
+        assertEq(registry.marketRefs(registry.computeReserveKey(spoke, 0)), 2, "ambiguity now exists");
+
+        vm.expectRevert(CLAIMED_TWICE);
+        harness.assertFullyConfigured(registry, uint64(block.chainid), spoke);
+    }
+
+    /// @notice And an idempotent RE-RUN rejects it. Re-running is the normal way to use this script, so the
+    ///         already-registered branch must assert the binding instead of skipping — which is precisely
+    ///         the hole the review found: before the fix a rerun over an ambiguous registry reported
+    ///         "all skipped as already registered" and exited 0.
+    function test_SeedMarkets_RerunRejectsAnAmbiguityIntroducedOutOfBand() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        harness.registerMarketRaw(registry, spoke, 0, 1);
+
+        vm.expectRevert(CLAIMED_TWICE);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+    }
+
+    /// @notice The read-only audit reports the violation as a non-zero count, which is what makes
+    ///         `runCheckAll` revert after printing the diagnostic rather than blessing the registry.
+    function test_PrintIdleCanonicality_CountsTheOverClaimedReserve() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        assertEq(harness.printIdleCanonicality(registry, spoke), 0, "canonical to begin with");
+
+        harness.registerMarketRaw(registry, spoke, 0, 1);
+        assertEq(harness.printIdleCanonicality(registry, spoke), 1, "one reserve over-claimed");
+    }
+
+    /// @notice A reserve with NO market is not a violation: `<= 1`, not `== 1`. Freshly seeded reserves are
+    ///         simply not idle-lendable yet, and failing on that would make the gate unreachable.
+    function test_PrintIdleCanonicality_UnclaimedReserveIsFine() public {
+        harness.seed(registry, spoke);
+        assertEq(registry.marketRefs(registry.computeReserveKey(spoke, 0)), 0, "no market yet");
+        assertEq(harness.printIdleCanonicality(registry, spoke), 0, "zero claims is not ambiguous");
     }
 
     /// @notice Only Base has a curated market set. Other chains' pairs are a strategy decision, so

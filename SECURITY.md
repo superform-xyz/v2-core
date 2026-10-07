@@ -160,15 +160,36 @@ Operational invariants:
    accumulators are keyed `(user, yieldSource)` with no oracle id, so lending under one and redeeming under
    another caps `usedShares` to zero (`UsedSharesCapped`): a permanently stale accumulator, a NAV double
    count for anyone summing both keys, and a performance-fee bypass the day the `feePercent = 0` invariant in
-   item 15 stops holding. Curate it: one market per reserve ops intends to idle-lend, asserted at seeding
-   time by `ConfigureAaveV4ReserveRegistry`. The by-construction fix, if this ever needs to be structural, is
-   a registry flag marking a market as the idle-supply market for its collateral reserve and refusing a
-   second one.
-4. **Off-chain consumers must key on `(chainId, marketKey)`.** Like the two leg derivations, the market
+   item 15 stops holding.
+   **WHERE IT IS ACTUALLY ENFORCED, precisely.** `ConfigureAaveV4ReserveRegistry` rejects a second supply
+   claim with `COLLATERAL_LEG_CLAIMED_TWICE` in three places: when registering a market
+   (`_registerOneMarket`, including its already-registered branch, so a re-run cannot inherit an ambiguity),
+   in `configureAll`'s final gate over every listed reserve, and in `runCheckAll`, which prints the offending
+   reserves and then fails. That is a **script-level** guard: it covers this configuration process and an
+   audit of its result, and it does NOT constrain a manager who calls `registerMarket` on the registry
+   directly. Only the SUPPLY leg is constrained — the loan reserve's DEBT leg is shared by design (all seven
+   Base equity markets borrow the one USDC reserve, refcount 7).
+   The by-construction fix, if this needs to be structural, is a registry flag marking a market as the
+   idle-supply market for its collateral reserve and refusing a second one; it is not taken today because it
+   means redeploying and re-seeding a registry that is already live and configured.
+5. **Off-chain consumers must key on `(chainId, marketKey)`.** Like the two leg derivations, the market
    preimage contains no chainId, and Aave V4 spoke addresses are not guaranteed chain-unique. On-chain this
    is harmless — the pin is evaluated on the executing chain and the signed envelope binds chainId — but any
    consumer keying a whitelist or an index on the bare 20 bytes would conflate two chains' markets.
-5. **The derivation is frozen and its leg order is significant.**
+6. **`getOwnerSnapshot` discovery is SYMMETRIC, and strict about what it cannot resolve** (SUP-21259).
+   Debt is discovered by scanning every reserve of every covered spoke; supply used to arrive ONLY through
+   the requested market bindings. That asymmetry meant removing the last market naming a supply reserve
+   dropped its collateral from NAV while its debt kept being counted — PPS falls, or a negative-NAV guard
+   rejects a snapshot that is merely incomplete. Collateral no requested market accounts for is now returned
+   as its own SUPPLY-leg position, and when that leg is NOT registered the whole call reverts
+   `UNCOVERED_COLLATERAL(spoke, reserveId)`: never silently omitted, never resolved through an unregistered
+   key. Dedup is unchanged — a leg a requested market already contributed is not added twice.
+   **COVERAGE BOUNDARY, so it is not over-read:** this protects a snapshot WHEN IT IS REQUESTED. A consumer
+   whose strategy lists no Aave source at all requests no Aave snapshot, so complete-removal coverage stays a
+   manager/lifecycle guarantee. Cost: one extra `getUserSuppliedAssets` staticcall per reserve per covered
+   spoke, taken unconditionally because a plain idle supply reads `(false, false)` from
+   `getUserReserveStatus` and would otherwise be invisible.
+7. **The derivation is frozen and its leg order is significant.**
    `keccak256(abi.encode(spoke, supplyReserveId, borrowReserveId, MARKET_KEY_DOMAIN))`, lower 20 bytes. The
    ids are never sorted: "collateral A, borrow B" and "collateral B, borrow A" are different strategies and
    must stay different keys. `MARKET_KEY_DOMAIN` cannot change once any market key has been signed into a

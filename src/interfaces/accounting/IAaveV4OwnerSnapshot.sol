@@ -63,7 +63,11 @@ interface IAaveV4OwnerSnapshot {
     /// @param maxReservesPerSpoke Maximum permitted reserve count; exceeding it reverts, never truncates.
     /// @return markets One binding per UNIQUE requested market, in request order, with both derived leg keys.
     /// @return positions Unique legs of the requested markets — zero balances included — followed by any
-    ///         additional active debt discovered on the covered spokes.
+    ///         additional active debt AND any residual supplied collateral discovered on the covered spokes
+    ///         (SUP-21259: discovery is symmetric, so collateral no requested market covers is returned
+    ///         rather than silently omitted; if its SUPPLY leg is unregistered the call reverts
+    ///         `UNCOVERED_COLLATERAL` instead). Consumers must therefore accept supply rows they did not
+    ///         request — count each leg once, as always.
     /// @return balances Unique non-vault cash balances; all amounts are non-negative raw token units.
     function getOwnerSnapshot(
         address owner,
