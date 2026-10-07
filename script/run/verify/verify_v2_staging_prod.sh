@@ -334,7 +334,7 @@ generate_constructor_args() {
     # Generate constructor arguments based on contract type
     case $contract_name in
         # Core contracts with no constructor args
-        "SuperLedgerConfiguration"|"SuperValidator"|"SuperDestinationValidator"|"SuperYieldSourceOracle")
+        "SuperLedgerConfiguration"|"SuperValidator"|"SuperValidatorV2"|"SuperDestinationValidator"|"SuperYieldSourceOracle")
             echo "$(cast abi-encode "constructor()")"
             ;;
         "SuperExecutor")
@@ -601,6 +601,7 @@ get_contract_source() {
         "FlatFeeLedger") echo "src/accounting/FlatFeeLedger.sol" ;;
         "SuperLedgerConfiguration") echo "src/accounting/SuperLedgerConfiguration.sol" ;;
         "SuperValidator") echo "src/validators/SuperValidator.sol" ;;
+        "SuperValidatorV2") echo "src/validators/SuperValidatorV2.sol" ;;
         "SuperDestinationValidator") echo "src/validators/SuperDestinationValidator.sol" ;;
         "SuperNativePaymaster") echo "src/paymaster/SuperNativePaymaster.sol" ;;
         "SuperSenderCreator") echo "src/executors/helpers/SuperSenderCreator.sol" ;;

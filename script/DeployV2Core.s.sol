@@ -44,6 +44,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address flatFeeLedger;
         address superLedgerConfiguration;
         address superValidator;
+        address superValidatorV2;
         address superDestinationValidator;
         address superNativePaymaster;
     }
@@ -714,8 +715,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string[] memory potentialMissing = new string[](130);
         uint256 missingCount = 0;
 
-        // Pure core contracts (9 contracts - always deployed)
-        string[9] memory coreContracts = [
+        // Pure core contracts (10 contracts - always deployed)
+        string[10] memory coreContracts = [
             "SuperExecutor",
             "SuperDestinationExecutor",
             "SuperSenderCreator",
@@ -723,6 +724,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "FlatFeeLedger",
             "SuperLedgerConfiguration",
             "SuperValidator",
+            "SuperValidatorV2",
             "SuperDestinationValidator",
             "SuperNativePaymaster"
         ];
@@ -807,7 +809,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Set expected counts from actual array lengths
-        availability.expectedCore = coreContracts.length; // 9 pure core contracts
+        availability.expectedCore = coreContracts.length; // pure core contracts, counted from the array
         availability.expectedOracles = oracleContracts.length;
             // expectedAdapters and expectedHooks already set above based on chain configuration
 
@@ -2015,6 +2017,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // SuperValidator (no constructor args)
         (, address superValidator) = __checkContract(SUPER_VALIDATOR_KEY, __getSalt(SUPER_VALIDATOR_KEY), "", env);
 
+        // SuperValidatorV2 (no constructor args) - SUP-17924, passkey-owned smart wallet support
+        __checkContract(SUPER_VALIDATOR_V2_KEY, __getSalt(SUPER_VALIDATOR_V2_KEY), "", env);
+
         // SuperDestinationValidator (no constructor args)
         (, address superDestValidator) =
             __checkContract(SUPER_DESTINATION_VALIDATOR_KEY, __getSalt(SUPER_DESTINATION_VALIDATOR_KEY), "", env);
@@ -3128,6 +3133,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, SUPER_VALIDATOR_KEY);
         if (status.isDeployed) coreContracts.superValidator = status.contractAddress;
 
+        status = _getContractStatus(chainId, SUPER_VALIDATOR_V2_KEY);
+        if (status.isDeployed) coreContracts.superValidatorV2 = status.contractAddress;
+
         status = _getContractStatus(chainId, SUPER_DESTINATION_VALIDATOR_KEY);
         if (status.isDeployed) coreContracts.superDestinationValidator = status.contractAddress;
 
@@ -3299,6 +3307,26 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(coreContracts.superValidator != address(0), "SUPER_MERKLE_VALIDATOR_DEPLOYMENT_FAILED");
         require(coreContracts.superValidator.code.length > 0, "SUPER_MERKLE_VALIDATOR_NO_CODE");
         console2.log(" SuperValidator deployed and validated");
+
+        // Deploy SuperValidatorV2 (SUP-17924) - an ADDITIONAL validator module, not a replacement.
+        // Gated on artifact presence, like the registries below: a chain or env without the locked artifact
+        // skips it and keeps deploying, rather than passing empty creation code to CREATE2. Nothing else in
+        // the system takes this as a constructor argument, so a skip degrades to "no passkey support here"
+        // instead of cascading.
+        if (__checkBytecodeExists("SuperValidatorV2", env)) {
+            coreContracts.superValidatorV2 = __deployContractIfNeeded(
+                SUPER_VALIDATOR_V2_KEY,
+                chainId,
+                __getSalt(SUPER_VALIDATOR_V2_KEY),
+                __getBytecode("SuperValidatorV2", env)
+            );
+
+            require(coreContracts.superValidatorV2 != address(0), "SUPER_VALIDATOR_V2_DEPLOYMENT_FAILED");
+            require(coreContracts.superValidatorV2.code.length > 0, "SUPER_VALIDATOR_V2_NO_CODE");
+            console2.log(" SuperValidatorV2 deployed and validated");
+        } else {
+            console2.log(" SKIPPED SuperValidatorV2: no locked bytecode for this env");
+        }
 
         // Deploy SuperDestinationValidator
         coreContracts.superDestinationValidator = __deployContractIfNeeded(
