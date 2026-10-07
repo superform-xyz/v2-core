@@ -3,20 +3,14 @@ pragma solidity 0.8.30;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 // Superform
-import { ChainAgnosticSafeSignatureValidation } from "../../../src/libraries/ChainAgnosticSafeSignatureValidation.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
 /// @title SuperValidatorBaseSimulations
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators used for simulations. This contract is not to be deployed
 abstract contract SuperValidatorBaseSimulations is ERC7579ValidatorBase, ISuperValidator {
-    using ChainAgnosticSafeSignatureValidation for address;
-
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -31,10 +25,6 @@ abstract contract SuperValidatorBaseSimulations is ERC7579ValidatorBase, ISuperV
     /// @notice Prefix for 7702 authority -> https://eip7702.io/
     bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
 
-    /// @notice Magic value returned when a signature is valid according to EIP-1271
-    /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
-    bytes4 internal constant EIP1271_MAGIC_VALUE = bytes4(0x1626ba7e);
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -42,7 +32,6 @@ abstract contract SuperValidatorBaseSimulations is ERC7579ValidatorBase, ISuperV
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
     error INVALID_DESTINATION_PROOF(); // thrown on source
-    error NOT_EIP1271_SIGNER();
     error EMPTY_DESTINATION_PROOF();
     error PROOF_COUNT_MISMATCH();
     error INVALID_MERKLE_PROOF();
@@ -148,61 +137,14 @@ abstract contract SuperValidatorBaseSimulations is ERC7579ValidatorBase, ISuperV
         );
     }
 
-    /// @notice Processes signature for any account type after merkle proof verification
-    /// @dev Common method that handles signature processing for EOA, EIP-1271 smart contracts, and EIP-7702 accounts
-    ///      This method assumes merkle proof has already been verified by the caller
-    /// @param sender The account address being operated on
-    /// @param sigData Signature data including merkle root, proofs, and actual signature
-    /// @return signer The address that signed the message
-    function _processSignatureForAccountType(
-        address sender,
-        SignatureData memory sigData
-    )
-        internal
-        view
-        returns (address signer)
-    {
-        /// @dev For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
-        if (_is7702Account(sender.code)) {
-            signer = _processECDSASignature(sigData);
-        } else {
-            address owner = _accountOwners[sender];
-
-            /// @dev Check if owner is an EOA (no code) or owner is EIP-7702 (delegated EOA) - should be treated as EOA
-            if (owner.code.length == 0 || _is7702Account(owner.code)) {
-                return _processECDSASignature(sigData);
-            }
-
-            bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-
-            /// @dev At this point, we know owner is a smart contract (not EOA, not EIP-7702)
-            /// Only two options left: Safe or EIP-1271-compatible contract
-            /// @dev First tries Safe-specific chain-agnostic validation, then falls back to generic EIP-1271
-            if (owner.validateChainAgnosticMultisig(sigData, messageHash)) {
-                return owner;
-            }
-
-            // Generic EIP-1271 validation (works for ALL EIP-1271 contracts including Safe fallback)
-            try IERC1271(owner).isValidSignature(messageHash, sigData.signature) returns (bytes4 result) {
-                if (result == EIP1271_MAGIC_VALUE) {
-                    return owner;
-                }
-            } catch { }
-
-            revert NOT_EIP1271_SIGNER();
-        }
-    }
-
-    /// @notice Processes an EOA signature and returns the signer
-    /// @param sigData Signature data including merkle root, proofs, and actual signature
-    /// @return signer The address that signed the message
-    function _processECDSASignature(SignatureData memory sigData) internal pure returns (address signer) {
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        MessageHashUtils.toEthSignedMessageHash(messageHash);
-
-        // sending signer as address 0x000 for mock validator
-        signer = address(0);
-    }
+    /// @dev `_processSignatureForAccountType` deliberately does NOT exist here.
+    ///      It used to be a hand-copied duplicate of `SuperValidatorBase`'s, with ZERO callers — the only
+    ///      subclass, `SuperDestinationValidatorSimulations`, goes through `_createLeafAndProcessProof` and
+    ///      returns the magic value on a root match without validating the placeholder simulation signature.
+    ///      A duplicate with no callers is pure drift risk: it silently fell behind the real base (it still
+    ///      had the pre-SUP-17924 "codeless owner == EOA" branch) while looking authoritative. If a
+    ///      simulation ever needs real account-type dispatch, inherit the production base rather than copying
+    ///      it.
 
     /// @notice Creates a message hash from a merkle root for signature verification
     /// @dev In the base implementation, the message hash is simply the merkle root itself
