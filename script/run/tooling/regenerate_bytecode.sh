@@ -305,6 +305,17 @@ RFLR_HOOK_CONTRACTS=(
     "WrappedNativeHook"
 )
 
+# HyperCore hook contracts (deployed via DeployV2OtherHooks; chain 999 only)
+# NOTE: these were missing from this script entirely, so a source change to them left the artifacts
+#       stale and a deploy would have shipped the previous bytecode.
+HYPERCORE_HOOK_CONTRACTS=(
+    "HyperCoreAddApiWalletHook"
+    "HyperCoreApproveBuilderFeeHook"
+    "HyperCoreSendAssetHook"
+    "HyperCoreUsdClassTransferHook"
+    "ApproveAndHyperCoreDepositHook"
+)
+
 # SuperVault cap-bridge hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
 SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS=(
     "SuperVaultAcrossCapBridgeHook"
@@ -440,6 +451,15 @@ else
         fi
     done
 
+    # Copy HyperCore hook contracts
+    log "INFO" "${BLUE}🪝 Copying HyperCore hook contracts...${NC}"
+    failed_hypercore=0
+    for contract in "${HYPERCORE_HOOK_CONTRACTS[@]}"; do
+        if ! copy_contract "$contract"; then
+            failed_hypercore=$((failed_hypercore + 1))
+        fi
+    done
+
     # Copy SuperVault cap-bridge hook contracts
     log "INFO" "${BLUE}🪝 Copying SuperVault cap-bridge hook contracts...${NC}"
     failed_capbridge=0
@@ -459,8 +479,8 @@ else
     done
 
     # Summary for all contracts mode
-    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#EULER_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]}))
-    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_euler + failed_deth + failed_sponsorship + failed_rflr + failed_capbridge + failed_odosv3))
+    total_contracts=$((${#CORE_CONTRACTS[@]} + ${#HOOK_CONTRACTS[@]} + ${#ORACLE_CONTRACTS[@]} + ${#MORPHO_HOOK_CONTRACTS[@]} + ${#AAVE_V4_HOOK_CONTRACTS[@]} + ${#AAVE_V3_HOOK_CONTRACTS[@]} + ${#EULER_HOOK_CONTRACTS[@]} + ${#DETH_HOOK_CONTRACTS[@]} + ${#SPONSORSHIP_CONTRACTS[@]} + ${#RFLR_HOOK_CONTRACTS[@]} + ${#SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS[@]} + ${#ODOS_V3_HOOK_CONTRACTS[@]} + ${#HYPERCORE_HOOK_CONTRACTS[@]}))
+    total_failed=$((failed_core + failed_hooks + failed_oracles + failed_morpho + failed_aavev4 + failed_aavev3 + failed_euler + failed_deth + failed_sponsorship + failed_rflr + failed_capbridge + failed_odosv3 + failed_hypercore))
     total_success=$((total_contracts - total_failed))
 
     log "INFO" "${BLUE}📊 Summary:${NC}"

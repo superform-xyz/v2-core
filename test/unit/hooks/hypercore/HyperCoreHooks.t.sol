@@ -12,6 +12,7 @@ import { HyperCoreSendAssetHook } from "../../../../src/hooks/hypercore/HyperCor
 import { HyperCoreApproveBuilderFeeHook } from "../../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
 import { ICoreWriter } from "../../../../src/vendor/hyperliquid/ICoreWriter.sol";
 import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../../src/interfaces/ISuperHook.sol";
+import { TransferERC20Hook } from "../../../../src/hooks/tokens/erc20/TransferERC20Hook.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 
 /// @notice Byte-exact fixture tests for the CoreWriter hook family.
@@ -405,17 +406,96 @@ contract HyperCoreHooksTest is Helpers {
     /// @dev CoreWriter actions produce nothing EVM-observable, so the accounting design leans on
     ///      PASSTHROUGH: preExecute must forward the previous hook's outAmount and outToken, and
     ///      postExecute must leave them untouched.
+    /// @dev A leaf that moves NOTHING stays transparent: `addAgent` registers an API wallet and changes no
+    ///      balance, so the upstream amount still describes the value in flight and forwarding it is right.
+    ///      (This assertion used to be made with `classTransfer`, which moves value and therefore no longer
+    ///      forwards — see `test_PipeMode_ValueMovingLeavesDoNotForward`.)
     function test_Passthrough_ForwardsPrevHookOutput() public {
         PrevHookStub prev = new PrevHookStub(1234, address(0xCAFE));
-        bytes memory data = abi.encodePacked(_header(), uint64(1), true);
+        bytes memory data = abi.encodePacked(_header(), bytes20(address(0xA9E27)), uint256(0));
 
-        classTransfer.preExecute(address(prev), address(this), data);
-        assertEq(classTransfer.getOutAmount(address(this)), 1234, "outAmount must forward from prevHook");
-        assertEq(classTransfer.getOutToken(address(this)), address(0xCAFE), "outToken must forward from prevHook");
+        addAgent.preExecute(address(prev), address(this), data);
+        assertEq(addAgent.getOutAmount(address(this)), 1234, "outAmount must forward from prevHook");
+        assertEq(addAgent.getOutToken(address(this)), address(0xCAFE), "outToken must forward from prevHook");
 
-        classTransfer.postExecute(address(prev), address(this), data);
-        assertEq(classTransfer.getOutAmount(address(this)), 1234, "postExecute must not change outAmount");
-        assertEq(classTransfer.getOutToken(address(this)), address(0xCAFE), "postExecute must not change outToken");
+        addAgent.postExecute(address(prev), address(this), data);
+        assertEq(addAgent.getOutAmount(address(this)), 1234, "postExecute must not change outAmount");
+        assertEq(addAgent.getOutToken(address(this)), address(0xCAFE), "postExecute must not change outToken");
+    }
+
+    /// @notice THE FIX. A leaf that MOVES VALUE must not forward the previous hook's output, because that
+    ///         figure describes a balance the account no longer has once the leaf has run.
+    /// @dev Before this, `BaseHyperCoreWriterHook` declared `PASSTHROUGH` for every leaf and locked it
+    ///      non-virtual, so `Hook1 -> HyperCoreSendAssetHook -> Hook3(usePrevHookAmount = true)` had Hook3
+    ///      silently operate on HOOK1's amount. Nothing in the chain was wrong-looking: the number was
+    ///      plausible, just stale. These two leaves now declare `TRANSFORM`, so `BaseHook._preExecute`
+    ///      writes nothing and they publish nothing of their own — see the overrides for why there is
+    ///      nothing publishable (HyperCore-unit amounts, and CoreWriter never reports).
+    function test_PipeMode_ValueMovingLeavesDoNotForward() public {
+        PrevHookStub prev = new PrevHookStub(1234, address(0xCAFE));
+
+        bytes memory ctData = abi.encodePacked(_header(), uint64(1), true);
+        classTransfer.preExecute(address(prev), address(this), ctData);
+        assertEq(classTransfer.getOutAmount(address(this)), 0, "usd class transfer must not forward");
+        assertEq(classTransfer.getOutToken(address(this)), address(0), "usd class transfer must not forward");
+        classTransfer.postExecute(address(prev), address(this), ctData);
+        assertEq(classTransfer.getOutAmount(address(this)), 0, "and postExecute must publish nothing");
+
+        bytes memory saData = abi.encodePacked(_header(), bytes20(address(0xDE57)), uint64(0), uint64(1));
+        sendAsset.preExecute(address(prev), address(this), saData);
+        assertEq(sendAsset.getOutAmount(address(this)), 0, "send asset must not forward");
+        assertEq(sendAsset.getOutToken(address(this)), address(0), "send asset must not forward");
+        sendAsset.postExecute(address(prev), address(this), saData);
+        assertEq(sendAsset.getOutAmount(address(this)), 0, "and postExecute must publish nothing");
+    }
+
+    /// @notice THE REPORTED SCENARIO, end to end, with a REAL downstream consumer rather than an
+    ///         assertion about reported values:
+    ///
+    ///           Hook1 (outputs 1234) -> HyperCoreSendAssetHook -> TransferERC20Hook(usePrev = true)
+    ///
+    ///         `TransferERC20Hook` is a production hook that reads `prevHook.getOutAmount` when the flag is
+    ///         set and reverts `AMOUNT_NOT_VALID` on zero. Before this change it received Hook1's 1234 and
+    ///         transferred that much — an amount that predates the HyperCore send. Now it receives 0 and
+    ///         refuses, which is the correct outcome: nothing after `SendAsset` can legitimately derive its
+    ///         amount from it.
+    /// @dev The second half is the control. The same consumer, the same Hook1, but routed through a leaf
+    ///      that moves nothing still gets 1234 and builds — so this is about leaves that move value, not
+    ///      about having broken chaining through the CoreWriter family generally.
+    function test_PipeMode_Chain_DownstreamFailsInsteadOfUsingAStaleAmount() public {
+        PrevHookStub hook1 = new PrevHookStub(1234, address(0xCAFE));
+        TransferERC20Hook consumer = new TransferERC20Hook();
+
+        // TransferERC20Hook layout: 52-byte header, token, to, amount, usePrevHookAmount
+        bytes memory consumerData =
+            abi.encodePacked(_header(), bytes20(address(0xCAFE)), bytes20(address(0xDE57)), uint256(0), true);
+
+        // --- through a value-moving leaf: the consumer sees 0 and refuses ---
+        bytes memory saData = abi.encodePacked(_header(), bytes20(address(0xDE57)), uint64(0), uint64(1));
+        sendAsset.preExecute(address(hook1), address(this), saData);
+        assertEq(sendAsset.getOutAmount(address(this)), 0, "send asset must publish nothing");
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        consumer.build(address(sendAsset), address(this), consumerData);
+
+        // --- control: through a leaf that moves nothing, the same consumer still gets Hook1's amount ---
+        bytes memory addData = abi.encodePacked(_header(), bytes20(address(0xA9E27)), uint256(0));
+        addAgent.preExecute(address(hook1), address(this), addData);
+        assertEq(addAgent.getOutAmount(address(this)), 1234, "side-effect leaf must stay transparent");
+
+        Execution[] memory ex = consumer.build(address(addAgent), address(this), consumerData);
+        assertGt(ex.length, 0, "the consumer must still build through a transparent leaf");
+    }
+
+    /// @notice And the split is deliberate, not incidental: the two leaves that change no balance still
+    ///         forward, so a chain that legitimately relies on transparency through them keeps working.
+    function test_PipeMode_SideEffectLeavesStillForward() public {
+        PrevHookStub prev = new PrevHookStub(99, address(0xBEEF));
+
+        bytes memory bfData = abi.encodePacked(_header(), uint64(50), bytes20(address(0xB1DDE2)));
+        builderFee.preExecute(address(prev), address(this), bfData);
+        assertEq(builderFee.getOutAmount(address(this)), 99, "builder fee approval moves nothing");
+        assertEq(builderFee.getOutToken(address(this)), address(0xBEEF), "builder fee approval moves nothing");
     }
 
     /// @dev First hook in a chain: nothing to forward, values stay zero, no revert.

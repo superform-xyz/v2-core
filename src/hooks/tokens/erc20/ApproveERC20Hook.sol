@@ -43,7 +43,6 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
         return "Approves an ERC-20 token spending allowance";
     }
 
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -93,9 +92,16 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
@@ -129,15 +135,34 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInflowO
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Side-effect only hook — forwards previous hook's outAmount + outToken
+    /// @dev The mode used only when `usePrevHookAmount` is true — see `_preExecute`.
     function _pipeMode() internal pure override returns (PipeMode) {
         return PipeMode.PASSTHROUGH;
     }
 
-    /// @dev When at position 0 (no prevHook), report the approved amount + token so downstream
-    ///      hooks with usePrevHookAmount=true can read them. When mid-chain, PASSTHROUGH from BaseHook.
+    /// @notice THE RULE: this hook reports whatever allowance it set.
+    /// @dev `usePrevHookAmount` now governs BOTH halves of this hook consistently:
+    ///      - true  -> the allowance is the previous hook's `outAmount`, and that same value is
+    ///                 reported onward (BaseHook's PASSTHROUGH);
+    ///      - false -> the allowance is this hook's own `amount`, and THAT is reported onward.
+    ///
+    ///      BEHAVIOUR CHANGE. Previously the flag governed only the allowance: mid-chain, the hook
+    ///      forwarded the previous hook's `outAmount` regardless of the flag, so a downstream hook with
+    ///      `usePrevHookAmount = true` saw the UPSTREAM amount even when this hook was configured with
+    ///      its own. That made the flag look ignored from the consumer's side, and it zeroed chains whose
+    ///      source produces no output (a multi-token `BatchTransferHook` reports 0, which is
+    ///      indistinguishable from a real zero). Position 0 already behaved the new way; this makes the
+    ///      two positions consistent.
+    ///
+    ///      THE TRADE-OFF, stated because it is a real one. An allowance is an upper bound, not a
+    ///      quantity held, so with `usePrevHookAmount = false` a downstream consumer now inherits a
+    ///      number this account may not actually hold: `swap(receives 777) -> approve(1000) ->
+    ///      deposit(usePrevHookAmount = true)` now deposits 1000 rather than 777 and reverts on the
+    ///      shortfall. Set the allowance to the amount actually intended to move, or leave
+    ///      `usePrevHookAmount = true` to inherit the real upstream figure. Pinned by
+    ///      `test_PreExecute_UsePrevFalse_ReportsOwnAmount_AllowanceAboveBalanceIsCallersProblem`.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
-        if (prevHook != address(0)) {
+        if (prevHook != address(0) && _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
             super._preExecute(prevHook, account, data);
         } else {
             _setOutAmount(BytesLib.toUint256(data, AMOUNT_POSITION), account);
