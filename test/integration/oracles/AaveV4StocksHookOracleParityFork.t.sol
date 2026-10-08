@@ -11,7 +11,7 @@ import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerCon
 import { AaveV4ReserveKey } from "../../../src/libraries/AaveV4ReserveKey.sol";
 import { IAaveV4Spoke } from "../../../src/vendor/aave-v4/IAaveV4Spoke.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import { ISuperHookInspector } from "../../../src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../src/interfaces/ISuperHook.sol";
 
 import { AaveV4SupplyHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol";
 import { AaveV4WithdrawHookV2 } from "../../../src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol";
@@ -85,6 +85,9 @@ contract AaveV4LoanHookReadHarness is AaveV4SupplyHookV2 {
 /// @notice Exposes `BaseAaveV4MoneyMarketHook._suppliedAssets` (and the idle decoder's header pin) for the
 ///         idle MONEY_MARKET side, derived from the concrete lend hook.
 contract AaveV4IdleHookReadHarness is AaveV4LendHook {
+    /// @param registry_ forwarded to the idle base, which resolves market keys through it (SUP-21263)
+    constructor(address registry_) AaveV4LendHook(registry_) { }
+
     /// @notice `BaseAaveV4MoneyMarketHook._suppliedAssets` — the idle supply read, post full strict decode
     function idleSuppliedAssets(bytes memory data, address account) external view returns (uint256) {
         return _suppliedAssets(_decodeIdle(data), account);
@@ -200,7 +203,7 @@ contract AaveV4StocksHookOracleParityFork is Test {
 
         keyLib = new AaveV4ReserveKeyHarness();
         loanReader = new AaveV4LoanHookReadHarness();
-        idleReader = new AaveV4IdleHookReadHarness();
+        idleReader = new AaveV4IdleHookReadHarness(address(registry));
 
         pledgeHook = new AaveV4SupplyHookV2();
         releaseHook = new AaveV4WithdrawHookV2();
@@ -208,8 +211,8 @@ contract AaveV4StocksHookOracleParityFork is Test {
         closeHook = new AaveV4RepayAndWithdrawHookV2();
         borrowHook = new AaveV4BorrowHookV2();
         repayHook = new AaveV4RepayHookV2();
-        lendHook = new AaveV4LendHook();
-        redeemHook = new AaveV4RedeemHook();
+        lendHook = new AaveV4LendHook(address(registry));
+        redeemHook = new AaveV4RedeemHook(address(registry));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -318,12 +321,13 @@ contract AaveV4StocksHookOracleParityFork is Test {
         vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
         ISuperHookInspector(address(borrowHook)).inspect(borrowWithDebtHeader);
 
-        // idle lend on a stock reserve: header carrying the DEBT key must fail. Since SUP-21254 the idle
-        // pair rejects it as a MARKET key mismatch, like the V2 LOAN hooks — the rejection, not its name,
-        // is the invariant.
+        // idle lend on a stock reserve: a header carrying the DEBT key must fail. Since SUP-21263 the idle
+        // pair rejects it at BUILD, as an unregistered market, and `inspect` is pure — so the rejection moved
+        // surface and error name. The rejection itself, not its name, is the invariant.
         bytes memory idleWithDebtHeader = _idleData(debtKeys[TSLA_ID], TSLAc, TSLA_ID, 1e8);
-        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
-        ISuperHookInspector(address(lendHook)).inspect(idleWithDebtHeader);
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+        ISuperHook(address(lendHook)).build(address(0), BORROWER, idleWithDebtHeader);
+        assertEq(ISuperHookInspector(address(lendHook)).inspect(idleWithDebtHeader).length, 92, "inspect is pure");
     }
 
     /// @notice The MARKET namespace against the live market: for every ordered pair of the 8 live reserves the
@@ -668,10 +672,10 @@ contract AaveV4StocksHookOracleParityFork is Test {
                 // ONE ledger key per idle position: no second market may name this reserve as its supply leg
                 assertEq(registry.marketRefs(supplyKeys[ids[i]]), 1, "exactly one market names this supply leg");
 
-                // and every old-rule header is refused
+                // and every old-rule header is refused — at build since SUP-21263, as an unregistered market
                 bytes memory wrongHeader = _idleData(supplyKeys[ids[i]], tokens[i], ids[i], 1e6);
-                vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
-                ISuperHookInspector(idleHooks[h]).inspect(wrongHeader);
+                vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+                ISuperHook(idleHooks[h]).build(address(0), BORROWER, wrongHeader);
             }
         }
     }
@@ -1038,11 +1042,9 @@ contract AaveV4StocksHookOracleParityFork is Test {
         pure
         returns (bytes memory)
     {
-        // SUP-21254: the body now also carries the market's borrow leg. USDC(7) is the borrow leg for every
-        // equity; for the USDC reserve itself an equity is, so the two ids are always distinct.
-        uint256 borrowLeg = reserveId == USDC_ID ? AAPL_ID : USDC_ID;
-        return
-            abi.encodePacked(HEADER_ORACLE_ID, headerKey, underlying, MAG7_SPOKE, reserveId, amount, false, borrowLeg);
+        // SUP-21263: 157 bytes, ONE reserve word. The second leg lives only in the header's market key,
+        // which the hook resolves through the registry.
+        return abi.encodePacked(HEADER_ORACLE_ID, headerKey, underlying, MAG7_SPOKE, reserveId, amount, false);
     }
 
     /*//////////////////////////////////////////////////////////////

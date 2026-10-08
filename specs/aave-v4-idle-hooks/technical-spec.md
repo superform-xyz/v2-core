@@ -1,14 +1,24 @@
 # Aave V4 Idle MONEY_MARKET Lend/Redeem Hooks — Technical Specification
 
-> **SUPERSEDED IN PART BY SUP-21254.** The header identity and the calldata length in this document
-> describe the SUP-21142 design. As implemented, offset 32 is the MARKET key
-> `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` — NOT
-> `computeReserveKey(spoke, reserveId)` — and the body is 189 bytes, with `borrowReserveId` appended at
-> offset 157 so every pre-existing offset is unchanged. The market key is also the SuperLedger key for this
-> pair, and `AaveV4ReserveOracle` resolves it to the market's COLLATERAL leg, which the decoder guarantees is
-> the reserve the op moves. Everything else below — the one-mode-per-(account, reserve) guard, the
-> reserve/underlying binding, the inspector's 92-byte shape and field order, and the fail-closed accounting
-> allowlist (now market-granular) — still holds.
+> **SUPERSEDED IN PART BY SUP-21254 AND THEN SUP-21263.** The header identity and the calldata length in
+> this document describe the original SUP-21142 design. As implemented today:
+>
+> - offset 32 is the MARKET key `AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)`,
+>   NOT `computeReserveKey(spoke, reserveId)`, and it must be a REGISTERED market;
+> - the body is **157 bytes** (SUP-21254 appended `borrowReserveId` to make it 189; SUP-21263 deleted that
+>   word again), and offset 92 is now **`targetReserveId`** — the one reserve the op moves, which may be
+>   EITHER leg of the header market;
+> - membership of `targetReserveId` in the market is a **registry read** (`getMarketInfo`) performed in
+>   `build` and `preExecute`, so the hooks take the registry as a constructor argument and an unregistered
+>   market reverts `MARKET_NOT_REGISTERED` before any Spoke call;
+> - **`inspect()` is `pure` and no longer authenticates the header** — it is a transformation API like the
+>   three sizing views;
+> - the market key is the SuperLedger key, and `AaveV4ReserveOracle` resolves it to the market's COLLATERAL
+>   leg — which since SUP-21263 is NOT necessarily the reserve the op moved. See SECURITY.md §16.
+>
+> Everything else below — the one-mode-per-(account, reserve) guard, the reserve/underlying binding, the
+> inspector's 92-byte shape and field order, and the fail-closed accounting allowlist (now market-granular
+> and enforced at build) — still holds.
 
 Ticket: SUP-21142. Branch: `cosmin-sup-21142-feature-add-aave-v4-idle-money_market-lendredeem-hooks`.
 Planning notes: `.claude/sessions/context_session_sup21142.md` (local, git-ignored; not part of the PR).
@@ -19,7 +29,7 @@ Two new hooks, the Aave V4 twin of `MorphoLendHook` / `MorphoWithdrawHook` (SUP-
 
 | Hook | Spoke call | HookType | amountRoles | outAmount | outToken |
 |---|---|---|---|---|---|
-| `AaveV4LendHook` | `supply` only — never `setUsingAsCollateral` | INFLOW | `[IN / ASSETS]` | supplied-assets credited (1:1 identity) | reserve key |
+| `AaveV4LendHook` | `supply` only — never `setUsingAsCollateral` | INFLOW | `[IN / ASSETS]` | supplied-assets credited (1:1 identity) | the MOVED LEG's reserve key, `computeReserveKey(spoke, targetReserveId)` — SUP-21263; it is deliberately NOT the market key, which covers both legs and would let a cross-leg chain pass `expectedPrevToken` |
 | `AaveV4RedeemHook` | `withdraw` only | OUTFLOW | `[IN / SHARES]` (1:1 identity) | underlying received | underlying |
 
 Family `MONEY_MARKET`, protocol tag `aave_v4` (no new plan family; on-chain subtype stays `LOAN` like the Morpho
@@ -35,14 +45,17 @@ unused interface members do not reach LOAN bytecode (proven by the same test).
 **Deployment wiring** was deferred during implementation (PR #1018 as opened has none) and added on 2026-09-28 on
 request: `DeployV2OtherHooks` set + entrypoint, `Constants` keys, `regenerate_bytecode.sh` / deploy-script entries,
 locked artifacts, `hook-enrichment.yaml` / `hook-classification.yaml` entries, regenerated manifests. See "Deployment"
-below. The hooks are not yet deployed.
+below. **The hooks ARE deployed** (18 prod / 10 staging chains), and SUP-21263 re-deploys them at new
+addresses — see "Deployment".
 
 ## Problem statement
 
 The Base Equities Hub has a supply-only USDC use for vaults/aggregators, separate from the MAG-7 collateralised
 borrow. Idle USDC must be a deposit/withdraw vault-main, not a borrower hop. V4 spokes have no share token, the
-Superform supply oracle (`AaveV4SupplyYieldSourceOracle`, SUP-20854) is identity PPS in asset units, and pricing
-fail-closes Aave `MONEY_MARKET` until idle positions are keyed by a **reserve key** rather than the spoke singleton.
+Superform supply oracle (now the merged `AaveV4ReserveOracle`; `AaveV4SupplyYieldSourceOracle` was its SUP-20854
+predecessor) is identity PPS in asset units, and pricing fail-closes Aave `MONEY_MARKET` until idle positions are
+keyed per position rather than by the spoke singleton — a **reserve key** originally, a registered **market key**
+since SUP-21254.
 
 ## Design
 
@@ -58,42 +71,61 @@ exact-delta settlement helpers (`_balanceIncrease/_balanceDecrease`, `DELTA_MISM
 the previous-hook pipe (`_resolvePrevHookOutput`, `PREV_TOKEN_MISMATCH`) and the sizing-interface plumbing.
 `BaseLoanHook` fixes `HookType.NONACCOUNTING` for the loan family; `hookType` is plain storage on `BaseHook`, so
 `BaseAaveV4MoneyMarketHook` reassigns it after construction (INFLOW / OUTFLOW) — the same trick as
-`BaseMorphoMoneyMarketHook`, with zero effect on any LOAN sibling. No constructor args (Spoke from calldata).
+`BaseMorphoMoneyMarketHook`, with zero effect on any LOAN sibling. **ONE constructor arg since SUP-21263: the
+`AaveV4ReserveRegistryV2` address** (the Spoke still comes from calldata). It is the only constructor dependency in
+the Aave V4 hook family, and `DeployV2Core` must therefore have run on a chain before these hooks can be deployed
+there.
 
-### Header identity = reserve key
+### Header identity = a REGISTERED market key (SUP-21254 / SUP-21263; reserve key originally)
 
 Since SUP-21143 every Aave V4 LOAN hook (V1 six, composite V2, standalone V2) carries the same header rule through the shared
 `src/libraries/AaveV4ReserveKey.sol` (the single definition; the idle base and `AaveV4ReserveRegistry.computeReserveKey` now delegate to it, `RESERVE_KEY_MISMATCH` is
 declared there once; fuzz-pinned against the registry in the LOAN suites): `yieldSource` @32 = key of the op's primary reserve. The
 idle base was touched only to delegate (its own `_computeReserveKey` copy removed) — idle artifacts re-pinned before any deployment.
 
-Offset 32 carries `AaveV4ReserveRegistry.computeReserveKey(spoke, supplyReserveId)` =
-`address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))))`. The hooks recompute it locally (pure, no
-registry call) and pin it inside the decoder, so `build`, `preExecute` **and** `inspect` fail closed with
+**AS IMPLEMENTED (SUP-21263), superseding the paragraph that follows:** offset 32 carries
+`AaveV4ReserveKey.computeMarketKey(spoke, supplyReserveId, borrowReserveId)` and must be a REGISTERED market. The
+hooks resolve it through `IAaveV4MarketRegistry.getMarketInfo` in `build` and `preExecute` — NOT a pure local
+recomputation, and NOT in `inspect`, which is pure and authenticates nothing. An unregistered header fails
+`MARKET_NOT_REGISTERED`; a body naming a different spoke fails `MARKET_KEY_MISMATCH`; a `targetReserveId` that is
+neither leg fails `RESERVE_NOT_IN_MARKET`.
+
+_Historical (SUP-21142), kept for roots signed under the old rule:_ offset 32 carried
+`AaveV4ReserveRegistry.computeReserveKey(spoke, supplyReserveId)` =
+`address(uint160(uint256(keccak256(abi.encode(spoke, reserveId)))))`. The hooks recomputed it locally (pure, no
+registry call) and pinned it inside the decoder, so `build`, `preExecute` **and** `inspect` failed closed with
 `RESERVE_KEY_MISMATCH` on any disagreement (including the LOAN-style "spoke in the header"). SuperExecutorBase posts
 INFLOW / OUTFLOW keyed by that address; the oracle resolves the same key through the registry. Keying by the Spoke
 would collapse every reserve of a spoke, and every LOAN position on it, onto one accounting slot
 (`group_bindings_by_position` fail-closed in pricing).
 
-### Calldata (exact 189 bytes)
+### Calldata (exact 157 bytes — SUP-21263)
 
 | offset | field | validation |
 |---|---|---|
 | 0 | `yieldSourceOracleId` (bytes32) | zero → `ORACLE_ID_NOT_VALID` |
-| 32 | `yieldSource` = reserve key | zero → `ADDRESS_NOT_VALID`; ≠ computed → `RESERVE_KEY_MISMATCH` |
+| 32 | `yieldSource` = REGISTERED market key | zero → `ADDRESS_NOT_VALID`; not a registered market → `MARKET_NOT_REGISTERED`; body spoke ≠ the market's → `MARKET_KEY_MISMATCH` (build / preExecute, view) |
 | 52 | `underlying` | zero → `ADDRESS_NOT_VALID`; ≠ `getReserve(id).underlying` → `TOKEN_RESERVE_MISMATCH` (build / preExecute, view) |
 | 72 | `spoke` | zero → `ADDRESS_NOT_VALID`; the only call target / approve spender; `getUserReserveStatus(id, account).isUsingAsCollateral` must be false → else `RESERVE_IS_COLLATERAL` (build / preExecute, view) |
-| 92 | `supplyReserveId` (uint256) | |
+| 92 | `targetReserveId` (uint256) | must equal the market's `supplyReserveId` or `borrowReserveId` → else `RESERVE_NOT_IN_MARKET` (build / preExecute, view) |
 | 124 | `amount` (uint256) | lend: underlying wei, 0 / max → `AMOUNT_NOT_VALID`; redeem: 1:1 share wei, 0 → `AMOUNT_NOT_VALID`, > supplied (incl. max) = full withdrawal |
 | 156 | `usePrevHookAmount` | strict `0x00` / `0x01`, else `INVALID_BOOL_VALUE` |
 
 Any other length → `INVALID_DATA_LENGTH` on every entry point (build, inspect, decodeAmounts,
 replaceCalldataAmounts, decodeUsePrevHookAmount). The sizing views authenticate nothing beyond exact length and canonical bool — they are transformation
-APIs; the header key is pinned at build / preExecute / inspect only (PR #1020 review P3-1,
+APIs. Since SUP-21263 the header is authenticated at **build / preExecute only** — `inspect` is pure and
+authenticates nothing (PR #1020 review P3-1,
 `test_Idle_SizingApis_TransformationOnly_ExecutionAuthenticatesHeader`).
 
-`inspect()` = `reserveKey ‖ spoke ‖ underlying ‖ supplyReserveId` (92 bytes, key first — leaves are hashed over
-these raw bytes). Identical for lend and redeem; unchanged when only amount / flag / oracle id change.
+NOTE that 157 is also the pre-SUP-21254 length, so length alone no longer distinguishes this revision from
+the original reserve-keyed one; the HEADER does. A stale reserve-keyed 157-byte body reverts
+`MARKET_NOT_REGISTERED` here (a reserve key can never be registered as a market — the registry's
+`KEY_NAMESPACE_COLLISION` guard), and a new body sent to a SUP-21254 hook reverts `INVALID_DATA_LENGTH`.
+
+`inspect()` = `marketKey ‖ spoke ‖ underlying ‖ targetReserveId` (92 bytes, key first — leaves are hashed over
+these raw bytes). Identical for lend and redeem on the same market AND leg; the target word is what keeps the
+two legs of one market distinguishable, so one signed leaf cannot authorise moving the other asset.
+Unchanged when only amount / flag / oracle id change.
 
 ### Execution sequences
 
@@ -121,7 +153,8 @@ ledger-tracked supply and a debt on one key; redeem keeps only the collateral ru
 
 ### Accounting (identity PPS)
 
-Let `d` = reserve decimals, `pps = 10^d`, `K` = reserve key.
+Let `d` = reserve decimals, `pps = 10^d`, `K` = the ledger key (the registered MARKET key since SUP-21254; a
+reserve key when this section was written).
 
 - **Lend**: wallet spend must equal the resolved `amount` exactly (`DELTA_MISMATCH` otherwise — fee-on-transfer /
   partial pulls are rejected). `outAmount = getUserSuppliedAssets(after) − (before)` — the SAME read the oracle
@@ -184,7 +217,9 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
 - Liquidity shortfall: `Hub.remove` has no partial fill, so a redeem above available liquidity (including `max` under
   stress) reverts the whole userOp — liveness only, funds stay on Aave. Bundler/OMS sizing must read Hub liquidity before
   choosing `amount`; alert on utilisation for registered reserves (review P2-2, accepted).
-- Unregistered reserve key: hooks are registry-agnostic; the oracle reverts `RESERVE_NOT_REGISTERED` in
+- Unregistered header: **SUP-21263 moved this check INTO the hooks** — `getMarketInfo` reverts
+  `MARKET_NOT_REGISTERED` at build, before any Spoke call, and the hooks are no longer registry-agnostic. The
+  paragraph below describes the superseded path, where the oracle reverted `RESERVE_NOT_REGISTERED` in
   `_updateAccounting`, so the userOp reverts (fail-closed allowlist; registration is an ops precondition —
   Base staging already has all 8 MAG7-spoke reserves registered).
 - Collateral-flagged reserve: refused outright by both hooks (`RESERVE_IS_COLLATERAL`, see Design); neither hook ever
@@ -204,9 +239,10 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
 | Lend calls `supply`, never `setUsingAsCollateral` | unit `test_Build_Lend_FourExecutions_NeverEnablesCollateral`, `test_Lend_Cycle_*` (`collateralCalls == 0`); fork `test_Lend_SupplyOnly_CollateralFlagNotFlipped` (ETH + Base): status `(false,false)`, 0 events, `expectCall(…, 0)` |
 | Redeem calls `withdraw` only; no collateral-disable needed | unit `test_Build_Redeem_SingleWithdraw_MaxPassesThrough`; fork full/partial redeems with 0 collateral events; live probes above |
 | One mode per (account, reserve): collateral-flagged reserve refused | unit `test_RevertIf_ReserveIsCollateral`; fork `test_CollateralFlaggedReserve_IsRefusedByBothHooks` (ETH) |
-| Exact 189-byte calldata, wrong length reverts; oracle id @0, reserve key @32, Spoke not `yieldSource` | unit `test_Decode_RevertIf_WrongLength`, `test_Decode_RevertIf_HeaderKeyMismatch` (spoke-as-key case); sizing `test_*_AaveV4Idle` |
-| `extractYieldSource() == computeReserveKey(spoke, id)` or revert | unit `test_ReserveKey_MatchesRegistryFormula`, `test_Decode_RevertIf_HeaderKeyMismatch`; fork `test_Lend_RevertIf_HeaderKeyMismatch` |
-| `inspect()` = key + spoke + underlying + reserveId, stable under amount changes | unit `test_Inspect_ShapeAndStability`, `test_Inspect_ChangesWithReserveSpokeOrUnderlying` |
+| Exact 157-byte calldata, wrong length reverts; oracle id @0, registered market key @32, Spoke not `yieldSource` | unit `test_Decode_RevertIf_WrongLength`, `test_Build_RevertIf_MarketNotRegistered`, `test_Build_RevertIf_SpokeIsNotTheMarketSpoke`; sizing `test_*_AaveV4Idle` |
+| `targetReserveId` must be one of the market's two legs; either leg is legal | unit `test_Build_Lend_BorrowLegTarget_SuppliesTheBorrowLeg`, `test_Build_RevertIf_TargetNotAMarketLeg`, `testFuzz_TargetMustBeOneOfTwoLegs`; fork `test_Base_IdleUSDC_UnderEquityCollateralMarket_DoesNotRevert` |
+| `extractYieldSource()` is a REGISTERED market key naming the body's spoke, or revert (SUP-21263; was `== computeReserveKey(spoke, id)`) | unit `test_Build_RevertIf_MarketNotRegistered`, `test_Build_RevertIf_SpokeIsNotTheMarketSpoke`, `test_PreExecute_RevertIf_SpokeIsNotTheMarketSpoke`; fork `test_Lend_RevertIf_HeaderKeyMismatch` |
+| `inspect()` = marketKey + spoke + underlying + targetReserveId, stable under amount changes, DIFFERENT per leg | unit `test_Inspect_ShapeAndStability`, `test_Inspect_ChangesWithReserveSpokeOrUnderlying`, `test_Inspect_IsPure_AndCommitsTheTargetLeg` |
 | INFLOW / ASSETS-in lend, OUTFLOW / SHARES-in redeem; executor untouched | unit `test_HookTypes_IdleFlipsLoanStays`, `test_AmountRoles`; sizing `test_AmountRoles_*_AaveV4*`; `git diff` of `src/executors` is empty |
 | LOAN V1/V2 bytecode unchanged by this ticket (SUP-21143 later re-pinned the 12 LOAN hooks and, via the shared `AaveV4ReserveKey` library, the idle pair as well) | `AaveV4LoanBytecodeUnchanged.t.sol` (`test_IdleHooks_BytecodePinned`; LOAN artifacts pinned) |
 | Fork tests on a supply-only reserve + collateral bitmap proof | `AaveV4IdleHooksFork.t.sol` (Ethereum Main Spoke USDC 7, block 24_884_274, 9 tests), `AaveV4IdleHooksBaseFork.t.sol` (Base MAG7 USDC 7, block 51_778_000, 3 tests) — real SuperExecutor + SuperLedger + oracle at the reserve key; security report `specs/security-reports/2026-09-28-aave-v4-idle-hooks.md` |
@@ -214,25 +250,31 @@ zero `SetUsingAsCollateral` events in the userOp logs, and `vm.expectCall(spoke,
 | Unregistered key fails closed | fork `test_UnregisteredKey_FailsClosed` (GHO reserve 13 → `RESERVE_NOT_REGISTERED`) |
 | Deploy keys for Ethereum and Base; `latest.json` after deploy | wired (see below); deploy + `latest.json` pending |
 
-## Deployment (wired 2026-09-28, not yet deployed)
+## Deployment (wired 2026-09-28; deployed; re-deployed by SUP-21263)
 
 `AAVE_V4_LEND_HOOK_KEY` / `AAVE_V4_REDEEM_HOOK_KEY` in `script/utils/Constants.sol`; `AaveV4IdleHookAddresses` set,
-`_deployAaveV4IdleHooksSet` and the `runAaveV4Idle(uint256,uint64)` entrypoint in `DeployV2OtherHooks.s.sol`. **No chain
-gate** (user decision 2026-09-28): the hooks have no constructor args (Spoke from calldata), so `_deployAllHooks` deploys them
-on every configured network for uniform addresses; they are inert on chains without an Aave V4 spoke, its oracles and a seeded
-reserve registry. The Aave V4 V2 composite set (OPEN / REPAY / CLOSE) is now deployed on every network too (was mainnet-only), so
+`_deployAaveV4IdleHooksSet` and the `runAaveV4Idle(uint256,uint64)` entrypoint in `DeployV2OtherHooks.s.sol`. **CHAIN-GATED SINCE SUP-21263** (it superseded the no-gate decision of 2026-09-28): the hooks now take the
+`AaveV4ReserveRegistryV2` address as a constructor argument, derived in `_deployAaveV4IdleHooksSet` via
+`__computeContractAddress`, so they can only be deployed where `DeployV2Core` has already run. The targeted
+`runAaveV4Idle` REVERTS on a missing registry (`AAVE_V4_REGISTRY_NOT_DEPLOYED`); `_deployAllHooks` skips the pair
+with a log instead, so a new-chain bring-up does not lose every other hook family. Addresses stay uniform per
+environment because the registry address is identical on every chain within an env. The Aave V4 V2 composite set (OPEN / REPAY / CLOSE) is now deployed on every network too (was mainnet-only), so
 REPAY exists wherever BORROW does; the V1 set stays mainnet-only (legacy). Both names in `AAVE_V4_HOOK_CONTRACTS` (`regenerate_bytecode.sh`) and `AAVE_V4_HOOKS`
 (`deploy_v2_other_hooks_staging_prod.sh`); artifacts in `script/generated-bytecode/`, `script/locked-bytecode/` (read for
 every env by `__getOtherHooksBytecode`) and `script/locked-bytecode-dev/`, pinned by `test_IdleHooks_BytecodePinned`;
 `tooling/hook-enrichment.yaml` tags `[aave-v4]` + `amountMeta` (`Lend: [{IN, ASSETS}]`, `Redeem: [{IN, SHARES}]`);
 `tooling/hook-classification.yaml` (`lend` / `withdraw`, instant, `[sized]`); `manifests/hooks.json` and
 `hook-sizing-manifest.json` regenerated (generator now defaults subtype LOAN for `BaseAaveV4MoneyMarketHook` leaves).
-Fork simulation (staging salt, env 2) on Ethereum, Base and Optimism: `AaveV4LendHook` 0xeC6d1e26DcD3e7D9cB04B65326cF9Ffc7f3EB537,
-`AaveV4RedeemHook` 0x0eCA8E92Bf9D20CE11a1b193BFdD6D54172F1c05 (same CREATE2 address on every chain).
+Addresses have moved TWICE since this was written (SUP-21254, then SUP-21263's constructor arg + layout). The
+superseded addresses stay valid for roots signed under the old rules, so treat any address in this document as
+historical and read the committed `script/output/**/…-latest.json` records for the live ones.
 Deploy: `TARGET_FAMILY=AaveV4Idle ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <staging|prod> deploy v2-supervaults`
-(all configured networks), then commit the resulting `…-latest.json` keys. Per-chain prerequisites: reserve keys registered in the chain's
-`AaveV4ReserveRegistry`; `AaveV4SupplyYieldSourceOracle` registered in `SuperLedgerConfiguration` with feePercent 0
-on its own ledger; the header oracle id is the derived config id `keccak256(abi.encodePacked(salt, configSetter))`.
+(all configured networks), then commit the resulting `…-latest.json` keys. Per-chain prerequisites, as of SUP-21263:
+`AaveV4ReserveRegistryV2` deployed (the constructor argument) with the MARKET — not merely the reserve legs —
+registered; `AaveV4ReserveOracle` registered in `SuperLedgerConfiguration` with **feePercent 0** on its own ledger
+(load-bearing, see SECURITY.md §16 item 4); exactly ONE market key per `(spoke, reserveId)` designated as that
+reserve's idle settlement key, with the OMS allow-list never signing an idle leaf naming another; and the header
+oracle id is the derived config id `keccak256(abi.encodePacked(salt, configSetter))`.
 
 ## Follow-ups (not this ticket)
 

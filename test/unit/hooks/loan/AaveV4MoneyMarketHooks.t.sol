@@ -32,6 +32,11 @@ import { AaveV4WithdrawHook } from "../../../../src/hooks/loan/aave-v4/AaveV4Wit
 import { AaveV4SupplyAndBorrowHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4SupplyAndBorrowHookV2.sol";
 import { AaveV4RepayHookV2 } from "../../../../src/hooks/loan/aave-v4/AaveV4RepayHookV2.sol";
 import { AaveV4ReserveRegistryV2 } from "../../../../src/accounting/oracles/AaveV4ReserveRegistryV2.sol";
+import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4ReserveOracle.sol";
+import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
+import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { IAaveV4MarketRegistry } from "../../../../src/interfaces/accounting/IAaveV4MarketRegistry.sol";
 
 /// @dev Stateful idle-spoke mock: pulls the underlying on supply, credits the position rounded DOWN by
 ///      `roundDownWei` (Aave's toAddedAssetsDown), pays min(amount, supplied) on withdraw (any amount
@@ -128,25 +133,27 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     MockAaveV4IdleSpoke public otherSpoke;
     MockERC20 public usdc;
     MockERC20 public otherToken;
+    MockERC20 public thirdToken;
     MockPrevHookIdle public prevHook;
+    AaveV4ReserveRegistryV2 public registry;
 
     address public spoke;
     address public underlying;
     address public account;
     bytes32 public constant ORACLE_ID = keccak256("AaveV4ReserveOracle");
     uint256 public constant RESERVE_ID = 7;
-    /// @dev SUP-21254: the market's borrow leg. Identity only — never passed to the Spoke — but it must
-    ///      differ from the moved reserve, or the decoder refuses the body with IDENTICAL_RESERVES.
+    /// @dev The market's OTHER leg. Since SUP-21263 it is no longer carried in the body — the body has one
+    ///      `targetReserveId` — but it still completes the market key, and the registry registration below
+    ///      is what the hooks read to decide whether a target is one of the market's legs.
     uint256 public constant BORROW_LEG_ID = 3;
     uint256 public constant AMOUNT = 1000e6;
 
     function setUp() public {
-        lendHook = new AaveV4LendHook();
-        redeemHook = new AaveV4RedeemHook();
         mockSpoke = new MockAaveV4IdleSpoke();
         otherSpoke = new MockAaveV4IdleSpoke();
         usdc = new MockERC20("USD Coin", "USDC", 6);
         otherToken = new MockERC20("Other", "OTH", 18);
+        thirdToken = new MockERC20("Third", "THD", 18);
         prevHook = new MockPrevHookIdle();
 
         spoke = address(mockSpoke);
@@ -154,9 +161,26 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         account = address(this);
         mockSpoke.setReserveUnderlying(RESERVE_ID, underlying);
         mockSpoke.setReserveUnderlying(0, address(otherToken));
+        // SUP-21263: the market's other leg needs a DISTINCT underlying or `registerMarket` refuses it
+        // (IDENTICAL_UNDERLYINGS), and it must be a real listed reserve or the hooks cannot move it.
+        mockSpoke.setReserveUnderlying(BORROW_LEG_ID, address(thirdToken));
         otherSpoke.setReserveUnderlying(RESERVE_ID, underlying);
+        otherSpoke.setReserveUnderlying(BORROW_LEG_ID, address(thirdToken));
+
+        // A REAL registry, not a mock: the hooks' identity check is `getMarketInfo`, so the test must
+        // exercise the same storage the deployed registry uses. `address(this)` holds MARKET_MANAGER_ROLE.
+        registry = new AaveV4ReserveRegistryV2(address(this));
+        registry.registerReserve(spoke, RESERVE_ID);
+        registry.registerReserve(spoke, BORROW_LEG_ID);
+        registry.registerMarket(spoke, RESERVE_ID, BORROW_LEG_ID);
+
+        lendHook = new AaveV4LendHook(address(registry));
+        redeemHook = new AaveV4RedeemHook(address(registry));
+
         usdc.mint(account, 1_000_000e6);
         usdc.mint(address(mockSpoke), 1_000_000e6);
+        thirdToken.mint(account, 1_000_000e18);
+        thirdToken.mint(address(mockSpoke), 1_000_000e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -177,12 +201,14 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         );
     }
 
+    /// @dev SUP-21263: exactly 157 bytes, ONE reserve word at offset 92 (`targetReserveId`). The appended
+    ///      borrow-leg word is gone, so the 8-argument overload that controlled it is gone too.
     function _dataRaw(
         bytes32 oracleId,
         address key,
         address underlying_,
         address spoke_,
-        uint256 reserveId,
+        uint256 targetReserveId,
         uint256 amount,
         bytes1 flag
     )
@@ -190,25 +216,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         pure
         returns (bytes memory)
     {
-        return _dataRaw(oracleId, key, underlying_, spoke_, reserveId, amount, flag, BORROW_LEG_ID);
-    }
-
-    /// @dev Full control over the appended borrow leg, for the identical-ids and wrong-key cases
-    function _dataRaw(
-        bytes32 oracleId,
-        address key,
-        address underlying_,
-        address spoke_,
-        uint256 reserveId,
-        uint256 amount,
-        bytes1 flag,
-        uint256 borrowReserveId
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(oracleId, key, underlying_, spoke_, reserveId, amount, flag, borrowReserveId);
+        return abi.encodePacked(oracleId, key, underlying_, spoke_, targetReserveId, amount, flag);
     }
 
     function _data(uint256 amount, bool usePrev) internal view returns (bytes memory) {
@@ -296,8 +304,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
                        KEY DERIVATION (REGISTRY PARITY)
     //////////////////////////////////////////////////////////////*/
 
-    function test_ReserveKey_MatchesRegistryFormula() public {
-        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
+    function test_ReserveKey_MatchesRegistryFormula() public view {
         assertEq(_key(spoke, RESERVE_ID), registry.computeReserveKey(spoke, RESERVE_ID));
         assertEq(_key(spoke, 0), registry.computeReserveKey(spoke, 0));
         assertTrue(_key(spoke, 0) != _key(spoke, RESERVE_ID), "reserve ids diverge");
@@ -305,8 +312,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     }
 
     /// @dev The hook's local key must equal the deployed registry's formula for every (spoke, reserveId)
-    function testFuzz_ReserveKey_MatchesRegistryFormula(address spoke_, uint256 reserveId) public {
-        AaveV4ReserveRegistryV2 registry = new AaveV4ReserveRegistryV2(address(this));
+    function testFuzz_ReserveKey_MatchesRegistryFormula(address spoke_, uint256 reserveId) public view {
         assertEq(_key(spoke_, reserveId), registry.computeReserveKey(spoke_, reserveId));
     }
 
@@ -388,8 +394,11 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     /// @dev The header must be `computeMarketKey(spoke, supplyReserveId, borrowReserveId)` (SUP-21254):
     ///      another reserve's market, another spoke's market, or the LOAN-style "spoke in the header" all
     ///      fail — on build AND on inspect.
+    /// @dev SUP-21263: these headers are no longer merely mis-derived, they are UNREGISTERED markets, so the
+    ///      error is `MARKET_NOT_REGISTERED` and it is raised by the registry read in build/preExecute.
+    ///      `inspect` is pure now and authenticates nothing, so it is asserted to SUCCEED instead.
     function test_Decode_RevertIf_HeaderKeyMismatch() public {
-        bytes4 err = AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector;
+        bytes4 err = AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector;
         bytes memory otherReserve =
             _dataRaw(ORACLE_ID, _marketKey(spoke, 0, BORROW_LEG_ID), underlying, spoke, RESERVE_ID, AMOUNT, 0x00);
         bytes memory otherSpokeKey = _dataRaw(
@@ -406,15 +415,15 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         vm.expectRevert(err);
         lendHook.build(address(0), account, otherReserve);
         vm.expectRevert(err);
-        lendHook.inspect(otherReserve);
-        vm.expectRevert(err);
         redeemHook.build(address(0), account, otherSpokeKey);
-        vm.expectRevert(err);
-        redeemHook.inspect(otherSpokeKey);
         vm.expectRevert(err);
         lendHook.build(address(0), account, spokeAsKey);
         vm.expectRevert(err);
-        redeemHook.inspect(spokeAsKey);
+        redeemHook.preExecute(address(0), account, spokeAsKey);
+        // pure: it describes the body, it does not vouch for it
+        assertEq(lendHook.inspect(otherReserve).length, 92);
+        assertEq(redeemHook.inspect(otherSpokeKey).length, 92);
+        assertEq(redeemHook.inspect(spokeAsKey).length, 92);
     }
 
     /// @dev Underlying is bound to the reserve on build / preExecute (view); inspect stays pure.
@@ -561,10 +570,15 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         lendHook.build(address(prevHook), account, _data(0, true));
     }
 
-    function test_UsePrev_Redeem_RequiresMarketKeyOutput() public {
-        prevHook.set(400e6, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID));
+    /// @dev SUP-21263 renamed the requirement: the share slot must be fed by the moved LEG's reserve key.
+    function test_UsePrev_Redeem_RequiresTargetLegReserveKeyOutput() public {
+        prevHook.set(400e6, _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID));
         Execution[] memory ex = redeemHook.build(address(prevHook), account, _data(0, true));
-        assertEq(ex[1].callData, abi.encodeCall(IAaveV4Spoke.withdraw, (RESERVE_ID, 400e6, account)));
+        assertEq(
+            _spokeCallArgs(ex, IAaveV4Spoke.withdraw.selector),
+            abi.encode(RESERVE_ID, uint256(400e6), account),
+            "the prev output drives the withdraw"
+        );
 
         // A raw asset output (e.g. a swap) cannot feed the share slot
         prevHook.set(400e6, underlying);
@@ -662,7 +676,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 42e6;
         bytes memory replaced = redeemHook.replaceCalldataAmounts(data, amounts);
-        assertEq(replaced.length, 189);
+        assertEq(replaced.length, 157);
         assertEq(redeemHook.decodeAmounts(replaced)[0], 42e6);
         assertEq(BytesLib.slice(replaced, 0, 124), BytesLib.slice(data, 0, 124), "prefix untouched");
         assertEq(BytesLib.slice(replaced, 156, 1), BytesLib.slice(data, 156, 1), "flag untouched");
@@ -683,10 +697,12 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
 
         assertEq(walletBefore - usdc.balanceOf(account), AMOUNT, "wallet spend exact");
         assertEq(lendHook.getOutAmount(account), AMOUNT - 1, "credited position (1-wei round-down), not the spend");
+        // SUP-21263: leg-exact, not market-exact — a market key covers both legs, so it cannot be the
+        // chaining token any more. The LEDGER key is still the market key (header offset 32).
         assertEq(
             lendHook.getOutToken(account),
-            _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID),
-            "outToken = the header market key"
+            _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID),
+            "outToken = the (market, leg) chain token"
         );
         assertEq(lendHook.asset(), underlying, "fee asset = underlying");
         assertEq(mockSpoke.collateralCalls(), 0, "never enabled collateral");
@@ -786,7 +802,7 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
     function test_Redeem_Cycle_UsePrevFromLend() public {
         _run(lendHook, _data(AMOUNT, false));
         uint256 credited = lendHook.getOutAmount(account);
-        prevHook.set(credited, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID));
+        prevHook.set(credited, _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID));
         _run(redeemHook, _data(0, true));
         assertEq(redeemHook.getOutAmount(account), credited);
         assertEq(mockSpoke.getUserSuppliedAssets(RESERVE_ID, account), 0);
@@ -824,8 +840,14 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
                   HEADER IDENTITY ACROSS RESERVES / SPOKES
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev SUP-21263: the market the second reserve settles under must be REGISTERED, and `getOutToken` is
+    ///      now the moved leg's RESERVE key rather than the market key — still distinct per reserve, which is
+    ///      what this test is about.
     function test_HeaderIdentity_TwoReservesOneSpoke_DistinctKeys() public {
         otherToken.mint(account, 1e18);
+        registry.registerReserve(spoke, 0);
+        registry.registerMarket(spoke, 0, BORROW_LEG_ID);
+
         bytes memory usdcData = _data(AMOUNT, false);
         bytes memory othData =
             _dataRaw(ORACLE_ID, _marketKey(spoke, 0, BORROW_LEG_ID), address(otherToken), spoke, 0, 1e18, 0x00);
@@ -835,10 +857,12 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
         _run(lendHook, othData);
         address keyOth = lendHook.getOutToken(account);
 
+        assertEq(keyUsdc, _chainToken(_marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), RESERVE_ID));
+        assertEq(keyOth, _chainToken(_marketKey(spoke, 0, BORROW_LEG_ID), 0));
         assertTrue(keyUsdc != keyOth, "distinct accounting keys per reserve");
         assertTrue(keccak256(lendHook.inspect(usdcData)) != keccak256(lendHook.inspect(othData)));
-        // each header pinned to its own reserve: swapping keys fails closed
-        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        // a RESERVE key in the header is not a market: fails closed
+        vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
         lendHook.build(address(0), account, _dataRaw(ORACLE_ID, keyOth, underlying, spoke, RESERVE_ID, AMOUNT, 0x00));
     }
 
@@ -856,94 +880,592 @@ contract AaveV4MoneyMarketHooksTest is Helpers {
             bytes memory rewritten = ISuperHookOutflow(hooks[i]).replaceCalldataAmounts(bad, repl);
             assertEq(HookDataDecoder.extractYieldSource(rewritten), wrongKey, "wrong key preserved by the rewrite");
             assertEq(ISuperHookInflowOutflow(hooks[i]).decodeAmounts(rewritten)[0], 7, "amount rewritten");
-            vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+            vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
             ISuperHook(hooks[i]).build(address(0), account, rewritten);
-            vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+            vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
             BaseHook(hooks[i]).preExecute(address(0), account, rewritten);
-            vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
-            ISuperHookInspector(hooks[i]).inspect(rewritten);
+            // SUP-21263: inspect is pure and NOT an authentication surface — it describes the mis-keyed body
+            assertEq(ISuperHookInspector(hooks[i]).inspect(rewritten).length, 92, "inspect still describes it");
         }
     }
 
     /*//////////////////////////////////////////////////////////////
-            SUP-21254: BODY SELF-CONSISTENCY AND THE OLD RULE
+       SUP-21263: TARGET-LEG MEMBERSHIP, CHECKED AGAINST THE REGISTRY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice `IDENTICAL_RESERVES`: a body naming one reserve as both the market's supply and borrow leg is
-    ///         refused, even though `computeMarketKey(spoke, R, R)` is perfectly derivable and the header
-    ///         would match it.
-    /// @dev WHY THIS GUARD EARNS ITS KEEP: `AaveV4ReserveRegistryV2.registerMarket` refuses that pair with
-    ///      its own `IDENTICAL_RESERVES`, so without this check the hooks would accept a header naming a
-    ///      market the registry can never register — and since the idle header is a ledger key gated by the
-    ///      oracle's registration lookup, such an op would fail later and less legibly. Refusing it in the
-    ///      decoder keeps the hooks' accepted id-pairs a subset of the registry's.
-    function test_Decode_RevertIf_IdenticalReserveIds() public {
-        address selfKey = _marketKey(spoke, RESERVE_ID, RESERVE_ID);
-        bytes memory data = _dataRaw(ORACLE_ID, selfKey, underlying, spoke, RESERVE_ID, AMOUNT, 0x00, RESERVE_ID);
+    /// @notice THE FEATURE. The market's BORROW leg is a legal idle target under the SAME market key, so
+    ///         idle USDC on a MAG7-shaped pair settles under the equity market instead of needing its own
+    ///         yield source. Before SUP-21263 this reverted `MARKET_KEY_MISMATCH`, because offset 92 fed
+    ///         `computeMarketKey`'s supply slot. This is the unit-level proof of AC5.
+    function test_Build_Lend_BorrowLegTarget_SuppliesTheBorrowLeg() public {
+        bytes memory data = _dataRaw(
+            ORACLE_ID,
+            _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID),
+            address(thirdToken),
+            spoke,
+            BORROW_LEG_ID,
+            AMOUNT,
+            0x00
+        );
 
-        // the header is genuinely the market key of (spoke, R, R), so this is the id check firing, not the pin
-        assertEq(BytesLib.toAddress(data, 32), selfKey, "header really is computeMarketKey(spoke, R, R)");
+        Execution[] memory executions = lendHook.build(address(0), account, data);
+        (uint256 movedId, uint256 movedAmount, address onBehalfOf) =
+            abi.decode(_spokeCallArgs(executions, IAaveV4Spoke.supply.selector), (uint256, uint256, address));
+        assertEq(movedId, BORROW_LEG_ID, "the Spoke call moves the BORROW leg");
+        assertEq(movedAmount, AMOUNT);
+        assertEq(onBehalfOf, account, "onBehalfOf is always the account");
+    }
 
-        bytes4 err = BaseAaveV4MoneyMarketHook.IDENTICAL_RESERVES.selector;
+    /// @notice And the redeem side withdraws the same leg.
+    function test_Build_Redeem_BorrowLegTarget_WithdrawsTheBorrowLeg() public {
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, AMOUNT);
+        bytes memory data = _dataRaw(
+            ORACLE_ID,
+            _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID),
+            address(thirdToken),
+            spoke,
+            BORROW_LEG_ID,
+            AMOUNT,
+            0x00
+        );
+
+        Execution[] memory executions = redeemHook.build(address(0), account, data);
+        (uint256 movedId,,) =
+            abi.decode(_spokeCallArgs(executions, IAaveV4Spoke.withdraw.selector), (uint256, uint256, address));
+        assertEq(movedId, BORROW_LEG_ID);
+    }
+
+    /// @notice The supply leg still works, unchanged — this is the pre-existing shape.
+    function test_Build_Lend_SupplyLegTarget_StillSuppliesTheSupplyLeg() public {
+        Execution[] memory executions = lendHook.build(address(0), account, _data(AMOUNT, false));
+        (uint256 movedId,,) =
+            abi.decode(_spokeCallArgs(executions, IAaveV4Spoke.supply.selector), (uint256, uint256, address));
+        assertEq(movedId, RESERVE_ID);
+    }
+
+    /// @notice A target that is NEITHER leg of the header market is refused, on both hooks and at BOTH
+    ///         authenticating entry points. This is the check that replaced the pure key pin.
+    function test_Build_RevertIf_TargetNotAMarketLeg() public {
+        uint256 strayId = 9;
+        mockSpoke.setReserveUnderlying(strayId, address(otherToken));
+        bytes memory data = _dataRaw(
+            ORACLE_ID, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), address(otherToken), spoke, strayId, AMOUNT, 0x00
+        );
+
+        bytes4 err = BaseAaveV4MoneyMarketHook.RESERVE_NOT_IN_MARKET.selector;
         vm.expectRevert(err);
         lendHook.build(address(0), account, data);
         vm.expectRevert(err);
-        lendHook.inspect(data);
+        lendHook.preExecute(address(0), account, data);
         vm.expectRevert(err);
         redeemHook.build(address(0), account, data);
         vm.expectRevert(err);
-        redeemHook.inspect(data);
+        redeemHook.preExecute(address(0), account, data);
     }
 
-    /// @notice The format check precedes the identity check: identical ids on a body whose header is ALSO
-    ///         wrong reports `IDENTICAL_RESERVES`, not `MARKET_KEY_MISMATCH`.
-    function test_Decode_IdenticalReservesPrecedesTheKeyPin() public {
-        bytes memory data =
-            _dataRaw(ORACLE_ID, address(0xBEEF), underlying, spoke, RESERVE_ID, AMOUNT, 0x00, RESERVE_ID);
-        vm.expectRevert(BaseAaveV4MoneyMarketHook.IDENTICAL_RESERVES.selector);
-        lendHook.inspect(data);
+    /// @notice Only the two legs are acceptable — everything else reverts, for any id.
+    function testFuzz_TargetMustBeOneOfTwoLegs(uint256 target) public {
+        vm.assume(target != RESERVE_ID && target != BORROW_LEG_ID);
+        bytes memory data = _dataRaw(
+            ORACLE_ID, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), underlying, spoke, target, AMOUNT, 0x00
+        );
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_NOT_IN_MARKET.selector);
+        lendHook.build(address(0), account, data);
     }
 
-    /// @notice THE MIGRATION PROPERTY, in the unit suite: both legacy leg keys of the moved reserve — the
-    ///         SUP-21142 idle header and its debt sibling — are refused. The fork suite proves it through the
-    ///         real userOp path; this is the one-second signal.
-    function test_Decode_RevertIf_LegacyReserveKeyHeader() public {
-        address[2] memory legacy = [_key(spoke, RESERVE_ID), _debtKey(spoke, RESERVE_ID)];
-        for (uint256 i; i < legacy.length; ++i) {
-            bytes memory data =
-                _dataRaw(ORACLE_ID, legacy[i], underlying, spoke, RESERVE_ID, AMOUNT, 0x00, BORROW_LEG_ID);
-            vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+    /// @notice AN UNREGISTERED HEADER NOW FAILS IN THE HOOK, not deep inside SuperLedger — and that is how
+    ///         the legacy reserve-keyed headers fail closed. Note `inspect` does NOT revert: since SUP-21263
+    ///         it is pure and authenticates nothing (see `_inspectIdle`), so this test pins BOTH halves.
+    function test_Build_RevertIf_MarketNotRegistered() public {
+        address[4] memory badHeaders = [
+            _key(spoke, RESERVE_ID), // the SUP-21142 idle header
+            _debtKey(spoke, RESERVE_ID), // its debt sibling
+            _marketKey(spoke, RESERVE_ID, 11), // a well-formed market that was never registered
+            address(0xBEEF) // not a key at all
+        ];
+        for (uint256 i; i < badHeaders.length; ++i) {
+            bytes memory data = _dataRaw(ORACLE_ID, badHeaders[i], underlying, spoke, RESERVE_ID, AMOUNT, 0x00);
+            vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
             lendHook.build(address(0), account, data);
-            vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
-            redeemHook.inspect(data);
+            vm.expectRevert(AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
+            redeemHook.preExecute(address(0), account, data);
+            // pure, state-independent, and deliberately NOT an authentication surface
+            assertEq(lendHook.inspect(data).length, 92, "inspect still returns its 92-byte payload");
         }
     }
 
-    /// @notice A resize must preserve the appended borrow leg. This is the test that catches an accidental
-    ///         insert-at-124 layout: under that variant `borrowReserveId` would sit inside
-    ///         `replaceCalldataAmounts`' write window and every bundler resize would silently repoint the
-    ///         market key.
-    function test_Replace_PreservesTheAppendedBorrowLeg() public view {
+    /// @notice A REGISTERED header whose body names a different spoke reverts `MARKET_KEY_MISMATCH`: the
+    ///         re-derivation in `_requireTargetIsMarketLeg` pins the spoke, because the registry filed the
+    ///         key under its own.
+    function test_Build_RevertIf_SpokeIsNotTheMarketSpoke() public {
+        bytes memory data = _dataRaw(
+            ORACLE_ID,
+            _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID),
+            underlying,
+            address(otherSpoke),
+            RESERVE_ID,
+            AMOUNT,
+            0x00
+        );
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lendHook.build(address(0), account, data);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        redeemHook.build(address(0), account, data);
+    }
+
+    /// @notice GUARD ORDERING: membership is checked before the underlying binding, so a stray target
+    ///         reports the real defect (`RESERVE_NOT_IN_MARKET`) rather than a confusing
+    ///         `TOKEN_RESERVE_MISMATCH`; and a valid leg with the wrong underlying still reports the latter.
+    function test_GuardOrdering_MarketMembershipPrecedesUnderlying() public {
+        uint256 strayId = 9;
+        mockSpoke.setReserveUnderlying(strayId, address(otherToken));
+        // stray target AND a mismatched underlying -> membership fires first
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_NOT_IN_MARKET.selector);
+        lendHook.build(
+            address(0),
+            account,
+            _dataRaw(ORACLE_ID, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), underlying, spoke, strayId, AMOUNT, 0x00)
+        );
+        // a real leg, wrong underlying -> the underlying check fires
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.TOKEN_RESERVE_MISMATCH.selector);
+        lendHook.build(
+            address(0),
+            account,
+            _dataRaw(
+                ORACLE_ID, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), underlying, spoke, BORROW_LEG_ID, AMOUNT, 0x00
+            )
+        );
+    }
+
+    /// @notice And the pure decode still precedes any registry read: a zero address never costs a staticcall.
+    function test_GuardOrdering_ZeroAddressPrecedesRegistry() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        lendHook.build(
+            address(0),
+            account,
+            _dataRaw(
+                ORACLE_ID,
+                _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID),
+                underlying,
+                address(0),
+                RESERVE_ID,
+                AMOUNT,
+                0x00
+            )
+        );
+    }
+
+    /// @notice THE R3 PROOF. `targetReserveId` is in the inspector payload, so the two legs of ONE market
+    ///         produce DIFFERENT 92-byte payloads and therefore different Merkle leaves. Without it, one
+    ///         signed leaf would authorise moving either asset.
+    function test_Inspect_IsPure_AndCommitsTheTargetLeg() public view {
+        address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        bytes memory supplyLeg =
+            lendHook.inspect(_dataRaw(ORACLE_ID, header, underlying, spoke, RESERVE_ID, AMOUNT, 0x00));
+        bytes memory borrowLeg =
+            lendHook.inspect(_dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, AMOUNT, 0x00));
+
+        assertEq(supplyLeg.length, 92, "payload size is unchanged by SUP-21263");
+        assertEq(borrowLeg.length, 92);
+        assertTrue(keccak256(supplyLeg) != keccak256(borrowLeg), "the two legs of one market are distinguishable");
+        assertEq(BytesLib.toUint256(supplyLeg, 60), RESERVE_ID, "the tail word is the target leg");
+        assertEq(BytesLib.toUint256(borrowLeg, 60), BORROW_LEG_ID);
+    }
+
+    /// @notice A resize still cannot touch any identity field. The borrow-leg word is gone, so the property
+    ///         to pin now is that the 157-byte body's header and target survive a replacement.
+    function test_Replace_PreservesHeaderAndTargetLeg() public view {
         bytes memory data = _data(AMOUNT, false);
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = AMOUNT * 3;
         bytes memory replaced = lendHook.replaceCalldataAmounts(data, amounts);
 
-        assertEq(replaced.length, 189, "length preserved");
-        assertEq(
-            BytesLib.toUint256(replaced, 157),
-            BytesLib.toUint256(data, 157),
-            "the borrow leg at 157 is outside the resize window"
-        );
-        assertEq(BytesLib.toUint256(replaced, 157), BORROW_LEG_ID, "and still names the same market leg");
+        assertEq(replaced.length, 157, "length preserved");
         assertEq(BytesLib.toAddress(replaced, 32), BytesLib.toAddress(data, 32), "header untouched");
+        assertEq(BytesLib.toUint256(replaced, 92), RESERVE_ID, "the target leg is outside the resize window");
         assertEq(BytesLib.toUint256(replaced, 124), AMOUNT * 3, "only the amount moved");
+    }
+
+    /// @notice BOTH legs idle under ONE market key: accepted on purpose (the ticket requires it), and the
+    ///         accumulators net to zero when both are fully redeemed. The ledger-level consequences live in
+    ///         the fork suite; this pins that the hooks themselves do not refuse the shape.
+    function test_BothLegsIdleUnderOneKey_BuildAndRedeemBoth() public {
+        address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        _run(lendHook, _dataRaw(ORACLE_ID, header, underlying, spoke, RESERVE_ID, AMOUNT, 0x00));
+        _run(lendHook, _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, AMOUNT, 0x00));
+
+        assertGt(mockSpoke.getUserSuppliedAssets(RESERVE_ID, account), 0, "supply leg credited");
+        assertGt(mockSpoke.getUserSuppliedAssets(BORROW_LEG_ID, account), 0, "borrow leg credited too");
+
+        _run(redeemHook, _dataRaw(ORACLE_ID, header, underlying, spoke, RESERVE_ID, type(uint256).max, 0x00));
+        _run(
+            redeemHook, _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, type(uint256).max, 0x00)
+        );
+
+        assertEq(mockSpoke.getUserSuppliedAssets(RESERVE_ID, account), 0, "supply leg fully exited");
+        assertEq(mockSpoke.getUserSuppliedAssets(BORROW_LEG_ID, account), 0, "borrow leg fully exited");
+    }
+
+    /// @notice THE R5 FIX. The lend hook's outToken is the moved LEG's reserve key, not the market key, so
+    ///         chaining a collateral-leg lend into a loan-leg redeem fails closed instead of feeding an
+    ///         8-decimal figure into a 6-decimal withdraw.
+    function test_UsePrev_CrossLegChain_FailsClosed() public {
+        address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, AMOUNT);
+
+        // a lend of the SUPPLY leg advertises THIS market's supply-leg chain token
+        prevHook.set(AMOUNT, _chainToken(header, RESERVE_ID));
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        redeemHook.build(
+            address(prevHook), account, _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, 0, 0x01)
+        );
+
+        // ...and the SAME leg chains cleanly
+        prevHook.set(AMOUNT, _chainToken(header, BORROW_LEG_ID));
+        Execution[] memory executions = redeemHook.build(
+            address(prevHook), account, _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, 0, 0x01)
+        );
+        assertTrue(_hasSelector(executions, IAaveV4Spoke.withdraw.selector), "same-leg chaining is unaffected");
+    }
+
+    /// @notice The market key is no longer accepted as the chaining token — it is leg-ambiguous, which is
+    ///         exactly why it was replaced.
+    function test_UsePrev_MarketKeyOutput_IsRefused() public {
+        address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        mockSpoke.setSupplied(RESERVE_ID, account, AMOUNT);
+        prevHook.set(AMOUNT, header);
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        redeemHook.build(
+            address(prevHook), account, _dataRaw(ORACLE_ID, header, underlying, spoke, RESERVE_ID, 0, 0x01)
+        );
+    }
+
+    /// @notice THE CROSS-MARKET CHAIN, closed in code rather than by the ops allowlist. Reserve
+    ///         BORROW_LEG_ID is the loan leg of BOTH markets here, exactly as USDC is the loan leg of all
+    ///         seven Base equity markets. With a market-blind chaining token (a bare reserve key, which is
+    ///         what the first cut of this fix used) `lend(market A, leg R)` and `redeem(market B, leg R)`
+    ///         published and expected the SAME token, so ONE signed bundle credited A's accumulator and
+    ///         consumed B's — and `BaseLedger` CAPS `usedShares` at B's empty accumulator instead of
+    ///         reverting, stranding A's basis and zeroing the performance fee whatever `feePercent` is.
+    ///         Committing the (market, leg) PAIR makes that chain fail `PREV_TOKEN_MISMATCH`.
+    function test_UsePrev_CrossMarketChain_FailsClosed() public {
+        address marketA = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        // market B over the SAME loan leg: reserve 0 collateral, BORROW_LEG_ID borrow
+        registry.registerReserve(spoke, 0);
+        address marketB = registry.registerMarket(spoke, 0, BORROW_LEG_ID);
+        assertTrue(marketA != marketB, "two markets sharing one loan leg");
+
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, AMOUNT);
+
+        // a lend under market A, targeting the shared loan leg, advertises A's pair token
+        prevHook.set(AMOUNT, _chainToken(marketA, BORROW_LEG_ID));
+
+        // redeeming the SAME reserve under market B must NOT accept it
+        bytes memory underB = _dataRaw(ORACLE_ID, marketB, address(thirdToken), spoke, BORROW_LEG_ID, 0, 0x01);
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        redeemHook.build(address(prevHook), account, underB);
+
+        // ...and the bare reserve key — market-blind, the defective form — is refused too
+        prevHook.set(AMOUNT, _key(spoke, BORROW_LEG_ID));
+        vm.expectRevert(BaseLoanHookV2.PREV_TOKEN_MISMATCH.selector);
+        redeemHook.build(address(prevHook), account, underB);
+
+        // same market, same leg still chains
+        prevHook.set(AMOUNT, _chainToken(marketB, BORROW_LEG_ID));
+        Execution[] memory ok = redeemHook.build(address(prevHook), account, underB);
+        assertTrue(_hasSelector(ok, IAaveV4Spoke.withdraw.selector), "same market + same leg is unaffected");
+    }
+
+    /// @notice The chain token is distinct for every (market, leg) combination, and collides with none of
+    ///         the three key namespaces it sits beside.
+    function test_ChainToken_IsUniquePerMarketAndLeg() public view {
+        address marketA = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        address marketB = _marketKey(spoke, 0, BORROW_LEG_ID);
+
+        assertTrue(_chainToken(marketA, RESERVE_ID) != _chainToken(marketA, BORROW_LEG_ID), "legs differ");
+        assertTrue(_chainToken(marketA, BORROW_LEG_ID) != _chainToken(marketB, BORROW_LEG_ID), "markets differ");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != marketA, "not the market key");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != _key(spoke, RESERVE_ID), "not the reserve key");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != _debtKey(spoke, RESERVE_ID), "not the debt key");
+        assertTrue(_chainToken(marketA, RESERVE_ID) != underlying, "not a real token");
+    }
+
+    /// @notice Neither hook can be deployed without a registry — every op would otherwise revert.
+    function test_Constructor_RevertIf_ZeroRegistry() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new AaveV4LendHook(address(0));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new AaveV4RedeemHook(address(0));
+    }
+
+    /// @notice The hooks read the registry through `IAaveV4MarketRegistry`, which the deployed registry does
+    ///         NOT inherit (editing it would move its CREATE2 address). This pins the structural parity the
+    ///         compiler therefore cannot: same 5-tuple, and the same `MARKET_NOT_REGISTERED` selector.
+    function test_RegistryInterfaceParity() public view {
+        address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        (address iSpoke, uint256 iSupply, uint256 iBorrow, address iCollateral, address iLoan) =
+            IAaveV4MarketRegistry(address(registry)).getMarketInfo(header);
+        (address rSpoke, uint256 rSupply, uint256 rBorrow, address rCollateral, address rLoan) =
+            registry.getMarketInfo(header);
+        assertEq(iSpoke, rSpoke);
+        assertEq(iSupply, rSupply);
+        assertEq(iBorrow, rBorrow);
+        assertEq(iCollateral, rCollateral);
+        assertEq(iLoan, rLoan);
+        assertEq(
+            IAaveV4MarketRegistry.MARKET_NOT_REGISTERED.selector,
+            AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector,
+            "selectors must match or a hook revert would be unrecognisable to callers"
+        );
+        assertTrue(IAaveV4MarketRegistry(address(registry)).isMarketRegistered(header));
+        assertEq(address(lendHook.REGISTRY()), address(registry), "the hook holds the registry it was given");
+    }
+
+    /// @notice AC6, AND THE MUTATION NO OTHER TEST CATCHES. Both mode guards must apply to the MOVED reserve
+    ///         (`targetReserveId`), not to the market's supply leg. Every other guard test uses a supply-leg
+    ///         target, where the two readings coincide — so an incomplete migration that left
+    ///         `_requireNotCollateral` / `_requireIdleLendable` reading the market's `supplyReserveId` would
+    ///         pass the entire rest of the suite while letting an account idle-lend a BORROW-leg reserve it
+    ///         has pledged as collateral. That would break the one-mode-per-(account, reserve) invariant this
+    ///         whole family rests on.
+    function test_ModeGuards_ApplyToTheBorrowLegTarget_NotTheSupplyLeg() public {
+        address header = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+        bytes memory borrowLegData =
+            _dataRaw(ORACLE_ID, header, address(thirdToken), spoke, BORROW_LEG_ID, AMOUNT, 0x00);
+
+        // Flag ONLY the borrow leg as collateral; the supply leg stays clean, so a guard reading the supply
+        // leg would see nothing wrong.
+        mockSpoke.setCollateral(BORROW_LEG_ID, account, true);
+        assertFalse(mockSpoke.isCollateral(RESERVE_ID, account), "the supply leg is deliberately clean");
+
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector);
+        lendHook.build(address(0), account, borrowLegData);
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector);
+        lendHook.preExecute(address(0), account, borrowLegData);
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector);
+        redeemHook.build(address(0), account, borrowLegData);
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_IS_COLLATERAL.selector);
+        redeemHook.preExecute(address(0), account, borrowLegData);
+
+        // and the lend-only debt guard, same asymmetry
+        mockSpoke.setCollateral(BORROW_LEG_ID, account, false);
+        mockSpoke.setBorrowing(BORROW_LEG_ID, account, true);
+        assertFalse(mockSpoke.isBorrowing(RESERVE_ID, account), "the supply leg is deliberately clean");
+        vm.expectRevert(BaseAaveV4MoneyMarketHook.RESERVE_IS_BORROWED.selector);
+        lendHook.build(address(0), account, borrowLegData);
+        // redeem keeps only the collateral rule, so an exit is never trapped behind a later debt
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, AMOUNT);
+        redeemHook.build(address(0), account, borrowLegData);
+    }
+
+    /// @notice And the mirror: a supply-leg target is NOT blocked by a flag on the borrow leg. Without this,
+    ///         a guard that checked BOTH legs would pass the test above and still be wrong.
+    function test_ModeGuards_SupplyLegTargetUnaffectedByBorrowLegFlags() public {
+        mockSpoke.setCollateral(BORROW_LEG_ID, account, true);
+        mockSpoke.setBorrowing(BORROW_LEG_ID, account, true);
+        lendHook.build(address(0), account, _data(AMOUNT, false)); // must not revert
+    }
+
+    /// @notice The spoke pin, at `preExecute` as well as `build`, on both hooks. Mutation testing showed the
+    ///         re-derivation in `_requireTargetIsMarketLeg` was covered by exactly ONE assertion — this
+    ///         widens it, because it is the only thing stopping a REGISTERED market key from being paired
+    ///         with a different spoke in the body.
+    function test_PreExecute_RevertIf_SpokeIsNotTheMarketSpoke() public {
+        bytes memory data = _dataRaw(
+            ORACLE_ID,
+            _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID),
+            underlying,
+            address(otherSpoke),
+            RESERVE_ID,
+            AMOUNT,
+            0x00
+        );
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lendHook.preExecute(address(0), account, data);
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        redeemHook.preExecute(address(0), account, data);
+
+        // the same market registered on the OTHER spoke is a different key, so it cannot be substituted
+        registry.registerReserve(address(otherSpoke), RESERVE_ID);
+        registry.registerReserve(address(otherSpoke), BORROW_LEG_ID);
+        address otherSpokeMarket = registry.registerMarket(address(otherSpoke), RESERVE_ID, BORROW_LEG_ID);
+        assertTrue(otherSpokeMarket != _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), "distinct keys per spoke");
+        vm.expectRevert(AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+        lendHook.build(
+            address(0), account, _dataRaw(ORACLE_ID, otherSpokeMarket, underlying, spoke, RESERVE_ID, AMOUNT, 0x00)
+        );
+    }
+
+    /// @notice THE STALE 189-BYTE BODY — fail-closed direction 4 from the contract docblock, which
+    ///         `test_Decode_RevertIf_WrongLength` (156 / 158 / 0) did not cover. A SUP-21254 root replayed
+    ///         against this revision must die on the length, before any registry read.
+    function test_Decode_RevertIf_StaleSupTwentyOneTwoFiveFourBody() public {
+        bytes memory stale = abi.encodePacked(
+            _dataRaw(
+                ORACLE_ID, _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID), underlying, spoke, RESERVE_ID, AMOUNT, 0x00
+            ),
+            BORROW_LEG_ID // the word SUP-21254 appended at offset 157
+        );
+        assertEq(stale.length, 189, "exactly the superseded layout");
+
+        address[2] memory hooks = [address(lendHook), address(redeemHook)];
+        for (uint256 i; i < hooks.length; ++i) {
+            vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+            ISuperHook(hooks[i]).build(address(0), account, stale);
+            vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+            ISuperHookInspector(hooks[i]).inspect(stale);
+            vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+            ISuperHookInflowOutflow(hooks[i]).decodeAmounts(stale);
+        }
+    }
+
+    /// @notice Every length but 157 is refused by the decoder, so no adjacent layout can be mistaken for
+    ///         this one. Complements the fixed 156 / 158 / 189 cases above.
+    function testFuzz_OnlyOneFiveSevenByteBodiesDecode(uint16 length) public {
+        vm.assume(length != 157 && length <= 512);
+        bytes memory wrong = new bytes(length);
+        vm.expectRevert(BaseLoanHookV2.INVALID_DATA_LENGTH.selector);
+        lendHook.inspect(wrong);
+    }
+
+    /// @dev The arguments of the one Spoke call with `selector`, selector stripped so `abi.decode` works.
+    ///      Scans rather than indexing: `build()` wraps the hook's own executions with pre/postExecute, so a
+    ///      fixed index silently decodes the wrong call if that envelope ever changes.
+    function _spokeCallArgs(Execution[] memory executions, bytes4 selector) internal pure returns (bytes memory out) {
+        for (uint256 i; i < executions.length; ++i) {
+            bytes memory callData = executions[i].callData;
+            if (callData.length < 4 || bytes4(callData) != selector) continue;
+            out = new bytes(callData.length - 4);
+            for (uint256 j; j < out.length; ++j) {
+                out[j] = callData[j + 4];
+            }
+            return out;
+        }
+        revert("SPOKE_CALL_NOT_FOUND");
+    }
+
+    /// @dev The (market, leg) chaining token, as the literal domain-separated formula rather than via the
+    ///      hook — so a change to `_idleChainToken` breaks this test instead of silently agreeing with it.
+    function _chainToken(address marketKey, uint256 targetReserveId) internal pure returns (address) {
+        return address(
+            uint160(uint256(keccak256(abi.encode(marketKey, targetReserveId, keccak256("AaveV4Idle.CHAIN_TOKEN")))))
+        );
     }
 
     /// @dev The DEBT-leg derivation, for the legacy-header test above
     function _debtKey(address spoke_, uint256 reserveId) internal pure returns (address) {
         return address(
             uint160(uint256(keccak256(abi.encode(spoke_, reserveId, keccak256("AaveV4ReserveRegistryV2.DEBT")))))
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            RETIREMENT: THE DOCUMENTED DRAIN CHECK IS NOT ENOUGH
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice REGRESSION for the PR #1027 review's P2. SECURITY.md section 16 item 3 used to tell operators
+    ///         that `getBalanceOfOwner(marketKey, account)` and `usersAccumulatorShares(account, marketKey)`
+    ///         both reading zero means a market's idle positions are drained and it is safe to retire. Since
+    ///         SUP-21263 enabled idle positions on a market's BORROW reserve, that is false for two
+    ///         independent reasons, and this test makes both of them fail the old gate while real user funds
+    ///         are still supplied:
+    ///           1. the market scalar resolves a market key to its COLLATERAL leg only (SUP-21255,
+    ///              one-directional by design), so a borrow-leg position is invisible to it;
+    ///           2. ledger shares count deposited ACCOUNTING UNITS, so redeeming every credited unit zeroes
+    ///              the accumulator and leaves accrued interest supplied.
+    ///         The consequence is the thing worth preventing: retirement passes the old checklist and the
+    ///         holder can then no longer exit through Superform at all.
+    /// @dev Real registry, real oracle, real `SuperLedger`, real hooks; only the Spoke is a mock, which is
+    ///      what lets interest be modelled exactly rather than waited for. The ledger is driven directly
+    ///      because this suite runs hooks the way `SuperExecutor` does but is not `SuperExecutor`.
+    function test_RetirementDocumentedZeroChecksPassWithBorrowLegYieldRemaining() public {
+        address marketKey = _marketKey(spoke, RESERVE_ID, BORROW_LEG_ID);
+
+        address ledgerConfig = address(new SuperLedgerConfiguration());
+        AaveV4ReserveOracle oracle = new AaveV4ReserveOracle(ledgerConfig, address(registry));
+        address[] memory allowed = new address[](1);
+        allowed[0] = account;
+        SuperLedger ledger = new SuperLedger(ledgerConfig, allowed);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: address(oracle),
+            feePercent: 0,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = ORACLE_ID;
+        SuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(salts, configs);
+        bytes32 oracleId = keccak256(abi.encodePacked(ORACLE_ID, account));
+
+        // 1. Lend on the market's BORROW leg — the mode SUP-21263 newly allows.
+        _run(lendHook, _dataRaw(ORACLE_ID, marketKey, address(thirdToken), spoke, BORROW_LEG_ID, AMOUNT, bytes1(0x00)));
+        uint256 credited = lendHook.getOutAmount(account);
+        assertGt(credited, 0, "nothing was lent");
+        ledger.updateAccounting(account, marketKey, oracleId, true, credited, 0);
+
+        // 2. Model Aave interest: supplied assets now exceed the credited accounting units.
+        uint256 residue = 1e6;
+        mockSpoke.setSupplied(BORROW_LEG_ID, account, credited + residue);
+        thirdToken.mint(address(mockSpoke), residue);
+
+        // 3. Redeem every credited unit under the same market.
+        _run(
+            redeemHook,
+            _dataRaw(ORACLE_ID, marketKey, address(thirdToken), spoke, BORROW_LEG_ID, credited, bytes1(0x00))
+        );
+        ledger.updateAccounting(account, marketKey, oracleId, false, credited, credited);
+
+        // 4. THE BUG. Both checks the old runbook relied on read zero...
+        assertEq(oracle.getBalanceOfOwner(marketKey, account), 0, "market scalar reads the collateral leg only");
+        assertEq(ledger.usersAccumulatorShares(account, marketKey), 0, "every credited unit was consumed");
+
+        // ...while real user funds are still supplied on the market's borrow leg.
+        assertEq(
+            IAaveV4Spoke(spoke).getUserSuppliedAssets(BORROW_LEG_ID, account), residue, "borrow-leg supply must remain"
+        );
+
+        // 5. The check SECURITY.md now mandates -- the Spoke's own accounting for BOTH of the market's
+        //    reserves -- is what catches it.
+        assertGt(
+            IAaveV4Spoke(spoke).getUserSuppliedAssets(RESERVE_ID, account)
+                + IAaveV4Spoke(spoke).getUserSuppliedAssets(BORROW_LEG_ID, account),
+            0,
+            "the two-reserve Spoke read must see the residue"
+        );
+
+        // 6. Retirement sails through the old gate.
+        registry.proposeDeregisterMarket(marketKey);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        registry.executeDeregisterMarket(marketKey);
+
+        // 7. And the holder's ordinary exit is gone. The failure is in the HOOK's registry validation,
+        //    before any accounting runs -- not the oracle's `RESERVE_NOT_REGISTERED` that item 3 used to
+        //    describe. Asserted on `build` AND `preExecute` -- both gates a bundler hits before anything
+        //    moves -- each from a fresh execution context, as `SuperExecutorBase` would issue them.
+        //    `postExecute` is deliberately not asserted here: its own ordering guard
+        //    (`PRE_EXECUTE_ALREADY_CALLED` / not-called) fires first, which would make this test about
+        //    hook sequencing rather than about the retired market.
+        bytes memory exitData =
+            _dataRaw(ORACLE_ID, marketKey, address(thirdToken), spoke, BORROW_LEG_ID, residue, bytes1(0x00));
+        bytes4 retired = AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector;
+
+        redeemHook.setExecutionContext(account);
+        vm.expectRevert(retired);
+        redeemHook.build(address(prevHook), account, exitData);
+
+        redeemHook.setExecutionContext(account);
+        vm.expectRevert(retired);
+        redeemHook.preExecute(address(prevHook), account, exitData);
+
+        // The funds are still on the Spoke: stranded, not lost. Recovery needs the binding restored or a
+        // direct Spoke exit with ledger reconciliation.
+        assertEq(
+            IAaveV4Spoke(spoke).getUserSuppliedAssets(BORROW_LEG_ID, account),
+            residue,
+            "the residue is stranded, not lost"
         );
     }
 }

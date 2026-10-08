@@ -493,8 +493,10 @@ contract HookSizingInterfaceTest is Helpers {
         // ── Loan hooks ──
         morphoSupply = new MorphoSupplyHook(DUMMY_MORPHO);
         morphoLend = new MorphoLendHook(DUMMY_MORPHO);
-        aaveV4Lend = new AaveV4LendHook();
-        aaveV4Redeem = new AaveV4RedeemHook();
+        // SUP-21263: the idle pair resolves market keys through the registry. This suite only exercises the
+        // sizing/inspect surface, which never reads it, so any nonzero address satisfies the constructor.
+        aaveV4Lend = new AaveV4LendHook(address(0xA4E4));
+        aaveV4Redeem = new AaveV4RedeemHook(address(0xA4E4));
         morphoBorrow = new MorphoBorrowHook(DUMMY_MORPHO);
         morphoRepay = new MorphoRepayHook(DUMMY_MORPHO);
         morphoSupplyAndBorrow = new MorphoSupplyAndBorrowHook(DUMMY_MORPHO);
@@ -3195,27 +3197,25 @@ contract HookSizingInterfaceTest is Helpers {
 
 
     /*//////////////////////////////////////////////////////////////
-        AAVE V4 IDLE MONEY_MARKET (SUP-21254): exact 189-byte layout
+        AAVE V4 IDLE MONEY_MARKET (SUP-21263): exact 157-byte layout
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev oracleId(32) + marketKey(20) + underlying(20) + spoke(20) + supplyId(32), then amount at
-    ///      offset 124, the canonical bool at 156, and borrowReserveId at 157 = 189 total
+    /// @dev oracleId(32) + marketKey(20) + underlying(20) + spoke(20) + targetReserveId(32), then amount at
+    ///      offset 124 and the canonical bool at 156 = 157 total. SUP-21263 deleted the trailing
+    ///      borrowReserveId word SUP-21254 had appended; the market key still commits both legs, but the
+    ///      body now names only the ONE reserve the op moves.
     function _buildAaveV4IdleData(uint256 amt, bool usePrev) internal pure returns (bytes memory) {
         address spoke = address(0xCC);
-        uint256 supplyReserveId = 7;
-        uint256 borrowReserveId = 1; // SUP-21254: identity only, completes the market key
+        uint256 targetReserveId = 7;
+        uint256 otherLegId = 1; // completes the market key; no longer carried in the body
         address key = address(
             uint160(
                 uint256(
-                    keccak256(
-                        abi.encode(spoke, supplyReserveId, borrowReserveId, keccak256("AaveV4ReserveKey.MARKET"))
-                    )
+                    keccak256(abi.encode(spoke, targetReserveId, otherLegId, keccak256("AaveV4ReserveKey.MARKET")))
                 )
             )
         );
-        return abi.encodePacked(
-            bytes32(uint256(1)), key, address(0xAA), spoke, supplyReserveId, amt, usePrev, borrowReserveId
-        );
+        return abi.encodePacked(bytes32(uint256(1)), key, address(0xAA), spoke, targetReserveId, amt, usePrev);
     }
 
     function test_AmountRoles_ASSETS_AaveV4Lend() public view {
@@ -3228,11 +3228,11 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_DecodeReplace_Roundtrip_AaveV4Lend() public view {
         bytes memory data = _buildAaveV4IdleData(2e6, false);
-        assertEq(data.length, 189);
+        assertEq(data.length, 157);
         uint256[] memory a = new uint256[](1);
         a[0] = 8e6;
         bytes memory replaced = aaveV4Lend.replaceCalldataAmounts(data, a);
-        assertEq(replaced.length, 189);
+        assertEq(replaced.length, 157);
         assertEq(aaveV4Lend.decodeAmounts(replaced)[0], 8e6);
         assertEq(aaveV4Lend.inspect(replaced), aaveV4Lend.inspect(data), "identity survives sizing");
     }

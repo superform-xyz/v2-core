@@ -79,8 +79,8 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         oracleId = _getYieldSourceOracleId(ORACLE_SALT, address(this));
 
         superLedger = SuperLedger(address(ledger));
-        lendHook = new AaveV4LendHook();
-        redeemHook = new AaveV4RedeemHook();
+        lendHook = new AaveV4LendHook(address(registry));
+        redeemHook = new AaveV4RedeemHook(address(registry));
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
 
         _getTokens(CHAIN_1_USDC, accountEth, 10_000e6);
@@ -109,8 +109,7 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
             SPOKE,
             reserveId,
             amount,
-            usePrev,
-            _idleBorrowLeg(reserveId)
+            usePrev
         );
     }
 
@@ -118,8 +117,9 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         return _idleData(CHAIN_1_USDC, USDC_RESERVE_ID, amount, false);
     }
 
-    /// @dev SUP-21254: the market key needs a borrow leg that is not the reserve being moved. Any other
-    ///      listed reserve serves — it is identity only and is never passed to the Spoke.
+    /// @dev The market key needs a second leg that is not the reserve being moved. Since SUP-21263 it is no
+    ///      longer carried in the body — only the header commits it — but the MARKET must be REGISTERED, so
+    ///      whichever leg this returns has to match what `setUp` registered.
     function _idleBorrowLeg(uint256 supplyReserveId) internal pure returns (uint256) {
         return supplyReserveId == USDC_RESERVE_ID ? 0 : USDC_RESERVE_ID;
     }
@@ -272,20 +272,50 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         assertEq(IERC20(CHAIN_1_USDC).balanceOf(feeRecipient), feeBefore, "feePercent 0: yield untaxed");
     }
 
+    /// @dev THE ONLY FORK-LEVEL TEST OF THE SUP-21263 CHAINING TOKEN, so it must not be vacuous. A
+    ///      lend+redeem round trip leaves the position at 0 whether both hooks ran or NEITHER did, and
+    ///      `_executeHooks` does not bubble a failed userOp — so a `PREV_TOKEN_MISMATCH` from a wrong
+    ///      `outToken` would have passed silently. The Spoke event count is the positive proof that both
+    ///      legs actually executed.
     function test_Chain_Lend_Then_Redeem_UsePrev() public {
         uint256 walletBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
         address[] memory hooks = new address[](2);
         hooks[0] = address(lendHook);
         hooks[1] = address(redeemHook);
         bytes[] memory datas = new bytes[](2);
+        // consumes the lend's outAmount, which since SUP-21263 is advertised against the moved LEG's
+        // reserve key — `computeReserveKey(SPOKE, USDC_RESERVE_ID)`, not the market key
         datas[0] = _lendData(LEND);
-        datas[1] = _redeemData(0, true); // consumes the lend's outAmount against outToken == market key
+        datas[1] = _redeemData(0, true);
 
-        _executeHooks(hooks, datas);
+        ExecutionReturnData memory ret = _executeHooks(hooks, datas);
+
+        // NON-VACUITY GUARD: both Spoke calls must appear in the logs.
+        (uint256 sentByAccount, uint256 receivedByAccount) = _countAccountTransfers(ret);
+        assertGt(sentByAccount, 0, "the lend leg executed (USDC left the account)");
+        assertGt(receivedByAccount, 0, "and the chained redeem leg executed, so the prev-token check passed");
 
         assertEq(_supplied(), 0, "everything the lend credited was redeemed");
         assertLe(walletBefore - IERC20(CHAIN_1_USDC).balanceOf(accountEth), 1, "round trip loses at most 1 wei");
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0);
+    }
+
+    /// @dev Counts USDC Transfers out of and into the ACCOUNT — a protocol-agnostic witness that the supply
+    ///      and withdraw legs really ran, independent of hook or ledger state.
+    ///      NOT keyed on the Spoke deliberately: Aave V4's Hub/Spoke split means the tokens move between the
+    ///      account and the HUB, so a spoke-keyed witness finds nothing and would itself be vacuous.
+    function _countAccountTransfers(ExecutionReturnData memory ret)
+        internal
+        view
+        returns (uint256 sentByAccount, uint256 receivedByAccount)
+    {
+        bytes32 transferTopic = keccak256("Transfer(address,address,uint256)");
+        for (uint256 i; i < ret.logs.length; ++i) {
+            if (ret.logs[i].emitter != CHAIN_1_USDC) continue;
+            if (ret.logs[i].topics.length < 3 || ret.logs[i].topics[0] != transferTopic) continue;
+            if (address(uint160(uint256(ret.logs[i].topics[1]))) == accountEth) ++sentByAccount;
+            if (address(uint160(uint256(ret.logs[i].topics[2]))) == accountEth) ++receivedByAccount;
+        }
     }
 
     function test_Redeem_RevertIf_NothingSupplied() public {
@@ -293,21 +323,24 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
     }
 
     function test_UnregisteredKey_FailsClosed() public {
-        // GHO reserve 13 is listed on the spoke but NEITHER its legs NOR any market over it are registered:
-        // the hook itself is happy, accounting reverts through the oracle -> the whole userOp reverts.
+        // GHO reserve 13 is listed on the spoke but NEITHER its legs NOR any market over it are registered.
+        // SUP-21263 MOVED THIS REVERT EARLIER: the hook now resolves the header through the registry in
+        // `build`, so the op dies on `MARKET_NOT_REGISTERED` before any Spoke call, instead of surviving to
+        // accounting and dying on the oracle's `RESERVE_NOT_REGISTERED`. Same fail-closed outcome, sooner
+        // and more legibly.
         _getTokens(GHO, accountEth, 1000e18);
         _executeExpectFailure(
             address(lendHook),
             _idleData(GHO, GHO_RESERVE_ID, 100e18, false),
-            AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector
+            AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector
         );
         assertEq(IAaveV4Spoke(SPOKE).getUserSuppliedAssets(GHO_RESERVE_ID, accountEth), 0, "nothing supplied");
     }
 
-    /// @notice THE NEW GATE SUP-21254 BUYS, isolated. The reserve's legs ARE registered, so the old
-    ///         per-reserve allowlist would have allowed this op; only the MARKET is missing. The accounting
-    ///         read resolves the header through the oracle, finds no market, and reverts the whole userOp —
-    ///         so the idle allowlist is market-granular, not reserve-granular.
+    /// @notice THE GATE SUP-21254 BOUGHT, isolated — and since SUP-21263 it is enforced by the HOOK. The
+    ///         reserve's legs ARE registered, so the old per-reserve allowlist would have allowed this op;
+    ///         only the MARKET is missing. The hook's `getMarketInfo` read finds no market and reverts at
+    ///         build, so the idle allowlist is market-granular and is checked before any external call.
     /// @dev Distinct from `test_UnregisteredKey_FailsClosed`, which fails for two reasons at once (neither
     ///      the legs nor a market exist) and therefore cannot isolate this behaviour.
     function test_RegisteredReserveButUnregisteredMarket_FailsClosed() public {
@@ -320,10 +353,9 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         assertTrue(registry.isMarketRegistered(usdcMarketKey), "and market (7,0) is registered");
         assertFalse(registry.isMarketRegistered(unregisteredMarket), "but market (7,1) is not");
 
-        bytes memory data = abi.encodePacked(
-            oracleId, unregisteredMarket, CHAIN_1_USDC, SPOKE, USDC_RESERVE_ID, LEND, false, unregisteredBorrowLeg
-        );
-        _executeExpectFailure(address(lendHook), data, AaveV4ReserveRegistryV2.RESERVE_NOT_REGISTERED.selector);
+        bytes memory data =
+            abi.encodePacked(oracleId, unregisteredMarket, CHAIN_1_USDC, SPOKE, USDC_RESERVE_ID, LEND, false);
+        _executeExpectFailure(address(lendHook), data, AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
         assertEq(_supplied(), 0, "nothing supplied");
     }
 
@@ -353,6 +385,66 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0);
     }
 
+    /*//////////////////////////////////////////////////////////////
+       SUP-21263: EITHER LEG MAY BE THE IDLE TARGET
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice THE FEATURE on live Ethereum state: `usdcMarketKey` is the market `(supply = USDC 7,
+    ///         borrow = WETH 0)`, and WETH — its LOAN leg — is now a legal idle target under that SAME
+    ///         header. Before SUP-21263 this reverted `MARKET_KEY_MISMATCH`.
+    function test_IdleWETH_UnderUsdcCollateralMarket_DoesNotRevert() public {
+        _getTokens(CHAIN_1_WETH, accountEth, 2 ether);
+        uint256 walletBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+
+        _execute(address(lendHook), _wethLegData(1 ether, false));
+
+        uint256 credited = IAaveV4Spoke(SPOKE).getUserSuppliedAssets(0, accountEth);
+        assertEq(walletBefore - IERC20(CHAIN_1_WETH).balanceOf(accountEth), 1 ether, "WETH debited exactly");
+        assertLe(1 ether - credited, 1, "WETH position credited");
+        assertEq(
+            superLedger.usersAccumulatorShares(accountEth, usdcMarketKey),
+            credited,
+            "settled under the market key whose BORROW leg this is"
+        );
+    }
+
+    /// @notice R1, ON LIVE STATE AND THROUGH THE REAL LEDGER. Both legs of ONE market idled at once share a
+    ///         single `(user, yieldSource)` accumulator — which the ticket's motivation requires — so the
+    ///         accumulator sums an 18-decimal WETH position with a 6-decimal USDC one. It is therefore NOT a
+    ///         meaningful NAV number; `AaveV4ReserveOracle.getOwnerSnapshot` is. What IS guaranteed, and
+    ///         pinned here, is that fully redeeming both legs returns the accumulator to exactly zero, so no
+    ///         exit is ever trapped and no fee can leak while `feePercent == 0`.
+    function test_BothLegsIdleUnderOneMarketKey_LedgerSumsAndNetsToZero() public {
+        _getTokens(CHAIN_1_WETH, accountEth, 2 ether);
+
+        uint256 usdcCredited = _lend(); // leg 7, the market's SUPPLY leg
+        _execute(address(lendHook), _wethLegData(1 ether, false)); // leg 0, its BORROW leg
+        uint256 wethCredited = IAaveV4Spoke(SPOKE).getUserSuppliedAssets(0, accountEth);
+        assertGt(usdcCredited, 0, "fixture sanity: the USDC lend credited");
+        assertGt(wethCredited, 0, "fixture sanity: the WETH lend credited");
+
+        assertEq(
+            superLedger.usersAccumulatorShares(accountEth, usdcMarketKey),
+            usdcCredited + wethCredited,
+            "ONE accumulator, two reserves, incommensurable units - documented, not defended against"
+        );
+
+        _execute(address(redeemHook), _redeemData(type(uint256).max, false));
+        _execute(address(redeemHook), _wethLegData(type(uint256).max, false));
+
+        assertEq(_supplied(), 0, "USDC leg closed");
+        assertEq(IAaveV4Spoke(SPOKE).getUserSuppliedAssets(0, accountEth), 0, "WETH leg closed");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0, "shares net to zero");
+        assertEq(superLedger.usersAccumulatorCostBasis(accountEth, usdcMarketKey), 0, "cost basis nets to zero");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(feeRecipient), 0, "no USDC fee leaked");
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(feeRecipient), 0, "no WETH fee leaked");
+    }
+
+    /// @dev An idle body targeting reserve 0 (WETH) under `usdcMarketKey` — the market's BORROW leg.
+    function _wethLegData(uint256 amount, bool usePrev) internal view returns (bytes memory) {
+        return abi.encodePacked(oracleId, usdcMarketKey, CHAIN_1_WETH, SPOKE, uint256(0), amount, usePrev);
+    }
+
     /// @notice A reserve the account already borrows is refused by lend (RESERVE_IS_BORROWED) while
     ///         redeem still exits the idle position: the same-asset supply + debt state is never trapped.
     function test_BorrowedReserve_LendRefused_RedeemAllowed() public {
@@ -379,20 +471,21 @@ contract AaveV4IdleHooksFork is MinimalBaseIntegrationTest {
         assertEq(superLedger.usersAccumulatorShares(accountEth, usdcMarketKey), 0, "ledger nets");
     }
 
-    /// @dev SUP-21254 fail-closed, through the real userOp path: the spoke-as-header case AND both of the
-    ///      reserve's legacy leg keys are refused. The reserve-key cases are the migration property — an old
+    /// @dev FAIL-CLOSED through the real userOp path: the spoke-as-header case AND both of the reserve's
+    ///      legacy leg keys are refused. The reserve-key cases are the migration property — an old
     ///      reserve-keyed idle root against the redeployed hook cannot execute.
+    ///      SUP-21263 CHANGED THE ERROR, not the outcome: membership is now a registry lookup, so a header
+    ///      that is not a registered market fails `MARKET_NOT_REGISTERED` in the hook rather than
+    ///      `MARKET_KEY_MISMATCH` from the pure pin — and it fails at BUILD, before any Spoke call.
     function test_Lend_RevertIf_HeaderKeyMismatch() public {
-        uint256 borrowLeg = _idleBorrowLeg(USDC_RESERVE_ID);
         address[3] memory wrong = [
             SPOKE, // LOAN-style: spoke in the header
             registry.computeReserveKey(SPOKE, USDC_RESERVE_ID), // the old SUP-21142 idle header
             registry.computeDebtKey(SPOKE, USDC_RESERVE_ID) // the reserve's other leg
         ];
         for (uint256 i; i < wrong.length; ++i) {
-            bytes memory data =
-                abi.encodePacked(oracleId, wrong[i], CHAIN_1_USDC, SPOKE, USDC_RESERVE_ID, LEND, false, borrowLeg);
-            _executeExpectFailure(address(lendHook), data, AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector);
+            bytes memory data = abi.encodePacked(oracleId, wrong[i], CHAIN_1_USDC, SPOKE, USDC_RESERVE_ID, LEND, false);
+            _executeExpectFailure(address(lendHook), data, AaveV4ReserveRegistryV2.MARKET_NOT_REGISTERED.selector);
         }
     }
 
