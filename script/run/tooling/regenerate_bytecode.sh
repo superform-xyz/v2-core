@@ -95,6 +95,7 @@ CORE_CONTRACTS=(
     "FlatFeeLedger"
     "SuperLedgerConfiguration"
     "SuperValidator"
+    "SuperValidatorV2"
     "SuperDestinationValidator"
     "SuperNativePaymaster"
     "SuperSponsorshipPaymaster"

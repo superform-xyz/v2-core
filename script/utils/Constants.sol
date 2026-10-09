@@ -387,6 +387,11 @@ abstract contract Constants {
     string internal constant HOOK_FACTORY_KEY = "HookRegistry";
     string internal constant SUPER_VALIDATOR_KEY = "SuperValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
+    /// @dev SUP-17924. A SEPARATE deploy name, which is the whole mechanism: the CREATE2 salt is
+    ///      `keccak256("SuperformV2" || namespace || name || "v2.0")` and depends on the NAME, not on the
+    ///      bytecode, so a new name is the only way to get a new address. `SuperValidator` keeps its own
+    ///      name, salt, address and bytecode untouched.
+    string internal constant SUPER_VALIDATOR_V2_KEY = "SuperValidatorV2";
     string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";
     string internal constant SUPER_YIELD_SOURCE_ORACLE_KEY = "SuperYieldSourceOracle";
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";

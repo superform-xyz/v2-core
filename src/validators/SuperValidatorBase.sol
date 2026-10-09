@@ -154,12 +154,18 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @param sender The account address being operated on
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @return signer The address that signed the message
+    /// @dev `virtual` so a NEW validator can extend the account-type dispatch without editing this base.
+    ///      `SuperValidatorV2` overrides it to add the Coinbase Smart Wallet / passkey path (SUP-17924).
+    ///      Adding `virtual` alone does not move this contract's creation code — internal calls are still
+    ///      bound statically per concrete contract — which `ValidatorBytecodeUnchangedTest` proves: the
+    ///      deployed `SuperValidator` and `SuperDestinationValidator` stay pinned to their locked artifacts.
     function _processSignatureForAccountType(
         address sender,
         SignatureData memory sigData
     )
         internal
         view
+        virtual
         returns (address signer)
     {
         /// @dev For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
