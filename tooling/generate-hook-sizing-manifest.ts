@@ -205,6 +205,9 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   RecordRedemptionPendlePTAmortizedOracleHookV2: { mode: "sizeless" },
   RecordPurchasePendlePTHook: { mode: "sizeless" },   // oracle record, uses PendlePTHook TradeResult
   RecordRedemptionPendlePTHook: { mode: "sizeless" }, // oracle record, uses PendlePTHook TradeResult
+  // Binance: spend amount is committed inside the opaque router calldata and there is no scaler;
+  // header inputAmount is only the allowance bound. amountRoles() returns [] on-chain (S2).
+  ApproveAndSwapBinanceHook: { mode: "sizeless" },
 
   // == external hooks (amount exists but not at a static byte offset) ==
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.

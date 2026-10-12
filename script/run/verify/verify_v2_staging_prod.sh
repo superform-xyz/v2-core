@@ -187,6 +187,8 @@ generate_constructor_args() {
     local algebra_integral_router_flare="0x69D57B9D705eaD73a5d2f2476C30c55bD755cc2F"
     local sparkdex_v2_router_flare="0x4a1E5A90e9943467FAd1acea1E7F0e5e88472a1e"
     local spark_psm3_base="0x1601843c5E9bC251A3272907010AFa41Fa18347E"
+    local binance_router=""
+    local binance_max_input_amount=""
 
     # Network-specific configurations
     case $chain_id in
@@ -214,6 +216,9 @@ generate_constructor_args() {
             across_spoke_pool_v3="0x4e8E101924eDE233C13e2D8622DC8aED2872d505"
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            # Binance DEX router (SUP-21203) — must match BINANCE_DEX_ROUTER_BNB / BINANCE_MAX_INPUT_AMOUNT_BNB
+            binance_router="0xB44446b0c8E56988c34f7Ff73Ae904982b5FdDA5"
+            binance_max_input_amount="10000000000000000000000000"
             ;;
         "42161") # Arbitrum
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -512,6 +517,9 @@ generate_constructor_args() {
         "SwapKyberSwapHook"|"ApproveAndSwapKyberSwapHook")
             echo "$(cast abi-encode "constructor(address,address,address)" "$kyber_router" "$kyber_scale_helper" "$native_token")"
             ;;
+        "ApproveAndSwapBinanceHook")
+            echo "$(cast abi-encode "constructor(address,uint256)" "$binance_router" "$binance_max_input_amount")"
+            ;;
         "SwapAlgebraIntegralHook"|"ApproveAndSwapAlgebraIntegralHook")
             local algebra_router=""
             case $chain_id in
@@ -657,6 +665,7 @@ get_contract_source() {
         "SwapUniswapV4Hook") echo "src/hooks/swappers/uniswap-v4/SwapUniswapV4Hook.sol" ;;
         "SwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol" ;;
         "ApproveAndSwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol" ;;
+        "ApproveAndSwapBinanceHook") echo "src/hooks/swappers/binance/ApproveAndSwapBinanceHook.sol" ;;
         "SwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/SwapAlgebraIntegralHook.sol" ;;
         "ApproveAndSwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol" ;;
         "SwapSparkPSMExactInHook") echo "src/hooks/swappers/spark-psm/SwapSparkPSMExactInHook.sol" ;;

@@ -124,6 +124,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapOdosV3Hook;
     }
 
+    struct BinanceHookAddresses {
+        address approveAndSwapBinanceHook;
+    }
+
     struct SpectraExchangeHookAddresses {
         address spectraExchangeDepositHook;
         address spectraExchangeRedeemHook;
@@ -305,6 +309,15 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    function runBinance(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        require(otherHooksConfiguration.binanceRouters[chainId] != address(0), "Binance hooks not gated for chain");
+        console2.log("Deploying Binance Hooks on chainId: ", chainId);
+
+        _deployBinanceHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runSpectraExchange(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Spectra Exchange Hooks on chainId: ", chainId);
@@ -426,6 +439,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (otherHooksConfiguration.odosRouterV3s[chainId] != address(0)) {
             console2.log("Deploying Odos V3 Hooks on chainId: ", chainId);
             _deployOdosV3Hooks(chainId, env);
+        }
+
+        // Binance DEX router hook — BSC only; gated on the configured router
+        if (otherHooksConfiguration.binanceRouters[chainId] != address(0)) {
+            console2.log("Deploying Binance Hooks on chainId: ", chainId);
+            _deployBinanceHooks(chainId, env);
         }
 
         // SuperVault cap-bridge hooks — self-gated on superVaultGovernors (skips until configured)
@@ -1080,6 +1099,35 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("All Algebra Integral hooks deployed and validated successfully.");
 
         return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        BINANCE HOOKS DEPLOYMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploys ApproveAndSwapBinanceHook (SUP-21203). No plain Swap variant exists by design:
+    ///         the router calldata is opaque, so the allowance must be scoped to each execution.
+    function _deployBinanceHooks(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (BinanceHookAddresses memory hookAddresses)
+    {
+        address router = otherHooksConfiguration.binanceRouters[chainId];
+        uint256 cap = otherHooksConfiguration.binanceMaxInputAmounts[chainId];
+        require(router.code.length > 0, "BINANCE_ROUTER_NOT_DEPLOYED");
+        require(cap != 0, "BINANCE_MAX_INPUT_AMOUNT_NOT_SET");
+
+        hookAddresses.approveAndSwapBinanceHook = __deployContract(
+            APPROVE_AND_SWAP_BINANCE_HOOK_KEY,
+            chainId,
+            __getSalt(APPROVE_AND_SWAP_BINANCE_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapBinanceHook", env), abi.encode(router, cap))
+        );
+        require(hookAddresses.approveAndSwapBinanceHook != address(0), "ApproveAndSwapBinanceHook not assigned");
+
+        console2.log("ApproveAndSwapBinanceHook deployed at:", hookAddresses.approveAndSwapBinanceHook);
     }
 
     /*//////////////////////////////////////////////////////////////

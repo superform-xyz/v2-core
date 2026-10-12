@@ -115,6 +115,7 @@ import { SwapOdosV3Hook } from "../../../src/hooks/swappers/odos/SwapOdosV3Hook.
 import { ApproveAndSwapOdosV3Hook } from "../../../src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol";
 import { SwapKyberSwapHook } from "../../../src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol";
 import { ApproveAndSwapKyberSwapHook } from "../../../src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol";
+import { ApproveAndSwapBinanceHook } from "../../../src/hooks/swappers/binance/ApproveAndSwapBinanceHook.sol";
 import { SwapSparkPSMExactInHook } from "../../../src/hooks/swappers/spark-psm/SwapSparkPSMExactInHook.sol";
 import {
     ApproveAndSwapSparkPSMExactInHook
@@ -271,6 +272,7 @@ contract HookSizingInterfaceTest is Helpers {
     ApproveAndSwapOdosV3Hook approveSwapOdosV3;
     SwapKyberSwapHook swapKyber;
     ApproveAndSwapKyberSwapHook approveSwapKyber;
+    ApproveAndSwapBinanceHook approveSwapBinance;
     SwapSparkPSMExactInHook swapSparkIn;
     ApproveAndSwapSparkPSMExactInHook approveSwapSparkIn;
     SwapSparkPSMExactOutHook swapSparkOut;
@@ -424,6 +426,7 @@ contract HookSizingInterfaceTest is Helpers {
         approveSwapOdosV3 = new ApproveAndSwapOdosV3Hook(DUMMY_ROUTER);
         swapKyber = new SwapKyberSwapHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
         approveSwapKyber = new ApproveAndSwapKyberSwapHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
+        approveSwapBinance = new ApproveAndSwapBinanceHook(DUMMY_ROUTER, 1);
         swapSparkIn = new SwapSparkPSMExactInHook(DUMMY_ROUTER);
         approveSwapSparkIn = new ApproveAndSwapSparkPSMExactInHook(DUMMY_ROUTER);
         swapSparkOut = new SwapSparkPSMExactOutHook(DUMMY_ROUTER);
@@ -588,6 +591,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(fluidClaim.supportsInterface(outflowId));
         assertTrue(merklClaim.supportsInterface(inflowOutflowId));
         assertTrue(batchTransfer.supportsInterface(inflowOutflowId));
+        assertTrue(approveSwapBinance.supportsInterface(inflowOutflowId));
 
         // Loan hooks
         assertTrue(morphoSupply.supportsInterface(inflowOutflowId));
@@ -759,6 +763,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_AmountRoles_Sizeless_CommitmentBound() public view {
         assertEq(batchTransfer.amountRoles("").length, 0);
+        assertEq(approveSwapBinance.amountRoles("").length, 0);
         assertEq(claimAssetsDETH.amountRoles("").length, 0);
         assertEq(claimWithdrawFirelight.amountRoles("").length, 0);
     }
@@ -1018,6 +1023,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(yearnClaim.decodeAmounts("").length, 0);
         assertEq(merklClaim.decodeAmounts("").length, 0);
         assertEq(batchTransfer.decodeAmounts("").length, 0);
+        assertEq(approveSwapBinance.decodeAmounts("").length, 0);
     }
 
     /// @dev ClaimAssetsDETH and ClaimWithdrawFirelight are decode-only:
@@ -1069,6 +1075,11 @@ contract HookSizingInterfaceTest is Helpers {
     function test_Sizeless_ReplaceCalldataAmounts_RevertsNonEmpty_YearnClaim() public {
         vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
         yearnClaim.replaceCalldataAmounts("", _singleAmount(1));
+    }
+
+    function test_Sizeless_ReplaceCalldataAmounts_RevertsNonEmpty_ApproveSwapBinance() public {
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        approveSwapBinance.replaceCalldataAmounts("", _singleAmount(1));
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -141,5 +141,27 @@ abstract contract ConstantsOtherHooks {
     string internal constant APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY =
         "ApproveAndHyperCoreDepositUsdcPerpHook";
 
+    // ── Binance Web3 Trading API DEX router (SUP-21203)
+    // ─────────────────────────────────
+    /// @dev LiquidMesh router: an EIP-2535 diamond (owner 0x1c6F8a6D1011Ca0334F6f8F5E2f9222eF1b68Fa9,
+    ///      6 facets, swap facet 0xa9fA1b56…9603 at selector 0xad43f73d; unknown selectors revert).
+    ///      Confirmed by us on-chain 2026-10-12 (SUP-21203): within a ~2h window at BSC block ~127.19M
+    ///      the diamond emitted events in 366 txs, at least 10 of which moved USDT against AAPLB/NVDAB,
+    ///      including a direct 0xad43f73d call (tx 0xa618621b…f6f1d4cd). Public integrations
+    ///      (binance-web3-connector-js#7, ottopus#55) show the same address as the /swap `to`/`approveTarget`,
+    ///      and the live E2E test asserts API `to` == this constant whenever API credentials are present.
+    ///      The spec's earlier candidate 0xb300000b72DEAEb607a12d5f54773D1C19c7028d is the generic
+    ///      "Binance: DEX Router" dispatcher (different owner) and is NOT what LiquidMesh returns.
+    ///      Pinning the address does not pin the code (mutable diamond; see hook NatSpec).
+    address internal constant BINANCE_DEX_ROUTER_BNB = 0xB44446b0c8E56988c34f7Ff73Ae904982b5FdDA5;
+    /// @dev Per-execution inputAmount ceiling, RAW units of the expected input token. The SuperMAG7 input
+    ///      asset is Binance-Peg USDT on BSC (`0x55d398326f99059fF775485246999027B3197955`, 18 dec), so this
+    ///      is 10,000,000 USDT per execution — a fat-finger guard, not a risk limit (set 2026-10-12).
+    ///      Immutable: changing it is a redeploy + strategy root update. The cap is token-agnostic on-chain;
+    ///      a leaf for a 6-decimal input token would make it 1e12x looser.
+    uint256 internal constant BINANCE_MAX_INPUT_AMOUNT_BNB = 10_000_000e18;
+
+    string internal constant APPROVE_AND_SWAP_BINANCE_HOOK_KEY = "ApproveAndSwapBinanceHook";
+
     // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }

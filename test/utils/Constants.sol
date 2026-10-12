@@ -39,6 +39,7 @@ abstract contract Constants {
     uint64 public constant ETH = 1;
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
+    uint64 public constant BNB = 56;
 
     uint256 public constant ETH_BLOCK = 21_929_476;
     /// @dev Pin for suites that exercise the LIVE SuperUSDC strategy / aggregator (deployed after ETH_BLOCK)
@@ -55,6 +56,7 @@ abstract contract Constants {
     string public constant ETHEREUM_RPC_URL_KEY = "ETHEREUM_RPC_URL"; // Native token: ETH
     string public constant OPTIMISM_RPC_URL_KEY = "OPTIMISM_RPC_URL"; // Native token: ETH
     string public constant BASE_RPC_URL_KEY = "BASE_RPC_URL"; // Native token: ETH
+    string public constant BSC_RPC_URL_KEY = "BSC_RPC_URL"; // Native token: BNB
 
     // api keys
     string public constant ONE_INCH_API_KEY = "ONE_INCH_API_KEY";
@@ -187,7 +189,17 @@ abstract contract Constants {
 
     address public constant CHAIN_8453_DAI = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
     address public constant CHAIN_8453_USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+
     address public constant CHAIN_8453_WETH = 0x4200000000000000000000000000000000000006;
+
+    // BSC (chain 56) — SuperMAG7 / Binance DEX router hook
+    // Binance-Peg BSC-USD (Tether USD), 18 dec
+    address public constant CHAIN_56_USDT = 0x55d398326f99059fF775485246999027B3197955;
+    address public constant CHAIN_56_AAPLB = 0x431a3BEE82E2ca41e49895CbECE5bB0F76A89b7A; // bStock, 18 dec
+    address public constant CHAIN_56_NVDAB = 0x02Fca66C1D1aFB4E2A7884261eB00F63598a7436; // bStock, 18 dec
+    // LiquidMesh router (EIP-2535 diamond). Confirmed on-chain 2026-10-12: executes USDT<->bStock swaps
+    // (see ConstantsOtherHooks.BINANCE_DEX_ROUTER_BNB for the evidence).
+    address public constant CHAIN_56_BINANCE_LIQUIDMESH_ROUTER = 0xB44446b0c8E56988c34f7Ff73Ae904982b5FdDA5;
 
     // permit2
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
