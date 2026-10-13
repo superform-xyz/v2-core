@@ -25,6 +25,7 @@ Total: **120 hooks**
 | ApproveAndStargateSendHook | Approve and Stargate Bridge | Approves and bridges tokens via Stargate |
 | ApproveAndStargateSendHookV2 | Approve and Stargate Bridge V2 | Approves and bridges tokens via Stargate V2 |
 | ApproveAndSwapAlgebraIntegralHook | Approve and Swap Algebra Integral | Approves and swaps tokens via Algebra Integral DEX |
+| ApproveAndSwapBinanceHook | Approve and Swap Binance | Approves and swaps tokens via the Binance Web3 Trading API DEX router |
 | ApproveAndSwapKyberSwapHook | Approve and Swap KyberSwap | Approves and swaps tokens via KyberSwap aggregator |
 | ApproveAndSwapOdosV2Hook | Approve and Swap Odos V2 | Approves and swaps tokens via Odos V2 aggregator |
 | ApproveAndSwapOdosV3Hook | Approve and Swap Odos V3 | Approves and swaps tokens via Odos V3 aggregator |

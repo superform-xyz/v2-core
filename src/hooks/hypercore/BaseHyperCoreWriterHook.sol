@@ -88,10 +88,22 @@ abstract contract BaseHyperCoreWriterHook is BaseHook, ISuperHookInflowOutflow {
         });
     }
 
-    /// @dev Side-effect only hooks — auto-forward the previous hook's outAmount and outToken.
-    ///      A CoreWriter action produces nothing EVM-observable, so there is no delta to measure.
-    ///      Not virtual: no leaf may regress to TRANSFORM.
-    function _pipeMode() internal pure override returns (PipeMode) {
+    /// @dev DEFAULT: side-effect only — auto-forward the previous hook's outAmount and outToken. A
+    ///      CoreWriter action produces nothing EVM-observable, so there is no delta to measure, and a leaf
+    ///      that genuinely changes nothing about the value in flight is right to stay transparent.
+    /// @dev A LEAF THAT MOVES VALUE MUST OVERRIDE THIS WITH `TRANSFORM`, and the two that do
+    ///      (`HyperCoreSendAssetHook`, `HyperCoreUsdClassTransferHook`) explain why at the override.
+    ///      `PASSTHROUGH` is a CLAIM — "the upstream amount still describes the value in flight" — and for
+    ///      a hook that has just moved assets onto HyperCore that claim is false: the upstream figure
+    ///      describes a balance the account no longer has. Forwarding it hands the next hook a stale number
+    ///      that looks plausible, so `Hook1 -> SendAsset -> Hook3(usePrevHookAmount = true)` silently
+    ///      operated on Hook1's amount. `TRANSFORM` makes `BaseHook._preExecute` write nothing, so such a
+    ///      consumer reads 0 and the chain fails instead of proceeding on a stale figure.
+    ///      This was previously NOT virtual, on the reasoning that "no leaf may regress to TRANSFORM".
+    ///      That holds for a leaf which moves nothing; for one that does, `TRANSFORM` is not a regression
+    ///      but the only honest answer, since the amount it moved is in HyperCore units and can never be
+    ///      published into an EVM-scale `outAmount`.
+    function _pipeMode() internal pure virtual override returns (PipeMode) {
         return PipeMode.PASSTHROUGH;
     }
 

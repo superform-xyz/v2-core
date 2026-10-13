@@ -44,9 +44,22 @@ import { AaveV4ReserveOracle } from "../../../../src/accounting/oracles/AaveV4Re
 ///         via `AaveV4ReserveKey.requireHeaderKey`) and the V1 registry. Adding `computeMarketKey` to
 ///         `AaveV4ReserveKey` moved neither: being `internal` and unreferenced by them it is
 ///         dead-code-eliminated, which `test_LoanV1_BytecodePinned` proves empirically.
-///         The previously deployed addresses stay live for roots signed under the old rules; a NEW address
-///         paired with an old header reverts (`MARKET_KEY_MISMATCH` for a stale key, `INVALID_DATA_LENGTH`
-///         for a stale 157-byte idle body) — fail-closed in both directions, never fail-open.
+///         SUP-21263 then re-pinned the idle pair AGAIN: its layout shrank 189 -> 157 bytes (the appended
+///         `borrowReserveId` deleted, offset 92 reinterpreted as `targetReserveId`, which may be EITHER leg
+///         of the header market) and it gained ONE constructor argument — the registry it resolves market
+///         keys through, the first constructor dependency in this hook family. The six V2 LOAN hooks keep
+///         their 241-byte layout and take no registry, which `test_LoanV2_BytecodePinned` /
+///         `test_LoanV2Standalone_BytecodePinned` prove by staying green untouched.
+///         The previously deployed addresses stay live for roots signed under the old rules. FAIL-CLOSED IN
+///         ALL FOUR DIRECTIONS — and note that after SUP-21263 the idle length 157 is AGAIN the length the
+///         pre-SUP-21254 revision used, so length alone no longer separates them; the HEADER does:
+///           - stale 157-byte reserve-keyed body -> new hook: `MARKET_NOT_REGISTERED` (a reserve key can
+///             never be registered as a market — the registry's own `KEY_NAMESPACE_COLLISION` guard — so
+///             this cannot fail open);
+///           - new 157-byte market-keyed body -> pre-SUP-21254 hook: `RESERVE_KEY_MISMATCH`;
+///           - new 157-byte body -> SUP-21254 189-byte hook: `INVALID_DATA_LENGTH`;
+///           - stale 189-byte body -> new hook: `INVALID_DATA_LENGTH`.
+///         For the LOAN hooks a stale key still reverts `MARKET_KEY_MISMATCH`.
 contract AaveV4LoanBytecodeUnchangedTest is Helpers {
     function _locked(string memory name) internal returns (bytes32) {
         return keccak256(vm.getCode(string(abi.encodePacked("script/locked-bytecode/", name, ".json"))));
@@ -122,7 +135,8 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         assertEq(keccak256(type(AaveV4RepayAndWithdrawHookV2).creationCode), _locked("AaveV4RepayAndWithdrawHookV2"));
     }
 
-    /// @dev All three directories, not just `locked-bytecode/`: SUP-21254 moved this pair, and a re-pin that
+    /// @dev All three directories, not just `locked-bytecode/`: SUP-21254 and then SUP-21263 moved this
+    ///      pair, and a re-pin that
     ///      updated prod but forgot `generated` or `locked-bytecode-dev` would leave this suite green while a
     ///      vnet/staging run deployed different code. (The idle pair deploys via `DeployV2OtherHooks`, which
     ///      hardcodes `locked-bytecode/` for every env — so the dev copy is belt-and-braces for this family,
@@ -160,8 +174,9 @@ contract AaveV4LoanBytecodeUnchangedTest is Helpers {
         for (uint256 i; i < loan.length; ++i) {
             assertEq(uint256(BaseHook(loan[i]).hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         }
-        assertEq(uint256(new AaveV4LendHook().hookType()), uint256(ISuperHook.HookType.INFLOW));
-        assertEq(uint256(new AaveV4RedeemHook().hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        // SUP-21263: a nonzero registry is all the constructor requires; this test only reads hookType.
+        assertEq(uint256(new AaveV4LendHook(address(0xA4E4)).hookType()), uint256(ISuperHook.HookType.INFLOW));
+        assertEq(uint256(new AaveV4RedeemHook(address(0xA4E4)).hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
     function test_LoanV2Standalone_BytecodePinned() public {

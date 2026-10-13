@@ -62,6 +62,95 @@ contract SeedHarness is ConfigureAaveV4ReserveRegistry {
         return _defaultLoanReserveId(chainId);
     }
 
+    /// @dev Registers a market on the registry DIRECTLY, bypassing `_registerOneMarket`'s guards. This is
+    ///      how an ambiguous configuration can really arise — a manager calling the registry rather than
+    ///      this script — and it is the only way to build the pre-existing state the check path must reject.
+    function registerMarketRaw(
+        AaveV4ReserveRegistryV2 registry,
+        address spoke,
+        uint256 supplyId,
+        uint256 borrowId
+    )
+        external
+        returns (address)
+    {
+        return registry.registerMarket(spoke, supplyId, borrowId);
+    }
+
+    function printIdleCanonicality(AaveV4ReserveRegistryV2 registry, address spoke) external view returns (uint256) {
+        return _printIdleCanonicality(registry, spoke);
+    }
+
+    function idleSettlementCandidates(
+        AaveV4ReserveRegistryV2 registry,
+        address spoke,
+        uint256 reserveId
+    )
+        external
+        view
+        returns (uint256)
+    {
+        return _idleSettlementCandidates(registry, spoke, reserveId);
+    }
+
+    function idleSettlementMarket(
+        uint64 chainId,
+        address spoke,
+        uint256 reserveId,
+        AaveV4ReserveRegistryV2 registry
+    )
+        external
+        view
+        returns (address)
+    {
+        return _idleSettlementMarket(chainId, spoke, reserveId, registry);
+    }
+
+    function assertIdleSettlementDesignated(
+        AaveV4ReserveRegistryV2 registry,
+        uint64 chainId,
+        address spoke,
+        uint256 reserveId
+    )
+        external
+        view
+    {
+        _assertIdleSettlementDesignated(registry, chainId, spoke, reserveId);
+    }
+
+    function printIdleSettlement(
+        AaveV4ReserveRegistryV2 registry,
+        uint64 chainId,
+        address spoke
+    )
+        external
+        view
+        returns (uint256)
+    {
+        return _printIdleSettlement(registry, chainId, spoke);
+    }
+
+    /// @dev The printer `runCheckAll` actually calls, so a test can prove the section is reachable.
+    function printMarketStatus(
+        AaveV4ReserveRegistryV2 registry,
+        uint64 chainId,
+        address spoke
+    )
+        external
+        view
+        returns (uint256)
+    {
+        return _printMarketStatus(registry, chainId, spoke);
+    }
+
+    function proposeDropMarket(AaveV4ReserveRegistryV2 registry, address marketKey) external {
+        registry.proposeDeregisterMarket(marketKey);
+    }
+
+    function executeDropMarket(AaveV4ReserveRegistryV2 registry, address marketKey) external {
+        registry.executeDeregisterMarket(marketKey);
+    }
+
     function noLoanReserve() external pure returns (uint256) {
         return NO_LOAN_RESERVE;
     }
@@ -349,6 +438,229 @@ contract ConfigureAaveV4ReserveRegistryTest is Test {
 
         harness.seedMarkets(registry, uint64(block.chainid), spoke);
         harness.assertFullyConfigured(registry, uint64(block.chainid), spoke); // now passes
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       F1 (PR #1025 review, P2): COLLATERAL_LEG_CLAIMED_TWICE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The exact revert string, so a test cannot pass against a differently-named guard.
+    bytes internal constant CLAIMED_TWICE =
+        bytes("COLLATERAL_LEG_CLAIMED_TWICE: reserve is the supply leg of two markets, idle identity is ambiguous");
+
+    /// @notice THE FINDING. The idle MONEY_MARKET pair's ledger key is the MARKET key, resolved to the
+    ///         market's collateral leg — so a reserve claimed as the supply leg of two markets gives one
+    ///         Aave position two accepted ledger identities. The seeder must refuse the second claim.
+    ///         Reserve 0 is already AAPLc/USDC's collateral after `seedMarkets`; pairing it against another
+    ///         stock would claim it a second time.
+    function test_RegisterOne_RevertIf_CollateralLegAlreadyClaimed() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        assertEq(registry.marketRefs(registry.computeReserveKey(spoke, 0)), 1, "claimed exactly once");
+
+        vm.expectRevert(CLAIMED_TWICE);
+        harness.registerOne(registry, spoke, 0, 1);
+    }
+
+    /// @notice The SHARED LOAN LEG stays legal. All seven Base equity markets borrow USDC, so the USDC DEBT
+    ///         key's refcount is 7 by design — the guard constrains SUPPLY legs only, and a test that
+    ///         confused the two would break the live configuration.
+    function test_SeedMarkets_SharedLoanLegIsNotAViolation() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+
+        uint256 loanId = harness.loanReserveId(uint64(block.chainid));
+        assertEq(
+            registry.marketRefs(registry.computeDebtKey(spoke, loanId)),
+            MAG7_LISTED_RESERVES - 1,
+            "every equity market claims the one USDC debt leg"
+        );
+        assertEq(harness.printIdleCanonicality(registry, spoke), 0, "and that is not an ambiguity");
+    }
+
+    /// @notice CHECKING an already-ambiguous registry fails too. The ambiguity is built the way it would
+    ///         really happen — a manager registering on the registry directly, outside this script — and the
+    ///         verification gate must reject it rather than inherit it.
+    function test_AssertFullyConfigured_RevertIf_CollateralLegClaimedTwice() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        harness.assertFullyConfigured(registry, uint64(block.chainid), spoke); // canonical: passes
+
+        harness.registerMarketRaw(registry, spoke, 0, 1); // out-of-band second claim on reserve 0
+        assertEq(registry.marketRefs(registry.computeReserveKey(spoke, 0)), 2, "ambiguity now exists");
+
+        vm.expectRevert(CLAIMED_TWICE);
+        harness.assertFullyConfigured(registry, uint64(block.chainid), spoke);
+    }
+
+    /// @notice And an idempotent RE-RUN rejects it. Re-running is the normal way to use this script, so the
+    ///         already-registered branch must assert the binding instead of skipping — which is precisely
+    ///         the hole the review found: before the fix a rerun over an ambiguous registry reported
+    ///         "all skipped as already registered" and exited 0.
+    function test_SeedMarkets_RerunRejectsAnAmbiguityIntroducedOutOfBand() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        harness.registerMarketRaw(registry, spoke, 0, 1);
+
+        vm.expectRevert(CLAIMED_TWICE);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+    }
+
+    /// @notice The read-only audit reports the violation as a non-zero count, which is what makes
+    ///         `runCheckAll` revert after printing the diagnostic rather than blessing the registry.
+    function test_PrintIdleCanonicality_CountsTheOverClaimedReserve() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        assertEq(harness.printIdleCanonicality(registry, spoke), 0, "canonical to begin with");
+
+        harness.registerMarketRaw(registry, spoke, 0, 1);
+        assertEq(harness.printIdleCanonicality(registry, spoke), 1, "one reserve over-claimed");
+    }
+
+    /// @notice A reserve with NO market is not a violation: `<= 1`, not `== 1`. Freshly seeded reserves are
+    ///         simply not idle-lendable yet, and failing on that would make the gate unreachable.
+    function test_PrintIdleCanonicality_UnclaimedReserveIsFine() public {
+        harness.seed(registry, spoke);
+        assertEq(registry.marketRefs(registry.computeReserveKey(spoke, 0)), 0, "no market yet");
+        assertEq(harness.printIdleCanonicality(registry, spoke), 0, "zero claims is not ambiguous");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       SUP-21263: IDLE SETTLEMENT DESIGNATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The designation error strings, so a test cannot pass against a differently-named guard.
+    bytes internal constant UNDESIGNATED = bytes("IDLE_SETTLEMENT_UNDESIGNATED: reserve settles under many markets");
+
+    /// @notice WHY THIS GUARD EXISTS. After SUP-21263 the idle hooks accept EITHER leg of the header market,
+    ///         so the shared USDC loan reserve can settle an idle position under any of the seven equity
+    ///         markets — seven SuperLedger identities for one physical position, and a cross-market redeem
+    ///         strands the first accumulator. The supply legs are already unique (`marketRefs <= 1`); this
+    ///         pins that the loan leg is the one with many candidates, which is what needs designating.
+    function test_IdleSettlement_SharedLoanLegHasManyCandidates() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        uint256 loanId = harness.loanReserveId(uint64(block.chainid));
+
+        assertEq(
+            harness.idleSettlementCandidates(registry, spoke, loanId),
+            MAG7_LISTED_RESERVES - 1,
+            "every equity market is a candidate settlement key for the loan reserve"
+        );
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            if (id == loanId) continue;
+            assertEq(
+                harness.idleSettlementCandidates(registry, spoke, id),
+                1,
+                "an equity reserve belongs to exactly one market, so there is nothing to choose"
+            );
+        }
+    }
+
+    /// @notice The curated designation resolves to a REGISTERED market that really names the reserve, for
+    ///         every listed reserve — including the shared loan leg.
+    function test_IdleSettlement_DesignationIsRegisteredAndNamesTheReserve() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        uint64 chainId = uint64(block.chainid);
+
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            address designated = harness.idleSettlementMarket(chainId, spoke, id, registry);
+            assertTrue(designated != address(0), "every listed reserve has a designation on Base");
+            assertTrue(registry.isMarketRegistered(designated), "and it is registered");
+            (, uint256 supplyId, uint256 borrowId,,) = registry.getMarketInfo(designated);
+            assertTrue(id == supplyId || id == borrowId, "and the reserve really is one of its legs");
+            // and it is STABLE across calls - ops signs against this value
+            assertEq(designated, harness.idleSettlementMarket(chainId, spoke, id, registry));
+        }
+    }
+
+    /// @notice The gate passes on the real curated topology and reports no ambiguity.
+    function test_IdleSettlement_CuratedBaseTopologyPasses() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        uint64 chainId = uint64(block.chainid);
+
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            harness.assertIdleSettlementDesignated(registry, chainId, spoke, id);
+        }
+        assertEq(harness.printIdleSettlement(registry, chainId, spoke), 0, "no undesignated reserve");
+        harness.assertFullyConfigured(registry, chainId, spoke);
+    }
+
+    /// @notice A reserve with NO market needs no designation — `<= 1` candidates means there is nothing to
+    ///         choose between, so the gate must not fail a freshly seeded registry.
+    function test_IdleSettlement_NoMarketsNeedsNoDesignation() public {
+        harness.seed(registry, spoke);
+        uint64 chainId = uint64(block.chainid);
+        for (uint256 id; id < MAG7_LISTED_RESERVES; ++id) {
+            assertEq(harness.idleSettlementCandidates(registry, spoke, id), 0, "no markets yet");
+            harness.assertIdleSettlementDesignated(registry, chainId, spoke, id);
+        }
+        assertEq(harness.printIdleSettlement(registry, chainId, spoke), 0);
+    }
+
+    /// @notice AMBIGUITY ON A CHAIN WITH NO DESIGNATION TABLE: the SEEDING gate warns and continues, while
+    ///         the AUDIT reports a violation. That split is deliberate. Requiring a designation during
+    ///         `configureAll` would be a trap on such a chain: this script registers no markets there
+    ///         (`_seedMarkets` returns early), so the ambiguity can only have come from a manual
+    ///         `registerMarket`, and reverting would permanently block the RESERVE seeding `configureAll` is
+    ///         still needed for — with no table an operator could fill. The audit is the right gate because
+    ///         failing it blocks nothing.
+    /// @dev Simulated by asking about a non-Base chain id, where `_defaultLoanReserveId` returns the
+    ///      sentinel. Exactly the state an operator is in on a spoke whose pairs are a strategy decision.
+    function test_IdleSettlement_UncuratedChain_SeedingWarnsButAuditFails() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        uint256 loanId = harness.loanReserveId(uint64(block.chainid));
+        assertGt(harness.idleSettlementCandidates(registry, spoke, loanId), 1, "many candidates exist");
+
+        uint64 uncuratedChain = 42_161; // Arbitrum: no curated market set, hence no designation
+        assertEq(harness.idleSettlementMarket(uncuratedChain, spoke, loanId, registry), address(0));
+
+        // seeding is NOT blocked...
+        harness.assertIdleSettlementDesignated(registry, uncuratedChain, spoke, loanId);
+        // ...but the audit counts it, which is what makes `runCheckAll` revert
+        assertGt(harness.printIdleSettlement(registry, uncuratedChain, spoke), 0, "the audit reports it");
+    }
+
+    /// @notice And the audit section is REACHABLE on an uncurated chain. An earlier version returned from
+    ///         `_printMarketStatus` before `_printIdleSettlement` when the chain had no curated loan
+    ///         reserve — so the one chain where the designation is not curated was also the one chain whose
+    ///         audit never mentioned it. This pins that the count propagates.
+    function test_IdleSettlement_AuditSectionIsReachableWithoutACuratedLoanReserve() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+
+        uint64 uncuratedChain = 42_161;
+        uint256 viaMarketStatus = harness.printMarketStatus(registry, uncuratedChain, spoke);
+        assertGt(viaMarketStatus, 0, "the violation surfaces through the printer runCheckAll actually calls");
+        assertEq(
+            viaMarketStatus,
+            harness.printIdleCanonicality(registry, spoke)
+                + harness.printIdleSettlement(registry, uncuratedChain, spoke),
+            "and it is the sum of both idle-identity checks"
+        );
+    }
+
+    /// @notice A designation that exists but does NOT name the reserve is still rejected outright — the
+    ///         warn-and-continue path above applies ONLY to "no table for this chain", never to a wrong one.
+    function test_IdleSettlement_RevertIf_DesignationDoesNotNameTheReserve() public {
+        harness.seed(registry, spoke);
+        harness.seedMarkets(registry, uint64(block.chainid), spoke);
+        uint64 chainId = uint64(block.chainid);
+        uint256 loanId = harness.loanReserveId(chainId);
+
+        // Drop the designated market (0, loanId) so the designation resolves to an UNREGISTERED key while
+        // reserve 7 still has six other candidates.
+        address designated = harness.idleSettlementMarket(chainId, spoke, loanId, registry);
+        harness.proposeDropMarket(registry, designated);
+        vm.warp(block.timestamp + 2 days + 1);
+        harness.executeDropMarket(registry, designated);
+        assertFalse(registry.isMarketRegistered(designated), "designation is now unregistered");
+
+        vm.expectRevert(bytes("IDLE_SETTLEMENT_MARKET_NOT_REGISTERED"));
+        harness.assertIdleSettlementDesignated(registry, chainId, spoke, loanId);
     }
 
     /// @notice Only Base has a curated market set. Other chains' pairs are a strategy decision, so

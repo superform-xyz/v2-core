@@ -1,5 +1,5 @@
 # Hook Classification Manifest
-# Canonical intent x stage classification for all 161 hooks in v2-core
+# Canonical intent x stage classification for all 167 hooks in v2-core
 # CI-linted against on-chain hookType via scripts/lint_hook_manifest.py
 #
 # Design invariants:
@@ -247,7 +247,7 @@ hooks:
     legSizing: []  # sizeless — vested amount from contract state
 
   # ============================================================
-  # SWAP (31 hooks) — all instant stage
+  # SWAP (32 hooks) — all instant stage
   # ============================================================
 
   # Uniswap V3
@@ -306,6 +306,11 @@ hooks:
   ApproveAndSwapKyberSwapHook:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
+
+  # Binance DEX router (opaque calldata, no scaler)
+  ApproveAndSwapBinanceHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: []  # sizeless — spend amount committed inside router calldata; header inputAmount is the allowance bound only
 
   # Spark PSM
   SwapSparkPSMExactInHook:

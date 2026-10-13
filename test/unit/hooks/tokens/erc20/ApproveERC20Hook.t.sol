@@ -76,7 +76,9 @@ contract ApproveERC20HookTest is Helpers {
 
         token = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), abi.encodePacked(bytes(new bytes(52)), address(0), spender, amount, false));
+        hook.build(
+            address(0), address(this), abi.encodePacked(bytes(new bytes(52)), address(0), spender, amount, false)
+        );
 
         token = _token;
         spender = address(0);
@@ -150,5 +152,82 @@ contract ApproveERC20HookTest is Helpers {
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(bytes(new bytes(52)), token, spender, amount, usePrev);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+        usePrevHookAmount GOVERNS WHAT IS REPORTED ONWARD, NOT JUST
+        THE ALLOWANCE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice THE BEHAVIOUR CHANGE. With the flag false, the hook reports its OWN amount onward rather
+    ///         than forwarding the previous hook's. Before this change it forwarded regardless, so a
+    ///         downstream hook with `usePrevHookAmount = true` read the upstream figure and the flag
+    ///         looked ignored from the consumer's side.
+    function test_PreExecute_UsePrevFalse_ReportsOwnAmount() public {
+        address prev = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(prev).setOutAmount(777, address(this));
+
+        hook.setExecutionContext(address(this));
+        hook.preExecute(prev, address(this), _encodeData(false));
+
+        assertEq(hook.getOutAmount(address(this)), amount, "must report its own allowance, not 777");
+        assertEq(hook.getOutToken(address(this)), token, "must report its own token");
+    }
+
+    /// @notice And with the flag true it still forwards, which is what keeps a mid-chain approve
+    ///         transparent for chains that legitimately want the upstream figure.
+    function test_PreExecute_UsePrevTrue_StillForwards() public {
+        address prev = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(prev).setOutAmount(777, address(this));
+
+        hook.setExecutionContext(address(this));
+        hook.preExecute(prev, address(this), _encodeData(true));
+
+        assertEq(hook.getOutAmount(address(this)), 777, "must forward the upstream amount");
+    }
+
+    /// @notice Position 0 is unchanged, and is now the SAME branch as `usePrevHookAmount = false` —
+    ///         the two positions no longer disagree about what this hook reports.
+    function test_PreExecute_PositionZero_MatchesUsePrevFalse() public {
+        hook.setExecutionContext(address(this));
+        hook.preExecute(address(0), address(this), _encodeData(false));
+        uint256 atZero = hook.getOutAmount(address(this));
+
+        address prev = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(prev).setOutAmount(777, address(this));
+        hook.setExecutionContext(address(this));
+        hook.preExecute(prev, address(this), _encodeData(false));
+
+        assertEq(atZero, hook.getOutAmount(address(this)), "position must not change what is reported");
+        assertEq(atZero, amount);
+    }
+
+    /// @notice THE REGRESSION THIS FIXES. A chain whose source reports no output (a multi-token
+    ///         `BatchTransferHook` reports 0, indistinguishable from a real zero) no longer propagates
+    ///         that 0 through an approve configured with its own amount.
+    function test_PreExecute_OutputlessSourceNoLongerZeroesTheChain() public {
+        address outputlessSource = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(outputlessSource).setOutAmount(0, address(this));
+
+        hook.setExecutionContext(address(this));
+        hook.preExecute(outputlessSource, address(this), _encodeData(false));
+
+        assertEq(hook.getOutAmount(address(this)), amount, "a 0 source must no longer zero the chain");
+    }
+
+    /// @notice THE TRADE-OFF, pinned rather than left in a comment. An allowance is an upper bound, not
+    ///         a quantity held, so a downstream consumer can now inherit a figure this account does not
+    ///         have. The hook reports the allowance faithfully; whether the balance covers it is the
+    ///         caller's responsibility, and it is the one way this change can break a chain that worked
+    ///         before. If this assertion ever needs to change, the trade-off is being revisited.
+    function test_PreExecute_UsePrevFalse_ReportsOwnAmount_AllowanceAboveBalanceIsCallersProblem() public {
+        address prev = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(prev).setOutAmount(777, address(this)); // what the account actually received
+
+        hook.setExecutionContext(address(this));
+        hook.preExecute(prev, address(this), _encodeData(false)); // allowance 1000
+
+        assertEq(hook.getOutAmount(address(this)), 1000, "reports the allowance, not the 777 held");
+        assertTrue(hook.getOutAmount(address(this)) > 777, "downstream now inherits more than is held");
     }
 }

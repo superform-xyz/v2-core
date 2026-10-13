@@ -228,6 +228,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "APPROVE_AND_SWAP_BINANCE_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"

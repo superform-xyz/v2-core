@@ -23,6 +23,8 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address hyperCoreUsdc) hyperCoreUsdcs;
         mapping(uint64 chainId => address hyperCoreUsdcGateway) hyperCoreUsdcGateways;
         mapping(uint64 chainId => address superVaultGovernor) superVaultGovernors;
+        mapping(uint64 chainId => address binanceRouter) binanceRouters;
+        mapping(uint64 chainId => uint256 maxInputAmount) binanceMaxInputAmounts;
     }
 
     OtherHooksData internal otherHooksConfiguration;
@@ -70,6 +72,13 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.spectraRouters[SONIC_CHAIN_ID] = SPECTRA_ROUTER_SONIC;
         otherHooksConfiguration.spectraRouters[AVALANCHE_CHAIN_ID] = SPECTRA_ROUTER_AVALANCHE;
         otherHooksConfiguration.spectraRouters[HYPEREVM_CHAIN_ID] = SPECTRA_ROUTER_HYPEREVM;
+
+        // Binance DEX router — BSC only (SuperMAG7 USDT -> bStocks). Presence gates the family.
+        // Router confirmed on-chain by us 2026-10-12 (see BINANCE_DEX_ROUTER_BNB). The generic `run`
+        // path deploys the family on BSC whenever this row is set; clear it (or deploy only via
+        // TARGET_FAMILY=Binance) if the hook must not ship with a routine BSC run.
+        otherHooksConfiguration.binanceRouters[BNB_CHAIN_ID] = BINANCE_DEX_ROUTER_BNB;
+        otherHooksConfiguration.binanceMaxInputAmounts[BNB_CHAIN_ID] = BINANCE_MAX_INPUT_AMOUNT_BNB;
 
         // Odos V3 Router (same CREATE2 address on all EVM chains)
         otherHooksConfiguration.odosRouterV3s[MAINNET_CHAIN_ID] = ODOS_ROUTER_V3;

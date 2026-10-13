@@ -57,6 +57,8 @@ contract StargateHooksFork is Helpers {
     // LayerZero V2 Endpoint IDs
     uint32 public constant EID_ETHEREUM = 30_101;
     uint32 public constant EID_BASE = 30_184;
+    /// @dev Stargate `TokenMessaging.quoteRideBus` revert when a lane's bus fare is zero: `Bus_InvalidFare(bool)`
+    bytes4 public constant BUS_INVALID_FARE_SELECTOR = 0x5bc18190;
 
     /*//////////////////////////////////////////////////////////////
                                  STATE
@@ -269,7 +271,12 @@ contract StargateHooksFork is Helpers {
         console2.log("Successfully bridged", amountLD / 1e6, "USDC from ETH to Base via Stargate V2");
     }
 
-    /// @notice Test bus mode quote (should differ from taxi mode)
+    /// @notice Test bus mode quote against live Stargate state.
+    /// @dev Stargate can disable bus mode per lane by zeroing the bus fare in `TokenMessaging`; the quote
+    ///      then reverts `Bus_InvalidFare(bool)` from `quoteRideBus`. As of 2026-10 every lane out of
+    ///      Ethereum is in that state (bus queues empty), which broke this unpinned fork test on `dev`.
+    ///      The test now accepts exactly two outcomes: a valid bus quote (asserted non-zero and different
+    ///      from taxi) or precisely that revert. Any other revert still fails the test.
     function test_Fork_QuoteSend_BusMode() public view {
         uint256 amountLD = 1000e6;
 
@@ -294,14 +301,20 @@ contract StargateHooksFork is Helpers {
         });
 
         IStargate.MessagingFee memory taxiFee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(taxiParam, false);
-        IStargate.MessagingFee memory busFee = IStargate(STARGATE_USDC_POOL_ETH).quoteSend(busParam, false);
-
         console2.log("Taxi fee:", taxiFee.nativeFee);
-        console2.log("Bus fee:", busFee.nativeFee);
-
-        // Both should be valid fees
         assertGt(taxiFee.nativeFee, 0, "Taxi fee should be non-zero");
-        assertGt(busFee.nativeFee, 0, "Bus fee should be non-zero");
+
+        try IStargate(STARGATE_USDC_POOL_ETH).quoteSend(busParam, false) returns (
+            IStargate.MessagingFee memory busFee
+        ) {
+            console2.log("Bus fee:", busFee.nativeFee);
+            assertGt(busFee.nativeFee, 0, "Bus fee should be non-zero");
+            assertTrue(busFee.nativeFee != taxiFee.nativeFee, "Bus fee should differ from taxi fee");
+        } catch (bytes memory reason) {
+            // Bus lane disabled on the live fork: the only acceptable revert.
+            assertEq(bytes4(reason), BUS_INVALID_FARE_SELECTOR, "unexpected revert from bus-mode quoteSend");
+            console2.log("Bus mode disabled on this lane (Bus_InvalidFare); taxi quote verified only");
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

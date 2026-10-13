@@ -92,6 +92,8 @@ compatibleProtocols:
   # KyberSwap
   SwapKyberSwapHook: [kyberswap]
   ApproveAndSwapKyberSwapHook: [kyberswap]
+  # Binance
+  ApproveAndSwapBinanceHook: [binance]
   # Spark PSM
   SwapSparkPSMExactInHook: [spark-psm]
   ApproveAndSwapSparkPSMExactInHook: [spark-psm]
@@ -314,6 +316,7 @@ amountMeta:
   MintSuperPositionsHook: [{direction: IN, denomination: SHARES}]
   BurnSuperPositionsHook: [{direction: IN, denomination: SHARES}]
   # Sizeless (empty)
+  ApproveAndSwapBinanceHook: []
   FluidClaimRewardHook: []
   GearboxClaimRewardHook: []
   YearnClaimOneRewardHook: []
@@ -416,6 +419,7 @@ loanInterfaceHooks:
 
 # ── Sizeless hooks (no sizable legs) ─────────────────────────────────────────
 sizelessHooks:
+  - ApproveAndSwapBinanceHook
   - FluidClaimRewardHook
   - GearboxClaimRewardHook
   - YearnClaimOneRewardHook

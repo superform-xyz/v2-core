@@ -76,4 +76,25 @@ contract HyperCoreUsdClassTransferHook is BaseHyperCoreWriterHook {
     function inspect(bytes calldata) external view override returns (bytes memory) {
         return abi.encodePacked(CORE_WRITER);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PIPE MODE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice This hook MOVES VALUE, so it must not forward the previous hook's output.
+    /// @dev It moves USD between this account's spot and perp classes, which means the upstream `outAmount` no longer
+    /// describes what the account holds. Inheriting `PASSTHROUGH` from `BaseHyperCoreWriterHook` would copy that
+    ///      stale figure into this hook's slot, and a following hook with `usePrevHookAmount = true` would
+    ///      then operate on an amount that predates this transfer — silently, because the number looks
+    ///      plausible.
+    /// @dev `TRANSFORM` makes `BaseHook._preExecute` write nothing. This hook also sets no output of its
+    ///      own, because there is none to set: CoreWriter "never reverts, never validates the action id,
+    ///      and never reports", so there is no EVM-observable delta to measure, and `ntl` is in HyperCore units, not
+    /// the scale of an arbitrary EVM token amount, so it can never be published into `outAmount` either.
+    ///      A downstream consumer therefore reads 0 and fails (most hooks guard `amount == 0`) rather than
+    ///      proceeding on a stale figure. Failing is the correct outcome: no hook after this one can
+    ///      legitimately derive its amount from it.
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.TRANSFORM;
+    }
 }

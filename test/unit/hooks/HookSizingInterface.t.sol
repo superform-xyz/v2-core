@@ -115,6 +115,7 @@ import { SwapOdosV3Hook } from "../../../src/hooks/swappers/odos/SwapOdosV3Hook.
 import { ApproveAndSwapOdosV3Hook } from "../../../src/hooks/swappers/odos/ApproveAndSwapOdosV3Hook.sol";
 import { SwapKyberSwapHook } from "../../../src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol";
 import { ApproveAndSwapKyberSwapHook } from "../../../src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol";
+import { ApproveAndSwapBinanceHook } from "../../../src/hooks/swappers/binance/ApproveAndSwapBinanceHook.sol";
 import { SwapSparkPSMExactInHook } from "../../../src/hooks/swappers/spark-psm/SwapSparkPSMExactInHook.sol";
 import {
     ApproveAndSwapSparkPSMExactInHook
@@ -271,6 +272,7 @@ contract HookSizingInterfaceTest is Helpers {
     ApproveAndSwapOdosV3Hook approveSwapOdosV3;
     SwapKyberSwapHook swapKyber;
     ApproveAndSwapKyberSwapHook approveSwapKyber;
+    ApproveAndSwapBinanceHook approveSwapBinance;
     SwapSparkPSMExactInHook swapSparkIn;
     ApproveAndSwapSparkPSMExactInHook approveSwapSparkIn;
     SwapSparkPSMExactOutHook swapSparkOut;
@@ -424,6 +426,7 @@ contract HookSizingInterfaceTest is Helpers {
         approveSwapOdosV3 = new ApproveAndSwapOdosV3Hook(DUMMY_ROUTER);
         swapKyber = new SwapKyberSwapHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
         approveSwapKyber = new ApproveAndSwapKyberSwapHook(DUMMY_ROUTER, DUMMY_ROUTER, DUMMY_NATIVE);
+        approveSwapBinance = new ApproveAndSwapBinanceHook(DUMMY_ROUTER, 1);
         swapSparkIn = new SwapSparkPSMExactInHook(DUMMY_ROUTER);
         approveSwapSparkIn = new ApproveAndSwapSparkPSMExactInHook(DUMMY_ROUTER);
         swapSparkOut = new SwapSparkPSMExactOutHook(DUMMY_ROUTER);
@@ -493,8 +496,10 @@ contract HookSizingInterfaceTest is Helpers {
         // ── Loan hooks ──
         morphoSupply = new MorphoSupplyHook(DUMMY_MORPHO);
         morphoLend = new MorphoLendHook(DUMMY_MORPHO);
-        aaveV4Lend = new AaveV4LendHook();
-        aaveV4Redeem = new AaveV4RedeemHook();
+        // SUP-21263: the idle pair resolves market keys through the registry. This suite only exercises the
+        // sizing/inspect surface, which never reads it, so any nonzero address satisfies the constructor.
+        aaveV4Lend = new AaveV4LendHook(address(0xA4E4));
+        aaveV4Redeem = new AaveV4RedeemHook(address(0xA4E4));
         morphoBorrow = new MorphoBorrowHook(DUMMY_MORPHO);
         morphoRepay = new MorphoRepayHook(DUMMY_MORPHO);
         morphoSupplyAndBorrow = new MorphoSupplyAndBorrowHook(DUMMY_MORPHO);
@@ -586,6 +591,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(fluidClaim.supportsInterface(outflowId));
         assertTrue(merklClaim.supportsInterface(inflowOutflowId));
         assertTrue(batchTransfer.supportsInterface(inflowOutflowId));
+        assertTrue(approveSwapBinance.supportsInterface(inflowOutflowId));
 
         // Loan hooks
         assertTrue(morphoSupply.supportsInterface(inflowOutflowId));
@@ -757,6 +763,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_AmountRoles_Sizeless_CommitmentBound() public view {
         assertEq(batchTransfer.amountRoles("").length, 0);
+        assertEq(approveSwapBinance.amountRoles("").length, 0);
         assertEq(claimAssetsDETH.amountRoles("").length, 0);
         assertEq(claimWithdrawFirelight.amountRoles("").length, 0);
     }
@@ -1016,6 +1023,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(yearnClaim.decodeAmounts("").length, 0);
         assertEq(merklClaim.decodeAmounts("").length, 0);
         assertEq(batchTransfer.decodeAmounts("").length, 0);
+        assertEq(approveSwapBinance.decodeAmounts("").length, 0);
     }
 
     /// @dev ClaimAssetsDETH and ClaimWithdrawFirelight are decode-only:
@@ -1067,6 +1075,11 @@ contract HookSizingInterfaceTest is Helpers {
     function test_Sizeless_ReplaceCalldataAmounts_RevertsNonEmpty_YearnClaim() public {
         vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
         yearnClaim.replaceCalldataAmounts("", _singleAmount(1));
+    }
+
+    function test_Sizeless_ReplaceCalldataAmounts_RevertsNonEmpty_ApproveSwapBinance() public {
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        approveSwapBinance.replaceCalldataAmounts("", _singleAmount(1));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -3195,27 +3208,25 @@ contract HookSizingInterfaceTest is Helpers {
 
 
     /*//////////////////////////////////////////////////////////////
-        AAVE V4 IDLE MONEY_MARKET (SUP-21254): exact 189-byte layout
+        AAVE V4 IDLE MONEY_MARKET (SUP-21263): exact 157-byte layout
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev oracleId(32) + marketKey(20) + underlying(20) + spoke(20) + supplyId(32), then amount at
-    ///      offset 124, the canonical bool at 156, and borrowReserveId at 157 = 189 total
+    /// @dev oracleId(32) + marketKey(20) + underlying(20) + spoke(20) + targetReserveId(32), then amount at
+    ///      offset 124 and the canonical bool at 156 = 157 total. SUP-21263 deleted the trailing
+    ///      borrowReserveId word SUP-21254 had appended; the market key still commits both legs, but the
+    ///      body now names only the ONE reserve the op moves.
     function _buildAaveV4IdleData(uint256 amt, bool usePrev) internal pure returns (bytes memory) {
         address spoke = address(0xCC);
-        uint256 supplyReserveId = 7;
-        uint256 borrowReserveId = 1; // SUP-21254: identity only, completes the market key
+        uint256 targetReserveId = 7;
+        uint256 otherLegId = 1; // completes the market key; no longer carried in the body
         address key = address(
             uint160(
                 uint256(
-                    keccak256(
-                        abi.encode(spoke, supplyReserveId, borrowReserveId, keccak256("AaveV4ReserveKey.MARKET"))
-                    )
+                    keccak256(abi.encode(spoke, targetReserveId, otherLegId, keccak256("AaveV4ReserveKey.MARKET")))
                 )
             )
         );
-        return abi.encodePacked(
-            bytes32(uint256(1)), key, address(0xAA), spoke, supplyReserveId, amt, usePrev, borrowReserveId
-        );
+        return abi.encodePacked(bytes32(uint256(1)), key, address(0xAA), spoke, targetReserveId, amt, usePrev);
     }
 
     function test_AmountRoles_ASSETS_AaveV4Lend() public view {
@@ -3228,11 +3239,11 @@ contract HookSizingInterfaceTest is Helpers {
 
     function test_DecodeReplace_Roundtrip_AaveV4Lend() public view {
         bytes memory data = _buildAaveV4IdleData(2e6, false);
-        assertEq(data.length, 189);
+        assertEq(data.length, 157);
         uint256[] memory a = new uint256[](1);
         a[0] = 8e6;
         bytes memory replaced = aaveV4Lend.replaceCalldataAmounts(data, a);
-        assertEq(replaced.length, 189);
+        assertEq(replaced.length, 157);
         assertEq(aaveV4Lend.decodeAmounts(replaced)[0], 8e6);
         assertEq(aaveV4Lend.inspect(replaced), aaveV4Lend.inspect(data), "identity survives sizing");
     }

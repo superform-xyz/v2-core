@@ -98,8 +98,12 @@ library AaveV4ReserveKey {
     ///      `(spoke, reserveId)` and are already bound per call by the hooks' `_validateReserves` and at
     ///      registration by the registry, so including them would create a second source of truth and let two
     ///      keys name one market.
-    ///      Being `internal` and unused by the V1 LOAN six and the idle pair, it is dead-code-eliminated from
-    ///      their creation code — `AaveV4LoanBytecodeUnchanged.t.sol` pins that empirically.
+    ///      Being `internal` and unused by the V1 LOAN six, it is dead-code-eliminated from THEIR creation
+    ///      code — `AaveV4LoanBytecodeUnchanged.t.sol` pins that empirically. The idle pair DOES reach it
+    ///      since SUP-21263, through `requireHeaderIsMarketKey` in `_requireTargetIsMarketLeg` — in
+    ///      `BaseAaveV4MoneyMarketHook`, so both idle leaves link it in. They do NOT reach
+    ///      `computeReserveKey`: the chaining token is `_idleChainToken`, derived in the base from the
+    ///      (market, leg) pair, because a reserve key is market-blind.
     /// @param spoke The Aave V4 spoke address
     /// @param supplyReserveId The collateral (supply) reserve identifier within the spoke
     /// @param borrowReserveId The loan (borrow) reserve identifier within the spoke
@@ -136,9 +140,12 @@ library AaveV4ReserveKey {
     ///         views length-and-bool-only (they are transformation APIs a bundler calls before
     ///         authentication); its resize window at offsets 124-155 is disjoint from every identity field,
     ///         so a resize can never turn a mis-keyed payload into a well-keyed one.
-    ///         FOR THE IDLE PAIR the key is additionally a SuperLedger key and an oracle argument: the
-    ///         oracle resolves it to the market's SUPPLY leg, which the decoder guarantees is the reserve
-    ///         the op moved.
+    ///         FOR THE IDLE PAIR the key is additionally a SuperLedger key and an oracle argument, and the
+    ///         oracle resolves it to the market's SUPPLY leg. CAUTION, CHANGED BY SUP-21263: that leg is no
+    ///         longer necessarily the reserve the op moved. The idle body now carries one `targetReserveId`
+    ///         which may be EITHER leg, so when it is the BORROW leg the oracle's scalar read describes the
+    ///         collateral reserve instead. Nothing in this library can detect that — membership is a registry
+    ///         read in the hook. See SECURITY.md §16 and `BaseAaveV4MoneyMarketHook`'s contract docblock.
     /// @dev Replaces the per-hook `_primaryReserveId` selection the reserve-key pin needed: the market key is a
     ///      function of the WHOLE body, so there is no leg left to choose and the "override picked the wrong leg"
     ///      bug class is closed by construction rather than by convention.

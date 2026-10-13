@@ -100,8 +100,8 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         oracleId = _getYieldSourceOracleId(ORACLE_SALT, address(this));
         superLedger = SuperLedger(address(ledger));
 
-        lendHook = new AaveV4LendHook();
-        redeemHook = new AaveV4RedeemHook();
+        lendHook = new AaveV4LendHook(address(registry));
+        redeemHook = new AaveV4RedeemHook(address(registry));
         openHook = new AaveV4SupplyAndBorrowHookV2();
         repayHook = new AaveV4RepayHookV2();
         closeHook = new AaveV4RepayAndWithdrawHookV2();
@@ -132,18 +132,18 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         view
         returns (bytes memory)
     {
-        // SUP-21254: the idle header is the MARKET key whose SUPPLY leg is the reserve this op moves.
-        // The borrow leg is identity only; USDC(7) pairs with WETH(0) and vice versa.
-        uint256 borrowReserveId = reserveId == USDC_RESERVE_ID ? WETH_RESERVE_ID : USDC_RESERVE_ID;
+        // SUP-21263: 157 bytes, ONE reserve word — the reserve this op moves. The header is the REGISTERED
+        // market naming it; USDC(7) pairs with WETH(0) and vice versa, and the body no longer repeats the
+        // second leg because the hook reads it from the registry.
+        uint256 otherLegId = reserveId == USDC_RESERVE_ID ? WETH_RESERVE_ID : USDC_RESERVE_ID;
         return abi.encodePacked(
             oracleId,
-            AaveV4ReserveKey.computeMarketKey(SPOKE, reserveId, borrowReserveId),
+            AaveV4ReserveKey.computeMarketKey(SPOKE, reserveId, otherLegId),
             underlying,
             SPOKE,
             reserveId,
             amount,
-            usePrev,
-            borrowReserveId
+            usePrev
         );
     }
 
@@ -454,6 +454,10 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     /// @notice On one reserve the account is either idle or LOAN, enforced from both sides: a flagged (pledged) WETH
     ///         reserve refuses the idle LEND and REDEEM; an idle (lent) USDC reserve refuses PLEDGE, OPEN and RELEASE
     function test_E2E_ModePartition_BothDirections_LiveSpoke() external {
+        // SUP-21263: an idle op resolves its header through the registry BEFORE the mode guards, so the WETH
+        // market must exist or the op would fail with MARKET_NOT_REGISTERED and this test would assert the
+        // wrong thing. `setUp` registers only (USDC, WETH); this is its mirror.
+        registry.registerMarket(SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID);
         _exec(address(pledgeHook), _pledge(PLEDGE));
         _execExpectFailure(
             address(lendHook),
@@ -572,7 +576,13 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
     /// @notice After PLEDGE + RELEASE(max) the reserve is empty but stays LOAN-mode (flag kept), so the idle LEND is
     ///         refused until the account clears the flag itself; then LEND → REDEEM(max) rounds through whatever dust
     ///         shares the full release left behind and the ledger still nets to zero
+    /// @dev THIS TEST WAS VACUOUS BEFORE SUP-21263 and is fixed here. The WETH idle market was never
+    ///      registered, so the lend below silently failed inside the userOp (`_exec` does not bubble a failed
+    ///      op), `credited` was 0, and every assertion compared 0 to 0 — including the ledger-nets one. The
+    ///      market is now registered, the credit is asserted non-zero, and the ledger key is the MARKET key
+    ///      the idle header actually carries.
     function test_E2E_ReleaseThenIdle_RequiresManualFlagClear_LedgerNetsWithDust() external {
+        address wethMarketKey = registry.registerMarket(SPOKE, WETH_RESERVE_ID, USDC_RESERVE_ID);
         _exec(address(pledgeHook), _pledge(PLEDGE));
         _exec(address(releaseHook), _release(type(uint256).max));
         assertEq(_supplied(WETH_RESERVE_ID), 0, "position empty");
@@ -587,10 +597,16 @@ contract AaveV4HeaderIdentityE2EFork is MinimalBaseIntegrationTest {
         uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
         _exec(address(lendHook), _idleData(CHAIN_1_WETH, WETH_RESERVE_ID, 0.2 ether, false));
         uint256 credited = _supplied(WETH_RESERVE_ID);
-        assertEq(superLedger.usersAccumulatorShares(accountEth, wethKey), credited, "ledger keyed by WETH key");
+        assertGt(credited, 0, "the lend must actually credit a position - this is what made it vacuous");
+        assertEq(
+            superLedger.usersAccumulatorShares(accountEth, wethMarketKey),
+            credited,
+            "ledger keyed by the idle header's MARKET key"
+        );
+        assertEq(superLedger.usersAccumulatorShares(accountEth, wethKey), 0, "never by the bare reserve key");
         _exec(address(redeemHook), _idleData(CHAIN_1_WETH, WETH_RESERVE_ID, type(uint256).max, false));
         assertEq(_supplied(WETH_RESERVE_ID), 0, "idle leg fully redeemed (incl. any dust shares' value)");
-        assertEq(superLedger.usersAccumulatorShares(accountEth, wethKey), 0, "ledger nets to zero");
+        assertEq(superLedger.usersAccumulatorShares(accountEth, wethMarketKey), 0, "ledger nets to zero");
         assertApproxEqAbs(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBefore, 2, "WETH back within rounding");
     }
 

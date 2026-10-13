@@ -30,7 +30,7 @@ ftest :; forge test
 # ERC20YieldSourceOracleBSCFork excluded for the same reason: it falls back to the public
 # rate-limited BSC dataseed node when BSC_RPC_URL is unset. Re-include once a BSC_RPC_URL CI
 # secret exists.
-FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork
+FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork|BinanceHookE2E
 
 ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150 --no-match-contract "$(FLARE_FORK_TESTS)"
 

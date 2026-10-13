@@ -202,12 +202,18 @@ contract AaveV4OwnerSnapshotTest is Test {
         assertEq(cash.length, 0);
     }
 
+    /// @dev SUP-21259 CHANGED THIS EXPECTATION, and the change is the fix. With no market requested, the
+    ///      owner's reserve-0 equity collateral used to vanish while its reserve-1 debt kept being
+    ///      discovered — exactly the one-sided snapshot the ticket closes. Both legs now come back: debt
+    ///      first (discovery order), then the residual supply.
     function test_EmptySourcesStillDiscoverConfiguredSpoke() public {
         (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) = oracle.getOwnerSnapshot(
             owner, new address[](0), one(address(spoke)), new address[](0), address(equity), 128
         );
-        assertEq(positions.length, 1);
+        assertEq(positions.length, 2);
         assertEq(positions[0].sourceKey, debtKey);
+        assertEq(positions[1].sourceKey, supplyKey, "collateral is no longer dropped when no market names it");
+        assertEq(positions[1].assets, 100e8);
     }
 
     function test_AfterRepaymentExplicitCashPersistsWithoutWalletSweep() public {
@@ -215,7 +221,11 @@ contract AaveV4OwnerSnapshotTest is Test {
         (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) = oracle.getOwnerSnapshot(
             owner, new address[](0), one(address(spoke)), one(address(usdc)), address(equity), 128
         );
-        assertEq(positions.length, 0);
+        // SUP-21259: repaying the loan does not un-collateralise the supply. The debt row disappears, the
+        // equity collateral stays — previously this read as a zero-position account still holding 100e8.
+        assertEq(positions.length, 1);
+        assertEq(positions[0].sourceKey, supplyKey);
+        assertEq(positions[0].assets, 100e8);
         assertEq(cash.length, 1);
         assertEq(cash[0].token, address(usdc));
         assertEq(cash[0].balance, 30e6);
@@ -422,5 +432,111 @@ contract AaveV4OwnerSnapshotTest is Test {
     function test_ZeroMarketKeyReverts() public {
         vm.expectRevert(AaveV4ReserveOracle.ZERO_ADDRESS.selector);
         oracle.getOwnerSnapshot(owner, one(address(0)), new address[](0), new address[](0), address(equity), 128);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       SUP-21259: COLLATERAL DROPOUT AFTER MARKET REMOVAL
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice THE BUG. Debt was discovered on covered spokes while supply arrived only through the
+    ///         requested markets, so removing the last market naming a supply reserve dropped its
+    ///         collateral from NAV while its debt kept counting — PPS falls on a snapshot that is merely
+    ///         incomplete. Discovery is now symmetric: the residual collateral comes back as its own
+    ///         position, because its SUPPLY leg is registered.
+    function test_ResidualCollateralOutsideRequestedMarkets_IsIncludedWhenRegistered() public {
+        // the owner supplies reserve 2 (weth) and owes on reserve 1 (usdc); only the (0,1) market is asked for
+        spoke.setPosition(2, owner, 7e18, 0, 0);
+
+        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+            oracle.getOwnerSnapshot(owner, one(marketKey), one(address(spoke)), new address[](0), address(equity), 128);
+
+        address residualKey = registry.computeReserveKey(address(spoke), 2);
+        bool found;
+        for (uint256 i; i < positions.length; ++i) {
+            if (positions[i].sourceKey == residualKey) {
+                found = true;
+                assertEq(positions[i].side, 0, "returned as a SUPPLY leg");
+                assertEq(positions[i].assets, 7e18, "with the live supplied amount, not zero");
+            }
+        }
+        assertTrue(found, "collateral outside the requested markets must not be omitted");
+    }
+
+    /// @notice And it is counted ONCE: a market that does cover the reserve contributes it, and discovery
+    ///         must not add a second row for the same leg.
+    function test_ResidualCollateralCoveredByAnotherMarket_IsCountedOnce() public {
+        spoke.setPosition(2, owner, 7e18, 0, 0);
+        address[] memory keys = new address[](2);
+        keys[0] = marketKey; // (0,1)
+        keys[1] = secondMarketKey; // (2,1) — covers reserve 2's supply leg
+
+        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+            oracle.getOwnerSnapshot(owner, keys, one(address(spoke)), new address[](0), address(equity), 128);
+
+        address supplyKey2 = registry.computeReserveKey(address(spoke), 2);
+        uint256 rows;
+        for (uint256 i; i < positions.length; ++i) {
+            if (positions[i].sourceKey == supplyKey2) ++rows;
+        }
+        assertEq(rows, 1, "covered collateral is contributed once, not once per discovery path");
+    }
+
+    /// @notice STRICT, no silent omission: residual collateral whose SUPPLY leg is NOT registered fails the
+    ///         whole snapshot. The alternative — dropping it — is the very bug this closes, and resolving it
+    ///         through an unregistered key is not an option either.
+    function test_ResidualCollateralWithUnregisteredLeg_RevertsTheSnapshot() public {
+        address token = address(new SnapshotToken("FRESH", 18));
+        // the id is whatever the spoke appends it as — a hardcoded one would silently fall outside
+        // `getReserveCount()` and never be scanned, making this assertion vacuous
+        uint256 freshId = spoke.addReserve(token, 18);
+        spoke.setPosition(freshId, owner, 3e18, 0, 0);
+
+        // the reserve is listed on the spoke and holds collateral, but was never registered
+        assertFalse(registry.isRegistered(registry.computeReserveKey(address(spoke), freshId)), "unregistered");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(AaveV4ReserveOracle.UNCOVERED_COLLATERAL.selector, address(spoke), freshId)
+        );
+        oracle.getOwnerSnapshot(owner, one(marketKey), one(address(spoke)), new address[](0), address(equity), 128);
+    }
+
+    /// @notice A fully withdrawn position is not residual collateral: zero supplied means nothing to cover,
+    ///         so no extra row and no revert. Without this, every unused reserve on a covered spoke would
+    ///         either bloat the response or fail the call.
+    function test_FullyWithdrawnPositionIsNotTreatedAsResidualCollateral() public {
+        address token = address(new SnapshotToken("EMPTY", 18));
+        uint256 freshId = spoke.addReserve(token, 18);
+        spoke.setPosition(freshId, owner, 0, 0, 0); // listed, unregistered, but empty
+        assertFalse(registry.isRegistered(registry.computeReserveKey(address(spoke), freshId)), "unregistered");
+
+        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions,) =
+            oracle.getOwnerSnapshot(owner, one(marketKey), one(address(spoke)), new address[](0), address(equity), 128);
+
+        for (uint256 i; i < positions.length; ++i) {
+            assertTrue(
+                positions[i].sourceKey != registry.computeReserveKey(address(spoke), freshId),
+                "an empty reserve contributes no row"
+            );
+        }
+    }
+
+    /// @notice Debt and cash accounting are unchanged by the new supply discovery: the debt leg is still
+    ///         discovered once and the cash set still excludes the vault asset.
+    function test_ResidualCollateralDoesNotDisturbDebtOrCash() public {
+        spoke.setPosition(2, owner, 7e18, 0, 0);
+
+        (, IAaveV4OwnerSnapshot.OwnerPosition[] memory positions, IAaveV4OwnerSnapshot.WalletBalance[] memory cash) = oracle.getOwnerSnapshot(
+            owner, one(marketKey), one(address(spoke)), one(address(usdc)), address(equity), 128
+        );
+
+        address usdcDebt = registry.computeDebtKey(address(spoke), 1);
+        uint256 debtRows;
+        for (uint256 i; i < positions.length; ++i) {
+            if (positions[i].sourceKey == usdcDebt) ++debtRows;
+        }
+        assertEq(debtRows, 1, "debt still discovered exactly once");
+        for (uint256 i; i < cash.length; ++i) {
+            assertTrue(cash[i].token != address(equity), "vault asset still excluded from cash");
+        }
     }
 }

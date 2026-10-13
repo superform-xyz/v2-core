@@ -137,3 +137,15 @@ Affected hooks by denomination:
 ## Mock
 
 - `test/mocks/unused-hooks/FluidStakeWithPermitHook.sol` — migrated to array-based interface
+
+---
+
+## 2026-10-12 — ApproveAndSwapBinanceHook (SUP-21203)
+
+- New sizeless swap hook. The spend amount is committed inside the opaque LiquidMesh router calldata and
+  no scaler exists, so the header `inputAmount` is only the allowance bound and cannot be resized.
+- `decodeAmounts()` → `[]`, `amountRoles()` → `[]` (S2 "authoritatively sizeless"), `replaceCalldataAmounts()`
+  is the identity and reverts `INVALID_AMOUNTS_LENGTH` on a non-empty array.
+- `hook-sizing-manifest.json`: `APPROVE_AND_SWAP_BINANCE_HOOK_KEY` → `sizeless` (pinned in generator OVERRIDES;
+  auto-detection would otherwise classify it `replaceCalldata`). Classification `legSizing: []`, enrichment
+  `sizelessHooks`.

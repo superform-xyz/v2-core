@@ -125,4 +125,26 @@ contract HyperCoreSendAssetHook is BaseHyperCoreWriterHook {
     function inspect(bytes calldata data) external view override returns (bytes memory) {
         return abi.encodePacked(CORE_WRITER, BytesLib.toAddress(data, DESTINATION_POSITION));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PIPE MODE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice This hook MOVES VALUE, so it must not forward the previous hook's output.
+    /// @dev It sends a HyperCore spot balance away from this account, which means the upstream `outAmount` no longer
+    /// describes what the account holds. Inheriting `PASSTHROUGH` from `BaseHyperCoreWriterHook` would copy that
+    ///      stale figure into this hook's slot, and a following hook with `usePrevHookAmount = true` would
+    ///      then operate on an amount that predates this transfer — silently, because the number looks
+    ///      plausible.
+    /// @dev `TRANSFORM` makes `BaseHook._preExecute` write nothing. This hook also sets no output of its
+    ///      own, because there is none to set: CoreWriter "never reverts, never validates the action id,
+    ///      and never reports", so there is no EVM-observable delta to measure, and `amountWei` is in HyperCore units
+    /// for the token (offset per token by `weiDecimals` and `evmExtraWeiDecimals`), so it can never be published into
+    /// an EVM-scale `outAmount` either.
+    ///      A downstream consumer therefore reads 0 and fails (most hooks guard `amount == 0`) rather than
+    ///      proceeding on a stale figure. Failing is the correct outcome: no hook after this one can
+    ///      legitimately derive its amount from it.
+    function _pipeMode() internal pure override returns (PipeMode) {
+        return PipeMode.TRANSFORM;
+    }
 }

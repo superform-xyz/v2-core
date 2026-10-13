@@ -8,6 +8,7 @@ import { SpectraCommands } from "../../src/vendor/spectra/SpectraCommands.sol";
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
@@ -79,6 +80,17 @@ abstract contract InternalHelpers is Test {
 
     function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
         return userOpData.execUserOps();
+    }
+
+    /// @dev Runs a hook's `build()` output step by step with the test contract as the account (no smart
+    ///      account, no executor). Returns the index of the first failing step (or `type(uint256).max` on
+    ///      success) and that step's revert data, so a test can pin WHICH step fails and WHY.
+    function _executeBatch(Execution[] memory executions) internal returns (uint256 failedAt, bytes memory ret) {
+        for (uint256 i = 0; i < executions.length; i++) {
+            (bool ok, bytes memory r) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            if (!ok) return (i, r);
+        }
+        return (type(uint256).max, "");
     }
 
     function _getExecOpsWithValidator(
@@ -307,6 +319,30 @@ abstract contract InternalHelpers is Test {
     {
         bytes memory payload =
             abi.encode(inputReceiver, pathDefinition, executor, referralCode, referralFee, feeRecipient);
+        hookData = bytes.concat(
+            _swapHookLayer1(
+                inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount, payload.length
+            ),
+            payload
+        );
+    }
+
+    /// @dev ApproveAndSwapBinanceHook: Layer 2 payload = abi.encode(address to, bytes txData)
+    function _createBinanceSwapHookData(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bool usePrevHookAmount,
+        address to,
+        bytes memory txData
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        bytes memory payload = abi.encode(to, txData);
         hookData = bytes.concat(
             _swapHookLayer1(
                 inputToken, outputToken, inputAmount, outputQuote, outputMin, usePrevHookAmount, payload.length
