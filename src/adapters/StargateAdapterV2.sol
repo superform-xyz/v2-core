@@ -24,7 +24,14 @@ import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 /// @dev V2 hook ↔ V2 adapter must be used together (incompatible with V1 counterparts)
 /// @dev Token delivery happens in a separate transaction (lzReceive) before lzCompose is called
 /// @dev Uses amountLD from OFTComposeMsgCodec header (bytes 12-44) for transfers
-/// @dev lzCompose MUST NOT revert (except for invalid sender) — failed transfers are stored for user self-claim
+/// @dev lzCompose follows "credit-or-revert": once sender/length/pool checks pass it either completes and
+/// @dev leaves the bridged funds delivered to the account or recorded in failedTransfers for self-claim via
+/// @dev claimFailedTransfer, OR it reverts. It reverts only for an invalid sender, or when delivered with
+/// @dev less than MIN_LZCOMPOSE_GAS (the gas floor). A revert does NOT consume the compose: EndpointV2 wrote
+/// @dev the RECEIVED hash before calling us, so that write reverts too and the message stays re-deliverable.
+/// @dev LZ V2 composes are independent and individually retryable, so a revert never permanently blocks this
+/// @dev or other composes. The invariant a non-reverting compose MUST uphold is that it never returns success
+/// @dev while stranding funds with no credit — see the outer catch in lzCompose, which closes bounty #181.
 contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -35,6 +42,20 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     /// @notice Offset where the inner composeMsg starts in the OFTComposeMsgCodec-encoded message
     /// @dev Layout: nonce(8) + srcEid(4) + amountLD(32) + composeFrom(32) = 76 bytes header
     uint256 private constant COMPOSE_MSG_OFFSET = 76;
+
+    /// @notice Minimum gas that must remain at the lzCompose self-call site.
+    /// @dev Defense-in-depth against EIP-150 "shadow gas" clipping: an unprivileged caller can deliver
+    ///      the permissionless EndpointV2.lzCompose with any gas limit. In a narrow window (observed
+    ///      156k-212k for a ~554 USDC deposit) processBridgedExecution out-of-gases after the token
+    ///      transfer, the inner catch is starved so handleCompose reverts, and the transfer rolls back —
+    ///      previously the outer catch still returned success and stranded the funds. The primary fix is
+    ///      the outer-catch failedTransfers credit below (any non-reverting lzCompose now always leaves
+    ///      funds claimable); this floor additionally forces grossly underfunded deliveries to REVERT, so
+    ///      the compose stays re-deliverable rather than being absorbed. 250k sits above the documented
+    ///      clip window and ~7.6x below the ~1.9M gas a real LayerZero executor supplies for a Superform
+    ///      compose (which always performs a signature verify + destination execution), so it cannot
+    ///      reject a legitimately-funded compose. A revert here only costs the attacker a retry.
+    uint256 private constant MIN_LZCOMPOSE_GAS = 250_000;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -88,6 +109,10 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
 
     /// @notice Thrown when lzCompose is called by an address other than the LZ endpoint
     error INVALID_SENDER();
+
+    /// @notice Thrown when lzCompose is delivered with less than MIN_LZCOMPOSE_GAS remaining
+    /// @dev Reverting leaves the compose un-consumed and re-deliverable (see MIN_LZCOMPOSE_GAS).
+    error INSUFFICIENT_GAS();
 
     /// @notice Thrown when native ETH transfer fails during claim
     error ETH_TRANSFER_FAILED();
@@ -198,8 +223,10 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
     /// @inheritdoc ILayerZeroComposer
     /// @dev Decodes the compact 2-field compose message, extracts fields from sigData,
     ///      transfers tokens to the target account, and forwards to SuperDestinationExecutor.
-    /// @dev MUST NOT revert after sender validation — a revert blocks ALL subsequent composes
-    ///      from the same source. Failed transfers are stored for user self-claim.
+    /// @dev Credit-or-revert (see contract NatSpec): after sender validation it reverts only on the gas
+    ///      floor (MIN_LZCOMPOSE_GAS); otherwise it completes, and any failure inside handleCompose is
+    ///      absorbed by the outer catch, which credits composeFrom in failedTransfers for self-claim. A
+    ///      revert leaves the compose re-deliverable (EndpointV2's RECEIVED write reverts with it).
     function lzCompose(
         address _from,
         bytes32 _guid,
@@ -221,6 +248,16 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
         }
 
         // 3. Validate _from is a registered Stargate pool in TokenMessaging, or an allowed OFT
+        //    Emit + return WITHOUT crediting failedTransfers — intentionally, and NOT an oversight versus the
+        //    outer-catch credit below. _from is attacker-controlled here (LZ sendCompose is permissionless, so
+        //    anyone can queue a compose from a contract they deployed) and composeFrom/amountLD are attacker-set
+        //    header fields. The failedTransfers credit is only safe once registration proves _from actually
+        //    delivered the funds: crediting an unregistered _from would let an attacker point _from.token() at a
+        //    token the adapter already holds for OTHER users' pending claims and mint themselves an unbacked
+        //    credit against that shared balance — draining those users. So we never credit on this path. The one
+        //    residual edge — a genuine pool deregistered by Stargate governance in the window between its
+        //    lzReceive (funds in) and this compose — is a transient, near-impossible governance action and is
+        //    handled operationally (do not delist a pool with in-flight composes), not by crediting here.
         if (TOKEN_MESSAGING.assetIds(_from) == 0 && !allowedOFTs[_from]) {
             emit UnregisteredPool(_guid, _from);
             return;
@@ -235,14 +272,40 @@ contract StargateAdapterV2 is ILayerZeroComposer, ReentrancyGuard {
         // 6. Identify token via _from.token()
         address tokenSent = IStargate(_from).token();
 
+        // 6a. Snapshot the adapter's balance of tokenSent BEFORE the self-call. Captured here, in the
+        //     lzCompose frame, because a handleCompose revert rolls back any snapshot taken inside it and
+        //     the catch runs in a separate frame. A reverting handleCompose restores the balance to this
+        //     exact pre-call value, so `preBalance >= amountLD` is an accurate solvency guard for the
+        //     outer-catch credit below (it avoids crediting direct-delivery composes the adapter never held).
+        //     tokenSent is resolved from a pool/OFT validated in step 3, so this read is on a trusted token.
+        uint256 preBalance =
+            tokenSent == address(0) ? address(this).balance : IERC20(tokenSent).balanceOf(address(this));
+
+        // 6b. Gas floor (defense-in-depth, see MIN_LZCOMPOSE_GAS). A grossly underfunded delivery reverts
+        //     the whole lzCompose; EndpointV2 wrote RECEIVED before calling us, so that write reverts too
+        //     and the compose stays re-deliverable. Only ever triggers below any legitimately-funded
+        //     Superform compose, so it cannot grief honest delivery — it just forces an attacker to retry.
+        if (gasleft() < MIN_LZCOMPOSE_GAS) revert INSUFFICIENT_GAS();
+
         // 7. Delegate to external handler via self-call so abi.decode panics are caught
         try this.handleCompose(_guid, _message, tokenSent, amountLD, composeFrom) { }
         catch {
-            // NOTE: we intentionally discard the revert reason to prevent returnbomb attacks.
-            //       A hostile token's balanceOf (or any external call in the execution path) could
-            //       revert with very large data; copying it via `catch (bytes memory reason)` can
-            //       OOG inside the catch block (only 1/64 gas remains per EIP-150), causing
-            //       lzCompose itself to revert and blocking the ordered compose queue.
+            // handleCompose reverted, so ALL of its state changes are rolled back — the token transfer to
+            // the account AND any failedTransfers writes it made — and the adapter still holds the bridged
+            // funds. Credit composeFrom (a pure calldata slice available pre-try, needing no decode — we
+            // deliberately do NOT re-extract `account` here, as that reruns the very decode that may have
+            // reverted) so that a non-reverting lzCompose can NEVER strand the funds. Gated by the pre-try
+            // snapshot so we only record a liability the adapter can honour.
+            //
+            // SECURITY (credit-or-revert): this body has NO inner try/catch and makes no external call, so
+            // it cannot partially complete — if EIP-150 clipping starves the SSTORE or either LOG the block
+            // reverts, the whole lzCompose reverts, and the compose stays re-deliverable. There is no
+            // silent-success-without-credit path. The revert reason is still discarded (plain catch) to
+            // preserve the returnbomb protection: a hostile token's returndata is never copied here.
+            if (preBalance >= amountLD) {
+                failedTransfers[composeFrom][tokenSent] += amountLD;
+                emit TransferFailed(_guid, composeFrom, tokenSent, amountLD);
+            }
             emit ComposeDecodeFailed(_guid);
         }
     }

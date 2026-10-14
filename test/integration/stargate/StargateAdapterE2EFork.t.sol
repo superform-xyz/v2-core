@@ -20,6 +20,29 @@ import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { Vm } from "forge-std/Vm.sol";
 import "forge-std/console2.sol";
 
+/// @dev Mock destination executor that genuinely EXHAUSTS all gas forwarded to it, then faults.
+///      `invalid()` consumes every bit of gas in the current call frame (not a cheap revert) — the
+///      condition the clipped-compose ("shadow gas") attack needs to starve the inner try/catch and make
+///      handleCompose bubble an out-of-gas revert.
+contract GasBurnExecutorV1 {
+    function processBridgedExecution(
+        address,
+        address,
+        address[] memory,
+        uint256[] memory,
+        bytes memory,
+        bytes memory,
+        bytes memory
+    )
+        external
+        pure
+    {
+        assembly {
+            invalid()
+        }
+    }
+}
+
 /// @title StargateAdapterE2EFork
 /// @notice E2E fork test: Stargate bridge ETH→Base with destination execution through real
 ///         SuperDestinationExecutor and SuperDestinationValidator on Base
@@ -1535,6 +1558,317 @@ contract StargateAdapterE2EFork is MerkleTreeHelper {
         );
 
         console2.log("E2E success: USDC bridged via Stargate, destination execution validated, root marked");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+          CLIP-GUARD TESTS (bounty #181: clipped-compose fund lock)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Builds a well-formed V1 6-field inner payload wrapped in the 76-byte OFTComposeMsgCodec header.
+    function _buildV1Codec(address account, uint256 amountLD) internal view returns (bytes memory) {
+        bytes memory inner = abi.encode(
+            bytes(""), hex"deadbeef", account, new address[](0), new uint256[](0), bytes(hex"00")
+        );
+        return abi.encodePacked(uint64(0), uint32(EID_ETHEREUM), amountLD, bytes32(uint256(uint160(sender))), inner);
+    }
+
+    /// @notice Deterministic proof of the outer-catch credit fix (V1): a malformed inner payload makes
+    ///         handleCompose revert in abi.decode; the funds the adapter holds are credited to composeFrom
+    ///         and are claimable — never silently stranded.
+    function test_Fork_E2E_V1_ClipGuard_OuterCatchCreditsAndClaims() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapter), amountLD);
+
+        bytes memory malformed = abi.encodePacked(
+            uint64(0), uint32(EID_ETHEREUM), amountLD, bytes32(uint256(uint160(sender))), hex"deadbeefcafebabe01"
+        );
+
+        vm.recordLogs();
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), malformed, address(0), bytes("")
+        );
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _assertEventEmitted(logs, "TransferFailed(bytes32,address,address,uint256)");
+        _assertEventEmitted(logs, "ComposeDecodeFailed(bytes32)");
+
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), amountLD, "composeFrom credited full amount");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), amountLD, "funds held pending claim");
+
+        vm.prank(sender);
+        adapter.claimFailedTransfer(USDC_BASE, amountLD);
+        assertEq(IERC20(USDC_BASE).balanceOf(sender), amountLD, "composeFrom recovered funds");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "credit cleared after claim");
+    }
+
+    /// @notice The gas floor (V1) turns a clipped delivery into a revert (compose re-deliverable, funds
+    ///         untouched); a properly funded re-delivery then settles it.
+    function test_Fork_E2E_V1_ClipGuard_GasFloorRevertsAndIsRedeliverable() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter =
+            new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, address(new GasBurnExecutorV1()));
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapter), amountLD);
+
+        bytes memory data = abi.encodeCall(
+            ILayerZeroComposer.lzCompose,
+            (STARGATE_USDC_POOL_BASE, bytes32(0), _buildV1Codec(dstAccount, amountLD), address(0), bytes(""))
+        );
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        (bool ok, bytes memory ret) = address(adapter).call{ gas: 200_000 }(data);
+        assertFalse(ok, "clipped delivery must revert");
+        assertEq(bytes4(ret), StargateAdapter.INSUFFICIENT_GAS.selector, "must revert at the gas floor, not a bare OOG");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), amountLD, "funds untouched after revert");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "no credit after revert");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "account received nothing after revert");
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        (bool ok2,) = address(adapter).call{ gas: 3_000_000 }(data);
+        assertTrue(ok2, "funded re-delivery succeeds");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD, "account received funds on re-delivery");
+    }
+
+    /// @notice Core safety invariant across a gas sweep (V1): no delivery gas may leave the adapter in the
+    ///         locked state (success, funds retained, nothing credited, account empty).
+    function test_Fork_E2E_V1_ClipGuard_Sweep_NeverSilentLock() public {
+        vm.selectFork(baseForkId);
+        uint256 amountLD = 1000e6;
+        uint256[] memory gases = new uint256[](11);
+        gases[0] = 150_000;
+        gases[1] = 170_000;
+        gases[2] = 190_000;
+        gases[3] = 210_000;
+        gases[4] = 230_000;
+        gases[5] = 250_000;
+        gases[6] = 275_000;
+        gases[7] = 320_000;
+        gases[8] = 450_000;
+        gases[9] = 700_000;
+        gases[10] = 2_000_000;
+
+        for (uint256 i; i < gases.length; ++i) {
+            StargateAdapter adapter =
+                new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, address(new GasBurnExecutorV1()));
+            deal(USDC_BASE, address(adapter), amountLD);
+
+            // Fresh recipient per iteration so a delivered balance can't carry across iterations.
+            address account = makeAddr(string.concat("sweepV1_", vm.toString(i)));
+            bytes memory data = abi.encodeCall(
+                ILayerZeroComposer.lzCompose,
+                (STARGATE_USDC_POOL_BASE, bytes32(0), _buildV1Codec(account, amountLD), address(0), bytes(""))
+            );
+
+            vm.prank(LZ_ENDPOINT_BASE);
+            (bool ok,) = address(adapter).call{ gas: gases[i] }(data);
+
+            uint256 held = IERC20(USDC_BASE).balanceOf(address(adapter));
+            uint256 credited = adapter.failedTransfers(sender, USDC_BASE);
+            uint256 delivered = IERC20(USDC_BASE).balanceOf(account);
+
+            if (!ok) {
+                assertEq(held, amountLD, "revert: funds retained");
+                assertEq(credited, 0, "revert: no credit");
+                assertEq(delivered, 0, "revert: account empty");
+            } else {
+                bool locked = (held == amountLD && credited == 0 && delivered == 0);
+                assertFalse(locked, "no silent lock on a successful delivery");
+                assertTrue(delivered == amountLD || credited == amountLD, "funds delivered or credited");
+            }
+        }
+    }
+
+    /// @notice True e2e through the REAL SuperDestinationExecutor on Base (V1): a clipped delivery reverts
+    ///         at the gas floor (re-deliverable, funds intact); a funded delivery settles (executor rejects
+    ///         the dummy signature, tokens land with the account).
+    function test_Fork_E2E_V1_ClipGuard_RealExecutor_GasFloorReverts() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapter), amountLD);
+
+        bytes memory codec = _wrapComposeMsgCodec(amountLD, sender, _buildInnerComposeMsg(dstAccount));
+        bytes memory data = abi.encodeCall(
+            ILayerZeroComposer.lzCompose, (STARGATE_USDC_POOL_BASE, bytes32(0), codec, address(0), bytes(""))
+        );
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        (bool ok, bytes memory ret) = address(adapter).call{ gas: 200_000 }(data);
+        assertFalse(ok, "clipped delivery reverts at the gas floor");
+        assertEq(bytes4(ret), StargateAdapter.INSUFFICIENT_GAS.selector, "must revert at the gas floor, not a bare OOG");
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), amountLD, "funds untouched after revert");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "no credit after revert");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "account empty after revert");
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        (bool ok2,) = address(adapter).call{ gas: 3_000_000 }(data);
+        assertTrue(ok2, "funded delivery through the real executor succeeds");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD, "account received funds on funded delivery");
+    }
+
+    /// @notice Native-ETH outer-catch credit: when handleCompose reverts (malformed payload) and the adapter
+    ///         holds ETH, the outer catch credits composeFrom under token address(0) and the ETH is claimable.
+    function test_Fork_E2E_V1_ClipGuard_NativeETH_OuterCatchCreditsAndClaims() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        uint256 amount = 1 ether;
+        vm.deal(address(adapter), amount);
+
+        // Mock _from as a registered StargatePoolNative (token() → address(0))
+        address nativePool = makeAddr("native_pool_clip");
+        vm.mockCall(nativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE, abi.encodeWithSelector(ITokenMessaging.assetIds.selector, nativePool), abi.encode(uint16(13))
+        );
+
+        bytes memory malformed = abi.encodePacked(
+            uint64(0), uint32(EID_ETHEREUM), amount, bytes32(uint256(uint160(sender))), hex"deadbeefcafebabe01"
+        );
+
+        vm.recordLogs();
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(nativePool, bytes32(0), malformed, address(0), bytes(""));
+        vm.clearMockedCalls();
+
+        _assertEventEmitted(vm.getRecordedLogs(), "TransferFailed(bytes32,address,address,uint256)");
+        assertEq(adapter.failedTransfers(sender, address(0)), amount, "ETH credited to composeFrom");
+        assertEq(address(adapter).balance, amount, "ETH held pending claim");
+
+        uint256 before = sender.balance;
+        vm.prank(sender);
+        adapter.claimFailedTransfer(address(0), amount);
+        assertEq(sender.balance, before + amount, "composeFrom recovered ETH");
+        assertEq(adapter.failedTransfers(sender, address(0)), 0, "credit cleared");
+    }
+
+    /// @notice Native-ETH gas floor: a clipped native-ETH delivery reverts specifically at the gas floor,
+    ///         leaving the ETH untouched and re-deliverable (distinct code path: balance snapshot + ETH send).
+    function test_Fork_E2E_V1_ClipGuard_NativeETH_GasFloorReverts() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter =
+            new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, address(new GasBurnExecutorV1()));
+        uint256 amount = 1 ether;
+        vm.deal(address(adapter), amount);
+
+        address nativePool = makeAddr("native_pool_floor");
+        vm.mockCall(nativePool, abi.encodeWithSelector(IStargate.token.selector), abi.encode(address(0)));
+        vm.mockCall(
+            TOKEN_MESSAGING_BASE, abi.encodeWithSelector(ITokenMessaging.assetIds.selector, nativePool), abi.encode(uint16(13))
+        );
+
+        bytes memory codec = _wrapComposeMsgCodec(amount, sender, _buildInnerComposeMsg(dstAccount));
+        bytes memory data = abi.encodeCall(
+            ILayerZeroComposer.lzCompose, (nativePool, bytes32(0), codec, address(0), bytes(""))
+        );
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        (bool ok, bytes memory ret) = address(adapter).call{ gas: 200_000 }(data);
+        vm.clearMockedCalls();
+
+        assertFalse(ok, "clipped native delivery reverts");
+        assertEq(bytes4(ret), StargateAdapter.INSUFFICIENT_GAS.selector, "reverts at the gas floor");
+        assertEq(address(adapter).balance, amount, "ETH untouched after revert");
+        assertEq(adapter.failedTransfers(sender, address(0)), 0, "no credit after revert");
+    }
+
+    /// @notice Solvency guard: if handleCompose reverts but the adapter does NOT hold the funds
+    ///         (preBalance < amountLD, e.g. direct-delivery composes), the outer catch must create NO
+    ///         credit — otherwise an unbacked credit could later drain other users' funds.
+    function test_Fork_E2E_V1_ClipGuard_NoUnbackedCredit_WhenAdapterEmpty() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        // Adapter holds NOTHING.
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), 0, "adapter starts empty");
+
+        uint256 amountLD = 1000e6;
+        bytes memory malformed = abi.encodePacked(
+            uint64(0), uint32(EID_ETHEREUM), amountLD, bytes32(uint256(uint160(sender))), hex"deadbeefcafebabe01"
+        );
+
+        vm.recordLogs();
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), malformed, address(0), bytes("")
+        );
+
+        // Decode failed (handled) but NO credit was created, since preBalance (0) < amountLD.
+        _assertEventEmitted(vm.getRecordedLogs(), "ComposeDecodeFailed(bytes32)");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "no unbacked credit for composeFrom");
+        assertEq(adapter.failedTransfers(dstAccount, USDC_BASE), 0, "no unbacked credit for account");
+    }
+
+    /// @notice No double-credit on the success path: a delivery whose execution fails (dummy sig →
+    ///         ExecutionFailed) but whose TOKEN TRANSFER succeeds completes normally — handleCompose does
+    ///         not revert, so the outer catch never runs and no spurious failedTransfers credit is created.
+    function test_Fork_E2E_V1_ClipGuard_NoDoubleCredit_OnExecutionFailure() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapter), amountLD);
+
+        bytes memory codec = _wrapComposeMsgCodec(amountLD, sender, _buildInnerComposeMsg(dstAccount));
+
+        vm.recordLogs();
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), codec, address(0), bytes("")
+        );
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _assertEventEmitted(logs, "TransferSucceeded(bytes32,address,address,uint256)");
+        _assertEventEmitted(logs, "ExecutionFailed(bytes32,address)");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), amountLD, "tokens delivered to account");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "no spurious credit for composeFrom");
+        assertEq(adapter.failedTransfers(dstAccount, USDC_BASE), 0, "no spurious credit for account");
+    }
+
+    /// @notice The outer-catch credit integrates with the production claim pipeline: funds credited by the
+    ///         fix are recoverable through the real ClaimFailedTransferHook, not only the raw claim call.
+    function test_Fork_E2E_V1_ClipGuard_ClaimViaHook_AfterOuterCatchCredit() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        ClaimFailedTransferHook hook = new ClaimFailedTransferHook();
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapter), amountLD);
+
+        bytes memory malformed = abi.encodePacked(
+            uint64(0), uint32(EID_ETHEREUM), amountLD, bytes32(uint256(uint160(sender))), hex"deadbeefcafebabe01"
+        );
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), malformed, address(0), bytes("")
+        );
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), amountLD, "credited to composeFrom");
+
+        _executeHookClaim(hook, address(adapter), USDC_BASE, amountLD, sender);
+
+        assertEq(IERC20(USDC_BASE).balanceOf(sender), amountLD, "composeFrom recovered via hook");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "credit cleared after hook claim");
+    }
+
+    /// @notice amountLD-inflation / dust robustness (V1): a header claiming more than the adapter holds fails
+    ///         the transfer with no over-draw and no unbacked credit (preBalance guard). Degrades safely.
+    function test_Fork_E2E_V1_ClipGuard_AmountLDExceedsBalance_NoOverdrawNoUnbackedCredit() public {
+        vm.selectFork(baseForkId);
+        StargateAdapter adapter = new StargateAdapter(LZ_ENDPOINT_BASE, TOKEN_MESSAGING_BASE, SUPER_DST_EXECUTOR_BASE);
+        uint256 amountLD = 1000e6;
+        deal(USDC_BASE, address(adapter), amountLD / 2);
+
+        bytes memory codec = _wrapComposeMsgCodec(amountLD, sender, _buildInnerComposeMsg(dstAccount));
+
+        vm.prank(LZ_ENDPOINT_BASE);
+        ILayerZeroComposer(address(adapter)).lzCompose(
+            STARGATE_USDC_POOL_BASE, bytes32(0), codec, address(0), bytes("")
+        );
+
+        assertEq(IERC20(USDC_BASE).balanceOf(address(adapter)), amountLD / 2, "no over-draw of the held balance");
+        assertEq(IERC20(USDC_BASE).balanceOf(dstAccount), 0, "account received nothing (transfer failed)");
+        assertEq(adapter.failedTransfers(dstAccount, USDC_BASE), 0, "no unbacked credit for account");
+        assertEq(adapter.failedTransfers(sender, USDC_BASE), 0, "no unbacked credit for composeFrom");
     }
 
     /// @dev Asserts that an ExecutionFailed event was emitted in recorded logs
