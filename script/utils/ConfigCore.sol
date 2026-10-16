@@ -351,6 +351,21 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.openOceanRouters[FLARE_CHAIN_ID] = OPENOCEAN_ROUTER;
         configuration.openOceanReferrers[FLARE_CHAIN_ID] = OPENOCEAN_REFERRER_FLARE;
 
+        // ===== PANCAKESWAP AGGREGATOR ADDRESSES =====
+        // The aggregator API serves Ethereum, Base and Arc (same canonical router); Robinhood uses a
+        // distinct router. BSC is intentionally left unset until a live /v1/calldata confirms the same
+        // swapExactIn(0xedad400c) router/selector there.
+        configuration.pancakeSwapRouters[MAINNET_CHAIN_ID] = PANCAKESWAP_ROUTER;
+        configuration.pancakeSwapRouters[BASE_CHAIN_ID] = PANCAKESWAP_ROUTER;
+        configuration.pancakeSwapRouters[ARC_CHAIN_ID] = PANCAKESWAP_ROUTER;
+        configuration.pancakeSwapRouters[ROBINHOOD_CHAIN_ID] = PANCAKESWAP_ROUTER_RH;
+        // Router-side native sentinel: default 0xEeee…, Arc uses 0x3600…0000. One entry per configured router
+        // chain (a zero placeholder would make the hook constructor revert).
+        configuration.pancakeSwapNativePlaceholders[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.pancakeSwapNativePlaceholders[BASE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.pancakeSwapNativePlaceholders[ARC_CHAIN_ID] = PANCAKESWAP_NATIVE_ARC;
+        configuration.pancakeSwapNativePlaceholders[ROBINHOOD_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+
         // ===== PENDLE ROUTER ADDRESSES =====
         configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
         configuration.pendleRouters[BASE_CHAIN_ID] = PENDLE_ROUTER_BASE;

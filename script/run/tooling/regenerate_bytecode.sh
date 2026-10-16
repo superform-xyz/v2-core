@@ -173,6 +173,8 @@ HOOK_CONTRACTS=(
     "ApproveAndSwapKyberSwapHook"
     "SwapOpenOceanHook"
     "ApproveAndSwapOpenOceanHook"
+    "SwapPancakeSwapHook"
+    "ApproveAndSwapPancakeSwapHook"
     "SwapUniswapV2Hook"
     "ApproveAndSwapUniswapV2Hook"
     "RedeemFirelightVaultHook"

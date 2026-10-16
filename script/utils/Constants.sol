@@ -151,6 +151,13 @@ abstract contract Constants {
     address internal constant OPENOCEAN_ROUTER = 0x6352a56caadC4F1E25CD6c75970Fa768A3304e64;
     address internal constant OPENOCEAN_REFERRER_FLARE = 0x0E24b0F342F034446Ec814281AD1a7653cBd85e9;
 
+    // PancakeSwap aggregator router (the on-chain, synchronous surface behind "PancakeSwap X").
+    // Same canonical router on Ethereum/Base/Arc; Robinhood (4663) uses a distinct router.
+    address internal constant PANCAKESWAP_ROUTER = 0x2f68417A18dA681589F4eA64B9Cc9839209acfF7;
+    address internal constant PANCAKESWAP_ROUTER_RH = 0x6AF306Cd8Be7CEfd38edf4cB7D6FE83A6E29661B;
+    // PancakeSwap's Arc calldata uses this native-token placeholder instead of 0xEeee… / address(0).
+    address internal constant PANCAKESWAP_NATIVE_ARC = 0x3600000000000000000000000000000000000000;
+
     // Pendle Router addresses per chain
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
@@ -260,6 +267,8 @@ abstract contract Constants {
     string internal constant APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY = "ApproveAndSwapKyberSwapHook";
     string internal constant SWAP_OPENOCEAN_HOOK_KEY = "SwapOpenOceanHook";
     string internal constant APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY = "ApproveAndSwapOpenOceanHook";
+    string internal constant SWAP_PANCAKESWAP_HOOK_KEY = "SwapPancakeSwapHook";
+    string internal constant APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY = "ApproveAndSwapPancakeSwapHook";
     string internal constant SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY = "SwapAerodromeUniversalRouterHook";
     string internal constant APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY =
         "ApproveAndSwapAerodromeUniversalRouterHook";

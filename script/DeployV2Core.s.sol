@@ -108,6 +108,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndSwapKyberSwapHook;
         address swapOpenOceanHook;
         address approveAndSwapOpenOceanHook;
+        address swapPancakeSwapHook;
+        address approveAndSwapPancakeSwapHook;
         address swapUniswapV2Hook;
         address approveAndSwapUniswapV2Hook;
         address swapOdosV3Hook;
@@ -305,6 +307,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bool swapSparkPsmHooks;
         bool swapKyberSwapHooks;
         bool swapOpenOceanHooks;
+        bool swapPancakeSwapHooks;
         bool swapUniswapV2Hooks;
         bool pendleRouterHooks;
         bool pendlePTAmortizedOracleHooks;
@@ -360,7 +363,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](49);
+        string[] memory potentialSkips = new string[](51);
         uint256 skipCount = 0;
         // Adapter contracts (8 contracts - conditionally deployed)
         string[8] memory adapterContracts = [
@@ -443,7 +446,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         availability.expectedAdapters = expectedAdapters;
 
         // Hook contracts - all hooks from regenerate_bytecode.sh (including V2/V3 versions)
-        string[83] memory baseHooks = [
+        string[85] memory baseHooks = [
             "ApproveERC20Hook",
             "TransferERC20Hook",
             "BatchTransferHook",
@@ -509,6 +512,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             "ApproveAndSwapKyberSwapHook",
             "SwapOpenOceanHook",
             "ApproveAndSwapOpenOceanHook",
+            "SwapPancakeSwapHook",
+            "ApproveAndSwapPancakeSwapHook",
             "SwapUniswapV2Hook",
             "ApproveAndSwapUniswapV2Hook",
             "StargateSendHook",
@@ -654,6 +659,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2; // SwapOpenOceanHook + ApproveAndSwapOpenOceanHook
             potentialSkips[skipCount++] = "SwapOpenOceanHook";
             potentialSkips[skipCount++] = "ApproveAndSwapOpenOceanHook";
+        }
+
+        if (configuration.pancakeSwapRouters[chainId] != address(0)) {
+            availability.swapPancakeSwapHooks = true;
+        } else {
+            expectedHooks -= 2; // SwapPancakeSwapHook + ApproveAndSwapPancakeSwapHook
+            potentialSkips[skipCount++] = "SwapPancakeSwapHook";
+            potentialSkips[skipCount++] = "ApproveAndSwapPancakeSwapHook";
         }
 
         if (configuration.uniswapV2SwapRouters[chainId] != address(0)) {
@@ -2465,6 +2478,31 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED OpenOcean hooks: OpenOcean Router/Referrer not configured for chain", chainId);
         }
 
+        if (availability.swapPancakeSwapHooks) {
+            __checkContract(
+                SWAP_PANCAKESWAP_HOOK_KEY,
+                __getSalt(SWAP_PANCAKESWAP_HOOK_KEY),
+                abi.encode(
+                    configuration.pancakeSwapRouters[chainId],
+                    configuration.pancakeSwapNativePlaceholders[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
+                env
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY),
+                abi.encode(
+                    configuration.pancakeSwapRouters[chainId],
+                    configuration.pancakeSwapNativePlaceholders[chainId],
+                    configuration.nativeTokens[chainId]
+                ),
+                env
+            );
+        } else {
+            console2.log("SKIPPED PancakeSwap hooks: PancakeSwap Router not configured for chain", chainId);
+        }
+
         if (availability.swapUniswapV2Hooks) {
             __checkContract(
                 SWAP_UNISWAPV2_HOOK_KEY,
@@ -3257,6 +3295,23 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log(" OpenOcean Referrer:", configuration.openOceanReferrers[chainId]);
         } else {
             console2.log(" SKIPPED OpenOcean validation: Not available on chain", chainId);
+        }
+
+        if (availability.swapPancakeSwapHooks) {
+            require(configuration.pancakeSwapRouters[chainId] != address(0), "PANCAKESWAP_ROUTER_ADDRESS_ZERO");
+            require(configuration.pancakeSwapRouters[chainId].code.length > 0, "PANCAKESWAP_ROUTER_NOT_DEPLOYED");
+            // Finding 2 (security review): the router-side native sentinel drives _isNative + the native value
+            // decision, so a wrong per-chain value silently mis-handles native. Assert it equals the known
+            // sentinel (Arc 0x3600…0000, every other chain 0xEeee…) so a misconfig fails the preflight.
+            address pcsNative = configuration.pancakeSwapNativePlaceholders[chainId];
+            if (chainId == ARC_CHAIN_ID) {
+                require(pcsNative == PANCAKESWAP_NATIVE_ARC, "PANCAKESWAP_ARC_NATIVE_MISCONFIG");
+            } else {
+                require(pcsNative == NATIVE_TOKEN_DEFAULT, "PANCAKESWAP_NATIVE_MISCONFIG");
+            }
+            console2.log(" PancakeSwap Router:", configuration.pancakeSwapRouters[chainId]);
+        } else {
+            console2.log(" SKIPPED PancakeSwap validation: Not available on chain", chainId);
         }
 
         if (availability.swapUniswapV2Hooks) {
@@ -4383,7 +4438,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Get contract availability for this chain
         ContractAvailability memory availability = _getContractAvailability(chainId, env);
 
-        uint256 len = 85;
+        uint256 len = 87;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -4903,6 +4958,36 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[69] = HookDeployment("", "", ""); // Empty deployment
         }
 
+        // PancakeSwap Hooks - Only deploy if available on this chain
+        if (availability.swapPancakeSwapHooks) {
+            require(configuration.pancakeSwapRouters[chainId] != address(0), "PANCAKESWAP_HOOK_ROUTER_PARAM_ZERO");
+            require(configuration.pancakeSwapRouters[chainId].code.length > 0, "PANCAKESWAP_HOOK_ROUTER_NOT_DEPLOYED");
+            hooks[85] = _createSafeHookDeploymentWithArgs(
+                SWAP_PANCAKESWAP_HOOK_KEY,
+                "SwapPancakeSwapHook",
+                env,
+                abi.encode(
+                    configuration.pancakeSwapRouters[chainId],
+                    configuration.pancakeSwapNativePlaceholders[chainId],
+                    configuration.nativeTokens[chainId]
+                )
+            );
+            hooks[86] = _createSafeHookDeploymentWithArgs(
+                APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY,
+                "ApproveAndSwapPancakeSwapHook",
+                env,
+                abi.encode(
+                    configuration.pancakeSwapRouters[chainId],
+                    configuration.pancakeSwapNativePlaceholders[chainId],
+                    configuration.nativeTokens[chainId]
+                )
+            );
+        } else {
+            console2.log(" SKIPPED PancakeSwap Hooks deployment: Not available on chain", chainId);
+            hooks[85] = HookDeployment("", "", ""); // Empty deployment
+            hooks[86] = HookDeployment("", "", ""); // Empty deployment
+        }
+
         // UniswapV3 SwapRouter02 Hooks - Only deploy if V3 SwapRouter02 available on this chain
         if (availability.swapUniswapV3Router02Hooks) {
             hooks[71] = _createSafeHookDeploymentWithArgs(
@@ -5170,6 +5255,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[68].name, SWAP_OPENOCEAN_HOOK_KEY) ? addresses[68] : address(0);
         hookAddresses.approveAndSwapOpenOceanHook =
             Strings.equal(hooks[69].name, APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY) ? addresses[69] : address(0);
+        hookAddresses.swapPancakeSwapHook =
+            Strings.equal(hooks[85].name, SWAP_PANCAKESWAP_HOOK_KEY) ? addresses[85] : address(0);
+        hookAddresses.approveAndSwapPancakeSwapHook =
+            Strings.equal(hooks[86].name, APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY) ? addresses[86] : address(0);
         hookAddresses.swapUniswapV3Router02Hook =
             Strings.equal(hooks[71].name, SWAP_UNISWAPV3_ROUTER02_HOOK_KEY) ? addresses[71] : address(0);
         hookAddresses.approveAndSwapUniswapV3Router02Hook =
@@ -5291,6 +5380,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             require(hookAddresses.swapOpenOceanHook != address(0), "SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED");
             require(
                 hookAddresses.approveAndSwapOpenOceanHook != address(0), "APPROVE_AND_SWAP_OPENOCEAN_HOOK_NOT_ASSIGNED"
+            );
+        }
+        if (availability.swapPancakeSwapHooks) {
+            require(hookAddresses.swapPancakeSwapHook != address(0), "SWAP_PANCAKESWAP_HOOK_NOT_ASSIGNED");
+            require(
+                hookAddresses.approveAndSwapPancakeSwapHook != address(0),
+                "APPROVE_AND_SWAP_PANCAKESWAP_HOOK_NOT_ASSIGNED"
             );
         }
         if (availability.acrossV3AdapterV2) {
