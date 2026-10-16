@@ -183,6 +183,23 @@ contract PancakeSwapHookTest is Test {
         assertEq(req.minOutputAmount, 1800, "minOut scaled proportionally");
     }
 
+    /// @notice Security property of the fix: the minOut scaling denominator is the EMBEDDED routesAmount[0]
+    ///         (the real signed quote size), never the mutable header inputAmount. Here the header lies
+    ///         (999_999) while the embedded route is 1000; a new size of 2000 must scale 900 -> 1800 off the
+    ///         embedded 1000, not off the header. If the header were the denominator, minOut would collapse
+    ///         to ~2 and the floor would be meaningless.
+    function test_UsePrevHookAmount_MinScalesOffEmbedded_NotHeader() public {
+        prevHook.setOutAmount(2000, account);
+        bytes memory txData = _txData(inputToken, outputToken, 900, 1000 /*embedded route*/, 0, account);
+        bytes memory data = _hookData(inputToken, outputToken, 999_999 /*lying header*/, 900, true, txData);
+
+        Execution[] memory ex = swapHook.build(address(prevHook), account, data);
+        (, IPancakeSwapRouter.BaseExactInRequest memory req, uint256[] memory routesAmount,,,) =
+            _decodeSwapExactIn(ex[1].callData);
+        assertEq(routesAmount[0], 2000, "routesAmount patched to new size");
+        assertEq(req.minOutputAmount, 1800, "minOut scaled off embedded 1000, not header 999_999");
+    }
+
     function test_Revert_UsePrevHookAmount_MultiRoute() public {
         prevHook.setOutAmount(2000, account);
         bytes memory txData = _txDataMultiRoute(inputToken, outputToken, 900, 0, account);
@@ -305,6 +322,9 @@ contract PancakeSwapHookTest is Test {
         }
     }
 
+    /// @notice Replacement must rewrite the sized header AND the embedded router calldata consistently:
+    ///         routesAmount[0] and the proportional minOut floor, so the advertised size is truthful.
+    ///         900 * 4242 / 1000 = 3817.8 -> ceil -> 3818.
     function test_Both_ReplaceCalldataAmounts() public view {
         bytes memory txData = _txData(inputToken, outputToken, 900, 1000, 0, account);
         bytes memory data = _hookData(inputToken, outputToken, 1000, 950, false, txData);
@@ -313,8 +333,63 @@ contract PancakeSwapHookTest is Test {
         address[2] memory hooks = _hooks();
         for (uint256 i; i < hooks.length; i++) {
             bytes memory replaced = ISuperHookOutflow(hooks[i]).replaceCalldataAmounts(data, amts);
-            assertEq(ISuperHookSwap(hooks[i]).decodeInputAmount(replaced), 4242);
+            assertEq(ISuperHookSwap(hooks[i]).decodeInputAmount(replaced), 4242, "header amount");
+
+            bytes memory newTxData = abi.decode(ISuperHookSwap(hooks[i]).decodePayload(replaced), (bytes));
+            (, IPancakeSwapRouter.BaseExactInRequest memory req, uint256[] memory routesAmount,,,) =
+                _decodeSwapExactIn(newTxData);
+            assertEq(routesAmount[0], 4242, "embedded routesAmount rewritten");
+            assertEq(req.minOutputAmount, 3818, "embedded minOut scaled (ceil)");
         }
+    }
+
+    /// @notice Replacement→build→execute must stay consistent: after resizing, build() emits router calldata
+    ///         whose embedded routesAmount equals the new size and whose header amount matches it, so the
+    ///         fixed-path INPUT_AMOUNT_MISMATCH guard passes on the resized data.
+    function test_ReplaceThenBuild_Consistent() public {
+        bytes memory txData = _txData(inputToken, outputToken, 900, 1000, 0, account);
+        bytes memory data = _hookData(inputToken, outputToken, 1000, 950, false, txData);
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 4242;
+        bytes memory replaced = swapHook.replaceCalldataAmounts(data, amts);
+
+        Execution[] memory ex = swapHook.build(address(prevHook), account, replaced);
+        (, IPancakeSwapRouter.BaseExactInRequest memory req, uint256[] memory routesAmount,,,) =
+            _decodeSwapExactIn(ex[1].callData);
+        assertEq(routesAmount[0], 4242, "executed routesAmount matches resized header");
+        assertEq(req.minOutputAmount, 3818, "executed minOut scaled");
+    }
+
+    /// @notice Multi-route payloads cannot be surgically resized (no single embedded quote to scale against),
+    ///         so replacement fails closed rather than silently leaving a stale router amount.
+    function test_Both_Revert_ReplaceCalldataAmounts_MultiRoute() public {
+        bytes memory txData = _txDataMultiRoute(inputToken, outputToken, 900, 0, account);
+        bytes memory data = _hookData(inputToken, outputToken, 1000, 950, false, txData);
+        uint256[] memory amts = new uint256[](1);
+        amts[0] = 4242;
+        vm.expectRevert(PancakeSwapAmountUpdater.SINGLE_ROUTE_REQUIRED.selector);
+        swapHook.replaceCalldataAmounts(data, amts);
+        vm.expectRevert(PancakeSwapAmountUpdater.SINGLE_ROUTE_REQUIRED.selector);
+        approveHook.replaceCalldataAmounts(data, amts);
+    }
+
+    /// @notice Fixed path: a header amount that does not equal the sum of the embedded routesAmount is a
+    ///         mis-sized intent (the approve/native value would not match what the router pulls), so build
+    ///         fails closed instead of executing a stale size.
+    function test_Revert_FixedPath_HeaderAmountMismatch() public {
+        // embedded single route pulls 1000, but the header advertises 1234 -> mismatch
+        bytes memory txData = _txData(inputToken, outputToken, 900, 1000, 0, account);
+        bytes memory data = _hookData(inputToken, outputToken, 1234, 950, false, txData);
+        vm.expectRevert(SwapPancakeSwapHook.INPUT_AMOUNT_MISMATCH.selector);
+        swapHook.build(address(prevHook), account, data);
+    }
+
+    function test_Revert_FixedPath_HeaderAmountMismatch_MultiRoute() public {
+        // embedded routes pull 600 + 400 = 1000, header advertises 1500 -> mismatch
+        bytes memory txData = _txDataMultiRoute(inputToken, outputToken, 900, 0, account);
+        bytes memory data = _hookData(inputToken, outputToken, 1500, 950, false, txData);
+        vm.expectRevert(SwapPancakeSwapHook.INPUT_AMOUNT_MISMATCH.selector);
+        swapHook.build(address(prevHook), account, data);
     }
 
     function test_Both_Revert_ReplaceCalldataAmounts_WrongLength() public {

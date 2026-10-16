@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
-import { HookDataUpdater } from "./HookDataUpdater.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IPancakeSwapRouter } from "../vendor/pancakeswap/IPancakeSwapRouter.sol";
 
 /// @title PancakeSwapAmountUpdater
@@ -39,7 +39,6 @@ library PancakeSwapAmountUpdater {
     error SINGLE_ROUTE_REQUIRED();
     error FEE_CONFIG_UNSUPPORTED();
     error ZERO_AMOUNT();
-    error ZERO_MIN_RETURN();
 
     /// @notice Validate the selector and read the token pair + recipient from a `swapExactIn` calldata
     /// @param txData_ The raw router calldata (selector + ABI-encoded args)
@@ -60,12 +59,13 @@ library PancakeSwapAmountUpdater {
 
     /// @notice Rescale a SINGLE-ROUTE, zero-fee `swapExactIn` calldata to a new input amount, in place
     /// @dev Reverts (rather than mis-sizing) on multi-route or non-zero feeConfig calldata. Scales
-    ///      request.minOutputAmount proportionally so the slippage floor tracks the new size.
-    /// @param txData_ The raw router calldata, mutated in place
-    /// @param newAmount_ The resolved input amount (from the previous hook's output)
-    /// @param originalAmount_ The original input amount the calldata/quote was built for
-    function rescaleSingleRoute(bytes memory txData_, uint256 newAmount_, uint256 originalAmount_) internal pure {
-        if (newAmount_ == 0 || originalAmount_ == 0) revert ZERO_AMOUNT();
+    ///      request.minOutputAmount with EXACT full-precision mulDiv (ceil) against the EMBEDDED route amount
+    ///      — never a mutable header — so the floor tracks the new size truthfully and the quote denominator
+    ///      cannot be weakened by a prior header rewrite.
+    /// @param txData_ The raw router calldata, mutated in place (routesAmount[0] and minOutputAmount)
+    /// @param newAmount_ The resolved input amount for the single route
+    function rescaleSingleRoute(bytes memory txData_, uint256 newAmount_) internal pure {
+        if (newAmount_ == 0) revert ZERO_AMOUNT();
         if (txData_.length < HEAD_MIN_LENGTH) revert TXDATA_TOO_SHORT();
         if (_selector(txData_) != SWAP_EXACT_IN_SELECTOR) revert INVALID_SELECTOR();
         if (_readWord(txData_, FEE_CONFIG_SLOT) != 0) revert FEE_CONFIG_UNSUPPORTED();
@@ -83,12 +83,36 @@ library PancakeSwapAmountUpdater {
         uint256 elemPos = arrPos + 32;
         if (txData_.length < elemPos + 32) revert TXDATA_TOO_SHORT();
 
+        // Denominator is the EMBEDDED route amount (the real quote size), read before we overwrite it.
+        uint256 originalRouteAmount = _readWord(txData_, elemPos);
+        if (originalRouteAmount == 0) revert ZERO_AMOUNT();
+
         uint256 originalMinOut = _readWord(txData_, MIN_OUTPUT_SLOT);
-        uint256 scaledMinOut = HookDataUpdater.getUpdatedOutputAmount(newAmount_, originalAmount_, originalMinOut);
-        if (originalMinOut > 0 && scaledMinOut == 0) revert ZERO_MIN_RETURN();
+        // Exact proportional scaling (ceil keeps the floor conservative), no percentage quantization.
+        // Ceil + the newAmount_/originalRouteAmount != 0 guards above make this >= 1 whenever
+        // originalMinOut > 0, so a positive floor can never silently collapse to 0.
+        uint256 scaledMinOut = Math.mulDiv(originalMinOut, newAmount_, originalRouteAmount, Math.Rounding.Ceil);
 
         _writeWord(txData_, MIN_OUTPUT_SLOT, scaledMinOut);
         _writeWord(txData_, elemPos, newAmount_);
+    }
+
+    /// @notice Sum of the embedded routesAmount array (the exact amount the router will pull), for any route
+    ///         count. Used by the hook to assert the header amount truthfully describes the executed trade.
+    /// @param txData_ The raw router calldata
+    /// @return total The summed input across all routes
+    function totalRoutesAmount(bytes memory txData_) internal pure returns (uint256 total) {
+        if (txData_.length < HEAD_MIN_LENGTH) revert TXDATA_TOO_SHORT();
+        if (_selector(txData_) != SWAP_EXACT_IN_SELECTOR) revert INVALID_SELECTOR();
+        uint256 arrPos = 4 + _readWord(txData_, ROUTES_AMOUNT_PTR_SLOT);
+        if (arrPos < HEAD_MIN_LENGTH) revert INVALID_ROUTES_OFFSET();
+        if (txData_.length < arrPos + 32) revert TXDATA_TOO_SHORT();
+        uint256 n = _readWord(txData_, arrPos);
+        uint256 end = arrPos + 32 + n * 32;
+        if (n == 0 || txData_.length < end) revert TXDATA_TOO_SHORT();
+        for (uint256 i; i < n; ++i) {
+            total += _readWord(txData_, arrPos + 32 + i * 32);
+        }
     }
 
     function _selector(bytes memory data_) private pure returns (bytes4 selector) {

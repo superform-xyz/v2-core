@@ -66,6 +66,8 @@ contract SwapPancakeSwapHook is
     error INVALID_RECIPIENT();
     /// @notice Thrown when the resolved execution amount is zero
     error ZERO_EXECUTION_AMOUNT();
+    /// @notice Thrown when the header inputAmount does not equal the embedded routesAmount sum (fixed path)
+    error INPUT_AMOUNT_MISMATCH();
 
     constructor(
         address router_,
@@ -116,7 +118,15 @@ contract SwapPancakeSwapHook is
         if (usePrevHookAmount) {
             executionAmount = ISuperHookResult(prevHook).getOutAmount(account);
             if (executionAmount == 0) revert ZERO_EXECUTION_AMOUNT();
-            PancakeSwapAmountUpdater.rescaleSingleRoute(txData_, executionAmount, inputAmount);
+            // Rescales routesAmount[0] + the floor against the EMBEDDED route amount (single-route/zero-fee).
+            PancakeSwapAmountUpdater.rescaleSingleRoute(txData_, executionAmount);
+        } else if (inputAmount != PancakeSwapAmountUpdater.totalRoutesAmount(txData_)) {
+            // Fixed path: the header amount MUST equal what the router will actually pull, so the sized slot
+            // is truthful and the approve/native value below match the embedded routesAmount. Fail closed.
+            // (A non-zero feeConfig is left to the signed calldata here: it is bounded by the forwarded
+            // value/approval == sum(routesAmount) and gated by the embedded minOutputAmount, so it cannot
+            // over-pull; only the chained rescale path forbids feeConfig, where it would skew the ratio.)
+            revert INPUT_AMOUNT_MISMATCH();
         }
 
         (address srcToken, address dstToken, address recipient) = PancakeSwapAmountUpdater.readFields(txData_);
@@ -174,7 +184,21 @@ contract SwapPancakeSwapHook is
         returns (bytes memory)
     {
         if (amounts.length != 1) revert INVALID_AMOUNTS_LENGTH();
-        return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
+        // Keep the sized header AND the embedded router calldata consistent: rewrite routesAmount[0] and
+        // scale the floor in the payload too, so the advertised sizing interface is truthful. Single-route /
+        // zero-fee only; rescaleSingleRoute reverts for multi-route or fixed-fee payloads (fail closed).
+        uint256 payloadLength = BytesLib.toUint256(data, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET);
+        bytes memory txData_ =
+            abi.decode(BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength), (bytes));
+        PancakeSwapAmountUpdater.rescaleSingleRoute(txData_, amounts[0]);
+        bytes memory newPayload = abi.encode(txData_);
+        return bytes.concat(
+            _replaceCalldataAmount(
+                BytesLib.slice(data, 0, SwapCalldataLayout.PAYLOAD_LENGTH_OFFSET), amounts[0], AMOUNT_POSITION
+            ),
+            bytes32(newPayload.length),
+            newPayload
+        );
     }
 
     /// @inheritdoc ISuperHookInspector
