@@ -255,6 +255,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_AND_SWAP_SPARK_PSM_EXACT_IN_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",
@@ -829,6 +834,11 @@
   },
   {
     "hookKey": "SWAP_OPENOCEAN_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "SWAP_PANCAKESWAP_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
   },
