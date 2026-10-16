@@ -188,6 +188,7 @@
         "ApproveAndStargateSendHook": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
         "ApproveAndStargateSendHookV2": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
         "ApproveAndSwapKyberSwapHook": "0x6E33A5e9e735939113421C0f22Ba1C9a690280e3",
+        "ApproveAndSwapPancakeSwapHook": "0x3fc35c7Ee9301547eD354F99a6f4710cd81dce37",
         "ApproveERC20Hook": "0x0cEE1a19c3d099f16626678501f4D0F0ACA2F91D",
         "BatchTransferFromHook": "0xd95586Dd3852dcd29FbfbCC951cf1025279bC9E0",
         "BatchTransferHook": "0xE2F80752abF19d453906c74aDfb689BEB9Bd7aF8",
@@ -265,6 +266,7 @@
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "SwapKyberSwapHook": "0xDFe65047684418Bbf1f19e407bEEc39a894873Da",
+        "SwapPancakeSwapHook": "0x1e85a717680EE2488aa2FbED6457fBBAE95c1716",
         "TransferERC20Hook": "0xFD47A827DcE31e85D6Ad69be4b1E70bDE4dfF66E",
         "TransferHook": "0xB116297D6aB430D613b9bdf33972748F3700e28F",
         "UniV3CLPRegistry": "0xE41E1319b391Ddc61Dc7d17867c64870909870A4",
@@ -617,6 +619,7 @@
         "ApproveAndSwapKyberSwapHook": "0x6E33A5e9e735939113421C0f22Ba1C9a690280e3",
         "ApproveAndSwapOdosV2Hook": "0x14977fD835F973a0aFfE692C3Fbc484EA54C68b5",
         "ApproveAndSwapOdosV3Hook": "0xE6723Cb0505bdA770CC5C6aD070972DeDC87AEe9",
+        "ApproveAndSwapPancakeSwapHook": "0xa9AF8E597e586153143eFD27b7Dc9dB94eb5947D",
         "ApproveAndSwapSparkPSMExactInHook": "0x2dFc91208d89bEcd28971502dFF9247815d06515",
         "ApproveAndSwapSparkPSMExactOutHook": "0x5131211c0ff59234c25f024Ec2F4aFBFdC4718e7",
         "ApproveAndSwapUniswapV3Router02Hook": "0xafed6AE2F45525796a5b99d869151ca8A8F57E5F",
@@ -732,6 +735,7 @@
         "SwapKyberSwapHook": "0xDFe65047684418Bbf1f19e407bEEc39a894873Da",
         "SwapOdosV2Hook": "0xcE3967B81FAD5603e2Ec719F4ec3Ee0B7D4f07a2",
         "SwapOdosV3Hook": "0xa6aF1811A3595aBc5F78a1cCbD3e6034D35ddE04",
+        "SwapPancakeSwapHook": "0x3A1A3cD6E5c1d4a2d99d563361bBD106157C7bE3",
         "SwapSparkPSMExactInHook": "0xBdA444AE57DDD2E9e9c01737F25efFFB3d3083E4",
         "SwapSparkPSMExactOutHook": "0x54CDeD468DDF7Bdb99D9510F5edDA1410e08f2aD",
         "SwapUniswapV3Router02Hook": "0x84Ee1BFad3BbFFbc9CCb29690722830740BFcF27",
@@ -795,6 +799,7 @@
         "ApproveAndSwapKyberSwapHook": "0x6E33A5e9e735939113421C0f22Ba1C9a690280e3",
         "ApproveAndSwapOdosV2Hook": "0x0d91133F8f507CD843a183322B651a274A2DfFd0",
         "ApproveAndSwapOdosV3Hook": "0xE6723Cb0505bdA770CC5C6aD070972DeDC87AEe9",
+        "ApproveAndSwapPancakeSwapHook": "0xa9AF8E597e586153143eFD27b7Dc9dB94eb5947D",
         "ApproveAndSwapUniswapV3Router02Hook": "0x93659Edc5D2D20B8f06c73E3cCA6c82fcB888dFB",
         "ApproveERC20Hook": "0x0cEE1a19c3d099f16626678501f4D0F0ACA2F91D",
         "BatchTransferFromHook": "0xd95586Dd3852dcd29FbfbCC951cf1025279bC9E0",
@@ -906,6 +911,7 @@
         "SwapKyberSwapHook": "0xDFe65047684418Bbf1f19e407bEEc39a894873Da",
         "SwapOdosV2Hook": "0xCc21B5c0083f5Cf687B47C05f429b561284eFed0",
         "SwapOdosV3Hook": "0xa6aF1811A3595aBc5F78a1cCbD3e6034D35ddE04",
+        "SwapPancakeSwapHook": "0x3A1A3cD6E5c1d4a2d99d563361bBD106157C7bE3",
         "SwapUniswapV3Router02Hook": "0x8F4005BFBb2689179dcEfca987136e93EC47b415",
         "SwapUniswapV4Hook": "0x570616618387545340BA2A16fe7acF591438f601",
         "TransferERC20Hook": "0xFD47A827DcE31e85D6Ad69be4b1E70bDE4dfF66E",
@@ -1299,6 +1305,7 @@
         "ApproveAndStargateSendHook": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
         "ApproveAndStargateSendHookV2": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
         "ApproveAndSwapKyberSwapHook": "0x6E33A5e9e735939113421C0f22Ba1C9a690280e3",
+        "ApproveAndSwapPancakeSwapHook": "0xcE0800d5CEb786f7a74C34B82391f38C3b99737b",
         "ApproveERC20Hook": "0x0cEE1a19c3d099f16626678501f4D0F0ACA2F91D",
         "BatchTransferFromHook": "0xd95586Dd3852dcd29FbfbCC951cf1025279bC9E0",
         "BatchTransferHook": "0xE2F80752abF19d453906c74aDfb689BEB9Bd7aF8",
@@ -1392,6 +1399,7 @@
         "SuperYieldSourceOracle": "0x03f1d66d67BDacD1d417d884a59733f3Af626c62",
         "Swap1InchHook": "0xDf629bb4574F07dde8464a1CA86301EE3fFE71b4",
         "SwapKyberSwapHook": "0xDFe65047684418Bbf1f19e407bEEc39a894873Da",
+        "SwapPancakeSwapHook": "0xffb2a551c08fCC8B4B9d917FADB57B5E40880635",
         "SwapUniswapV4Hook": "0x7e235c169eD3fe1F50B2b62CbF0ea9EAa8a499e1",
         "TransferERC20Hook": "0xFD47A827DcE31e85D6Ad69be4b1E70bDE4dfF66E",
         "TransferHook": "0xB116297D6aB430D613b9bdf33972748F3700e28F",
@@ -1487,5 +1495,5 @@
       "vnet_id": ""
     }
   },
-  "updated_at": "2026-10-14T10:12:18Z"
+  "updated_at": "2026-10-16T13:31:14Z"
 }
