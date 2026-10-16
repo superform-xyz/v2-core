@@ -14,19 +14,22 @@ import { IIrm } from "../../vendor/morpho/IIrm.sol";
 // superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { MorphoBlueMarketRegistry } from "./MorphoBlueMarketRegistry.sol";
+import { IMorphoMarketPosition } from "../../interfaces/accounting/IMorphoMarketPosition.sol";
+import { IMorphoOwnerSnapshot } from "../../interfaces/accounting/IMorphoOwnerSnapshot.sol";
 
 /// @title MorphoBlueYieldSourceOracle
 /// @author Superform Labs
-/// @notice Oracle for Morpho Blue lending markets (supply-side).
-/// @dev ACCOUNTING UNIT: All values (PPS, TVL, asset conversions) are denominated in the
-///      market's **loanToken** — the token suppliers deposit and earn interest on. This oracle
-///      tracks supply-side lender positions only. It does NOT report:
-///        - Collateral token value or equity NAV
-///        - USD-denominated prices
-///        - Morpho market oracle prices (the on-chain oracle used for LTV calculations)
-///      Downstream consumers (SuperLedger, monitoring, fee calculations) receive loanToken-
-///      denominated figures. If USD or collateral-denominated values are needed, an additional
-///      price feed must be composed on top.
+/// @notice Oracle for Morpho Blue lending markets, plus a market/owner snapshot read API (SUP-21477).
+/// @dev ACCOUNTING UNIT (scalar surface): the `IYieldSourceOracle` methods (PPS, TVL, asset conversions)
+///      are denominated ONLY in the market's **loanToken** and track supply-side lender positions only.
+///      That scalar surface does NOT report collateral value, equity NAV, USD prices, or the Morpho market
+///      oracle's LTV price. Downstream consumers (SuperLedger, monitoring, fee calculations) receive
+///      loanToken-denominated figures; compose a price feed on top for USD/collateral-denominated values.
+///
+///      SNAPSHOT API: the separate `IMorphoMarketPosition` / `IMorphoOwnerSnapshot` reads additionally
+///      expose the owner's raw collateral (collateralToken units) and accrued debt (loanToken units,
+///      rounded up) legs ALONGSIDE the lending leg, side by side and never netted, for caller-side pricing
+///      and classification. These reads do not change the scalar surface's single-asset, supply-side contract.
 ///
 /// @dev Reads market identity from a MorphoBlueMarketRegistry, then queries Morpho
 ///      on-chain state and replicates interest accrual in a view context to return
@@ -42,7 +45,7 @@ import { MorphoBlueMarketRegistry } from "./MorphoBlueMarketRegistry.sol";
 ///
 ///      Fee guard: Fee share accrual is skipped when `feeAmount >= totalSupplyAssets` to prevent
 ///      arithmetic underflow in pathological market configurations.
-contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
+contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle, IMorphoMarketPosition, IMorphoOwnerSnapshot {
     using MarketParamsLib for MarketParams;
     using SharesMathLib for uint256;
     using MathLib for uint256;
@@ -58,12 +61,14 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Accrued market state after replicating Morpho's interest logic.
-    ///      Only supply-side fields are included; borrow state is used internally only
-    ///      and is not meaningful to oracle consumers.
+    /// @dev Accrued market state after replicating Morpho's interest logic. Supply fields drive every
+    ///      scalar lender read; the borrow fields exist so the snapshot's Debt leg accrues over the SAME
+    ///      capped `elapsed` as the supply side (one pass, one bound) instead of a second uncapped helper.
     struct AccruedState {
         uint256 totalSupplyAssets;
         uint256 totalSupplyShares;
+        uint256 totalBorrowAssets;
+        uint256 totalBorrowShares;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -198,8 +203,136 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    MARKET / OWNER SNAPSHOT (SUP-21477)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IMorphoMarketPosition
+    function getMarketPosition(
+        address marketKey,
+        address owner
+    )
+        external
+        view
+        returns (MarketPosition memory position)
+    {
+        if (owner == address(0)) revert ZERO_ADDRESS();
+        position = _marketPosition(marketKey, owner);
+    }
+
+    /// @inheritdoc IMorphoOwnerSnapshot
+    function getOwnerSnapshot(
+        address owner,
+        address[] calldata marketKeys
+    )
+        external
+        view
+        returns (MarketBinding[] memory markets, OwnerPosition[] memory positions)
+    {
+        if (owner == address(0)) revert ZERO_ADDRESS();
+
+        uint256 n = marketKeys.length;
+        markets = new MarketBinding[](n);
+        // Up to three legs per unique market (Lending, Debt, and Collateral when a collateral token exists).
+        positions = new OwnerPosition[](n * 3);
+
+        uint256 mCount;
+        uint256 pCount;
+
+        for (uint256 i; i < n; ++i) {
+            address key = marketKeys[i];
+            // Collapse literal duplicate keys: isolation means there is nothing else to de-duplicate.
+            if (_hasMarket(markets, mCount, key)) continue;
+
+            MarketPosition memory p = _marketPosition(key, owner);
+
+            markets[mCount++] =
+                MarketBinding(key, p.morpho, p.marketId, p.loanToken, p.collateralToken);
+
+            // Lending and Debt legs (loanToken) are always emitted, zero balances included, so the caller
+            // sees a stable per-market shape and a zero-lending borrower still surfaces its debt.
+            positions[pCount++] = OwnerPosition(
+                key, p.morpho, p.marketId, Side.Lending, p.loanToken, p.loanDecimals, p.suppliedAssets, p.supplyShares
+            );
+            positions[pCount++] = OwnerPosition(
+                key, p.morpho, p.marketId, Side.Debt, p.loanToken, p.loanDecimals, p.debtAssets, p.borrowShares
+            );
+
+            // Collateral leg only when the market has a collateral token. A lending-only market cannot
+            // denominate collateral, so it is omitted rather than reported as a zero in an undefined token.
+            if (p.collateralToken != address(0)) {
+                positions[pCount++] = OwnerPosition(
+                    key,
+                    p.morpho,
+                    p.marketId,
+                    Side.Collateral,
+                    p.collateralToken,
+                    p.collateralDecimals,
+                    p.collateral,
+                    0
+                );
+            }
+        }
+
+        // Truncate both arrays to what was actually populated (duplicates and lending-only markets leave slack).
+        assembly ("memory-safe") {
+            mstore(markets, mCount)
+            mstore(positions, pCount)
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Resolve one registered market key into all three raw legs for `owner`
+    /// @dev Reverts `MARKET_NOT_REGISTERED` via the registry for an unregistered key — no fallback, no zero
+    ///      substitution. The three legs come from one `position(id, owner)` read; supply is interest-accrued
+    ///      and rounded down (asset), debt is accrued and rounded up (liability), collateral is raw. Zero
+    ///      supply shares never suppress collateral or debt. Assumes `owner != address(0)` (checked by the
+    ///      external entrypoints).
+    function _marketPosition(address marketKey, address owner) private view returns (MarketPosition memory position) {
+        (MarketParams memory mp, address morpho) = REGISTRY.getMarketInfo(marketKey);
+        Id id = mp.id();
+
+        (uint256 supplyShares, uint128 borrowShares, uint128 collateral) =
+            IMorphoStaticTyping(morpho).position(id, owner);
+
+        position.morpho = morpho;
+        position.marketId = Id.unwrap(id);
+        position.loanToken = mp.loanToken;
+        position.collateralToken = mp.collateralToken;
+        position.loanDecimals = IERC20Metadata(mp.loanToken).decimals();
+        position.collateralDecimals =
+            mp.collateralToken == address(0) ? 0 : IERC20Metadata(mp.collateralToken).decimals();
+        position.supplyShares = supplyShares;
+        position.borrowShares = uint256(borrowShares);
+        position.collateral = uint256(collateral);
+
+        // One capped accrual pass drives BOTH legs: supply shares convert down (conservative asset), borrow
+        // shares convert up (conservative liability). Reusing `_accrue` (not the uncapped
+        // MorphoBalancesLib.expectedBorrowBalances) keeps the Debt leg on the same 365-day `elapsed` cap and
+        // irm==0 early-return as the supply side and as MorphoBlueDebtOracle, and avoids a second market() read.
+        AccruedState memory s = _accrue(mp, morpho);
+        position.suppliedAssets = supplyShares.toAssetsDown(s.totalSupplyAssets, s.totalSupplyShares);
+        position.debtAssets = position.borrowShares.toAssetsUp(s.totalBorrowAssets, s.totalBorrowShares);
+    }
+
+    /// @dev Linear scan over the bindings populated so far — market sets are small and this mirrors the
+    ///      Aave snapshot's de-duplication. Returns true if `marketKey` is already bound.
+    function _hasMarket(
+        MarketBinding[] memory markets,
+        uint256 count,
+        address marketKey
+    )
+        private
+        pure
+        returns (bool)
+    {
+        for (uint256 i; i < count; ++i) {
+            if (markets[i].marketKey == marketKey) return true;
+        }
+        return false;
+    }
 
     /// @notice Reads on-chain Morpho state and accrues interest in a view context
     /// @dev Matches MorphoBalancesLib.expectedMarketBalances. Uses inner scopes to avoid stack-too-deep.
@@ -225,11 +358,18 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
     {
         address morpho;
         (mp, morpho) = REGISTRY.getMarketInfo(yieldSourceAddress);
+        s = _accrue(mp, morpho);
+    }
 
+    /// @notice Accrue a market's supply state to `block.timestamp` from already-resolved params
+    /// @dev Body of `_getAccruedMarketState` split out so the snapshot reads can reuse it without a second
+    ///      `getMarketInfo` lookup. Semantics are identical to the single-key path.
+    /// @param mp The market params (already resolved from the registry)
+    /// @param morpho The Morpho Blue singleton for this market
+    /// @return s The accrued supply state (assets and shares after interest)
+    function _accrue(MarketParams memory mp, address morpho) internal view returns (AccruedState memory s) {
         uint128 lastUpdate;
         uint128 fee;
-        uint128 totalBorrowShares;
-        uint256 totalBorrowAssets;
 
         // Scope: read stale market state, then drop raw uint128 locals immediately
         {
@@ -245,8 +385,8 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
 
             s.totalSupplyAssets = _totalSupplyAssets;
             s.totalSupplyShares = _totalSupplyShares;
-            totalBorrowAssets = _totalBorrowAssets;
-            totalBorrowShares = _totalBorrowShares;
+            s.totalBorrowAssets = _totalBorrowAssets;
+            s.totalBorrowShares = _totalBorrowShares;
             lastUpdate = _lastUpdate;
             fee = _fee;
         }
@@ -254,7 +394,7 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
         // Replicate Morpho's _accrueInterest in a view context (matches MorphoBalancesLib.expectedMarketBalances)
         uint256 elapsed = block.timestamp - lastUpdate;
         if (elapsed > 365 days) elapsed = 365 days;
-        if (elapsed > 0 && totalBorrowAssets > 0 && mp.irm != address(0)) {
+        if (elapsed > 0 && s.totalBorrowAssets > 0 && mp.irm != address(0)) {
             uint256 interest;
 
             // Scope: build Market struct and compute interest, then drop mkt and borrowRate
@@ -262,16 +402,20 @@ contract MorphoBlueYieldSourceOracle is AbstractYieldSourceOracle {
                 Market memory mkt = Market({
                     totalSupplyAssets: uint128(s.totalSupplyAssets),
                     totalSupplyShares: uint128(s.totalSupplyShares),
-                    totalBorrowAssets: uint128(totalBorrowAssets),
-                    totalBorrowShares: totalBorrowShares,
+                    totalBorrowAssets: uint128(s.totalBorrowAssets),
+                    totalBorrowShares: uint128(s.totalBorrowShares),
                     lastUpdate: lastUpdate,
                     fee: fee
                 });
                 uint256 borrowRate = IIrm(mp.irm).borrowRateView(mp, mkt);
-                interest = totalBorrowAssets.wMulDown(borrowRate.wTaylorCompounded(elapsed));
+                interest = s.totalBorrowAssets.wMulDown(borrowRate.wTaylorCompounded(elapsed));
             }
 
+            // Morpho's _accrueInterest adds the same interest to BOTH sides; totalBorrowShares is unchanged.
+            // Accruing the Debt leg here (rather than via the uncapped MorphoBalancesLib.expectedBorrowBalances)
+            // keeps it on the same 365-day-capped `elapsed` as the supply side and identical to MorphoBlueDebtOracle.
             s.totalSupplyAssets += interest;
+            s.totalBorrowAssets += interest;
 
             if (fee > 0) {
                 uint256 feeAmount = interest.wMulDown(fee);
