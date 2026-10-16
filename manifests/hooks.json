@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-10-16T08:46:47Z",
+  "generatedAt": "2026-10-16T15:27:16Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4895,12 +4895,32 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0x3A1A3cD6E5c1d4a2d99d563361bBD106157C7bE3",
+          "4663": "0xffb2a551c08fCC8B4B9d917FADB57B5E40880635",
+          "5042": "0x1e85a717680EE2488aa2FbED6457fBBAE95c1716",
+          "8453": "0x3A1A3cD6E5c1d4a2d99d563361bBD106157C7bE3"
+        },
+        "prod": {
+          "1": "0x0691cA6B6977205483b2310174b572e2D5d070b4",
+          "4663": "0x82b513dfB793c7cb489aA2A239A703D188A31309",
+          "5042": "0x37E60113705eF4a70EF9f247182100cb0A753011",
+          "8453": "0x0691cA6B6977205483b2310174b572e2D5d070b4"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "4663",
+          "5042",
+          "8453"
+        ],
+        "prod": [
+          "1",
+          "4663",
+          "5042",
+          "8453"
+        ]
       },
       "amountMeta": [
         {
@@ -4933,12 +4953,32 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xa9AF8E597e586153143eFD27b7Dc9dB94eb5947D",
+          "4663": "0xcE0800d5CEb786f7a74C34B82391f38C3b99737b",
+          "5042": "0x3fc35c7Ee9301547eD354F99a6f4710cd81dce37",
+          "8453": "0xa9AF8E597e586153143eFD27b7Dc9dB94eb5947D"
+        },
+        "prod": {
+          "1": "0x023abA09C850861f490548d9C62b712A91D52eeC",
+          "4663": "0xE70B7b74bA5E9baAaa0a3a5CC5793756586aaB29",
+          "5042": "0x7Af4cb9F622544Bbbc920a246edE50D71F4F0fE9",
+          "8453": "0x023abA09C850861f490548d9C62b712A91D52eeC"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "4663",
+          "5042",
+          "8453"
+        ],
+        "prod": [
+          "1",
+          "4663",
+          "5042",
+          "8453"
+        ]
       },
       "amountMeta": [
         {
