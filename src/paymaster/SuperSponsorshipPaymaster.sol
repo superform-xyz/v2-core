@@ -11,8 +11,14 @@ import { ISuperSponsorshipPaymaster } from "../interfaces/ISuperSponsorshipPayma
 /// @title SuperSponsorshipPaymaster
 /// @author Superform Labs
 /// @notice Paymaster with per-strategy gas sponsorship budgets.
-///         Treasury funds the paymaster per chain, managers credit strategy buckets,
-///         and gas costs are debited from the relevant strategy's budget.
+///         Anyone may fund a strategy's budget (a vault manager at creation, treasury, a keeper
+///         topping up), FUNDING_ROLE moves already-deposited balance between buckets and
+///         withdraws, and gas costs are debited from the relevant strategy's budget.
+///
+/// @dev Funding is permissionless because adding ETH to a budget can only ever benefit that
+///      strategy: the budget is spendable solely by UserOps from the strategy's allowed sender,
+///      which the SuperVaultExecutor further gates by that strategy's own session keys. A
+///      third-party funder cannot reclaim what they sent; withdrawal stays with FUNDING_ROLE.
 ///
 /// @dev Accounting model (pre-charge / refund):
 ///      - `_validatePaymasterUserOp` reserves `maxCost` from the strategy balance upfront,
@@ -30,7 +36,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // deployment version
-    uint256 public constant VERSION = 5;
+    uint256 public constant VERSION = 6;
 
     /// @notice Default UserOp gas limit cap when strategy has no explicit maxSingleOpCost.
     ///         Prevents inflated gas limit attacks. Enforced by checking that
@@ -38,10 +44,10 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///         Managers can override per strategy by setting maxSingleOpCost to a non-zero value.
     uint256 public constant DEFAULT_MAX_GAS = 4_000_000;
 
-    /// @notice Canonical SuperVaultExecutor address.
-    ///         Convenience constant for setAllowedSender() calls during deployment.
-    ///         Not auto-applied — each strategy requires an explicit setAllowedSender(strategy, SVE)
-    ///         call after funding, otherwise validation will revert (default-deny).
+    /// @notice Canonical SuperVaultExecutor address, identical on every chain (CREATE2).
+    ///         Applied automatically the first time a strategy is funded, unless a manager has
+    ///         already configured that strategy's sender. After that, only setAllowedSender
+    ///         changes it, so a manager's explicit reset to address(0) is never undone by funding.
     address public constant DEFAULT_ALLOWED_SENDER = 0x183e3171EEf801cE2A29FD48B3b21188f241875d;
 
     /// @notice Expected selector for SuperVaultExecutor.executeFromEntryPoint(address, bytes) = 0x4fb2fbd5
@@ -75,6 +81,12 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /// @notice Per-strategy allowed sender. Must be set (non-zero) for UserOps to be accepted (default-deny).
     mapping(address strategy => address) public allowedSender;
 
+    /// @notice Whether a strategy's sender has ever been set, by a manager or by first funding.
+    /// @dev Distinguishes "never configured" from "a manager deliberately reset it to address(0)".
+    ///      Only the former lets fundStrategy apply DEFAULT_ALLOWED_SENDER, so the reset-to-zero
+    ///      block cannot be re-armed by a stranger sending 1 wei.
+    mapping(address strategy => bool) public senderInitialized;
+
     /// @notice Sum of all strategy balances
     uint256 public totalAllocated;
 
@@ -107,16 +119,25 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUNDING (FUNDING_ROLE)
+            FUNDING (fundStrategy: anyone; credit/withdraw: FUNDING_ROLE)
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperSponsorshipPaymaster
-    function fundStrategy(address strategy) external payable onlyRole(FUNDING_ROLE) {
+    function fundStrategy(address strategy) external payable {
         if (strategy == address(0)) revert ZERO_ADDRESS();
         if (msg.value == 0) revert ZERO_AMOUNT();
 
         _budgets[strategy].balance += msg.value;
         totalAllocated += msg.value;
+
+        // First funding of a never-configured strategy: apply the canonical executor as sender so
+        // a freshly created vault can execute without a separate MANAGER_ROLE transaction. Never
+        // touches a strategy a manager has configured, including one deliberately reset to zero.
+        if (!senderInitialized[strategy]) {
+            senderInitialized[strategy] = true;
+            allowedSender[strategy] = DEFAULT_ALLOWED_SENDER;
+            emit AllowedSenderSet(strategy, DEFAULT_ALLOWED_SENDER);
+        }
 
         // Deposit to EntryPoint so the paymaster has sufficient deposit for UserOps
         entryPoint.depositTo{ value: msg.value }(address(this));
@@ -181,6 +202,9 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /// @inheritdoc ISuperSponsorshipPaymaster
     function setAllowedSender(address strategy, address sender) external onlyRole(MANAGER_ROLE) {
         if (strategy == address(0)) revert ZERO_ADDRESS();
+        // A manager's choice is final with respect to funding: once set here, even to address(0),
+        // fundStrategy will not apply the default over it.
+        senderInitialized[strategy] = true;
         allowedSender[strategy] = sender;
         emit AllowedSenderSet(strategy, sender);
     }

@@ -59,11 +59,22 @@ interface ISuperSponsorshipPaymaster {
     event EmergencyWithdrawn(address indexed to, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
-                        FUNDING (FUNDING_ROLE)
+            FUNDING (fundStrategy: anyone; credit/withdraw: FUNDING_ROLE)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deposit new ETH into a strategy's gas budget.
-    ///         The sent ETH is forwarded to the EntryPoint deposit and assigned to the strategy's balance.
+    /// @notice Deposit new ETH into a strategy's gas budget. PERMISSIONLESS.
+    ///         The sent ETH is forwarded to the EntryPoint deposit and assigned to the strategy's
+    ///         balance. A vault manager can fund their strategy at creation; nobody needs a role.
+    ///
+    ///         The first time a never-configured strategy is funded, its allowed sender is set to
+    ///         DEFAULT_ALLOWED_SENDER (the canonical SuperVaultExecutor) and AllowedSenderSet is
+    ///         emitted, so the budget is usable without a separate MANAGER_ROLE transaction. A
+    ///         strategy whose sender a manager has set, including one reset to address(0) as a
+    ///         block, is left exactly as the manager left it.
+    ///
+    ///         Funding is a donation to the strategy's gas budget: it is spendable only by UserOps
+    ///         from that strategy's allowed sender, and the funder cannot withdraw it. Withdrawal
+    ///         stays with FUNDING_ROLE.
     /// @param strategy The strategy to fund
     function fundStrategy(address strategy) external payable;
 
@@ -99,7 +110,9 @@ interface ISuperSponsorshipPaymaster {
 
     /// @notice Set the allowed UserOp sender for a strategy.
     ///         Only UserOps from this sender will be sponsored.
-    ///         Must be set to a non-zero address for UserOps to be accepted (default-deny).
+    ///         Must be non-zero for UserOps to be accepted (default-deny). Setting it here, to any
+    ///         value including address(0), marks the strategy as manager-configured, after which
+    ///         fundStrategy never applies the default sender over it.
     /// @param strategy The strategy address
     /// @param sender The allowed smart account address
     function setAllowedSender(address strategy, address sender) external;
@@ -156,6 +169,11 @@ interface ISuperSponsorshipPaymaster {
     /// @notice Get the per-strategy allowed sender (must be non-zero for UserOps to be accepted)
     /// @param strategy The strategy address
     function allowedSender(address strategy) external view returns (address);
+
+    /// @notice Whether a strategy's allowed sender has ever been set, by a manager or by its first
+    ///         funding. Once true, fundStrategy never applies DEFAULT_ALLOWED_SENDER to it.
+    /// @param strategy The strategy address
+    function senderInitialized(address strategy) external view returns (bool);
 
     /// @notice Canonical SuperVaultExecutor address (convenience constant, not auto-applied)
     function DEFAULT_ALLOWED_SENDER() external view returns (address);
