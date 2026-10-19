@@ -452,8 +452,8 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /// @dev Accept ETH directly. This ETH sits on the contract, NOT in the EntryPoint deposit,
     ///      and therefore cannot be used for gas sponsorship. To make it usable:
     ///      - Admin calls `sweepETH` to send it to a recipient, OR
-    ///      - A FUNDING_ROLE holder calls `fundStrategy` to deposit it into a strategy budget
-    ///        (requires the ETH to be at the sender's address, not on this contract).
+    ///      - Anyone calls `fundStrategy` to deposit it into a strategy budget (requires the ETH
+    ///        to be at the caller's address, not on this contract; funding needs no role).
     ///      ETH received here does NOT appear in `unallocatedBalance()` (which only tracks
     ///      the EntryPoint deposit).
     receive() external payable {

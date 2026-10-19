@@ -8,7 +8,7 @@ import { console2 } from "forge-std/console2.sol";
 /// @title TransferSuperSponsorshipPaymasterRoles
 /// @notice Script to transfer SuperSponsorshipPaymaster roles from PAYMASTER_ADMIN to governance addresses.
 /// @dev Role mapping:
-///      - FUNDING_ROLE       → GOVERNOR        (operational funding/withdrawals)
+///      - FUNDING_ROLE       → GOVERNOR        (creditStrategy + withdrawStrategyFunds; funding itself is permissionless)
 ///      - DEFAULT_ADMIN_ROLE → SUPER_GOVERNOR   (admin: pause, sweep, reconcile, overhead, emergency)
 ///      - MANAGER_ROLE       → SUPER_GOVERNOR   (strategy management: pause/unpause, maxCost)
 ///      After granting, all roles are revoked from PAYMASTER_ADMIN.

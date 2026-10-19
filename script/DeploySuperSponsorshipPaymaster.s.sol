@@ -18,6 +18,11 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
     /// @notice Flare-specific Super Governor address
     address internal constant FLARE_SUPER_GOVERNOR = 0x0f0Db7CEDD49587D78d67175Ff59Ed7069A35874;
 
+    /// @notice The SuperSponsorshipPaymaster.VERSION the locked artifacts were regenerated from.
+    ///         Deployment verification reverts if the deployed contract reports anything else.
+    ///         Bump together with the contract's VERSION.
+    uint256 internal constant EXPECTED_VERSION = 6;
+
     /*//////////////////////////////////////////////////////////////
                             MAIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -167,6 +172,10 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
 
         // Verify deployment
         SuperSponsorshipPaymaster pm = SuperSponsorshipPaymaster(payable(paymasterAddr));
+        // The locked artifact must be the build the source says it is. A stale artifact deploys
+        // fine and verifies roles fine, and only shows up later as behaviour that does not match
+        // the code. Bump EXPECTED_VERSION together with the contract's VERSION.
+        require(pm.VERSION() == EXPECTED_VERSION, "VERSION_MISMATCH_REGENERATE_LOCKED_BYTECODE");
         require(pm.hasRole(pm.DEFAULT_ADMIN_ROLE(), admin), "ADMIN_ROLE_MISMATCH");
         require(pm.hasRole(pm.FUNDING_ROLE(), admin), "FUNDING_ROLE_MISMATCH");
         require(pm.hasRole(pm.MANAGER_ROLE(), admin), "MANAGER_ROLE_MISMATCH");
@@ -175,6 +184,7 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         console2.log("");
         console2.log("=== Deployment Verification ===");
         console2.log("SuperSponsorshipPaymaster deployed at:", paymasterAddr);
+        console2.log("VERSION verified:", EXPECTED_VERSION);
         console2.log("Admin verified:", admin);
         console2.log("EntryPoint verified:", ENTRY_POINT);
         console2.log("Has DEFAULT_ADMIN_ROLE:", true);
