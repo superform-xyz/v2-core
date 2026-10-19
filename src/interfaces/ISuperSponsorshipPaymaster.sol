@@ -79,6 +79,8 @@ interface ISuperSponsorshipPaymaster {
     function fundStrategy(address strategy) external payable;
 
     /// @notice Assign already-deposited but unallocated EntryPoint balance to a strategy's budget.
+    ///         Applies DEFAULT_ALLOWED_SENDER on the first configuration of a strategy, exactly as
+    ///         fundStrategy does, so a credit never leaves a budget unusable pending MANAGER_ROLE.
     ///         No ETH is transferred — this is a bookkeeping operation that moves unallocated
     ///         EntryPoint deposit (e.g. from direct deposits or gas refunds) into a strategy bucket.
     /// @param strategy The strategy to credit
@@ -171,7 +173,8 @@ interface ISuperSponsorshipPaymaster {
     function allowedSender(address strategy) external view returns (address);
 
     /// @notice Whether a strategy's allowed sender has ever been set, by a manager or by its first
-    ///         funding. Once true, fundStrategy never applies DEFAULT_ALLOWED_SENDER to it.
+    ///         funding or credit. Once true, neither fundStrategy nor creditStrategy applies
+    ///         DEFAULT_ALLOWED_SENDER to it.
     /// @param strategy The strategy address
     function senderInitialized(address strategy) external view returns (bool);
 

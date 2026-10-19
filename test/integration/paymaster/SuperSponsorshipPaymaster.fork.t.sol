@@ -657,6 +657,136 @@ contract SuperSponsorshipPaymasterForkTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+            PERMISSIONLESS FUNDING ON THE REAL ENTRYPOINT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The default sender is the live executor on mainnet: the constant points at code.
+    function test_Fork_PF_DefaultSenderIsTheLiveExecutor() public view {
+        address d = paymaster.DEFAULT_ALLOWED_SENDER();
+        assertEq(d, REAL_EXECUTOR);
+        assertGt(d.code.length, 0, "default sender must be a deployed contract on mainnet");
+    }
+
+    /// @notice A stranger funds a fresh strategy on the real EntryPoint; the deposit moves and the
+    ///         sender defaults to the live executor with no manager transaction.
+    function test_Fork_PF_StrangerFundsFreshStrategy_RealDepositAndDefaultSender() public {
+        address fresh = makeAddr("freshStrategy");
+        address stranger = makeAddr("stranger");
+        vm.deal(stranger, 3 ether);
+        uint256 depositBefore = entryPoint.balanceOf(address(paymaster));
+
+        vm.prank(stranger);
+        paymaster.fundStrategy{ value: 3 ether }(fresh);
+
+        assertEq(entryPoint.balanceOf(address(paymaster)) - depositBefore, 3 ether, "real EntryPoint deposit");
+        assertEq(paymaster.getStrategyBudget(fresh).balance, 3 ether);
+        assertEq(paymaster.allowedSender(fresh), REAL_EXECUTOR);
+        assertTrue(paymaster.senderInitialized(fresh));
+    }
+
+    /// @notice End to end: a stranger funds, the manager points the sender at our account, and
+    ///         handleOps sponsors the op from that budget. Funding by anyone, control by the manager.
+    function test_Fork_PF_E2E_StrangerFunded_ManagerOverride_HandleOpsSponsors() public {
+        address fresh = makeAddr("freshStrategy");
+        address stranger = makeAddr("stranger");
+        vm.deal(stranger, 5 ether);
+        vm.prank(stranger);
+        paymaster.fundStrategy{ value: 5 ether }(fresh);
+
+        vm.prank(manager);
+        paymaster.setAllowedSender(fresh, address(account));
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = _buildUserOp(fresh);
+        uint256 bundlerBefore = bundler.balance;
+
+        vm.prank(bundler);
+        entryPoint.handleOps(ops, payable(bundler));
+
+        ISuperSponsorshipPaymaster.StrategyBudget memory b = paymaster.getStrategyBudget(fresh);
+        assertLt(b.balance, 5 ether, "gas was debited from the stranger's donation");
+        assertGt(b.totalDebited, 0);
+        assertGt(bundler.balance, bundlerBefore, "bundler was paid from the paymaster deposit");
+    }
+
+    /// @notice A strategy the manager blocked stays blocked on the real EntryPoint even after a
+    ///         stranger sends 1 wei: handleOps reverts and the sender is still zero.
+    function test_Fork_PF_E2E_StrangerCannotReArmBlockedStrategy() public {
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 2 ether }(strategy1);
+        vm.prank(manager);
+        paymaster.setAllowedSender(strategy1, address(0)); // the block
+
+        address stranger = makeAddr("stranger");
+        vm.deal(stranger, 1 ether);
+        vm.prank(stranger);
+        paymaster.fundStrategy{ value: 1 wei }(strategy1);
+        assertEq(paymaster.allowedSender(strategy1), address(0), "still blocked");
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = _buildUserOp(strategy1);
+        vm.prank(bundler);
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(bundler));
+
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 2 ether + 1 wei, "nothing spent");
+    }
+
+    /// @notice The funding role withdraws a stranger's donation from the real EntryPoint.
+    function test_Fork_PF_FundingRoleWithdrawsDonationFromRealEntryPoint() public {
+        address stranger = makeAddr("stranger");
+        address recipient = makeAddr("recipient");
+        vm.deal(stranger, 2 ether);
+        vm.prank(stranger);
+        paymaster.fundStrategy{ value: 2 ether }(strategy1);
+
+        vm.prank(funder);
+        paymaster.withdrawStrategyFunds(strategy1, recipient, 2 ether);
+
+        assertEq(recipient.balance, 2 ether);
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 0);
+    }
+
+    /// @notice A stranger cannot withdraw their own donation from the real EntryPoint.
+    function test_Fork_PF_StrangerCannotWithdrawOwnDonation() public {
+        address stranger = makeAddr("stranger");
+        vm.deal(stranger, 2 ether);
+        vm.prank(stranger);
+        paymaster.fundStrategy{ value: 2 ether }(strategy1);
+
+        vm.prank(stranger);
+        vm.expectRevert();
+        paymaster.withdrawStrategyFunds(strategy1, stranger, 2 ether);
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 2 ether);
+    }
+
+    /// @notice Two strangers, two fresh strategies, two sponsored ops: budgets stay isolated.
+    function test_Fork_PF_E2E_TwoStrangerFundedStrategiesStayIsolated() public {
+        address a = makeAddr("freshA");
+        address b = makeAddr("freshB");
+        address s1 = makeAddr("stranger1");
+        address s2 = makeAddr("stranger2");
+        vm.deal(s1, 2 ether);
+        vm.deal(s2, 2 ether);
+        vm.prank(s1);
+        paymaster.fundStrategy{ value: 2 ether }(a);
+        vm.prank(s2);
+        paymaster.fundStrategy{ value: 2 ether }(b);
+        vm.startPrank(manager);
+        paymaster.setAllowedSender(a, address(account));
+        paymaster.setAllowedSender(b, address(account));
+        vm.stopPrank();
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = _buildUserOp(a);
+        vm.prank(bundler);
+        entryPoint.handleOps(ops, payable(bundler));
+
+        assertLt(paymaster.getStrategyBudget(a).balance, 2 ether, "A paid");
+        assertEq(paymaster.getStrategyBudget(b).balance, 2 ether, "B untouched");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HELPERS
     //////////////////////////////////////////////////////////////*/
 

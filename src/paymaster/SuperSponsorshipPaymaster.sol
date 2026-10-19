@@ -130,14 +130,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
         _budgets[strategy].balance += msg.value;
         totalAllocated += msg.value;
 
-        // First funding of a never-configured strategy: apply the canonical executor as sender so
-        // a freshly created vault can execute without a separate MANAGER_ROLE transaction. Never
-        // touches a strategy a manager has configured, including one deliberately reset to zero.
-        if (!senderInitialized[strategy]) {
-            senderInitialized[strategy] = true;
-            allowedSender[strategy] = DEFAULT_ALLOWED_SENDER;
-            emit AllowedSenderSet(strategy, DEFAULT_ALLOWED_SENDER);
-        }
+        _applyDefaultSenderIfNeverConfigured(strategy);
 
         // Deposit to EntryPoint so the paymaster has sufficient deposit for UserOps
         entryPoint.depositTo{ value: msg.value }(address(this));
@@ -154,7 +147,23 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
         _budgets[strategy].balance += amount;
         totalAllocated += amount;
 
+        // Same rule as fundStrategy. FUNDING_ROLE and MANAGER_ROLE are held by different
+        // governance accounts after role transfer, so a credit must not leave the budget unusable
+        // until a second account acts.
+        _applyDefaultSenderIfNeverConfigured(strategy);
+
         emit StrategyCredited(strategy, amount);
+    }
+
+    /// @dev First funding or credit of a never-configured strategy: apply the canonical executor
+    ///      as sender so a freshly created vault can execute without a separate MANAGER_ROLE
+    ///      transaction. Never touches a strategy a manager has configured, including one
+    ///      deliberately reset to address(0) as a block.
+    function _applyDefaultSenderIfNeverConfigured(address strategy) internal {
+        if (senderInitialized[strategy]) return;
+        senderInitialized[strategy] = true;
+        allowedSender[strategy] = DEFAULT_ALLOWED_SENDER;
+        emit AllowedSenderSet(strategy, DEFAULT_ALLOWED_SENDER);
     }
 
     /// @inheritdoc ISuperSponsorshipPaymaster
