@@ -7,6 +7,7 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 import { BasePaymaster } from "../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperSponsorshipPaymaster } from "../interfaces/ISuperSponsorshipPaymaster.sol";
+import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperSponsorshipPaymaster
 /// @author Superform Labs
@@ -36,7 +37,7 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     // deployment version
-    uint256 public constant VERSION = 6;
+    uint256 public constant VERSION = 7;
 
     /// @notice Default UserOp gas limit cap when strategy has no explicit maxSingleOpCost.
     ///         Prevents inflated gas limit attacks. Enforced by checking that
@@ -103,18 +104,35 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     /// @notice Global pause flag
     bool public globalPaused;
 
+    /// @notice SuperVaultAggregator used to authorize a strategy's primary manager for self-withdrawal.
+    /// @dev Immutable and environment-specific (the aggregator has a different address on staging than prod),
+    ///      so it is passed at construction rather than hardcoded. Only `withdrawStrategyFundsAsManager`
+    ///      reads it; a misconfigured address fails that call closed (no manager can withdraw) and never
+    ///      affects funding, sponsorship, or the FUNDING_ROLE withdrawal path.
+    ISuperVaultAggregator public immutable SUPER_VAULT_AGGREGATOR;
+
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /// @param entryPoint_ The ERC-4337 EntryPoint contract
     /// @param admin_ Initial admin granted DEFAULT_ADMIN_ROLE, FUNDING_ROLE, and MANAGER_ROLE
-    constructor(IEntryPoint entryPoint_, address admin_) payable BasePaymaster(entryPoint_) {
+    /// @param aggregator_ The SuperVaultAggregator that resolves a strategy's primary manager
+    constructor(
+        IEntryPoint entryPoint_,
+        address admin_,
+        address aggregator_
+    )
+        payable
+        BasePaymaster(entryPoint_)
+    {
         if (admin_ == address(0)) revert ZERO_ADDRESS();
+        if (aggregator_ == address(0)) revert ZERO_ADDRESS();
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(FUNDING_ROLE, admin_);
         _grantRole(MANAGER_ROLE, admin_);
 
+        SUPER_VAULT_AGGREGATOR = ISuperVaultAggregator(aggregator_);
         postOpGasOverhead = MIN_POST_OP_OVERHEAD;
     }
 
@@ -179,6 +197,29 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
         entryPoint.withdrawTo(payable(to), amount);
 
         emit StrategyWithdrawn(strategy, to, amount);
+    }
+
+    /// @inheritdoc ISuperSponsorshipPaymaster
+    /// @dev Permissionless funding (anyone can top up) is matched by a manager-gated exit: the strategy's
+    ///      primary manager can reclaim its remaining gas budget to themselves so a vault can wind down
+    ///      without waiting on FUNDING_ROLE. Authority is the SuperVaultAggregator's `isMainManager`, the
+    ///      same check SuperVaultExecutor uses; funds go to the verified caller (never an arbitrary address),
+    ///      so a non-manager cannot redirect them. Donors/keepers who funded do not get refunds by design —
+    ///      the budget belongs to the strategy and exits only to its primary manager. Checks-effects-
+    ///      interactions: balances are updated before the EntryPoint withdrawal.
+    function withdrawStrategyFundsAsManager(address strategy, uint256 amount) external {
+        if (strategy == address(0)) revert ZERO_ADDRESS();
+        if (amount == 0) revert ZERO_AMOUNT();
+        if (!SUPER_VAULT_AGGREGATOR.isMainManager(msg.sender, strategy)) revert NOT_PRIMARY_MANAGER();
+        if (amount > _budgets[strategy].balance) revert WITHDRAW_EXCEEDS_BALANCE();
+        if (amount > entryPoint.balanceOf(address(this))) revert INSUFFICIENT_ENTRYPOINT_DEPOSIT();
+
+        _budgets[strategy].balance -= amount;
+        totalAllocated -= amount;
+
+        entryPoint.withdrawTo(payable(msg.sender), amount);
+
+        emit StrategyWithdrawnByManager(strategy, msg.sender, amount);
     }
 
     /*//////////////////////////////////////////////////////////////

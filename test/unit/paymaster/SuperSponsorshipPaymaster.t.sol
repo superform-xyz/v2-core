@@ -10,6 +10,7 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 import { SuperSponsorshipPaymaster } from "../../../src/paymaster/SuperSponsorshipPaymaster.sol";
 import { ISuperSponsorshipPaymaster } from "../../../src/interfaces/ISuperSponsorshipPaymaster.sol";
 import { MockEntryPoint } from "../../mocks/MockEntryPoint.sol";
+import { MockSuperVaultAggregator } from "../../mocks/MockSuperVaultAggregator.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 /// @dev A contract funder (a Safe, a vault factory, a keeper bot). Funding needs no EOA.
@@ -23,6 +24,7 @@ import { Helpers } from "../../utils/Helpers.sol";
 contract SuperSponsorshipPaymasterTest is Helpers {
     SuperSponsorshipPaymaster public paymaster;
     MockEntryPoint public mockEntryPoint;
+    MockSuperVaultAggregator public aggregator;
 
     address public admin;
     address public funder;
@@ -40,6 +42,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
 
     function setUp() public {
         mockEntryPoint = new MockEntryPoint();
+        aggregator = new MockSuperVaultAggregator();
 
         admin = makeAddr("admin");
         funder = makeAddr("funder");
@@ -50,7 +53,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
         recipient = makeAddr("recipient");
         randomUser = makeAddr("randomUser");
 
-        paymaster = new SuperSponsorshipPaymaster(IEntryPoint(address(mockEntryPoint)), admin);
+        paymaster = new SuperSponsorshipPaymaster(IEntryPoint(address(mockEntryPoint)), admin, address(aggregator));
 
         // Grant roles
         vm.startPrank(admin);
@@ -85,12 +88,21 @@ contract SuperSponsorshipPaymasterTest is Helpers {
 
     function test_Constructor_RevertsZeroAdmin() public {
         vm.expectRevert(ISuperSponsorshipPaymaster.ZERO_ADDRESS.selector);
-        new SuperSponsorshipPaymaster(IEntryPoint(address(mockEntryPoint)), address(0));
+        new SuperSponsorshipPaymaster(IEntryPoint(address(mockEntryPoint)), address(0), address(aggregator));
     }
 
     function test_Constructor_RevertsZeroEntryPoint() public {
         vm.expectRevert();
-        new SuperSponsorshipPaymaster(IEntryPoint(address(0)), admin);
+        new SuperSponsorshipPaymaster(IEntryPoint(address(0)), admin, address(aggregator));
+    }
+
+    function test_Constructor_RevertsZeroAggregator() public {
+        vm.expectRevert(ISuperSponsorshipPaymaster.ZERO_ADDRESS.selector);
+        new SuperSponsorshipPaymaster(IEntryPoint(address(mockEntryPoint)), admin, address(0));
+    }
+
+    function test_Constructor_SetsAggregator() public view {
+        assertEq(address(paymaster.SUPER_VAULT_AGGREGATOR()), address(aggregator));
     }
 
     function test_Constructor_GrantsAllRolesToAdmin() public view {
@@ -475,6 +487,109 @@ contract SuperSponsorshipPaymasterTest is Helpers {
             )
         );
         paymaster.withdrawStrategyFunds(strategy1, recipient, 1 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                WITHDRAW AS PRIMARY MANAGER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_WithdrawAsManager_PrimaryManagerReclaims() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+
+        uint256 managerBefore = manager.balance;
+
+        vm.prank(manager);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 3 ether);
+
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 2 ether, "budget debited");
+        assertEq(paymaster.totalAllocated(), 2 ether, "totalAllocated debited");
+        assertEq(manager.balance - managerBefore, 3 ether, "funds go to the manager");
+    }
+
+    function test_WithdrawAsManager_FullBalance_CloseShop() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+
+        vm.prank(manager);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 5 ether);
+
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 0);
+        assertEq(paymaster.totalAllocated(), 0);
+    }
+
+    function test_WithdrawAsManager_EmitsEvent() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+
+        vm.expectEmit(true, true, false, true);
+        emit ISuperSponsorshipPaymaster.StrategyWithdrawnByManager(strategy1, manager, 3 ether);
+
+        vm.prank(manager);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 3 ether);
+    }
+
+    /// @notice A funder/donor is NOT the primary manager, so cannot reclaim — matches the permissionless
+    ///         funding model (funds exit only to the strategy's primary manager).
+    function test_WithdrawAsManager_RevertsNonManager() public {
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+
+        vm.prank(randomUser);
+        vm.expectRevert(ISuperSponsorshipPaymaster.NOT_PRIMARY_MANAGER.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 1 ether);
+    }
+
+    /// @notice Being the primary manager of strategy1 does not authorize draining strategy2's budget.
+    function test_WithdrawAsManager_RevertsManagerOfDifferentStrategy() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy2);
+
+        vm.prank(manager);
+        vm.expectRevert(ISuperSponsorshipPaymaster.NOT_PRIMARY_MANAGER.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy2, 1 ether);
+    }
+
+    function test_WithdrawAsManager_RevertsExceedsBalance() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 1 ether }(strategy1);
+
+        vm.prank(manager);
+        vm.expectRevert(ISuperSponsorshipPaymaster.WITHDRAW_EXCEEDS_BALANCE.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 2 ether);
+    }
+
+    function test_WithdrawAsManager_RevertsZeroAmount() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 1 ether }(strategy1);
+
+        vm.prank(manager);
+        vm.expectRevert(ISuperSponsorshipPaymaster.ZERO_AMOUNT.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 0);
+    }
+
+    function test_WithdrawAsManager_RevertsZeroStrategy() public {
+        vm.prank(manager);
+        vm.expectRevert(ISuperSponsorshipPaymaster.ZERO_ADDRESS.selector);
+        paymaster.withdrawStrategyFundsAsManager(address(0), 1 ether);
+    }
+
+    function test_WithdrawAsManager_RevertsInsufficientEntryPointDeposit() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+
+        mockEntryPoint.setDeposit(address(paymaster), 2 ether);
+
+        vm.prank(manager);
+        vm.expectRevert(ISuperSponsorshipPaymaster.INSUFFICIENT_ENTRYPOINT_DEPOSIT.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 3 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2758,7 +2873,7 @@ contract SuperSponsorshipPaymasterTest is Helpers {
     }
 
     function test_PF_VersionBumpedForTheNewBehaviour() public view {
-        assertEq(paymaster.VERSION(), 6);
+        assertEq(paymaster.VERSION(), 7);
     }
 
     /// @notice Funding grants nothing.

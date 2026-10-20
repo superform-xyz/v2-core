@@ -21,7 +21,18 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
     /// @notice The SuperSponsorshipPaymaster.VERSION the locked artifacts were regenerated from.
     ///         Deployment verification reverts if the deployed contract reports anything else.
     ///         Bump together with the contract's VERSION.
-    uint256 internal constant EXPECTED_VERSION = 6;
+    uint256 internal constant EXPECTED_VERSION = 7;
+
+    /// @notice SuperVaultAggregator address, used by the paymaster to authorize a strategy's primary manager
+    ///         for self-withdrawal. Canonical across prod chains; staging deploys a separate instance.
+    address internal constant SUPER_VAULT_AGGREGATOR_PROD = 0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698;
+    address internal constant SUPER_VAULT_AGGREGATOR_STAGING = 0xB383D4063d67F5452Df3e8A7C0062Eabc4049728;
+
+    /// @notice Resolve the aggregator for an environment (0 = prod, 1 = vnet, 2 = staging).
+    /// @dev vnet mirrors staging infrastructure.
+    function _superVaultAggregator(uint256 env) internal pure returns (address) {
+        return env == 0 ? SUPER_VAULT_AGGREGATOR_PROD : SUPER_VAULT_AGGREGATOR_STAGING;
+    }
 
     /*//////////////////////////////////////////////////////////////
                             MAIN FUNCTIONS
@@ -162,12 +173,14 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         require(bytecode.length > 0, "BYTECODE_NOT_FOUND");
 
         // Deploy - constructor grants DEFAULT_ADMIN_ROLE, FUNDING_ROLE, MANAGER_ROLE to admin
-        // Constructor args: (IEntryPoint entryPoint_, address admin_)
+        // Constructor args: (IEntryPoint entryPoint_, address admin_, address aggregator_)
+        address aggregator = _superVaultAggregator(env);
+        require(aggregator != address(0), "AGGREGATOR_NOT_SET");
         address paymasterAddr = __deployContract(
             SUPER_SPONSORSHIP_PAYMASTER_KEY,
             chainId,
             __getSalt(SUPER_SPONSORSHIP_PAYMASTER_KEY),
-            abi.encodePacked(bytecode, abi.encode(ENTRY_POINT, admin))
+            abi.encodePacked(bytecode, abi.encode(ENTRY_POINT, admin, aggregator))
         );
 
         // Verify deployment
@@ -180,6 +193,7 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         require(pm.hasRole(pm.FUNDING_ROLE(), admin), "FUNDING_ROLE_MISMATCH");
         require(pm.hasRole(pm.MANAGER_ROLE(), admin), "MANAGER_ROLE_MISMATCH");
         require(address(pm.entryPoint()) == ENTRY_POINT, "ENTRYPOINT_MISMATCH");
+        require(address(pm.SUPER_VAULT_AGGREGATOR()) == aggregator, "AGGREGATOR_MISMATCH");
 
         console2.log("");
         console2.log("=== Deployment Verification ===");
@@ -206,7 +220,7 @@ contract DeploySuperSponsorshipPaymaster is DeployV2Base {
         bytes memory bytecode = __getBytecode(SUPER_SPONSORSHIP_PAYMASTER_KEY, env);
         require(bytecode.length > 0, "BYTECODE_NOT_FOUND");
         return DeterministicDeployerLib.computeAddress(
-            abi.encodePacked(bytecode, abi.encode(ENTRY_POINT, admin)),
+            abi.encodePacked(bytecode, abi.encode(ENTRY_POINT, admin, _superVaultAggregator(env))),
             __getSalt(SUPER_SPONSORSHIP_PAYMASTER_KEY)
         );
     }

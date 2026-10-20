@@ -10,6 +10,7 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { SuperSponsorshipPaymaster } from "../../src/paymaster/SuperSponsorshipPaymaster.sol";
 import { ISuperSponsorshipPaymaster } from "../../src/interfaces/ISuperSponsorshipPaymaster.sol";
 import { MockEntryPoint } from "../mocks/MockEntryPoint.sol";
+import { MockSuperVaultAggregator } from "../mocks/MockSuperVaultAggregator.sol";
 
 /*//////////////////////////////////////////////////////////////
                               HANDLER
@@ -337,7 +338,7 @@ contract SuperSponsorshipPaymasterInvariantTest is StdInvariant, Test {
 
     function setUp() public {
         ep = new MockEntryPoint();
-        paymaster = new SuperSponsorshipPaymaster(IEntryPoint(address(ep)), admin);
+        paymaster = new SuperSponsorshipPaymaster(IEntryPoint(address(ep)), admin, address(new MockSuperVaultAggregator()));
         vm.startPrank(admin);
         paymaster.grantRole(paymaster.FUNDING_ROLE(), funder);
         paymaster.grantRole(paymaster.MANAGER_ROLE(), manager);

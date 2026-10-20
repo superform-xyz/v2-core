@@ -38,6 +38,7 @@ interface ISuperSponsorshipPaymaster {
     error POST_OP_OVERHEAD_BELOW_MINIMUM();
     error UNAUTHORIZED_SENDER();
     error INVALID_CALLDATA();
+    error NOT_PRIMARY_MANAGER();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -47,6 +48,7 @@ interface ISuperSponsorshipPaymaster {
     event StrategyCredited(address indexed strategy, uint256 amount);
     event StrategyDebited(address indexed strategy, uint256 amount);
     event StrategyWithdrawn(address indexed strategy, address indexed to, uint256 amount);
+    event StrategyWithdrawnByManager(address indexed strategy, address indexed manager, uint256 amount);
     event StrategyPaused(address indexed strategy);
     event StrategyUnpaused(address indexed strategy);
     event MaxSingleOpCostSet(address indexed strategy, uint128 maxCost);
@@ -92,6 +94,13 @@ interface ISuperSponsorshipPaymaster {
     /// @param to The recipient address
     /// @param amount The amount to withdraw
     function withdrawStrategyFunds(address strategy, address to, uint256 amount) external;
+
+    /// @notice Reclaim a strategy's remaining gas budget, callable by the strategy's primary manager.
+    /// @dev Authorized via the SuperVaultAggregator's `isMainManager`; funds are sent to the caller (the
+    ///      verified primary manager), not an arbitrary address. Lets a vault wind down without FUNDING_ROLE.
+    /// @param strategy The strategy to withdraw from
+    /// @param amount The amount to withdraw (must not exceed the strategy's balance)
+    function withdrawStrategyFundsAsManager(address strategy, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
                         MANAGEMENT (MANAGER_ROLE)

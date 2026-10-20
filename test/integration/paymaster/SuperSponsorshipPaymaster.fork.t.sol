@@ -12,6 +12,7 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import { SuperSponsorshipPaymaster } from "../../../src/paymaster/SuperSponsorshipPaymaster.sol";
 import { ISuperSponsorshipPaymaster } from "../../../src/interfaces/ISuperSponsorshipPaymaster.sol";
+import { MockSuperVaultAggregator } from "../../mocks/MockSuperVaultAggregator.sol";
 
 /// @title MockSimpleAccount
 /// @notice Minimal ERC-4337 account that validates any UserOp signed by its owner
@@ -66,6 +67,7 @@ contract SuperSponsorshipPaymasterForkTest is Test {
 
     IEntryPoint public entryPoint;
     SuperSponsorshipPaymaster public paymaster;
+    MockSuperVaultAggregator public aggregator;
     MockSimpleAccount public account;
 
     address public admin;
@@ -96,8 +98,9 @@ contract SuperSponsorshipPaymasterForkTest is Test {
 
         (accountOwner, accountOwnerKey) = makeAddrAndKey("accountOwner");
 
-        // Deploy paymaster
-        paymaster = new SuperSponsorshipPaymaster(entryPoint, admin);
+        // Deploy paymaster (with a controllable aggregator for the manager-withdraw path)
+        aggregator = new MockSuperVaultAggregator();
+        paymaster = new SuperSponsorshipPaymaster(entryPoint, admin, address(aggregator));
 
         // Grant roles
         vm.startPrank(admin);
@@ -758,6 +761,68 @@ contract SuperSponsorshipPaymasterForkTest is Test {
         vm.expectRevert();
         paymaster.withdrawStrategyFunds(strategy1, stranger, 2 ether);
         assertEq(paymaster.getStrategyBudget(strategy1).balance, 2 ether);
+    }
+
+    /// @notice E2E: a stranger funds a strategy, then the strategy's primary manager reclaims the remaining
+    ///         budget from the REAL EntryPoint — the "close shop" path, no FUNDING_ROLE needed.
+    function test_Fork_PF_E2E_PrimaryManagerReclaimsFromRealEntryPoint() public {
+        address stranger = makeAddr("stranger");
+        vm.deal(stranger, 3 ether);
+        vm.prank(stranger);
+        paymaster.fundStrategy{ value: 3 ether }(strategy1);
+
+        aggregator.setMainManager(manager, strategy1, true);
+
+        uint256 depositBefore = entryPoint.balanceOf(address(paymaster));
+        uint256 managerBefore = manager.balance;
+
+        vm.prank(manager);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 3 ether);
+
+        assertEq(manager.balance - managerBefore, 3 ether, "manager received the real ETH");
+        assertEq(depositBefore - entryPoint.balanceOf(address(paymaster)), 3 ether, "EntryPoint deposit drawn down");
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 0, "budget emptied");
+        assertEq(paymaster.totalAllocated(), 0, "totalAllocated cleared");
+    }
+
+    /// @notice E2E: a sponsored op spends part of the budget, then the manager reclaims only the remainder.
+    function test_Fork_PF_E2E_ManagerReclaimsRemainderAfterSponsoredOp() public {
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 3 ether }(strategy1);
+        aggregator.setMainManager(manager, strategy1, true);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = _buildUserOp(strategy1);
+        vm.prank(bundler);
+        entryPoint.handleOps(ops, payable(bundler));
+
+        uint256 remaining = paymaster.getStrategyBudget(strategy1).balance;
+        assertLt(remaining, 3 ether, "op consumed some budget");
+
+        // Post-op accounting can drift the internal balance slightly above the real EntryPoint deposit
+        // (the same reason withdrawStrategyFunds caps at balanceOf); reclaim what the deposit actually holds.
+        uint256 avail = entryPoint.balanceOf(address(paymaster));
+        uint256 amount = remaining < avail ? remaining : avail;
+        assertGt(amount, 0, "something reclaimable");
+
+        uint256 managerBefore = manager.balance;
+        vm.prank(manager);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, amount);
+
+        assertEq(manager.balance - managerBefore, amount, "manager reclaimed the available remainder");
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, remaining - amount, "budget reduced by reclaimed amount");
+    }
+
+    /// @notice A non-manager (here the funder, who lacks primary-manager status) cannot use the manager path.
+    function test_Fork_PF_E2E_NonManagerCannotReclaim() public {
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 2 ether }(strategy1);
+        // manager status is NOT set for `funder`
+
+        vm.prank(funder);
+        vm.expectRevert(ISuperSponsorshipPaymaster.NOT_PRIMARY_MANAGER.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 2 ether);
+        assertEq(paymaster.getStrategyBudget(strategy1).balance, 2 ether, "budget untouched");
     }
 
     /// @notice Two strangers, two fresh strategies, two sponsored ops: budgets stay isolated.
