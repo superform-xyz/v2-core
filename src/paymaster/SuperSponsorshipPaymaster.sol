@@ -19,7 +19,12 @@ import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 /// @dev Funding is permissionless because adding ETH to a budget can only ever benefit that
 ///      strategy: the budget is spendable solely by UserOps from the strategy's allowed sender,
 ///      which the SuperVaultExecutor further gates by that strategy's own session keys. A
-///      third-party funder cannot reclaim what they sent; withdrawal stays with FUNDING_ROLE.
+///      third-party funder cannot reclaim WHAT THEY SENT: a budget exits only via FUNDING_ROLE
+///      (`withdrawStrategyFunds`, to any recipient) or the strategy's PRIMARY MANAGER
+///      (`withdrawStrategyFundsAsManager`, to themselves). The primary manager can therefore reclaim
+///      the whole remaining budget — including donor/treasury top-ups — to wind the strategy down.
+///      That is intended: the manager already controls where the budget is spent (allowed sender +
+///      session keys), so a donor is trusting that manager when they fund.
 ///
 /// @dev Accounting model (pre-charge / refund):
 ///      - `_validatePaymasterUserOp` reserves `maxCost` from the strategy balance upfront,
@@ -207,9 +212,25 @@ contract SuperSponsorshipPaymaster is BasePaymaster, AccessControl, ISuperSponso
     ///      so a non-manager cannot redirect them. Donors/keepers who funded do not get refunds by design —
     ///      the budget belongs to the strategy and exits only to its primary manager. Checks-effects-
     ///      interactions: balances are updated before the EntryPoint withdrawal.
+    ///
+    ///      Deliberately immediate and without a cancel-on-handover timelock (unlike the aggregator's upkeep
+    ///      withdrawal). An outgoing manager can front-run a `changePrimaryManager` to drain the budget, but
+    ///      that is bounded by the remaining gas-only budget and is economically equivalent to the manager's
+    ///      pre-existing power to burn it through legitimate UserOps while still in office — so the budget does
+    ///      NOT transition to a new manager the way upkeep does, by design.
+    ///
+    ///      Gated on `globalPaused` so a `reconcile()` desync freeze also halts this untrusted exit; the
+    ///      authorizing aggregator is an immutable, fail-closed dependency (a wrong/migrated address only
+    ///      disables this path, never funding, sponsorship, or the FUNDING_ROLE withdrawal).
     function withdrawStrategyFundsAsManager(address strategy, uint256 amount) external {
         if (strategy == address(0)) revert ZERO_ADDRESS();
         if (amount == 0) revert ZERO_AMOUNT();
+        // Respect the reconcile() freeze. When totalAllocated drifts above the real EntryPoint deposit,
+        // reconcile() snaps totalAllocated down but leaves per-strategy balances inflated and sets
+        // globalPaused. Unlike the FUNDING_ROLE path (trusted governance that coordinates the budget fix),
+        // this is an untrusted first-come exit, so it must not let a manager realize an inflated balance and
+        // socialize the shortfall onto strategies that withdraw later.
+        if (globalPaused) revert GLOBAL_PAUSED();
         if (!SUPER_VAULT_AGGREGATOR.isMainManager(msg.sender, strategy)) revert NOT_PRIMARY_MANAGER();
         if (amount > _budgets[strategy].balance) revert WITHDRAW_EXCEEDS_BALANCE();
         if (amount > entryPoint.balanceOf(address(this))) revert INSUFFICIENT_ENTRYPOINT_DEPOSIT();

@@ -45,7 +45,10 @@ the only paths that move or release value. What the role no longer gates is addi
   paymaster-data strategy. The SuperVaultExecutor then validates the session key against that
   strategy's own grants. A stranger's ETH can therefore pay gas only for operations the
   strategy's legitimate keys sign.
-- **A funder cannot reclaim.** Withdrawal stays with FUNDING_ROLE. Funding is a donation.
+- **A funder cannot reclaim *what they sent*.** A budget exits only via FUNDING_ROLE
+  (`withdrawStrategyFunds`, to any recipient) or the strategy's PRIMARY MANAGER
+  (`withdrawStrategyFundsAsManager`, to themselves — see the manager-exit section below). A
+  third-party donor is never a recipient; funding is a donation to the strategy, not an escrow.
 - **Funding cannot lift a pause**, per strategy or global; both are checked before any spend.
 - **Funding cannot grant a role or change a manager's sender.** `setAllowedSender` marks the
   strategy configured, so later funding never overrides it. In particular a manager's reset to
@@ -58,6 +61,39 @@ the only paths that move or release value. What the role no longer gates is addi
   `entryPoint.depositTo` on the immutable canonical EntryPoint.
 - **Funding a bogus address** strands only the funder's own ETH (no session keys can ever
   exist for a strategy the aggregator does not know), and FUNDING_ROLE can still withdraw it.
+
+## Manager exit (`withdrawStrategyFundsAsManager`)
+
+Permissionless funding is paired with a manager-gated exit so a strategy can wind down without
+FUNDING_ROLE. The strategy's primary manager reclaims the remaining budget to themselves.
+
+- **Authority** is the SuperVaultAggregator's `isMainManager(msg.sender, strategy)` — the same
+  check `SuperVaultExecutor` uses. Funds go to the verified caller, never an arbitrary address, so
+  a non-manager cannot redirect them, and a manager of strategy A cannot touch strategy B.
+- **The manager can reclaim donor/treasury top-ups**, not only what the manager funded. This is
+  intended: the manager already decides where the budget is spent (allowed sender + session keys),
+  so a donor is trusting that manager when they fund. There is no per-depositor accounting and so
+  no withdrawal race between depositors.
+- **No timelock, send-to-caller, no cancel-on-handover** — deliberately unlike the aggregator's
+  upkeep withdrawal. Consequence: an outgoing/removed manager can front-run a `changePrimaryManager`
+  (or act during the secondary-route 7-day timelock) and drain the budget, so a gas budget does NOT
+  transition cleanly to a new manager. Accepted because the budget is gas-only and draining on exit
+  is economically equivalent to the manager's pre-existing power to burn it through legitimate
+  UserOps while in office.
+- **Respects `globalPaused`.** The function reverts `GLOBAL_PAUSED`, so a `reconcile()` desync
+  freeze halts this untrusted exit too (it must not let a manager realize an inflated recorded
+  balance before the admin corrects budgets, which the trusted FUNDING_ROLE path coordinates).
+- **Accounting and reentrancy** match `withdrawStrategyFunds`: `balance` and `totalAllocated` are
+  decremented before `entryPoint.withdrawTo` (CEI), bounded by `balance` and the real deposit, and
+  the `isMainManager` call is a `STATICCALL` (cannot reenter with effect).
+- **Expanded trust boundary.** Fund egress now also depends on the periphery aggregator's access
+  logic. `SUPER_VAULT_AGGREGATOR` is an immutable constructor arg, environment-specific (prod and
+  staging differ), verified at deploy (`AGGREGATOR_MISMATCH`). A wrong, zero, migrated, or codeless
+  address fails this path closed (liveness only) and never affects funding, sponsorship, or the
+  FUNDING_ROLE withdrawal. The assumption to uphold operationally: the configured aggregator must be
+  governed at least as tightly as FUNDING_ROLE, since a compromised/upgradeable aggregator that
+  returns `isMainManager == true` could authorize draining budgets (bounded per call by balance and
+  deposit). Mirrors the tracked `DEFAULT_ALLOWED_SENDER` hardcode concern.
 
 ## Relation to prior findings
 

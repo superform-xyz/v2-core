@@ -580,6 +580,21 @@ contract SuperSponsorshipPaymasterTest is Helpers {
         paymaster.withdrawStrategyFundsAsManager(address(0), 1 ether);
     }
 
+    /// @notice The reconcile() freeze (globalPaused) must halt the untrusted manager exit too, so a manager
+    ///         cannot realize an inflated recorded balance during a deposit/accounting desync.
+    function test_WithdrawAsManager_RevertsWhenGlobalPaused() public {
+        aggregator.setMainManager(manager, strategy1, true);
+        vm.prank(funder);
+        paymaster.fundStrategy{ value: 5 ether }(strategy1);
+
+        vm.prank(admin);
+        paymaster.setGlobalPause(true);
+
+        vm.prank(manager);
+        vm.expectRevert(ISuperSponsorshipPaymaster.GLOBAL_PAUSED.selector);
+        paymaster.withdrawStrategyFundsAsManager(strategy1, 1 ether);
+    }
+
     function test_WithdrawAsManager_RevertsInsufficientEntryPointDeposit() public {
         aggregator.setMainManager(manager, strategy1, true);
         vm.prank(funder);
