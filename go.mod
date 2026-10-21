@@ -1,6 +1,6 @@
 module github.com/superform-xyz/v2-core
 
-go 1.24.0
+go 1.26.10
 
 require github.com/ethereum/go-ethereum v1.15.2
 
