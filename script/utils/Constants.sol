@@ -322,6 +322,7 @@ abstract contract Constants {
     string internal constant MORPHO_SUPPLY_HOOK_V2_KEY = "MorphoSupplyHookV2";
     string internal constant MORPHO_BORROW_HOOK_V2_KEY = "MorphoBorrowHookV2";
     string internal constant MORPHO_WITHDRAW_COLLATERAL_HOOK_V2_KEY = "MorphoWithdrawCollateralHookV2";
+    string internal constant MORPHO_HEALTH_CHECK_HOOK_KEY = "MorphoHealthCheckHook";
     string internal constant AAVE_V3_SUPPLY_AND_BORROW_HOOK_V2_KEY = "AaveV3SupplyAndBorrowHookV2";
     string internal constant AAVE_V3_REPAY_HOOK_V2_KEY = "AaveV3RepayHookV2";
     string internal constant AAVE_V3_REPAY_AND_WITHDRAW_HOOK_V2_KEY = "AaveV3RepayAndWithdrawHookV2";
@@ -332,6 +333,7 @@ abstract contract Constants {
     string internal constant AAVE_V4_SUPPLY_HOOK_V2_KEY = "AaveV4SupplyHookV2";
     string internal constant AAVE_V4_BORROW_HOOK_V2_KEY = "AaveV4BorrowHookV2";
     string internal constant AAVE_V4_WITHDRAW_HOOK_V2_KEY = "AaveV4WithdrawHookV2";
+    string internal constant AAVE_V4_HEALTH_CHECK_HOOK_KEY = "AaveV4HealthCheckHook";
 
     // Euler EVK loan hook keys (SUP-20797) — protocol-labelled, no V2 suffix
     string internal constant EULER_DEPOSIT_COLLATERAL_AND_BORROW_HOOK_KEY = "EulerDepositCollateralAndBorrowHook";

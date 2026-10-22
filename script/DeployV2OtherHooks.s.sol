@@ -46,6 +46,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoSupplyHookV2;
         address morphoBorrowHookV2;
         address morphoWithdrawCollateralHookV2;
+        address morphoHealthCheckHook;
     }
 
     struct AaveV3V2HookAddresses {
@@ -64,6 +65,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address aaveV4SupplyHookV2;
         address aaveV4BorrowHookV2;
         address aaveV4WithdrawHookV2;
+        address aaveV4HealthCheckHook;
     }
 
     struct AaveV4IdleHookAddresses {
@@ -575,7 +577,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _deployMorphoV2HooksSet(chainId, env);
     }
 
-    /// @notice Deploy the 3 Morpho V2 loan hooks (constructor arg: Morpho singleton)
+    /// @notice Deploy the 6 Morpho V2 loan hooks + the Morpho health-check guard (constructor arg: Morpho singleton)
     function _deployMorphoV2HooksSet(
         uint64 chainId,
         uint256 env
@@ -583,7 +585,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoV2HookAddresses memory hookAddresses)
     {
-        uint256 len = 6;
+        uint256 len = 7;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -617,6 +619,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             "",
             abi.encodePacked(__getOtherHooksBytecode("MorphoWithdrawCollateralHookV2", env), morphoArg)
         );
+        hooks[6] = HookDeployment(
+            MORPHO_HEALTH_CHECK_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("MorphoHealthCheckHook", env), morphoArg)
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -630,6 +637,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.morphoSupplyHookV2 = addresses[3];
         hookAddresses.morphoBorrowHookV2 = addresses[4];
         hookAddresses.morphoWithdrawCollateralHookV2 = addresses[5];
+        hookAddresses.morphoHealthCheckHook = addresses[6];
 
         require(hookAddresses.morphoSupplyAndBorrowHookV2 != address(0), "MorphoSupplyAndBorrowHookV2 not assigned");
         require(hookAddresses.morphoRepayHookV2 != address(0), "MorphoRepayHookV2 not assigned");
@@ -639,6 +647,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(
             hookAddresses.morphoWithdrawCollateralHookV2 != address(0), "MorphoWithdrawCollateralHookV2 not assigned"
         );
+        require(hookAddresses.morphoHealthCheckHook != address(0), "MorphoHealthCheckHook not assigned");
 
         console2.log("All Morpho V2 hooks deployed and validated successfully.");
 
@@ -747,7 +756,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (AaveV4V2StandaloneHookAddresses memory hookAddresses)
     {
-        uint256 len = 3;
+        uint256 len = 4;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -755,6 +764,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hooks[1] = HookDeployment(AAVE_V4_BORROW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4BorrowHookV2", env));
         hooks[2] =
             HookDeployment(AAVE_V4_WITHDRAW_HOOK_V2_KEY, "", __getOtherHooksBytecode("AaveV4WithdrawHookV2", env));
+        hooks[3] =
+            HookDeployment(AAVE_V4_HEALTH_CHECK_HOOK_KEY, "", __getOtherHooksBytecode("AaveV4HealthCheckHook", env));
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -765,10 +776,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.aaveV4SupplyHookV2 = addresses[0];
         hookAddresses.aaveV4BorrowHookV2 = addresses[1];
         hookAddresses.aaveV4WithdrawHookV2 = addresses[2];
+        hookAddresses.aaveV4HealthCheckHook = addresses[3];
 
         require(hookAddresses.aaveV4SupplyHookV2 != address(0), "AaveV4SupplyHookV2 not assigned");
         require(hookAddresses.aaveV4BorrowHookV2 != address(0), "AaveV4BorrowHookV2 not assigned");
         require(hookAddresses.aaveV4WithdrawHookV2 != address(0), "AaveV4WithdrawHookV2 not assigned");
+        require(hookAddresses.aaveV4HealthCheckHook != address(0), "AaveV4HealthCheckHook not assigned");
 
         console2.log("All Aave V4 V2 standalone hooks deployed and validated successfully.");
 

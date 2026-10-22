@@ -133,6 +133,15 @@ hooks:
     actionTypes: [{intent: withdraw, stage: instant}]
     legSizing: [sized]
 
+  # Health-check guards (leverage piece 1/3): NONACCOUNTING, PASSTHROUGH, revert-only — no sizable leg
+  MorphoHealthCheckHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — guard, moves nothing
+
+  AaveV4HealthCheckHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — guard, moves nothing
+
   AaveV4WithdrawHook:
     actionTypes: [{intent: withdraw, stage: instant}]
     legSizing: [sized]
