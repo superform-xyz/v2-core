@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import { HyperCoreAddApiWalletHook } from "../../../../src/hooks/hypercore/HyperCoreAddApiWalletHook.sol";
 import { HyperCoreApproveBuilderFeeHook } from "../../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
 import { ApproveAndHyperCoreDepositHook } from "../../../../src/hooks/hypercore/ApproveAndHyperCoreDepositHook.sol";
+import { HyperCorePerpPositionOracle } from "../../../../src/accounting/oracles/HyperCorePerpPositionOracle.sol";
+import { HyperCoreReadLib } from "../../../../src/vendor/hyperliquid/HyperCoreReadLib.sol";
 import { DeployV2OtherHooks } from "../../../../script/DeployV2OtherHooks.s.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 
@@ -13,13 +15,21 @@ contract FeeCapHarness is DeployV2OtherHooks {
         return HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS;
     }
 
+    /// @dev Salt exactly as a real deploy derives it: `_setConfiguration(env, "")` substitutes the
+    ///      per-environment namespace (0 = production, 2 = staging) before `__getSalt`.
+    function saltFor(uint256 env, string memory key) external returns (bytes32) {
+        _setConfiguration(env, "");
+        return __getSalt(key);
+    }
+
     function hyperCoreHookKeys() external pure returns (string[] memory keys) {
-        keys = new string[](5);
+        keys = new string[](6);
         keys[0] = HYPERCORE_ADD_API_WALLET_HOOK_KEY;
         keys[1] = HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY;
         keys[2] = HYPERCORE_SEND_ASSET_HOOK_KEY;
         keys[3] = HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY;
         keys[4] = APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY;
+        keys[5] = HYPERCORE_PERP_POSITION_ORACLE_KEY;
     }
 }
 
@@ -66,6 +76,59 @@ contract HyperCoreDeploymentTest is Helpers {
         assertEq(h.GATEWAY(), GATEWAY, "GATEWAY must be the tokenInfo.evmContract");
         assertEq(h.DESTINATION_DEX(), DESTINATION_DEX, "perp dex 0: credits perp margin, not spot");
         assertTrue(h.TOKEN() != h.GATEWAY(), "token and gateway must never be the same address");
+    }
+
+    /// @dev The oracle ships with no constructor args: the locked artifact alone must deploy, expose the
+    ///      native perp dex, and — on a chain without the precompiles (this test EVM) — fail closed by name
+    ///      instead of returning zeros. Pins the deploy path the HyperCore family uses for it.
+    function test_LockedBytecode_PerpOracleDeploysWithoutArgsAndFailsClosedOnWrongChain() public {
+        address a = _deploy("HyperCorePerpPositionOracle", "");
+        HyperCorePerpPositionOracle oracle = HyperCorePerpPositionOracle(a);
+
+        assertEq(oracle.PERP_DEX(), 0, "margin figures are reported for the native perp dex");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                HyperCoreReadLib.PRECOMPILE_BAD_RETURN.selector, HyperCoreReadLib.PERP_ASSET_INFO_PRECOMPILE, uint256(0)
+            )
+        );
+        oracle.getPerpPosition(address(this), 0);
+    }
+
+    /// @dev The locked artifact is the compiled source, byte for byte. A source edit without regenerating
+    ///      the artifact (or vice versa) fails here before it can ship a stale oracle.
+    function test_LockedBytecode_PerpOracleMatchesSource() public {
+        bytes memory locked = vm.getCode("script/locked-bytecode/HyperCorePerpPositionOracle.json");
+        assertEq(locked, type(HyperCorePerpPositionOracle).creationCode, "locked bytecode drifted from source");
+    }
+
+    /// @dev Pins the deterministic addresses the HyperCore family deploy produces for the oracle, from the LOCKED
+    ///      artifact and the deploy script's own salt derivation for each environment. Both are the addresses
+    ///      actually deployed on HyperEVM (chain 999) on 2026-10-27; any bytecode or salt drift moves them and must
+    ///      be a conscious decision. 0x4e59b4… is the CREATE2 deployer DeployV2Base uses.
+    function test_PerpOracle_DeterministicAddressFromLockedArtifact() public {
+        FeeCapHarness harness = new FeeCapHarness();
+        bytes memory locked = vm.getCode("script/locked-bytecode/HyperCorePerpPositionOracle.json");
+        bytes32 initHash = keccak256(locked);
+        address deployer = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+
+        address prod = vm.computeCreate2Address(harness.saltFor(0, "HyperCorePerpPositionOracle"), initHash, deployer);
+        address staging =
+            vm.computeCreate2Address(harness.saltFor(2, "HyperCorePerpPositionOracle"), initHash, deployer);
+
+        assertEq(prod, 0xB493FDebc1b5758A24680ac691e6349dE12f95cd, "production CREATE2 address drifted");
+        assertEq(staging, 0x1423f256b28980F5cE1f5D12Fd923f33aC2D6633, "staging CREATE2 address drifted");
+        assertTrue(prod != staging, "environments must not share an address");
+        // No constructor args: the init code IS the locked artifact.
+        assertEq(initHash, keccak256(type(HyperCorePerpPositionOracle).creationCode));
+    }
+
+    /// @dev The oracle key names the contract (one instance per chain), unlike the deposit hook's
+    ///      instance-scoped key, and it is the sixth entry the deploy block assigns.
+    function test_PerpOracleKeyNamesTheContract() public {
+        string[] memory keys = new FeeCapHarness().hyperCoreHookKeys();
+        assertEq(keys.length, 6, "HyperCore family ships six contracts");
+        assertEq(keys[5], "HyperCorePerpPositionOracle", "oracle key is the contract name");
     }
 
     /// @dev Guards the single most confusable pair in this whole integration.

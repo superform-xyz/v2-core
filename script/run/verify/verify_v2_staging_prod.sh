@@ -24,11 +24,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # ===== FILTER CONFIGURATION =====
 # Specify which chains to verify (empty = all chains from network configuration)
-CHAINS_TO_VERIFY=(8453) # Base: Aave V4 V2 / standalone / idle hooks (SUP-21140)
+CHAINS_TO_VERIFY=(999) # HyperEVM: HyperCorePerpPositionOracle (PR #1038)
 # CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
-CONTRACTS_TO_VERIFY=(MorphoHealthCheckHook AaveV4HealthCheckHook)
+CONTRACTS_TO_VERIFY=(HyperCorePerpPositionOracle)
+# CONTRACTS_TO_VERIFY=(MorphoHealthCheckHook AaveV4HealthCheckHook) # health-check hooks (PR #1037)
+# CONTRACTS_TO_VERIFY=(AaveV4SupplyAndBorrowHookV2 AaveV4RepayHookV2 AaveV4RepayAndWithdrawHookV2 AaveV4SupplyHookV2 AaveV4BorrowHookV2 AaveV4WithdrawHookV2 AaveV4LendHook AaveV4RedeemHook)
 # CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
 
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -804,6 +806,7 @@ get_contract_source() {
         "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
         "AaveV4ReserveRegistryV2") echo "src/accounting/oracles/AaveV4ReserveRegistryV2.sol" ;;
         "AaveV4ReserveOracle") echo "src/accounting/oracles/AaveV4ReserveOracle.sol" ;;
+        "HyperCorePerpPositionOracle") echo "src/accounting/oracles/HyperCorePerpPositionOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac
