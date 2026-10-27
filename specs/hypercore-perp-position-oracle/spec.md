@@ -146,6 +146,11 @@ checks and `verify_v2_staging_prod.sh` source paths. NOT registered with the Sup
 `IYieldSourceOracle`). Consumer (OMS / strategy snapshot) integration remains v2 (`perpDex` is parameterised via
 `getAccountSnapshotOnDex`; the oracle is not registered in SuperGovernor either — it is not a hook).
 
+Deployed on HyperEVM (chain 999) on 2026-10-27: production `0xB493FDebc1b5758A24680ac691e6349dE12f95cd` (salt
+namespace `PROD1.0.0`) and staging `0x1423f256b28980F5cE1f5D12Fd923f33aC2D6633` (`STAGING1.0.0`), both pinned by
+`HyperCoreDeploymentTest` against the locked artifact and the deploy script's own salt derivation; on-chain code
+matches the locked artifact byte for byte. Explorer verification via `verify_v2_staging_prod.sh` (Etherscan V2).
+
 ## References
 - Hyperliquid docs — Interacting with HyperCore (read precompiles, `L1Read.sol`)
 - `hyperliquid-dev/hyper-evm-lib`

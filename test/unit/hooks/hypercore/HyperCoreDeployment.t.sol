@@ -15,7 +15,10 @@ contract FeeCapHarness is DeployV2OtherHooks {
         return HYPERCORE_MAX_BUILDER_FEE_RATE_PERPS;
     }
 
-    function saltFor(string memory key) external view returns (bytes32) {
+    /// @dev Salt exactly as a real deploy derives it: `_setConfiguration(env, "")` substitutes the
+    ///      per-environment namespace (0 = production, 2 = staging) before `__getSalt`.
+    function saltFor(uint256 env, string memory key) external returns (bytes32) {
+        _setConfiguration(env, "");
         return __getSalt(key);
     }
 
@@ -99,19 +102,25 @@ contract HyperCoreDeploymentTest is Helpers {
         assertEq(locked, type(HyperCorePerpPositionOracle).creationCode, "locked bytecode drifted from source");
     }
 
-    /// @dev Pins the deterministic address the HyperCore family deploy will produce for the oracle under the
-    ///      default salt namespace, from the LOCKED artifact and the deploy script's own salt derivation. Any
-    ///      bytecode or salt drift moves this address and must be a conscious decision (update this constant).
-    ///      0x4e59b4… is the CREATE2 deployer DeployV2Base uses (seen in the chain-999 dry run).
+    /// @dev Pins the deterministic addresses the HyperCore family deploy produces for the oracle, from the LOCKED
+    ///      artifact and the deploy script's own salt derivation for each environment. Both are the addresses
+    ///      actually deployed on HyperEVM (chain 999) on 2026-10-27; any bytecode or salt drift moves them and must
+    ///      be a conscious decision. 0x4e59b4… is the CREATE2 deployer DeployV2Base uses.
     function test_PerpOracle_DeterministicAddressFromLockedArtifact() public {
-        bytes32 salt = new FeeCapHarness().saltFor("HyperCorePerpPositionOracle");
+        FeeCapHarness harness = new FeeCapHarness();
         bytes memory locked = vm.getCode("script/locked-bytecode/HyperCorePerpPositionOracle.json");
-        address predicted =
-            vm.computeCreate2Address(salt, keccak256(locked), 0x4e59b44847b379578588920cA78FbF26c0B4956C);
+        bytes32 initHash = keccak256(locked);
+        address deployer = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
-        assertEq(predicted, 0x901C0a65693773273DDD9C70e00F4ac26f2d0E31, "oracle CREATE2 address drifted");
+        address prod = vm.computeCreate2Address(harness.saltFor(0, "HyperCorePerpPositionOracle"), initHash, deployer);
+        address staging =
+            vm.computeCreate2Address(harness.saltFor(2, "HyperCorePerpPositionOracle"), initHash, deployer);
+
+        assertEq(prod, 0xB493FDebc1b5758A24680ac691e6349dE12f95cd, "production CREATE2 address drifted");
+        assertEq(staging, 0x1423f256b28980F5cE1f5D12Fd923f33aC2D6633, "staging CREATE2 address drifted");
+        assertTrue(prod != staging, "environments must not share an address");
         // No constructor args: the init code IS the locked artifact.
-        assertEq(keccak256(locked), keccak256(type(HyperCorePerpPositionOracle).creationCode));
+        assertEq(initHash, keccak256(type(HyperCorePerpPositionOracle).creationCode));
     }
 
     /// @dev The oracle key names the contract (one instance per chain), unlike the deposit hook's
