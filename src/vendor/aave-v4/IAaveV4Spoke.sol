@@ -125,4 +125,32 @@ interface IAaveV4Spoke {
     /// @param reserveId The identifier of the reserve
     /// @return The total amount of assets supplied to the reserve
     function getReserveSuppliedAssets(uint256 reserveId) external view returns (uint256);
+
+    /// @notice Account-wide risk snapshot of `user` on this Spoke (upstream `ISpoke.UserAccountData`, field order
+    ///         verified against the Ethereum Main Spoke implementation behind `0x94e7A5dCbE816e498b89aB752661904E2F56c485`)
+    /// @dev FIELD ORDER IS A PINNED, UNCHECKED ABI ASSUMPTION. `getUserAccountData` is decoded positionally, so
+    ///      `healthFactor` must stay at word index 2. The read has no runtime scale/plausibility check, so a Spoke
+    ///      implementation upgrade that REORDERS this struct would be silently mis-decoded: shifting the read onto
+    ///      `totalCollateralValue`/`totalDebtValueRay` (RAY-scaled, ~1e27+) returns an implausibly large value that
+    ///      satisfies any WAD `minHealthFactor`, so the health guard would FAIL OPEN. The only backstop is the
+    ///      mainnet-fork test (`test/integration/AaveV4V2HooksFork.t.sol`, pinned to the address above): re-verify
+    ///      the field order against the live Spoke before adopting a new Spoke implementation.
+    /// @dev Health is per ACCOUNT per SPOKE (cross-reserve), never per market. `healthFactor` is WAD-scaled: the
+    ///      Spoke's `HEALTH_FACTOR_LIQUIDATION_THRESHOLD` is 1e18 and `type(uint256).max` means no debt. It is
+    ///      evaluated with the account's STORED dynamic-config keys; `borrow` and a flagged `withdraw` refresh the
+    ///      keys of all flagged reserves first, `supply` / `setUsingAsCollateral` do not.
+    struct UserAccountData {
+        uint256 riskPremium;
+        uint256 avgCollateralFactor;
+        uint256 healthFactor;
+        uint256 totalCollateralValue;
+        uint256 totalDebtValueRay;
+        uint256 activeCollateralCount;
+        uint256 borrowCount;
+    }
+
+    /// @notice Returns the account-wide risk data of `user` on this Spoke
+    /// @param user The account
+    /// @return The account data (see `UserAccountData`)
+    function getUserAccountData(address user) external view returns (UserAccountData memory);
 }

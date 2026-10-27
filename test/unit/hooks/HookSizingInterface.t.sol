@@ -63,6 +63,8 @@ import {
 import { SetOperator7540Hook } from "../../../src/hooks/vaults/7540/SetOperator7540Hook.sol";
 import { SetSlippageHook } from "../../../src/hooks/vaults/7540/SetSlippageHook.sol";
 import { MarkRootAsUsedHook } from "../../../src/hooks/superform/MarkRootAsUsedHook.sol";
+import { MorphoHealthCheckHook } from "../../../src/hooks/loan/morpho/MorphoHealthCheckHook.sol";
+import { AaveV4HealthCheckHook } from "../../../src/hooks/loan/aave-v4/AaveV4HealthCheckHook.sol";
 import { OfframpTokensHook } from "../../../src/hooks/tokens/OfframpTokensHook.sol";
 import {
     RecordPurchasePendlePTAmortizedOracleHook
@@ -391,6 +393,8 @@ contract HookSizingInterfaceTest is Helpers {
     SetOperator7540Hook setOperator7540;
     SetSlippageHook setSlippage;
     MarkRootAsUsedHook markRootAsUsed;
+    MorphoHealthCheckHook morphoHealthCheck;
+    AaveV4HealthCheckHook aaveV4HealthCheck;
     OfframpTokensHook offrampTokens;
     EthenaUnstakeHook ethenaUnstake;
     MetaMorphoReallocateHook metaMorphoReallocate;
@@ -545,6 +549,8 @@ contract HookSizingInterfaceTest is Helpers {
         setOperator7540 = new SetOperator7540Hook();
         setSlippage = new SetSlippageHook();
         markRootAsUsed = new MarkRootAsUsedHook();
+        morphoHealthCheck = new MorphoHealthCheckHook(DUMMY_MORPHO);
+        aaveV4HealthCheck = new AaveV4HealthCheckHook();
         offrampTokens = new OfframpTokensHook();
         ethenaUnstake = new EthenaUnstakeHook();
         metaMorphoReallocate = new MetaMorphoReallocateHook();
@@ -4427,6 +4433,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(setOperator7540.supportsInterface(iid), "setOperator7540");
         assertTrue(setSlippage.supportsInterface(iid), "setSlippage");
         assertTrue(markRootAsUsed.supportsInterface(iid), "markRootAsUsed");
+        assertTrue(morphoHealthCheck.supportsInterface(iid), "morphoHealthCheck");
+        assertTrue(aaveV4HealthCheck.supportsInterface(iid), "aaveV4HealthCheck");
         // Other hooks
         assertTrue(debridgeCancel.supportsInterface(iid), "debridgeCancel");
         assertTrue(circleGatewayAddDelegate.supportsInterface(iid), "circleGatewayAddDelegate");
@@ -4465,6 +4473,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertFalse(setOperator7540.supportsInterface(oid), "setOperator7540");
         assertFalse(setSlippage.supportsInterface(oid), "setSlippage");
         assertFalse(markRootAsUsed.supportsInterface(oid), "markRootAsUsed");
+        assertFalse(morphoHealthCheck.supportsInterface(oid), "morphoHealthCheck");
+        assertFalse(aaveV4HealthCheck.supportsInterface(oid), "aaveV4HealthCheck");
         assertFalse(debridgeCancel.supportsInterface(oid), "debridgeCancel");
         assertFalse(circleGatewayAddDelegate.supportsInterface(oid), "circleGatewayAddDelegate");
         assertFalse(circleGatewayRemoveDelegate.supportsInterface(oid), "circleGatewayRemoveDelegate");
@@ -4488,6 +4498,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(claimRFLR.amountRoles("").length, 0, "claimRFLR");
         assertEq(setOperator7540.amountRoles("").length, 0, "setOperator7540");
         assertEq(markRootAsUsed.amountRoles("").length, 0, "markRootAsUsed");
+        assertEq(morphoHealthCheck.amountRoles("").length, 0, "morphoHealthCheck");
+        assertEq(aaveV4HealthCheck.amountRoles("").length, 0, "aaveV4HealthCheck");
         assertEq(debridgeCancel.amountRoles("").length, 0, "debridgeCancel");
         assertEq(offrampTokens.amountRoles("").length, 0, "offrampTokens");
         assertEq(ethenaUnstake.amountRoles("").length, 0, "ethenaUnstake");
@@ -4508,6 +4520,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(claimRFLR.decodeAmounts("").length, 0, "claimRFLR");
         assertEq(setOperator7540.decodeAmounts("").length, 0, "setOperator7540");
         assertEq(markRootAsUsed.decodeAmounts("").length, 0, "markRootAsUsed");
+        assertEq(morphoHealthCheck.decodeAmounts("").length, 0, "morphoHealthCheck");
+        assertEq(aaveV4HealthCheck.decodeAmounts("").length, 0, "aaveV4HealthCheck");
         assertEq(debridgeCancel.decodeAmounts("").length, 0, "debridgeCancel");
         assertEq(offrampTokens.decodeAmounts("").length, 0, "offrampTokens");
         assertEq(ethenaUnstake.decodeAmounts("").length, 0, "ethenaUnstake");
@@ -4534,7 +4548,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @notice Returns every hook instantiated in this test contract.
     function _allHooks() internal view returns (ISuperHook[] memory hooks) {
-        hooks = new ISuperHook[](124);
+        hooks = new ISuperHook[](126);
         uint256 i;
         // ── Token (7) ──
         hooks[i++] = ISuperHook(address(transferERC20));
@@ -4663,6 +4677,8 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(setOperator7540));
         hooks[i++] = ISuperHook(address(setSlippage));
         hooks[i++] = ISuperHook(address(markRootAsUsed));
+        hooks[i++] = ISuperHook(address(morphoHealthCheck));
+        hooks[i++] = ISuperHook(address(aaveV4HealthCheck));
         hooks[i++] = ISuperHook(address(offrampTokens));
         hooks[i++] = ISuperHook(address(ethenaUnstake));
         hooks[i++] = ISuperHook(address(metaMorphoReallocate));
@@ -4673,7 +4689,7 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(hyperCoreApproveBuilderFee));
         hooks[i++] = ISuperHook(address(approveAndHyperCoreDeposit));
 
-        assertEq(i, 124, "allHooks count mismatch - add new hooks here");
+        assertEq(i, 126, "allHooks count mismatch - add new hooks here");
     }
 
     /// @dev CI guardrail: every INFLOW or OUTFLOW hook MUST support both sizing interfaces.

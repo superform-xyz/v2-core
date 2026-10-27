@@ -21,6 +21,10 @@ import { MorphoRepayAndWithdrawHookV2 } from "../../../src/hooks/loan/morpho/Mor
 import { MorphoSupplyHookV2 } from "../../../src/hooks/loan/morpho/MorphoSupplyHookV2.sol";
 import { MorphoBorrowHookV2 } from "../../../src/hooks/loan/morpho/MorphoBorrowHookV2.sol";
 import { MorphoWithdrawCollateralHookV2 } from "../../../src/hooks/loan/morpho/MorphoWithdrawCollateralHookV2.sol";
+import { MorphoHealthCheckHook } from "../../../src/hooks/loan/morpho/MorphoHealthCheckHook.sol";
+import { IOracle } from "../../../src/vendor/morpho/IOracle.sol";
+import { MathLib } from "../../../src/vendor/morpho/MathLib.sol";
+import { SharesMathLib } from "../../../src/vendor/morpho/SharesMathLib.sol";
 import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 
@@ -48,6 +52,7 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
     MorphoSupplyHookV2 public pledgeHook;
     MorphoBorrowHookV2 public borrowHook;
     MorphoWithdrawCollateralHookV2 public releaseHook;
+    MorphoHealthCheckHook public healthCheckHook;
     ISuperNativePaymaster public superNativePaymaster;
 
     address public loanToken; // USDC
@@ -79,6 +84,7 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         pledgeHook = new MorphoSupplyHookV2(MORPHO);
         borrowHook = new MorphoBorrowHookV2(MORPHO);
         releaseHook = new MorphoWithdrawCollateralHookV2(MORPHO);
+        healthCheckHook = new MorphoHealthCheckHook(MORPHO);
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
 
         _getTokens(collateralToken, accountEth, 1e8);
@@ -614,5 +620,286 @@ contract MorphoV2HooksFork is MinimalBaseIntegrationTest {
         assertEq(uint256(borrowShares), 0, "debt cleared");
         assertEq(uint256(collateral), 0, "collateral fully released");
         assertEq(IERC20(collateralToken).balanceOf(accountEth), collateralBefore, "all collateral back in the wallet");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                 11. HEALTH CHECK GUARD (MorphoHealthCheckHook)
+    //////////////////////////////////////////////////////////////*/
+
+    uint256 internal constant HF_WAD = 1e18;
+
+    /// @dev Canonical 196-byte health-check layout on the WBTC/USDC market: 52-byte header (opaque oracle id +
+    ///      market key), loanToken, collateralToken, oracle, irm, lltv, minHealthFactor
+    function _healthData(uint256 minHealthFactor) internal view returns (bytes memory data) {
+        data = abi.encodePacked(
+            MORPHO_YS_ORACLE_ID,
+            morphoMarketKey(loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, lltv),
+            loanToken,
+            collateralToken,
+            MORPHO_ORACLE_WBTC_USDC,
+            MORPHO_IRM_WBTC_USDC,
+            lltv,
+            minHealthFactor
+        );
+        assertEq(data.length, 196, "health-check layout must be exactly 196 bytes");
+    }
+
+    /// @dev Like `_execExpectUserOpRevert` but asserts the revert carries the given custom-error selector
+    function _execExpectUserOpRevertWith(address[] memory hooks, bytes[] memory data, bytes4 selector) internal {
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        ExecutionReturnData memory ret = executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
+
+        bytes32 revertTopic = keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)");
+        bool found;
+        for (uint256 i; i < ret.logs.length; ++i) {
+            VmSafe.Log memory logEntry = ret.logs[i];
+            if (logEntry.topics.length > 0 && logEntry.topics[0] == revertTopic) {
+                (, bytes memory reason) = abi.decode(logEntry.data, (uint256, bytes));
+                if (_containsSelector(reason, selector)) found = true;
+            }
+        }
+        assertTrue(found, "Expected UserOperationRevertReason with the given error selector");
+    }
+
+    function _containsSelector(bytes memory blob, bytes4 selector) internal pure returns (bool) {
+        if (blob.length < 4) return false;
+        for (uint256 i; i <= blob.length - 4; ++i) {
+            if (
+                blob[i] == selector[0] && blob[i + 1] == selector[1] && blob[i + 2] == selector[2]
+                    && blob[i + 3] == selector[3]
+            ) return true;
+        }
+        return false;
+    }
+
+    /// @dev Morpho's `_isHealthy` numbers computed in-test, independently of the hook
+    function _manualHealthFactor() internal view returns (uint256) {
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        if (borrowShares == 0) return type(uint256).max;
+        (uint256 totalBorrowAssets, uint256 totalBorrowShares) =
+            MorphoBalancesLib.expectedBorrowBalances(IMorpho(MORPHO), marketParams);
+        uint256 borrowed = SharesMathLib.toAssetsUp(uint256(borrowShares), totalBorrowAssets, totalBorrowShares);
+        uint256 maxBorrow = MathLib.wMulDown(
+            MathLib.mulDivDown(uint256(collateral), IOracle(MORPHO_ORACLE_WBTC_USDC).price(), 1e36), lltv
+        );
+        return MathLib.wDivDown(maxBorrow, borrowed);
+    }
+
+    /// @notice A debt-free account passes at any threshold, including "must have no debt"
+    function test_V2_HealthCheck_NoDebt_Passes() external {
+        _execSingle(address(healthCheckHook), _healthData(HF_WAD));
+        _execSingle(address(healthCheckHook), _healthData(type(uint256).max));
+        assertEq(healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth), type(uint256).max);
+    }
+
+    /// @notice [PLEDGE, BORROW, HEALTH_CHECK] in one userOp: the guard reads the post-borrow state and passes
+    function test_V2_HealthCheck_PledgeBorrow_OneUserOp_Passes() external {
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        hooks[2] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, 0, false);
+        data[1] = _morphoV2Data(BORROW_USDC, 0, false);
+        data[2] = _healthData(1.2e18);
+
+        _exec(hooks, data);
+
+        assertEq(IERC20(loanToken).balanceOf(accountEth) - loanBefore, BORROW_USDC, "borrow landed");
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertGt(uint256(borrowShares), 0, "debt exists");
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "collateral posted");
+        uint256 hf = healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth);
+        assertGe(hf, 1.2e18, "post-action health factor at or above the threshold the guard enforced");
+        assertLt(hf, type(uint256).max, "finite with debt");
+    }
+
+    /// @notice Same chain with an unreachable threshold: the guard trips and the WHOLE userOp unwinds —
+    ///         no debt, no collateral, wallet balances unchanged
+    function test_V2_HealthCheck_PledgeBorrow_BelowMin_UnwindsBorrow() external {
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        hooks[2] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, 0, false);
+        data[1] = _morphoV2Data(BORROW_USDC, 0, false);
+        data[2] = _healthData(50e18);
+
+        _execExpectUserOpRevertWith(hooks, data, MorphoHealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(borrowShares), 0, "borrow unwound");
+        assertEq(uint256(collateral), 0, "pledge unwound");
+        assertEq(IERC20(collateralToken).balanceOf(accountEth), collateralBefore, "collateral wallet unchanged");
+        assertEq(IERC20(loanToken).balanceOf(accountEth), loanBefore, "loan wallet unchanged");
+    }
+
+    /// @notice E2E fail-closed: with real debt open, a reverting market oracle makes the health-check
+    ///         userOp revert (the price() staticcall propagates) rather than silently passing. The standalone
+    ///         health check leaves the existing position untouched when it reverts.
+    function test_V2_HealthCheck_OracleReverts_WithDebt_FailsClosed() external {
+        _open(COLLATERAL_WBTC, BORROW_USDC);
+        (, uint128 borrowSharesBefore, uint128 collateralBefore) = _position();
+        assertGt(uint256(borrowSharesBefore), 0, "position has debt, so the oracle will be consulted");
+
+        // The real WBTC/USDC market oracle reverts for the duration of the next call.
+        vm.mockCallRevert(MORPHO_ORACLE_WBTC_USDC, abi.encodeWithSignature("price()"), bytes("ORACLE_DOWN"));
+
+        _execSingleExpectUserOpRevert(address(healthCheckHook), _healthData(HF_WAD));
+
+        vm.clearMockedCalls();
+        (, uint128 borrowSharesAfter, uint128 collateralAfter) = _position();
+        assertEq(uint256(borrowSharesAfter), uint256(borrowSharesBefore), "debt unchanged by the reverted check");
+        assertEq(uint256(collateralAfter), uint256(collateralBefore), "collateral unchanged by the reverted check");
+    }
+
+    /// @notice "Must have no debt" (max threshold) after a borrow always trips
+    function test_V2_HealthCheck_PledgeBorrow_MaxThreshold_Unwinds() external {
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        hooks[2] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, 0, false);
+        data[1] = _morphoV2Data(BORROW_USDC, 0, false);
+        data[2] = _healthData(type(uint256).max);
+
+        _execExpectUserOpRevertWith(hooks, data, MorphoHealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+        (, uint128 borrowShares,) = _position();
+        assertEq(uint256(borrowShares), 0, "borrow unwound");
+    }
+
+    /// @notice A partial RELEASE that Morpho itself would still allow is refused by a stricter guard, and the
+    ///         release unwinds with it
+    function test_V2_HealthCheck_AfterRelease_BelowMin_UnwindsRelease() external {
+        _open(COLLATERAL_WBTC, BORROW_USDC);
+        uint256 hfBefore = healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth);
+        uint256 collateralWalletBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(releaseHook);
+        hooks[1] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](2);
+        data[0] = _morphoV2Data(PARTIAL_WITHDRAW_WBTC, 0, false);
+        data[1] = _healthData(hfBefore); // releasing collateral can only lower it below the pre-release figure
+
+        _execExpectUserOpRevertWith(hooks, data, MorphoHealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+
+        (,, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC, "release unwound");
+        assertEq(IERC20(collateralToken).balanceOf(accountEth), collateralWalletBefore, "wallet unchanged");
+    }
+
+    /// @notice The hook's number equals Morpho's `_isHealthy` math computed independently on the fork
+    function test_V2_HealthCheck_MatchesManualMorphoFormula() external {
+        _open(COLLATERAL_WBTC, BORROW_USDC);
+        uint256 hf = healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth);
+        assertEq(hf, _manualHealthFactor(), "same formula, same rounding");
+        assertGt(hf, HF_WAD, "Morpho accepted the open, so the guard sees it healthy at 1e18");
+
+        vm.warp(block.timestamp + 30 days);
+        assertEq(healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth), _manualHealthFactor());
+    }
+
+    /// @notice PASSTHROUGH under the real executor: [BORROW, HEALTH_CHECK, REPAY(usePrev)] — the guard forwards
+    ///         the borrow's output so the repay nets the wallet to zero
+    function test_V2_HealthCheck_ForwardsBorrowOutput_ToRepay() external {
+        _execSingle(address(pledgeHook), _morphoV2Data(COLLATERAL_WBTC, 0, false));
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(borrowHook);
+        hooks[1] = address(healthCheckHook);
+        hooks[2] = address(repayHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _morphoV2Data(BORROW_USDC, 0, false);
+        data[1] = _healthData(HF_WAD);
+        data[2] = _morphoV2Data(1, 0, true); // cap word is a placeholder, sized by the guard's forwarded output
+
+        _exec(hooks, data);
+
+        assertEq(IERC20(loanToken).balanceOf(accountEth), loanBefore, "borrow fully repaid from its own output");
+        uint256 debt = MorphoBalancesLib.expectedBorrowAssets(IMorpho(MORPHO), marketParams, accountEth);
+        assertLe(debt, 2, "at most index dust remains");
+    }
+
+    /// @notice A header key for another market is refused before any read
+    function test_V2_HealthCheck_WrongMarketKey_Reverts() external {
+        bytes memory data = abi.encodePacked(
+            MORPHO_YS_ORACLE_ID,
+            address(0xBEEF),
+            loanToken,
+            collateralToken,
+            MORPHO_ORACLE_WBTC_USDC,
+            MORPHO_IRM_WBTC_USDC,
+            lltv,
+            HF_WAD
+        );
+        address[] memory hooks = new address[](1);
+        hooks[0] = address(healthCheckHook);
+        bytes[] memory datas = new bytes[](1);
+        datas[0] = data;
+        _execExpectUserOpRevertWith(hooks, datas, MorphoHealthCheckHook.MARKET_KEY_MISMATCH.selector);
+    }
+
+    /// @notice Leverage-loop composite: three supply+borrow rounds then the guard, all in one userOp. The guard
+    ///         reads the CUMULATIVE post-loop position (3x collateral, 3x debt) and passes at a healthy margin.
+    function test_V2_HealthCheck_LeverageLoop_Composite_Passes() external {
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](4);
+        hooks[0] = address(openHook);
+        hooks[1] = address(openHook);
+        hooks[2] = address(openHook);
+        hooks[3] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](4);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, BORROW_USDC, false);
+        data[1] = _morphoV2Data(COLLATERAL_WBTC, BORROW_USDC, false);
+        data[2] = _morphoV2Data(COLLATERAL_WBTC, BORROW_USDC, false);
+        data[3] = _healthData(1.2e18);
+
+        _exec(hooks, data);
+
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(collateral), COLLATERAL_WBTC * 3, "cumulative collateral across the loop");
+        assertGt(uint256(borrowShares), 0, "cumulative debt exists");
+        assertEq(IERC20(loanToken).balanceOf(accountEth) - loanBefore, BORROW_USDC * 3, "all three borrows landed");
+        uint256 hf = healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth);
+        assertGe(hf, 1.2e18, "post-loop health factor at or above the enforced margin");
+        assertLt(hf, type(uint256).max, "finite with debt");
+    }
+
+    /// @notice Same three-round loop with an unreachable margin: the guard trips and the ENTIRE loop unwinds —
+    ///         no debt, no collateral, wallet restored.
+    function test_V2_HealthCheck_LeverageLoop_Composite_BelowMin_UnwindsAll() external {
+        uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
+        uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](4);
+        hooks[0] = address(openHook);
+        hooks[1] = address(openHook);
+        hooks[2] = address(openHook);
+        hooks[3] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](4);
+        data[0] = _morphoV2Data(COLLATERAL_WBTC, BORROW_USDC, false);
+        data[1] = _morphoV2Data(COLLATERAL_WBTC, BORROW_USDC, false);
+        data[2] = _morphoV2Data(COLLATERAL_WBTC, BORROW_USDC, false);
+        data[3] = _healthData(50e18);
+
+        _execExpectUserOpRevertWith(hooks, data, MorphoHealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+
+        (, uint128 borrowShares, uint128 collateral) = _position();
+        assertEq(uint256(borrowShares), 0, "all borrows unwound");
+        assertEq(uint256(collateral), 0, "all pledges unwound");
+        assertEq(IERC20(collateralToken).balanceOf(accountEth), collateralBefore, "collateral wallet restored");
+        assertEq(IERC20(loanToken).balanceOf(accountEth), loanBefore, "loan wallet restored");
     }
 }

@@ -75,6 +75,7 @@ MORPHO_HOOKS=(
     "MorphoSupplyAndBorrowHookV2"
     "MorphoRepayHookV2"
     "MorphoRepayAndWithdrawHookV2"
+    "MorphoHealthCheckHook"
 )
 
 missing_morpho=0
@@ -109,6 +110,7 @@ AAVE_V4_HOOKS=(
     "AaveV4SupplyHookV2"
     "AaveV4BorrowHookV2"
     "AaveV4WithdrawHookV2"
+    "AaveV4HealthCheckHook"
 )
 
 missing_aavev4=0

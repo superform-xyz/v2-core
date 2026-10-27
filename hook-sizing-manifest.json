@@ -72,6 +72,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "AAVE_V4_HEALTH_CHECK_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
+  },
+  {
     "hookKey": "AAVE_V4_LEND_HOOK_KEY",
     "mode": "sizeless",
     "pipeMode": "transform"
@@ -572,6 +577,11 @@
     "hookKey": "MORPHO_BORROW_HOOK_V2_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
+  },
+  {
+    "hookKey": "MORPHO_HEALTH_CHECK_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
   },
   {
     "hookKey": "MORPHO_LEND_HOOK_KEY",
