@@ -243,6 +243,7 @@ MORPHO_HOOK_CONTRACTS=(
     "MorphoSupplyHookV2"
     "MorphoBorrowHookV2"
     "MorphoWithdrawCollateralHookV2"
+    "MorphoHealthCheckHook"
 )
 
 # Aave V4 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)
@@ -261,6 +262,7 @@ AAVE_V4_HOOK_CONTRACTS=(
     "AaveV4SupplyHookV2"
     "AaveV4BorrowHookV2"
     "AaveV4WithdrawHookV2"
+    "AaveV4HealthCheckHook"
 )
 
 # Aave V3 hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)

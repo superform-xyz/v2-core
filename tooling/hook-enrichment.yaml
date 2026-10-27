@@ -44,6 +44,7 @@ compatibleProtocols:
   MorphoSupplyHookV2: [morpho]
   MorphoBorrowHookV2: [morpho]
   MorphoWithdrawCollateralHookV2: [morpho]
+  MorphoHealthCheckHook: [morpho]
   MetaMorphoReallocateHook: [morpho-metamorpho]
   ForceDeallocateMorphoHook: [morpho-metamorpho]
   # Aave V4
@@ -61,6 +62,7 @@ compatibleProtocols:
   AaveV4SupplyHookV2: [aave-v4]
   AaveV4BorrowHookV2: [aave-v4]
   AaveV4WithdrawHookV2: [aave-v4]
+  AaveV4HealthCheckHook: [aave-v4]
   # Aave V3
   AaveV3SupplyHook: [aave-v3]
   AaveV3WithdrawHook: [aave-v3]
@@ -348,6 +350,8 @@ amountMeta:
   SetOperator7540Hook: []
   SetSlippageHook: []
   MarkRootAsUsedHook: []
+  MorphoHealthCheckHook: []
+  AaveV4HealthCheckHook: []
   DeBridgeCancelOrderHook: []
   CircleGatewayAddDelegateHook: []
   CircleGatewayRemoveDelegateHook: []
@@ -451,6 +455,8 @@ sizelessHooks:
   - SetOperator7540Hook
   - SetSlippageHook
   - MarkRootAsUsedHook
+  - MorphoHealthCheckHook
+  - AaveV4HealthCheckHook
   - DeBridgeCancelOrderHook
   - CircleGatewayAddDelegateHook
   - CircleGatewayRemoveDelegateHook

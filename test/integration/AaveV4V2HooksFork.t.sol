@@ -19,6 +19,7 @@ import { AaveV4RepayAndWithdrawHookV2 } from "../../src/hooks/loan/aave-v4/AaveV
 import { AaveV4SupplyHookV2 } from "../../src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol";
 import { AaveV4BorrowHookV2 } from "../../src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol";
 import { AaveV4WithdrawHookV2 } from "../../src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol";
+import { AaveV4HealthCheckHook } from "../../src/hooks/loan/aave-v4/AaveV4HealthCheckHook.sol";
 import { AaveV4RedeemHook } from "../../src/hooks/loan/aave-v4/AaveV4RedeemHook.sol";
 import { BaseAaveV4MoneyMarketHook } from "../../src/hooks/loan/aave-v4/BaseAaveV4MoneyMarketHook.sol";
 import { BaseAaveV4LoanHookV2 } from "../../src/hooks/loan/aave-v4/BaseAaveV4LoanHookV2.sol";
@@ -49,6 +50,7 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
     AaveV4RepayAndWithdrawHookV2 public closeHook;
     AaveV4SupplyHookV2 public pledgeHook;
     AaveV4BorrowHookV2 public borrowHook;
+    AaveV4HealthCheckHook public healthCheckHook;
     AaveV4WithdrawHookV2 public releaseHook;
     AaveV4RedeemHook public idleRedeemHook;
     /// @dev SUP-21263: the idle pair resolves its header market through a registry, so this suite needs one
@@ -83,6 +85,7 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         closeHook = new AaveV4RepayAndWithdrawHookV2();
         pledgeHook = new AaveV4SupplyHookV2();
         borrowHook = new AaveV4BorrowHookV2();
+        healthCheckHook = new AaveV4HealthCheckHook();
         releaseHook = new AaveV4WithdrawHookV2();
         idleRegistry = new AaveV4ReserveRegistryV2(address(this));
         idleRegistry.registerReserve(SPOKE_ADDR, WETH_RESERVE_ID);
@@ -2198,6 +2201,247 @@ contract AaveV4V2HooksFork is MinimalBaseIntegrationTest {
         _executeHook(address(pledgeHook), tagged);
         assertEq(wethBefore - IERC20(CHAIN_1_WETH).balanceOf(accountEth), SUPPLY_AMOUNT);
         assertTrue(_isCollateral(WETH_RESERVE_ID));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                 HEALTH CHECK GUARD (AaveV4HealthCheckHook)
+    //////////////////////////////////////////////////////////////*/
+
+    uint256 internal constant HF_WAD = 1e18;
+
+    /// @dev Canonical 168-byte health-check layout on the WETH(0)/USDC(7) market of the Main Spoke: 52-byte
+    ///      header (opaque oracle id + market key), spoke, supplyReserveId, borrowReserveId, minHealthFactor
+    function _healthData(uint256 minHealthFactor) internal pure returns (bytes memory) {
+        return _healthDataFor(SPOKE_ADDR, WETH_RESERVE_ID, USDC_RESERVE_ID, minHealthFactor);
+    }
+
+    function _healthDataFor(
+        address keySpoke,
+        uint256 supplyReserveId,
+        uint256 borrowReserveId,
+        uint256 minHealthFactor
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        data = abi.encodePacked(
+            AAVE_V4_YS_ORACLE_ID,
+            AaveV4ReserveKey.computeMarketKey(keySpoke, supplyReserveId, borrowReserveId),
+            SPOKE_ADDR,
+            supplyReserveId,
+            borrowReserveId,
+            minHealthFactor
+        );
+        require(data.length == 168, "health-check layout must be exactly 168 bytes");
+    }
+
+    function _spokeHealthFactor() internal view returns (uint256) {
+        return IAaveV4Spoke(SPOKE_ADDR).getUserAccountData(accountEth).healthFactor;
+    }
+
+    /// @notice A debt-free account reports the max sentinel and passes at any threshold
+    function test_AaveV4V2_HealthCheck_EmptyAccount_MaxPasses() external {
+        assertEq(_spokeHealthFactor(), type(uint256).max, "extended interface: no debt == max");
+        _executeHook(address(healthCheckHook), _healthData(HF_WAD));
+        _executeHook(address(healthCheckHook), _healthData(type(uint256).max));
+        assertEq(healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth), type(uint256).max);
+    }
+
+    /// @notice [PLEDGE, BORROW, HEALTH_CHECK] in one userOp: the guard reads the post-borrow (key-refreshed)
+    ///         state and passes
+    function test_AaveV4V2_HealthCheck_PledgeBorrow_OneUserOp_Passes() external {
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        hooks[2] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _standaloneData(SUPPLY_AMOUNT, false);
+        data[1] = _borrowData(BORROW_AMOUNT, false);
+        data[2] = _healthData(1.5e18);
+
+        _executeHooks(hooks, data);
+
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - usdcBefore, BORROW_AMOUNT, "borrow landed");
+        assertApproxEqAbs(_totalDebt(), BORROW_AMOUNT, 1, "debt == borrowed");
+        uint256 hf = _spokeHealthFactor();
+        assertGe(hf, 1.5e18, "post-action health factor at or above the threshold the guard enforced");
+        assertLt(hf, type(uint256).max, "finite with debt");
+        assertEq(healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth), hf, "hook == Spoke");
+    }
+
+    /// @notice Same chain with an unreachable threshold: the guard trips and the WHOLE userOp unwinds —
+    ///         no debt, no supply, wallet balances unchanged
+    function test_AaveV4V2_HealthCheck_PledgeBorrow_BelowMin_UnwindsBorrow() external {
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        hooks[2] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _standaloneData(SUPPLY_AMOUNT, false);
+        data[1] = _borrowData(BORROW_AMOUNT, false);
+        data[2] = _healthData(100e18);
+
+        _executeHooksExpectFailure(hooks, data, AaveV4HealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+
+        assertEq(_totalDebt(), 0, "borrow unwound");
+        assertEq(_supplied(WETH_RESERVE_ID), 0, "pledge unwound");
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBefore, "WETH wallet unchanged");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "USDC wallet unchanged");
+    }
+
+    /// @notice E2E fail-closed: with a real debt position open, a reverting Spoke `getUserAccountData` makes
+    ///         the health-check userOp revert (the staticcall propagates) rather than silently passing. The
+    ///         standalone check leaves the existing position untouched. Aave analog of the Morpho
+    ///         oracle-revert test — the venue HF read failing must never fail open.
+    function test_AaveV4V2_HealthCheck_SpokeReverts_WithDebt_FailsClosed() external {
+        _openDefaultPosition();
+        uint256 debtBefore = _totalDebt();
+        uint256 suppliedBefore = _supplied(WETH_RESERVE_ID);
+        assertGt(debtBefore, 0, "position has debt");
+
+        // The Spoke's account-data read reverts for the next userOp (match any args by 4-byte selector).
+        vm.mockCallRevert(
+            SPOKE_ADDR, abi.encodeWithSelector(IAaveV4Spoke.getUserAccountData.selector), abi.encodeWithSignature("SPOKE_DOWN()")
+        );
+
+        _executeHookExpectFailure(address(healthCheckHook), _healthData(HF_WAD), bytes4(keccak256("SPOKE_DOWN()")));
+
+        vm.clearMockedCalls();
+        assertEq(_totalDebt(), debtBefore, "debt unchanged by the reverted check");
+        assertApproxEqAbs(_supplied(WETH_RESERVE_ID), suppliedBefore, 1, "collateral unchanged by the reverted check");
+    }
+
+    /// @notice Leverage-loop composite: three supply+borrow rounds then the guard, one userOp. The guard reads
+    ///         the CUMULATIVE post-loop position and passes at a healthy margin.
+    function test_AaveV4V2_HealthCheck_LeverageLoop_Composite_Passes() external {
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](4);
+        hooks[0] = address(openHook);
+        hooks[1] = address(openHook);
+        hooks[2] = address(openHook);
+        hooks[3] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](4);
+        data[0] = _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT);
+        data[1] = _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT);
+        data[2] = _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT);
+        data[3] = _healthData(1.2e18);
+
+        _executeHooks(hooks, data);
+
+        // Aave rounds each supply/borrow leg down, so up to ~1 wei of dust per round across the loop.
+        assertApproxEqAbs(_supplied(WETH_RESERVE_ID), SUPPLY_AMOUNT * 3, 5, "cumulative collateral across the loop");
+        assertApproxEqAbs(_totalDebt(), BORROW_AMOUNT * 3, 5, "cumulative debt across the loop");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth) - usdcBefore, BORROW_AMOUNT * 3, "all three borrows landed");
+        uint256 hf = healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth);
+        assertGe(hf, 1.2e18, "post-loop health factor at or above the enforced margin");
+    }
+
+    /// @notice Same three-round loop with an unreachable margin: the guard trips and the ENTIRE loop unwinds.
+    function test_AaveV4V2_HealthCheck_LeverageLoop_Composite_BelowMin_UnwindsAll() external {
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](4);
+        hooks[0] = address(openHook);
+        hooks[1] = address(openHook);
+        hooks[2] = address(openHook);
+        hooks[3] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](4);
+        data[0] = _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT);
+        data[1] = _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT);
+        data[2] = _createOpenData(SUPPLY_AMOUNT, false, BORROW_AMOUNT);
+        data[3] = _healthData(100e18);
+
+        _executeHooksExpectFailure(hooks, data, AaveV4HealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+
+        assertEq(_totalDebt(), 0, "all borrows unwound");
+        assertEq(_supplied(WETH_RESERVE_ID), 0, "all pledges unwound");
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBefore, "WETH wallet restored");
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "USDC wallet restored");
+    }
+
+    /// @notice "Must have no debt" (max threshold) after a borrow always trips
+    function test_AaveV4V2_HealthCheck_PledgeBorrow_MaxThreshold_Unwinds() external {
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(pledgeHook);
+        hooks[1] = address(borrowHook);
+        hooks[2] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _standaloneData(SUPPLY_AMOUNT, false);
+        data[1] = _borrowData(BORROW_AMOUNT, false);
+        data[2] = _healthData(type(uint256).max);
+
+        _executeHooksExpectFailure(hooks, data, AaveV4HealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+        assertEq(_totalDebt(), 0, "borrow unwound");
+    }
+
+    /// @notice A partial RELEASE the Spoke itself allows is refused by a stricter guard, and the release
+    ///         unwinds with it
+    function test_AaveV4V2_HealthCheck_AfterRelease_BelowMin_UnwindsRelease() external {
+        _openDefaultPosition();
+        uint256 hfBefore = _spokeHealthFactor();
+        uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(releaseHook);
+        hooks[1] = address(healthCheckHook);
+        bytes[] memory data = new bytes[](2);
+        data[0] = _standaloneData(0.3 ether, false);
+        data[1] = _healthData(hfBefore); // releasing collateral can only lower it below the pre-release figure
+
+        _executeHooksExpectFailure(hooks, data, AaveV4HealthCheckHook.HEALTH_FACTOR_BELOW_MINIMUM.selector);
+
+        assertApproxEqAbs(_supplied(WETH_RESERVE_ID), SUPPLY_AMOUNT, 1, "release unwound");
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBefore, "wallet unchanged");
+    }
+
+    /// @notice The hook's number is the Spoke's own `getUserAccountData` read
+    function test_AaveV4V2_HealthCheck_MatchesSpokeGetUserAccountData() external {
+        _openDefaultPosition();
+        uint256 hf = healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth);
+        assertEq(hf, _spokeHealthFactor());
+        assertGt(hf, HF_WAD, "the Spoke accepted the open, so it is healthy at 1e18");
+
+        vm.warp(block.timestamp + 30 days);
+        assertEq(healthCheckHook.previewHealthFactor(_healthData(HF_WAD), accountEth), _spokeHealthFactor());
+    }
+
+    /// @notice PASSTHROUGH under the real executor: [BORROW, HEALTH_CHECK, REPAY(usePrev)] — the guard forwards
+    ///         the borrow's output so the repay nets the wallet to zero
+    function test_AaveV4V2_HealthCheck_ForwardsBorrowOutput_ToRepay() external {
+        _executeHook(address(pledgeHook), _standaloneData(SUPPLY_AMOUNT, false));
+        uint256 usdcBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+
+        address[] memory hooks = new address[](3);
+        hooks[0] = address(borrowHook);
+        hooks[1] = address(healthCheckHook);
+        hooks[2] = address(repayHook);
+        bytes[] memory data = new bytes[](3);
+        data[0] = _borrowData(BORROW_AMOUNT, false);
+        data[1] = _healthData(HF_WAD);
+        data[2] = _createRepayData(1, true); // cap word is a placeholder, sized by the guard's forwarded output
+
+        _executeHooks(hooks, data);
+
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBefore, "borrow fully repaid from its own output");
+        assertLe(_totalDebt(), 2, "at most index dust remains");
+    }
+
+    /// @notice A header key computed for another Spoke (same reserve ids) is refused before any read
+    function test_AaveV4V2_HealthCheck_WrongSpokeInHeader_Reverts() external {
+        address mag7Spoke = 0x17905Db0e4A3514467539956c084180616AE7B8D; // Base MAG7 spoke address
+        _executeHookExpectFailure(
+            address(healthCheckHook),
+            _healthDataFor(mag7Spoke, WETH_RESERVE_ID, USDC_RESERVE_ID, HF_WAD),
+            AaveV4ReserveKey.MARKET_KEY_MISMATCH.selector
+        );
     }
 }
 

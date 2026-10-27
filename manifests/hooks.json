@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-10-16T15:27:16Z",
+  "generatedAt": "2026-10-21T07:18:17Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1908,6 +1908,70 @@
       "asyncLifecycle": null,
       "compatibleProtocols": [
         "morpho"
+      ]
+    },
+    "MorphoHealthCheckHook": {
+      "name": "Morpho Health Check",
+      "description": "Reverts unless the account's Morpho Blue health factor on the market is at or above the minimum",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho"
+      ]
+    },
+    "AaveV4HealthCheckHook": {
+      "name": "Aave V4 Health Check",
+      "description": "Reverts unless the account's Aave V4 Spoke health factor is at or above the minimum",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "aave-v4"
       ]
     },
     "AaveV4WithdrawHook": {

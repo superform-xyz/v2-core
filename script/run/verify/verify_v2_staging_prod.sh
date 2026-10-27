@@ -28,7 +28,7 @@ CHAINS_TO_VERIFY=(8453) # Base: Aave V4 V2 / standalone / idle hooks (SUP-21140)
 # CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
-CONTRACTS_TO_VERIFY=(AaveV4SupplyAndBorrowHookV2 AaveV4RepayHookV2 AaveV4RepayAndWithdrawHookV2 AaveV4SupplyHookV2 AaveV4BorrowHookV2 AaveV4WithdrawHookV2 AaveV4LendHook AaveV4RedeemHook)
+CONTRACTS_TO_VERIFY=(MorphoHealthCheckHook AaveV4HealthCheckHook)
 # CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
 
 # Delay in seconds between verification requests (prevents Cloudflare rate limiting)
@@ -476,7 +476,7 @@ generate_constructor_args() {
         "SuperVaultYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
-        "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook")
+        "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook"|"MorphoHealthCheckHook")
             local morpho_address=""
             case $chain_id in
                 "1") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
@@ -505,7 +505,7 @@ generate_constructor_args() {
         "FeeSplittingHook")
             echo "$(cast abi-encode "constructor(address)" "$native_token")"
             ;;
-        "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook")
+        "AaveV4BorrowHook"|"AaveV4RepayAndWithdrawHook"|"AaveV4RepayHook"|"AaveV4SupplyAndBorrowHook"|"AaveV4SupplyHook"|"AaveV4WithdrawHook"|"AaveV4HealthCheckHook")
             echo "$(cast abi-encode "constructor()")"
             ;;
         "CCTPSendHook"|"ApproveAndCCTPSendHook")
@@ -721,6 +721,7 @@ get_contract_source() {
         "AaveV4SupplyHookV2") echo "src/hooks/loan/aave-v4/AaveV4SupplyHookV2.sol" ;;
         "AaveV4BorrowHookV2") echo "src/hooks/loan/aave-v4/AaveV4BorrowHookV2.sol" ;;
         "AaveV4WithdrawHookV2") echo "src/hooks/loan/aave-v4/AaveV4WithdrawHookV2.sol" ;;
+        "AaveV4HealthCheckHook") echo "src/hooks/loan/aave-v4/AaveV4HealthCheckHook.sol" ;;
         "AaveV4LendHook") echo "src/hooks/loan/aave-v4/AaveV4LendHook.sol" ;;
         "AaveV4RedeemHook") echo "src/hooks/loan/aave-v4/AaveV4RedeemHook.sol" ;;
 
@@ -767,6 +768,7 @@ get_contract_source() {
         "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
         "MetaMorphoReallocateHook") echo "src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol" ;;
         "ForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol" ;;
+        "MorphoHealthCheckHook") echo "src/hooks/loan/morpho/MorphoHealthCheckHook.sol" ;;
 
         # Sponsorship
         "SuperSponsorshipPaymaster") echo "src/paymaster/SuperSponsorshipPaymaster.sol" ;;
