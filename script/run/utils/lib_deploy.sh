@@ -126,7 +126,15 @@ parse_args() {
 
     # Default: --slow is ON (sequential transactions prevent nonce conflicts)
     SLOW_FLAG="--slow"
-    BATCH_SIZE_FLAG="--batch-size 1"
+    # `--batch-size` was removed from `forge script` in newer Foundry releases (1.8.x only has an unrelated
+    # `--batch`), and an unknown flag makes the CLI parser reject the whole invocation before anything runs.
+    # `--slow` alone already sends one transaction at a time, so the flag is only added when the installed
+    # forge still accepts it.
+    if forge script --help 2>/dev/null | grep -q -- '--batch-size'; then
+        BATCH_SIZE_FLAG="--batch-size 1"
+    else
+        BATCH_SIZE_FLAG=""
+    fi
     RESUME_FLAG=""
     LEGACY_FLAG=""
     GAS_PRICE_FLAG=""
@@ -158,7 +166,7 @@ parse_args() {
         BATCH_SIZE_FLAG=""
         echo -e "${YELLOW}Fast mode: transactions will be sent in parallel (higher nonce conflict risk)${NC}"
     else
-        echo -e "${CYAN}Sequential mode (default): transactions sent one at a time (batch-size=1)${NC}"
+        echo -e "${CYAN}Sequential mode (default): transactions sent one at a time (--slow${BATCH_SIZE_FLAG:+, batch-size=1})${NC}"
     fi
 }
 
