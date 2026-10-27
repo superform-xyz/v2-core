@@ -802,6 +802,7 @@ get_contract_source() {
         "AaveV4ReserveRegistry") echo "src/accounting/oracles/AaveV4ReserveRegistry.sol" ;;
         "AaveV4ReserveRegistryV2") echo "src/accounting/oracles/AaveV4ReserveRegistryV2.sol" ;;
         "AaveV4ReserveOracle") echo "src/accounting/oracles/AaveV4ReserveOracle.sol" ;;
+        "HyperCorePerpPositionOracle") echo "src/accounting/oracles/HyperCorePerpPositionOracle.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
     esac

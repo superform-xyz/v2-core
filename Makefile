@@ -30,7 +30,12 @@ ftest :; forge test
 # ERC20YieldSourceOracleBSCFork excluded for the same reason: it falls back to the public
 # rate-limited BSC dataseed node when BSC_RPC_URL is unset. Re-include once a BSC_RPC_URL CI
 # secret exists.
-FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork|BinanceHookE2E
+# Both HyperCorePerpPositionOracle fork suites excluded as well: they read live HyperCore state through the
+# public HyperEVM RPC (vm.rpc eth_calls, unthrottled by --compute-units-per-second) and assert on a live
+# market-maker vault; the live variant also shells out to the Hyperliquid info API with ffi curl. Both run
+# locally via `make ftest`; the mocked unit suites (HyperCoreReadLibTest, HyperCorePerpPositionOracleTest,
+# HyperCoreDeploymentTest) cover CI.
+FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork|BinanceHookE2E|HyperCorePerpPositionOracleFork|HyperCorePerpPositionOracleLiveFork
 
 ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150 --no-match-contract "$(FLARE_FORK_TESTS)"
 

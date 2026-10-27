@@ -140,6 +140,11 @@ abstract contract ConstantsOtherHooks {
     string internal constant HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY = "HyperCoreApproveBuilderFeeHook";
     string internal constant APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY =
         "ApproveAndHyperCoreDepositUsdcPerpHook";
+    /// @notice Read-only perp position oracle over the HyperCore read precompiles (0x800+).
+    /// @dev Not a hook and not an IYieldSourceOracle (no SuperLedger registration), but it ships with the
+    ///      HyperCore family because it shares the family's gate: the precompiles exist only where CoreWriter
+    ///      does (999 / 998). No constructor args; the precompile addresses are protocol constants.
+    string internal constant HYPERCORE_PERP_POSITION_ORACLE_KEY = "HyperCorePerpPositionOracle";
 
     // ── Binance Web3 Trading API DEX router (SUP-21203)
     // ─────────────────────────────────

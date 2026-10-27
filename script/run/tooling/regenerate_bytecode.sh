@@ -318,6 +318,7 @@ HYPERCORE_HOOK_CONTRACTS=(
     "HyperCoreSendAssetHook"
     "HyperCoreUsdClassTransferHook"
     "ApproveAndHyperCoreDepositHook"
+    "HyperCorePerpPositionOracle"
 )
 
 # SuperVault cap-bridge hook contracts (deployed via DeployV2OtherHooks, stored in generated-bytecode/)

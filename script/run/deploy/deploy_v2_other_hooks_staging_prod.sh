@@ -215,6 +215,7 @@ HYPERCORE_HOOKS=(
     "HyperCoreSendAssetHook"
     "HyperCoreApproveBuilderFeeHook"
     "ApproveAndHyperCoreDepositHook"
+    "HyperCorePerpPositionOracle"
 )
 
 missing_hypercore=0
