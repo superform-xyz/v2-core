@@ -109,7 +109,9 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
             if (!success) revert INSUFFICIENT_BALANCE();
         }
 
-        // handleOps reverts on failure → entire tx reverts including deposits
+        // NOTE: `handleOps` reverts only when an op fails VALIDATION. An op that reverts during EXECUTION leaves
+        // this transaction successful, so the sponsorship deposits made above are NOT rolled back. That is
+        // intentional: `msg.sender` is the sponsor of record and can reclaim unused deposits from the sponsorship.
         entryPoint.handleOps(ops, payable(msg.sender));
 
         // Withdraw remaining deposit back to bundler
@@ -196,14 +198,25 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     }
 
     /// @notice Handle the post-operation logic.
-    ///         Executes userOp and gives back refund to the userOp.sender if userOp.sender has overpaid for execution.
+    ///         Gives back a refund to the userOp.sender if the sender has overpaid for a SUCCESSFUL execution.
     /// @dev Verified to be called only through the entryPoint.
     ///      If subclass returns a non-empty context from validatePaymasterUserOp, it must also implement this method.
-    ///                                    Now this is the 2nd call, after user's op was deliberately reverted.
+    /// @dev REFUND ONLY ON SUCCESS. The native refund is paid out of this paymaster's EntryPoint deposit, which the
+    ///      bundler funds in `handleOps`/`sponsorNativeAndHandleOps`. The ERC-20 gas fee is collected by a hook
+    ///      DURING execution, so when the userOp reverts that fee was never paid: refunding anyway hands the sender
+    ///      bundler-funded native value for an operation it did not pay for. EntryPoint still charges this paymaster
+    ///      for the gas actually consumed and returns the unused prefund to the deposit, which the wrapper then
+    ///      sweeps back to its caller — so skipping the refund loses nothing that is owed.
+    ///      Returning normally (rather than reverting) is deliberate: a reverting postOp makes EntryPoint re-enter
+    ///      with `postOpReverted` and recovers no part of the unpaid token fee.
+    /// @dev This does NOT impose an upfront-balance or fee-first requirement: the successful path still pays
+    ///      cashback out of tokens received during execution, exactly as before.
+    /// @param mode opSucceeded - userOp succeeded; opReverted - userOp reverted but gas is still owed;
+    ///             postOpReverted - never passed to `postOp` by EntryPoint v0.7, handled here for completeness.
     /// @param context The context value returned by validatePaymasterUserOp.
     /// @param actualGasCost The actual gas used so far (without this postOp call).
     function _postOp(
-        PostOpMode,
+        PostOpMode mode,
         bytes calldata context,
         uint256 actualGasCost,
         uint256
@@ -215,6 +228,12 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
+        // Failed operation: no refund, no withdrawal. Keep the diagnostic event so the callback stays observable.
+        if (mode != PostOpMode.opSucceeded) {
+            emit SuperNativePaymasterPostOp(context);
+            return;
+        }
+
         (
             address sender,
             uint256 maxFeePerGas,
