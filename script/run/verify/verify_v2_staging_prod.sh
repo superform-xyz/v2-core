@@ -24,11 +24,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/../utils/lib_deploy.sh"
 
 # ===== FILTER CONFIGURATION =====
 # Specify which chains to verify (empty = all chains from network configuration)
-CHAINS_TO_VERIFY=(999) # HyperEVM: HyperCorePerpPositionOracle (PR #1038)
+CHAINS_TO_VERIFY=() # all configured chains: SuperNativePaymaster redeploy (SUP-21683) landed everywhere
+# CHAINS_TO_VERIFY=(999) # HyperEVM: HyperCorePerpPositionOracle (PR #1038)
 # CHAINS_TO_VERIFY=(10 137 130 59144 80094 146 100 480 999 988)
 
 # Specify which contracts to verify (empty = all contracts found in deployment JSON)
-CONTRACTS_TO_VERIFY=(HyperCorePerpPositionOracle)
+CONTRACTS_TO_VERIFY=(SuperNativePaymaster)
+# CONTRACTS_TO_VERIFY=(HyperCorePerpPositionOracle)
 # CONTRACTS_TO_VERIFY=(MorphoHealthCheckHook AaveV4HealthCheckHook) # health-check hooks (PR #1037)
 # CONTRACTS_TO_VERIFY=(AaveV4SupplyAndBorrowHookV2 AaveV4RepayHookV2 AaveV4RepayAndWithdrawHookV2 AaveV4SupplyHookV2 AaveV4BorrowHookV2 AaveV4WithdrawHookV2 AaveV4LendHook AaveV4RedeemHook)
 # CONTRACTS_TO_VERIFY=(ApproveAndStargateSendHook StargateSendHook)
