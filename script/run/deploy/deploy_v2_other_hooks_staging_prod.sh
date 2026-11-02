@@ -6,7 +6,7 @@
 # Description:
 #   Deploys all other-hook families (Morpho, Aave V3/V4, HyperCore, Firelight, Algebra
 #   Integral, DETH, Sponsorship, rFLR, WrappedNative, Euler, Spectra, Odos V3,
-#   FeeSplitting, ...) via DeployV2OtherHooks.s.sol across configured networks.
+#   FeeSplitting, Gyld, ...) via DeployV2OtherHooks.s.sol across configured networks.
 #
 #   SINGLE-DISPATCH: one forge invocation per network, calling the generic run() entrypoint.
 #   Per-family chain gating lives in Solidity (_deployAllHooks) — the single source of truth.
@@ -19,8 +19,18 @@
 #   ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <environment> <mode> <account> [--slow] [--resume] [--legacy]
 #
 #   Targeted single-family redeploy (uses the explicit run<Family>() entrypoints kept in
-#   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting):
+#   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting/runGyld):
 #     TARGET_FAMILY=HyperCore ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
+#
+#   Gyld tokenized bonds are ONLY deployable this way, because both config tables in
+#   ConfigOtherHooks are deliberately empty and the generic `run` path therefore skips the family
+#   on every chain:
+#     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
+#   That ships the registry, oracle and guard, which are inert until an instrument is registered.
+#   The two trade instances additionally need gyldSettlements[chainId] set to Gyld's venue address,
+#   which does not exist yet. Follow a Gyld deploy with script/TransferGyldBondRegistryRoles.s.sol
+#   before registering any instrument, and register the oracle in SuperLedgerConfiguration with
+#   feePercent = 0 (never against FlatFeeLedger).
 #   Note: a targeted family run executes on every configured network; families with chain
 #   requirements revert (and are reported) on unsupported chains.
 #
@@ -234,6 +244,39 @@ if [ $missing_hypercore -gt 0 ]; then
     echo -e "${YELLOW}${missing_hypercore} HyperCore hook(s) missing bytecode. They will be skipped during deployment.${NC}"
     echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
+
+echo ""
+
+echo -e "${BLUE}Checking Gyld bond contract bytecode availability...${NC}"
+
+# ApproveAndTradeGyldBondHook ships TWICE, once per direction, from this ONE artifact: the two deploy
+# keys differ (and therefore the CREATE2 salts and addresses), the bytecode does not. So four artifacts
+# back five deploy entries.
+GYLD_CONTRACTS=(
+    "GyldBondRegistry"
+    "GyldBondYieldSourceOracle"
+    "GyldTradeGuardHook"
+    "ApproveAndTradeGyldBondHook"
+)
+
+missing_gyld=0
+for contract in "${GYLD_CONTRACTS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${contract}.json" ]; then
+        echo -e "${GREEN}   ${contract}${NC}"
+    else
+        echo -e "${YELLOW}   ${contract} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_gyld=$((missing_gyld + 1))
+    fi
+done
+
+if [ $missing_gyld -gt 0 ]; then
+    echo -e "${YELLOW}${missing_gyld} Gyld contract(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo -e "${YELLOW}   NOTE: the Gyld family is NOT deployed by a routine run. Both config tables in${NC}"
+echo -e "${YELLOW}   ConfigOtherHooks are deliberately empty, so it is skipped on every chain unless you${NC}"
+echo -e "${YELLOW}   target it explicitly with TARGET_FAMILY=Gyld.${NC}"
 
 echo ""
 

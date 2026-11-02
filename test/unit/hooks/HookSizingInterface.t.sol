@@ -64,6 +64,10 @@ import { SetOperator7540Hook } from "../../../src/hooks/vaults/7540/SetOperator7
 import { SetSlippageHook } from "../../../src/hooks/vaults/7540/SetSlippageHook.sol";
 import { MarkRootAsUsedHook } from "../../../src/hooks/superform/MarkRootAsUsedHook.sol";
 import { MorphoHealthCheckHook } from "../../../src/hooks/loan/morpho/MorphoHealthCheckHook.sol";
+import { ApproveAndTradeGyldBondHook } from "../../../src/hooks/swappers/gyld/ApproveAndTradeGyldBondHook.sol";
+import { GyldTradeGuardHook } from "../../../src/hooks/swappers/gyld/GyldTradeGuardHook.sol";
+import { GyldBondRegistry } from "../../../src/accounting/oracles/GyldBondRegistry.sol";
+import { GyldBondYieldSourceOracle } from "../../../src/accounting/oracles/GyldBondYieldSourceOracle.sol";
 import { AaveV4HealthCheckHook } from "../../../src/hooks/loan/aave-v4/AaveV4HealthCheckHook.sol";
 import { OfframpTokensHook } from "../../../src/hooks/tokens/OfframpTokensHook.sol";
 import {
@@ -394,6 +398,8 @@ contract HookSizingInterfaceTest is Helpers {
     SetSlippageHook setSlippage;
     MarkRootAsUsedHook markRootAsUsed;
     MorphoHealthCheckHook morphoHealthCheck;
+    ApproveAndTradeGyldBondHook approveAndTradeGyldBond;
+    GyldTradeGuardHook gyldTradeGuard;
     AaveV4HealthCheckHook aaveV4HealthCheck;
     OfframpTokensHook offrampTokens;
     EthenaUnstakeHook ethenaUnstake;
@@ -550,6 +556,13 @@ contract HookSizingInterfaceTest is Helpers {
         setSlippage = new SetSlippageHook();
         markRootAsUsed = new MarkRootAsUsedHook();
         morphoHealthCheck = new MorphoHealthCheckHook(DUMMY_MORPHO);
+        // Gyld: registry and oracle are plumbing for the two hooks, not hooks themselves.
+        GyldBondRegistry gyldRegistry = new GyldBondRegistry(address(this));
+        GyldBondYieldSourceOracle gyldOracle =
+            new GyldBondYieldSourceOracle(address(this), address(gyldRegistry));
+        approveAndTradeGyldBond =
+            new ApproveAndTradeGyldBondHook(DUMMY_MORPHO, address(gyldRegistry), type(uint256).max);
+        gyldTradeGuard = new GyldTradeGuardHook(address(gyldOracle));
         aaveV4HealthCheck = new AaveV4HealthCheckHook();
         offrampTokens = new OfframpTokensHook();
         ethenaUnstake = new EthenaUnstakeHook();
@@ -579,6 +592,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(acrossV1.supportsInterface(inflowOutflowId));
         assertTrue(fluidStake.supportsInterface(inflowOutflowId));
         assertTrue(fetchNativeFee.supportsInterface(inflowOutflowId));
+        assertTrue(approveAndTradeGyldBond.supportsInterface(inflowOutflowId));
+        assertTrue(approveAndTradeGyldBond.supportsInterface(outflowId));
 
         // ASSETS hooks
         assertTrue(deposit4626.supportsInterface(inflowOutflowId));
@@ -770,6 +785,8 @@ contract HookSizingInterfaceTest is Helpers {
     function test_AmountRoles_Sizeless_CommitmentBound() public view {
         assertEq(batchTransfer.amountRoles("").length, 0);
         assertEq(approveSwapBinance.amountRoles("").length, 0);
+        assertEq(approveAndTradeGyldBond.amountRoles("").length, 0);
+        assertEq(gyldTradeGuard.amountRoles("").length, 0);
         assertEq(claimAssetsDETH.amountRoles("").length, 0);
         assertEq(claimWithdrawFirelight.amountRoles("").length, 0);
     }
@@ -1030,6 +1047,8 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(merklClaim.decodeAmounts("").length, 0);
         assertEq(batchTransfer.decodeAmounts("").length, 0);
         assertEq(approveSwapBinance.decodeAmounts("").length, 0);
+        assertEq(approveAndTradeGyldBond.decodeAmounts("").length, 0);
+        assertEq(gyldTradeGuard.decodeAmounts("").length, 0);
     }
 
     /// @dev ClaimAssetsDETH and ClaimWithdrawFirelight are decode-only:
@@ -1086,6 +1105,11 @@ contract HookSizingInterfaceTest is Helpers {
     function test_Sizeless_ReplaceCalldataAmounts_RevertsNonEmpty_ApproveSwapBinance() public {
         vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
         approveSwapBinance.replaceCalldataAmounts("", _singleAmount(1));
+    }
+
+    function test_Sizeless_ReplaceCalldataAmounts_RevertsNonEmpty_ApproveAndTradeGyldBond() public {
+        vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
+        approveAndTradeGyldBond.replaceCalldataAmounts("", _singleAmount(1));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -4412,6 +4436,7 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(batchTransferBasic.supportsInterface(iid), "batchTransferBasic");
         assertTrue(circleGatewayMinter.supportsInterface(iid), "circleGatewayMinter");
         // Oracle hooks
+        assertTrue(gyldTradeGuard.supportsInterface(iid), "gyldTradeGuard");
         assertTrue(recordPurchaseOracle.supportsInterface(iid), "recordPurchaseOracle");
         assertTrue(recordPurchaseOracleV2.supportsInterface(iid), "recordPurchaseOracleV2");
         assertTrue(recordRedemptionOracle.supportsInterface(iid), "recordRedemptionOracle");
@@ -4455,6 +4480,7 @@ contract HookSizingInterfaceTest is Helpers {
         bytes4 oid = type(ISuperHookOutflow).interfaceId;
         assertFalse(batchTransferBasic.supportsInterface(oid), "batchTransferBasic");
         assertFalse(circleGatewayMinter.supportsInterface(oid), "circleGatewayMinter");
+        assertFalse(gyldTradeGuard.supportsInterface(oid), "gyldTradeGuard");
         assertFalse(recordPurchaseOracle.supportsInterface(oid), "recordPurchaseOracle");
         assertFalse(recordPurchaseOracleV2.supportsInterface(oid), "recordPurchaseOracleV2");
         assertFalse(recordRedemptionOracle.supportsInterface(oid), "recordRedemptionOracle");
@@ -4548,7 +4574,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @notice Returns every hook instantiated in this test contract.
     function _allHooks() internal view returns (ISuperHook[] memory hooks) {
-        hooks = new ISuperHook[](126);
+        hooks = new ISuperHook[](128);
         uint256 i;
         // ── Token (7) ──
         hooks[i++] = ISuperHook(address(transferERC20));
@@ -4688,8 +4714,11 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(hyperCoreSendAsset));
         hooks[i++] = ISuperHook(address(hyperCoreApproveBuilderFee));
         hooks[i++] = ISuperHook(address(approveAndHyperCoreDeposit));
+        // -- Gyld (2): sizeless trade leaf + zero-execution tradability guard --
+        hooks[i++] = ISuperHook(address(approveAndTradeGyldBond));
+        hooks[i++] = ISuperHook(address(gyldTradeGuard));
 
-        assertEq(i, 126, "allHooks count mismatch - add new hooks here");
+        assertEq(i, 128, "allHooks count mismatch - add new hooks here");
     }
 
     /// @dev CI guardrail: every INFLOW or OUTFLOW hook MUST support both sizing interfaces.

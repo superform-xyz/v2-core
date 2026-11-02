@@ -7,6 +7,9 @@ compatibleProtocols:
   Deposit4626VaultHook: [erc4626]
   ApproveAndDeposit4626VaultHook: [erc4626]
   Redeem4626VaultHook: [erc4626]
+  # Gyld tokenized bonds
+  ApproveAndTradeGyldBondHook: [gyld]
+  GyldTradeGuardHook: [gyld]
   # ERC-5115
   Deposit5115VaultHook: [erc5115]
   ApproveAndDeposit5115VaultHook: [erc5115]
@@ -295,6 +298,11 @@ asyncLifecycleMap:
 # Only list hooks that differ from the default (single IN/TOKEN).
 # Hooks not listed default to [{direction: IN, denomination: TOKEN}].
 amountMeta:
+  # Sizeless hooks: amountRoles() returns an EMPTY array, so the default single IN/TOKEN entry would
+  # misdescribe them to the OMS. The spend is committed inside a venue-signed quote (trade) or there is
+  # no amount at all (guard).
+  ApproveAndTradeGyldBondHook: []
+  GyldTradeGuardHook: []
   # ASSETS denomination
   Deposit4626VaultHook: [{direction: IN, denomination: ASSETS}]
   ApproveAndDeposit4626VaultHook: [{direction: IN, denomination: ASSETS}]
@@ -423,6 +431,8 @@ loanInterfaceHooks:
 
 # ── Sizeless hooks (no sizable legs) ─────────────────────────────────────────
 sizelessHooks:
+  - ApproveAndTradeGyldBondHook
+  - GyldTradeGuardHook
   - ApproveAndSwapBinanceHook
   - FluidClaimRewardHook
   - GearboxClaimRewardHook
@@ -480,3 +490,11 @@ instances:
   ApproveAndHyperCoreDepositHook:
     - key: ApproveAndHyperCoreDepositUsdcPerpHook
       tag: usdc-perp
+  # Gyld: one instance per DIRECTION, because MAX_INPUT_AMOUNT is a single immutable in raw
+  # input-token units and the two legs' tokens have different decimals. The deploy keys are what
+  # gets registered, so the manifest must key on them or neither instance resolves an address.
+  ApproveAndTradeGyldBondHook:
+    - key: ApproveAndTradeGyldBondCashInHook
+      tag: cash-in
+    - key: ApproveAndTradeGyldBondBondInHook
+      tag: bond-in
