@@ -561,7 +561,7 @@ contract HookSizingInterfaceTest is Helpers {
         GyldBondYieldSourceOracle gyldOracle =
             new GyldBondYieldSourceOracle(address(this), address(gyldRegistry));
         approveAndTradeGyldBond =
-            new ApproveAndTradeGyldBondHook(DUMMY_MORPHO, address(gyldRegistry), type(uint256).max);
+            new ApproveAndTradeGyldBondHook(DUMMY_MORPHO, type(uint256).max);
         gyldTradeGuard = new GyldTradeGuardHook(address(gyldOracle));
         aaveV4HealthCheck = new AaveV4HealthCheckHook();
         offrampTokens = new OfframpTokensHook();

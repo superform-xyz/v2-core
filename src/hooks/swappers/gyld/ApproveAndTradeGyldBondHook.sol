@@ -10,7 +10,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
-import { GyldBondRegistry } from "../../../accounting/oracles/GyldBondRegistry.sol";
 import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
 import {
     ISuperHookContextAware,
@@ -25,7 +24,11 @@ import {
 /// @dev ONE HOOK, BOTH DIRECTIONS. Direction is implied by `(inputToken, outputToken)`, which `inspect()`
 ///      commits into the Merkle leaf: a buy leaf (cash in, bond out) is a different leaf from a sell leaf, and
 ///      neither authorises any other token. That is the repo convention for every venue — there is not a single
-///      direction-flag swap hook in `src/hooks/swappers/` — and it is also what enforces "the approved pair".
+///      direction-flag swap hook in `src/hooks/swappers/` — and the committed pair is what constrains which
+///      tokens a leaf may touch.
+/// @dev NO REGISTRY DEPENDENCY. Unlike the oracle and the guard, this hook reads no instrument configuration.
+///      Tradability is the guard's job; see `_validatePair` for why a pair whitelist here would be redundant
+///      and misleading.
 /// @dev THE STRATEGY IS THE TRADING ACCOUNT, PAYER AND RECIPIENT. Every execution below runs as the executing
 ///      smart account. This hook never holds a token, never takes an approval for itself, and names no operator.
 ///      That property only survives end to end if the venue pulls from and delivers to `msg.sender`, or
@@ -88,9 +91,6 @@ contract ApproveAndTradeGyldBondHook is
     /// @notice Gyld's settlement contract, pinned at deploy time. The only call target.
     address public immutable GYLD_SETTLEMENT;
 
-    /// @notice The approved-instrument list. Decides which pairs and cash denominations are tradable.
-    GyldBondRegistry public immutable GYLD_REGISTRY;
-
     /// @notice Ceiling on the SUM of header `inputAmount`s this hook approves for one account within one
     ///         transaction, in raw token units.
     /// @dev Per-TRANSACTION, not per-execution: a Merkle leaf carries no amount, so one leaf can be repeated.
@@ -118,8 +118,6 @@ contract ApproveAndTradeGyldBondHook is
     error USE_PREV_HOOK_NOT_SUPPORTED();
     error NATIVE_ETH_NOT_SUPPORTED();
     error SAME_INPUT_OUTPUT_TOKEN();
-    /// @notice Neither side of the pair is a registered bond with the other as its configured cash token
-    error PAIR_NOT_APPROVED();
     error MIN_OUT_NOT_VALID();
     error MIN_OUT_NOT_MET();
     error QUOTE_BELOW_MIN();
@@ -130,17 +128,10 @@ contract ApproveAndTradeGyldBondHook is
     error ALLOWANCE_NOT_CLEARED();
     error SNAPSHOT_NOT_TAKEN();
 
-    constructor(
-        address gyldSettlement_,
-        address gyldRegistry_,
-        uint256 maxInputAmount_
-    )
-        BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP)
-    {
-        if (gyldSettlement_ == address(0) || gyldRegistry_ == address(0)) revert ADDRESS_NOT_VALID();
+    constructor(address gyldSettlement_, uint256 maxInputAmount_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
+        if (gyldSettlement_ == address(0)) revert ADDRESS_NOT_VALID();
         if (maxInputAmount_ == 0) revert AMOUNT_NOT_VALID();
         GYLD_SETTLEMENT = gyldSettlement_;
-        GYLD_REGISTRY = GyldBondRegistry(gyldRegistry_);
         MAX_INPUT_AMOUNT = maxInputAmount_;
     }
 
@@ -210,19 +201,21 @@ contract ApproveAndTradeGyldBondHook is
         if (BytesLib.toUint256(data, SwapCalldataLayout.OUTPUT_QUOTE_OFFSET) < outputMin) revert QUOTE_BELOW_MIN();
     }
 
-    /// @notice Rejects anything that is not an approved bond-against-its-cash-token pair
-    /// @dev Exactly one side must be a registered bond and the other must be THAT instrument's configured cash
-    ///      token, which rejects a bond-for-bond trade, an unapproved cash denomination and an unregistered
-    ///      instrument in one check.
-    function _validatePair(address inputToken, address outputToken) private view {
+    /// @notice Rejects a pair this hook structurally cannot trade
+    /// @dev SHAPE ONLY, DELIBERATELY. This hook does NOT consult the instrument registry, and asking it
+    ///      whether a pair is "approved" would be redundant three times over:
+    ///        - `inspect()` commits BOTH tokens into the Merkle leaf, so a leaf authorising cash against one
+    ///          bond cannot execute against another. That is a different leaf and a different signature.
+    ///        - the pinned venue validates its own signed quote against its own registered series, so an
+    ///          unknown pair fails there, and the venue is the authority on what is tradable.
+    ///        - the outcome assertions in `_postExecute` catch a pair that delivers nothing.
+    ///      Removing it also removes a trap: `isApprovedPair` stays true while an instrument is SUSPENDED,
+    ///      so a registry check here would have looked like a tradability gate without being one.
+    ///      `GyldTradeGuardHook` is unambiguously the thing that enforces tradability, and it is mandatory
+    ///      in every Gyld leaf.
+    function _validatePair(address inputToken, address outputToken) private pure {
         if (!_isERC20(inputToken) || !_isERC20(outputToken)) revert NATIVE_ETH_NOT_SUPPORTED();
         if (inputToken == outputToken) revert SAME_INPUT_OUTPUT_TOKEN();
-        if (
-            !GYLD_REGISTRY.isApprovedPair(outputToken, inputToken)
-                && !GYLD_REGISTRY.isApprovedPair(inputToken, outputToken)
-        ) {
-            revert PAIR_NOT_APPROVED();
-        }
     }
 
     /// @notice Validates the Layer 2 payload and returns the opaque venue calldata

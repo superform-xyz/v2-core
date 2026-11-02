@@ -59,7 +59,7 @@ contract GyldSwapEncodingConformanceTest is Test {
         registry.registerInstrument(cfg);
 
         settlement = new MockGyldSettlement();
-        hook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), type(uint128).max);
+        hook = new ApproveAndTradeGyldBondHook(address(settlement), type(uint128).max);
     }
 
     function _header(bool usePrev) internal pure returns (ISuperHookSwap.SwapHeader memory) {

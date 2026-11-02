@@ -94,8 +94,8 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
         registry.registerInstrument(cfg);
 
         guard = new GyldTradeGuardHook(address(oracle));
-        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), CASH_CAP);
-        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), BOND_CAP);
+        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
+        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
 
         instance = makeAccountInstance(keccak256("gyld-e2e-strategy"));
         strategy = instance.account;
@@ -383,8 +383,7 @@ contract GyldBondE2E is GyldBondE2EBase {
     /// @dev Two buy legs in ONE batch against a cap that fits only one. The second must be refused at its
     ///      own `preExecute`, before any approval, and atomicity must undo the first.
     function test_E2E_CapAccumulatesWithinOneBatch() public {
-        ApproveAndTradeGyldBondHook capped =
-            new ApproveAndTradeGyldBondHook(address(settlement), address(registry), 1500e6);
+        ApproveAndTradeGyldBondHook capped = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6);
         settlement.setAllowReplay(true); // a venue that does not enforce single-use ids
 
         bytes memory leaf = _tradeLeaf(keccak256("rep"), address(cash), address(bond), 1000e6, 1000e18);
@@ -418,7 +417,7 @@ contract GyldBondCapResetE2E is GyldBondE2EBase {
         super.setUp();
         // A cap that fits exactly one leg, and a venue that will honour a replayed quote id, so only the cap
         // can stop the second attempt.
-        capped = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), 1000e6);
+        capped = new ApproveAndTradeGyldBondHook(address(settlement), 1000e6);
         settlement.setAllowReplay(true);
 
         // TRANSACTION ONE: consume the entire cap.

@@ -70,7 +70,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
 
         _registerBond(address(bond), address(cash), address(navFeed), registry.FEED_KIND_GYLD_NATIVE());
 
-        hook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), MAX_INPUT);
+        hook = new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT);
         guard = new GyldTradeGuardHook(address(oracle));
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(cash));
 
@@ -169,7 +169,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
         returns (ApproveAndTradeGyldBondHook reHook, bytes memory data)
     {
         MockReentrantGyldSettlement venue = new MockReentrantGyldSettlement();
-        reHook = new ApproveAndTradeGyldBondHook(address(venue), address(registry), MAX_INPUT);
+        reHook = new ApproveAndTradeGyldBondHook(address(venue), MAX_INPUT);
         bytes memory venueCalldata = venue.encodeFill(
             QUOTE_ID, account, address(cash), address(bond), CASH_IN, BOND_QUOTE, block.timestamp + 1 hours
         );
@@ -277,8 +277,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
     ///      and pin that with a deployment-time assertion.
     function test_Finding_OpaqueCalldataReachesAnyFunctionOnThePinnedVenue() public {
         MockGyldSettlementWithExtraPowers venue = new MockGyldSettlementWithExtraPowers();
-        ApproveAndTradeGyldBondHook powerHook =
-            new ApproveAndTradeGyldBondHook(address(venue), address(registry), MAX_INPUT);
+        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(address(venue), MAX_INPUT);
 
         // A leaf whose header looks like an ordinary buy, but whose payload calls `sweep` instead of `fill`.
         bytes memory hostile = venue.encodeSweep(address(cash), attacker, CASH_IN);
@@ -297,8 +296,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
     ///      actually protecting: without them the cash is simply gone.
     function test_Finding_WithoutPostExecuteTheSweepSucceeds() public {
         MockGyldSettlementWithExtraPowers venue = new MockGyldSettlementWithExtraPowers();
-        ApproveAndTradeGyldBondHook powerHook =
-            new ApproveAndTradeGyldBondHook(address(venue), address(registry), MAX_INPUT);
+        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(address(venue), MAX_INPUT);
         bytes memory hostile = venue.encodeSweep(address(cash), attacker, CASH_IN);
         bytes memory data = _data(address(cash), address(bond), CASH_IN, BOND_QUOTE, BOND_MIN, hostile);
 
@@ -429,8 +427,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
     /// @dev Two hook instances keep separate accumulators, so deploying one instance per direction does not
     ///      let the two legs of a round trip eat each other's cap.
     function test_Cap_IsPerHookInstance() public {
-        ApproveAndTradeGyldBondHook second =
-            new ApproveAndTradeGyldBondHook(address(settlement), address(registry), MAX_INPUT);
+        ApproveAndTradeGyldBondHook second = new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT);
         bytes memory data = _buyData();
 
         hook.preExecute(address(0), account, data);
@@ -441,8 +438,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
     /// @dev The cap is checked against the RUNNING SUM before any approval, so the refused repetition cannot
     ///      leave an allowance behind.
     function test_Cap_RefusalLeavesNoAllowance() public {
-        ApproveAndTradeGyldBondHook capped =
-            new ApproveAndTradeGyldBondHook(address(settlement), address(registry), CASH_IN);
+        ApproveAndTradeGyldBondHook capped = new ApproveAndTradeGyldBondHook(address(settlement), CASH_IN);
         settlement.setAllowReplay(true);
 
         (uint256 first,) = _run(capped, _buyData());
@@ -463,8 +459,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
     ///      constructor should reject a settlement address that is one of the registry's known tokens, or the
     ///      deploy script should assert it.
     function test_Finding_ConstructorAcceptsATokenAsTheSettlementAddress() public {
-        ApproveAndTradeGyldBondHook misconfigured =
-            new ApproveAndTradeGyldBondHook(address(cash), address(registry), MAX_INPUT);
+        ApproveAndTradeGyldBondHook misconfigured = new ApproveAndTradeGyldBondHook(address(cash), MAX_INPUT);
         assertEq(misconfigured.GYLD_SETTLEMENT(), address(cash), "no sanity check on what a venue is");
     }
 

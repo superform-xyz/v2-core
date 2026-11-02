@@ -195,17 +195,8 @@ contract GyldDeploymentWiringTest is Test {
             a.gyldBondYieldSourceOracle,
             "guard must bind THIS oracle"
         );
-        // Both trade instances point at that registry and the configured venue.
-        assertEq(
-            address(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondCashInHook).GYLD_REGISTRY()),
-            a.gyldBondRegistry,
-            "buy hook must bind THIS registry"
-        );
-        assertEq(
-            address(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondBondInHook).GYLD_REGISTRY()),
-            a.gyldBondRegistry,
-            "sell hook must bind THIS registry"
-        );
+        // Both trade instances point at the configured venue. They bind NO registry: tradability is
+        // enforced by the guard, so the trade hooks read no instrument configuration at all.
         assertEq(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondCashInHook).GYLD_SETTLEMENT(), VENUE);
         assertEq(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondBondInHook).GYLD_SETTLEMENT(), VENUE);
     }

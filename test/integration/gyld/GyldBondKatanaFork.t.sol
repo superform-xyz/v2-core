@@ -133,8 +133,8 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         registry.registerInstrument(cfg);
 
         guardHook = new GyldTradeGuardHook(address(oracle));
-        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), CASH_CAP);
-        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), BOND_CAP);
+        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
+        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
 
         instance = makeAccountInstance(keccak256("gyld-katana-strategy"));
         strategy = instance.account;

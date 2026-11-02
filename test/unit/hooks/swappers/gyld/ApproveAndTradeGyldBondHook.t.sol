@@ -10,6 +10,8 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 // Superform
 import { ApproveAndTradeGyldBondHook } from "../../../../../src/hooks/swappers/gyld/ApproveAndTradeGyldBondHook.sol";
 import { GyldBondRegistry } from "../../../../../src/accounting/oracles/GyldBondRegistry.sol";
+import { GyldTradeGuardHook } from "../../../../../src/hooks/swappers/gyld/GyldTradeGuardHook.sol";
+import { GyldBondYieldSourceOracle } from "../../../../../src/accounting/oracles/GyldBondYieldSourceOracle.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../../../src/libraries/HookSubTypes.sol";
 import { SwapCalldataLayout } from "../../../../../src/libraries/SwapCalldataLayout.sol";
@@ -85,7 +87,7 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
 
         registry = new GyldBondRegistry(admin);
         settlement = new MockGyldSettlement();
-        hook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), MAX_INPUT);
+        hook = new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT);
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(cash));
 
         _registerBond(address(bond));
@@ -184,7 +186,7 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
 
     function test_Constructor() public view {
         assertEq(hook.GYLD_SETTLEMENT(), address(settlement));
-        assertEq(address(hook.GYLD_REGISTRY()), address(registry));
+        // No registry binding: tradability is the guard's job, not this hook's.
         assertEq(hook.MAX_INPUT_AMOUNT(), MAX_INPUT);
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(hook.SUB_TYPE(), HookSubTypes.SWAP);
@@ -197,17 +199,12 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
 
     function test_Constructor_RevertIf_SettlementZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndTradeGyldBondHook(address(0), address(registry), MAX_INPUT);
-    }
-
-    function test_Constructor_RevertIf_RegistryZero() public {
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndTradeGyldBondHook(address(settlement), address(0), MAX_INPUT);
+        new ApproveAndTradeGyldBondHook(address(0), MAX_INPUT);
     }
 
     function test_Constructor_RevertIf_CapZero() public {
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        new ApproveAndTradeGyldBondHook(address(settlement), address(registry), 0);
+        new ApproveAndTradeGyldBondHook(address(settlement), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -295,27 +292,64 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
         hook.build(address(prevHook), account, data);
     }
 
-    function test_Build_RevertIf_UnregisteredInstrument() public {
+    /*//////////////////////////////////////////////////////////////
+          WHAT THIS HOOK NO LONGER GATES, AND WHAT GATES IT INSTEAD
+    //////////////////////////////////////////////////////////////*/
+
+    // The hook used to ask the registry `isApprovedPair` and revert `PAIR_NOT_APPROVED`. That check was
+    // removed because it was redundant three times over and actively misleading: `isApprovedPair` stays
+    // TRUE while an instrument is suspended, so it looked like a tradability gate without being one.
+    // The three tests below pin the new posture: these pairs BUILD, and something else stops them.
+
+    /// @dev An unregistered instrument builds. What stops it: the leaf commits this exact pair, so it had to
+    ///      be signed; and the pinned venue validates its own quote against its own registered series, so an
+    ///      instrument Gyld does not know cannot be filled.
+    function test_Build_UnregisteredInstrument_BuildsAndFailsAtTheVenue() public {
         MockERC20 stranger = new MockERC20("Stranger", "STR", 18);
         bytes memory data = _dataWithTokens(address(cash), address(stranger));
-        vm.expectRevert(ApproveAndTradeGyldBondHook.PAIR_NOT_APPROVED.selector);
-        hook.build(address(prevHook), account, data);
+        hook.build(address(prevHook), account, data); // no revert at build
+
+        // And the leaf identity is this pair and nothing else, so no other pair is authorised by it.
+        assertEq(hook.inspect(data), abi.encodePacked(address(cash), address(stranger)));
     }
 
-    /// @dev A bond-for-bond trade is not an approved pair, even when both bonds are registered.
-    function test_Build_RevertIf_BondForBond() public {
+    /// @dev A bond-for-bond leaf builds too. The guard is what refuses it: its leaf names one instrument and
+    ///      its expected cash denomination, and a bond is not that instrument's cash token.
+    function test_Build_BondForBond_BuildsButTheGuardIsWhatRefuses() public {
         _registerBond(address(otherBond));
         bytes memory data = _dataWithTokens(address(bond), address(otherBond));
-        vm.expectRevert(ApproveAndTradeGyldBondHook.PAIR_NOT_APPROVED.selector);
         hook.build(address(prevHook), account, data);
+
+        GyldTradeGuardHook guard =
+            new GyldTradeGuardHook(address(new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry))));
+        bytes memory guardLeaf = abi.encodePacked(
+            bytes32(0), bytes20(address(bond)), bytes20(address(otherBond)), uint256(2 days), uint256(1 days)
+        );
+        vm.expectRevert(GyldTradeGuardHook.CASH_DENOMINATION_MISMATCH.selector);
+        guard.build(address(prevHook), account, guardLeaf);
     }
 
-    /// @dev The cash denomination is the registry's, not the leaf's.
-    function test_Build_RevertIf_UnapprovedCashDenomination() public {
+    /// @dev An unapproved cash denomination builds here and is refused by the guard for the same reason.
+    function test_Build_UnapprovedCashDenomination_BuildsButTheGuardIsWhatRefuses() public {
         MockERC20 wrongCash = new MockERC20("DAI", "DAI", 18);
         bytes memory data = _dataWithTokens(address(wrongCash), address(bond));
-        vm.expectRevert(ApproveAndTradeGyldBondHook.PAIR_NOT_APPROVED.selector);
         hook.build(address(prevHook), account, data);
+
+        GyldTradeGuardHook guard =
+            new GyldTradeGuardHook(address(new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry))));
+        bytes memory guardLeaf = abi.encodePacked(
+            bytes32(0), bytes20(address(bond)), bytes20(address(wrongCash)), uint256(2 days), uint256(1 days)
+        );
+        vm.expectRevert(GyldTradeGuardHook.CASH_DENOMINATION_MISMATCH.selector);
+        guard.build(address(prevHook), account, guardLeaf);
+    }
+
+    /// @dev The shape checks that DID survive, because they are structural rather than permissions.
+    function test_Build_StillRejectsStructurallyImpossiblePairs() public {
+        vm.expectRevert(ApproveAndTradeGyldBondHook.SAME_INPUT_OUTPUT_TOKEN.selector);
+        hook.build(address(prevHook), account, _dataWithTokens(address(cash), address(cash)));
+        vm.expectRevert(ApproveAndTradeGyldBondHook.NATIVE_ETH_NOT_SUPPORTED.selector);
+        hook.build(address(prevHook), account, _dataWithTokens(NATIVE, address(bond)));
     }
 
     function test_Build_RevertIf_InputAmountZero() public {

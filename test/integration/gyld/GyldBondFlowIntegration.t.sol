@@ -86,7 +86,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         registry.registerInstrument(cfg);
 
         guardHook = new GyldTradeGuardHook(address(oracle));
-        tradeHook = new ApproveAndTradeGyldBondHook(address(settlement), address(registry), CASH_CAP);
+        tradeHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
 
         instance = makeAccountInstance(keccak256("gyld-strategy"));
         strategy = instance.account;
@@ -196,8 +196,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
 
         // ---- SELL back to cash ----
         // A second instance, because the cap is denominated in the input token's raw units.
-        ApproveAndTradeGyldBondHook sellHook =
-            new ApproveAndTradeGyldBondHook(address(settlement), address(registry), BOND_CAP);
+        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
         uint256 cashBack = 1020e6;
         bytes memory sellData = _tradeData(
             keccak256("sell-1"), address(bond), address(cash), bondsOut, cashBack, cashBack, block.timestamp + 1 hours
@@ -317,8 +316,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     /// @dev The per-transaction cap bounds a repeated leaf inside ONE batch, which is the only on-chain bound
     ///      on a compromised manager key, because a SuperVault leaf carries no amount.
     function test_RepeatedLeafInOneBatch_IsCappedAtPreExecute() public {
-        ApproveAndTradeGyldBondHook cappedHook =
-            new ApproveAndTradeGyldBondHook(address(settlement), address(registry), 1500e6);
+        ApproveAndTradeGyldBondHook cappedHook = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6);
         settlement.setAllowReplay(true); // a venue that does NOT enforce single-use quote ids
 
         bytes memory tradeData = _tradeData(
@@ -391,8 +389,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         vm.prank(admin);
         registry.setNavSuspended(address(bond), true);
 
-        ApproveAndTradeGyldBondHook sellHook =
-            new ApproveAndTradeGyldBondHook(address(settlement), address(registry), BOND_CAP);
+        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
         cash.mint(address(settlement), 1000e6);
         bytes memory sellData = _tradeData(
             keccak256("sell-na"), address(bond), address(cash), 1000e18, 1000e6, 1000e6, block.timestamp + 1 hours
@@ -432,8 +429,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     ///      containment the finding's severity depends on, so it is pinned at the executor level too.
     function test_Finding_OpaqueCalldataSweep_IsContainedByBatchAtomicity() public {
         MockGyldSettlementWithExtraPowers venue = new MockGyldSettlementWithExtraPowers();
-        ApproveAndTradeGyldBondHook powerHook =
-            new ApproveAndTradeGyldBondHook(address(venue), address(registry), CASH_CAP);
+        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP);
         address thief = address(0xBAD);
 
         bytes memory hostile = venue.encodeSweep(address(cash), thief, 1000e6);
@@ -514,8 +510,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     ///      makes the hook fail closed, and the executor then rolls the input transfer back.
     function test_Reentrancy_ContextRotation_IsContainedByBatchAtomicity() public {
         MockReentrantGyldSettlement venue = new MockReentrantGyldSettlement();
-        ApproveAndTradeGyldBondHook reHook =
-            new ApproveAndTradeGyldBondHook(address(venue), address(registry), CASH_CAP);
+        ApproveAndTradeGyldBondHook reHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP);
 
         bytes memory venueCalldata = venue.encodeFill(
             keccak256("reenter"), strategy, address(cash), address(bond), 1000e6, 1000e18, block.timestamp + 1 hours

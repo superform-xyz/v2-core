@@ -1670,11 +1670,13 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploys the Gyld tokenized-bond contracts in dependency order.
-    /// @dev FOUR CONTRACTS, ONE CHAIN OF DEPENDENCIES, which is why this family is not a flat hook list like
-    ///      the others: the oracle takes the registry, the guard takes the oracle, and each trade instance
-    ///      takes the registry plus Gyld's settlement address. Each is deployed and its ACTUAL address fed
-    ///      to the next, rather than derived with `__computeContractAddress` as the Aave V4 idle hooks do,
-    ///      because all four ship together here and a derived address would only add a way to drift.
+    /// @dev A CHAIN OF DEPENDENCIES, which is why this family is not a flat hook list like the others: the
+    ///      oracle takes the registry and the guard takes the oracle. Each is deployed and its ACTUAL address
+    ///      fed to the next, rather than derived with `__computeContractAddress` as the Aave V4 idle hooks
+    ///      do, because they ship together here and a derived address would only add a way to drift.
+    /// @dev THE TWO TRADE INSTANCES TAKE ONLY THE VENUE AND THEIR CAP. They read no instrument
+    ///      configuration: tradability is enforced by `GyldTradeGuardHook`, which every Gyld leaf must
+    ///      include. So they are independent of the registry this function deploys.
     /// @dev THE LEDGER CONFIGURATION ADDRESS IS DERIVED, the same way the Aave V4 idle hooks derive their
     ///      registry: `DeployV2Core` deployed it at a CREATE2 address that is identical on every chain
     ///      within an environment. Note the same deliberate asymmetry documented there —
@@ -1785,8 +1787,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             // The key names the instance; the bytecode lookup names the contract. They differ because one
             // contract ships twice, once per direction, each with its own cap.
             abi.encodePacked(
-                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env),
-                abi.encode(settlement, hookAddresses.gyldBondRegistry, cashCap)
+                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env), abi.encode(settlement, cashCap)
             )
         );
         hookAddresses.approveAndTradeGyldBondBondInHook = __deployContract(
@@ -1794,8 +1795,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             chainId,
             __getSalt(APPROVE_AND_TRADE_GYLD_BOND_BOND_IN_HOOK_KEY),
             abi.encodePacked(
-                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env),
-                abi.encode(settlement, hookAddresses.gyldBondRegistry, bondCap)
+                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env), abi.encode(settlement, bondCap)
             )
         );
         require(
