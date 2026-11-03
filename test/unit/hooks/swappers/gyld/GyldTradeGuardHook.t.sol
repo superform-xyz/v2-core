@@ -443,7 +443,14 @@ contract GyldTradeGuardHookTest is Test {
     ///      total, and deliberately makes no claim about whether the trade should proceed.
     function test_PreviewTradable_FutureDatedPublication_DoesNotPanic() public {
         navFeed.setUpdatedAt(block.timestamp + 1 days);
-        assertEq(hook.previewTradable(_data(), account), 0, "reported as not-stale rather than panicking");
+        // Now REJECTED by name rather than treated as fresh, and still without panicking.
+        assertEq(
+            hook.previewTradable(_data(), account),
+            uint256(uint8(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP)),
+            "a future stamp is invalid, not fresh"
+        );
+        vm.expectRevert(GyldTradeGuardHook.INVALID_TIMESTAMP.selector);
+        hook.build(address(prevHook), account, _data());
     }
 
     /// @dev Same for the observation clock, on a feed that can express one.
@@ -453,9 +460,9 @@ contract GyldTradeGuardHookTest is Test {
         // The oracle already calls a future valuation unusable, so the preview reports that, not a panic.
         assertEq(
             hook.previewTradable(_data(), account),
-            uint256(uint8(GyldBondYieldSourceOracle.NavFailure.ZERO_OR_NEGATIVE))
+            uint256(uint8(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP))
         );
-        vm.expectRevert(GyldTradeGuardHook.INVALID_PRICE.selector);
+        vm.expectRevert(GyldTradeGuardHook.INVALID_TIMESTAMP.selector);
         hook.build(address(prevHook), account, _data());
     }
 

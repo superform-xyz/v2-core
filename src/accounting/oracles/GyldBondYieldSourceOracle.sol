@@ -54,6 +54,8 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     error FUTURE_OBSERVATION();
     error SEQUENCER_DOWN();
     error GRACE_PERIOD_NOT_OVER();
+    /// @notice A feed reported a zero or future timestamp
+    error INVALID_TIMESTAMP();
 
     /*//////////////////////////////////////////////////////////////
                                  TYPES
@@ -70,7 +72,11 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         CIRCUIT_BREAKER,
         SEQUENCER_DOWN_CODE,
         ZERO_OR_NEGATIVE,
-        CASH_FEED_FAILED
+        CASH_FEED_FAILED,
+        /// @notice A clock reported zero or a time in the future. Not stale, WRONG. (F3)
+        INVALID_TIMESTAMP,
+        /// @notice The sequencer is up but still inside its grace period, as distinct from being down. (F7)
+        GRACE_PERIOD
     }
 
     /// @notice Non-reverting NAV status for the guard hook and the OMS
@@ -154,16 +160,23 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         status.cashToken = cfg.cashToken;
         status.navFeed = cfg.navFeed;
 
+        // F2: SUSPENSION FIRST, BEFORE THE OVERRIDE. The incident switch is the one control that must
+        // always work; previously a non-zero recovery NAV short-circuited ahead of it, so an instrument
+        // could report `suspended == true` and `failureCode == OK` at the same time and the guard would
+        // authorise a trade on it. Reporting a recovery value while suspended is the caller's business via
+        // `recoveryNav` on the config; this status must never say "tradable".
+        if (cfg.navSuspended) {
+            status.failureCode = uint8(NavFailure.SUSPENDED);
+            return status;
+        }
         // A terminal override short-circuits the feed entirely: default or maturity is a decided number.
-        if (cfg.recoveryNav != 0) {
+        if (cfg.recoveryNavSet) {
             status.nav = cfg.recoveryNav;
             status.observedAt = block.timestamp;
             status.publishedAt = block.timestamp;
-            status.failureCode = uint8(NavFailure.OK);
-            return status;
-        }
-        if (cfg.navSuspended) {
-            status.failureCode = uint8(NavFailure.SUSPENDED);
+            // F4: a recovery of ZERO is a total loss. The holding stays VISIBLE and values at zero on the
+            // asset side, but it is not a tradable price, so the status says so and the guard refuses.
+            status.failureCode = cfg.recoveryNav == 0 ? uint8(NavFailure.ZERO_OR_NEGATIVE) : uint8(NavFailure.OK);
             return status;
         }
 
@@ -216,7 +229,10 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     {
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
         if (assetIn != address(0) && assetIn != cfg.cashToken) revert INVALID_BASE_ASSET();
-        return assetsIn.mulDiv(cfg.bondScale, _nav(cfg), Math.Rounding.Floor);
+        uint256 nav = _nav(cfg);
+        // F4: a total-loss recovery value is a legitimate mark but not a legitimate divisor.
+        if (nav == 0) revert INVALID_PRICE();
+        return assetsIn.mulDiv(cfg.bondScale, nav, Math.Rounding.Floor);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -233,7 +249,9 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     {
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
         if (assetIn != address(0) && assetIn != cfg.cashToken) revert INVALID_BASE_ASSET();
-        return assetsIn.mulDiv(cfg.bondScale, _nav(cfg), Math.Rounding.Ceil);
+        uint256 nav = _nav(cfg);
+        if (nav == 0) revert INVALID_PRICE();
+        return assetsIn.mulDiv(cfg.bondScale, nav, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -291,8 +309,10 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @notice Reverting NAV read, in cash-token units per whole bond token
     function _nav(GyldBondRegistry.InstrumentConfig memory cfg) private view returns (uint256) {
-        if (cfg.recoveryNav != 0) return cfg.recoveryNav;
+        // F2: suspension takes precedence over the override. See `previewNav`.
         if (cfg.navSuspended) revert NAV_SUSPENDED();
+        // F4: an explicit flag, NOT `recoveryNav != 0`, so a total loss (zero) is representable.
+        if (cfg.recoveryNavSet) return cfg.recoveryNav;
         (uint256 nav,,, NavFailure failure) = _tryNav(cfg);
         if (failure != NavFailure.OK) _revertFor(failure);
         return nav;
@@ -301,13 +321,20 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     /// @dev Maps a diagnostic failure code onto its named revert, so the strict and diagnostic paths share one
     ///      source of truth about what each condition means.
     function _revertFor(NavFailure failure) private pure {
-        if (failure == NavFailure.PUBLICATION_STALE) revert STALE_PRICE();
-        if (failure == NavFailure.OBSERVATION_STALE) revert STALE_OBSERVATION();
-        if (failure == NavFailure.OBSERVATION_UNAVAILABLE) revert OBSERVATION_TIME_UNAVAILABLE();
+        _revertForClock(failure);
         if (failure == NavFailure.SEQUENCER_DOWN_CODE) revert SEQUENCER_DOWN();
+        if (failure == NavFailure.GRACE_PERIOD) revert GRACE_PERIOD_NOT_OVER();
         if (failure == NavFailure.NOT_REGISTERED) revert INSTRUMENT_NOT_REGISTERED();
         if (failure == NavFailure.SUSPENDED) revert NAV_SUSPENDED();
         revert INVALID_PRICE();
+    }
+
+    /// @dev The freshness half of the mapping, split out to keep each function inside the complexity budget
+    function _revertForClock(NavFailure failure) private pure {
+        if (failure == NavFailure.PUBLICATION_STALE) revert STALE_PRICE();
+        if (failure == NavFailure.OBSERVATION_STALE) revert STALE_OBSERVATION();
+        if (failure == NavFailure.OBSERVATION_UNAVAILABLE) revert OBSERVATION_TIME_UNAVAILABLE();
+        if (failure == NavFailure.INVALID_TIMESTAMP) revert INVALID_TIMESTAMP();
     }
 
     /// @notice Non-reverting NAV computation shared by `previewNav` and `_nav`
@@ -320,7 +347,8 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         returns (uint256 nav, uint256 observedAt, uint256 publishedAt, NavFailure failure)
     {
         // L2 liveness first: a down sequencer makes every feed below untrustworthy.
-        if (!_sequencerOk(cfg)) return (0, 0, 0, NavFailure.SEQUENCER_DOWN_CODE);
+        failure = _sequencerStatus(cfg);
+        if (failure != NavFailure.OK) return (0, 0, 0, failure);
 
         uint256 rawNav;
         (rawNav, observedAt, publishedAt, failure) = _readNavFeed(cfg);
@@ -334,12 +362,23 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         if (nav == 0) return (0, observedAt, publishedAt, NavFailure.ZERO_OR_NEGATIVE);
     }
 
-    /// @dev True when there is no sequencer feed, or the sequencer is up and past its grace period
-    function _sequencerOk(GyldBondRegistry.InstrumentConfig memory cfg) private view returns (bool) {
-        if (cfg.sequencerUptimeFeed == address(0)) return true;
-        (, int256 answer,, uint256 startedAt,) = IAggregatorV3(cfg.sequencerUptimeFeed).latestRoundData();
-        if (answer != 0) return false;
-        return block.timestamp - startedAt >= cfg.gracePeriod;
+    /// @dev F7: L2 liveness. Reads the THIRD return value, `startedAt`, which is the status TRANSITION
+    ///      time, per Chainlink's own L2 sequencer consumer example. The fourth value is `updatedAt`, the
+    ///      round's publication time: a feed that refreshed recently after being up for a long time would
+    ///      wrongly fail the grace check if `updatedAt` were used. Other oracles in this repo read the
+    ///      fourth value; that does not make it right here.
+    /// @dev Zero is Chainlink's signal for a round that has not started, so it is rejected rather than read
+    ///      as an ancient healthy timestamp, and a future transition time is rejected rather than panicking
+    ///      on the subtraction.
+    /// @return failure `OK`, `SEQUENCER_DOWN_CODE`, `GRACE_PERIOD` or `INVALID_TIMESTAMP`
+    function _sequencerStatus(GyldBondRegistry.InstrumentConfig memory cfg) private view returns (NavFailure) {
+        if (cfg.sequencerUptimeFeed == address(0)) return NavFailure.OK;
+        (, int256 answer, uint256 startedAt,,) = IAggregatorV3(cfg.sequencerUptimeFeed).latestRoundData();
+        // answer == 0: sequencer up, answer == 1: sequencer down
+        if (answer != 0) return NavFailure.SEQUENCER_DOWN_CODE;
+        if (startedAt == 0 || startedAt > block.timestamp) return NavFailure.INVALID_TIMESTAMP;
+        if (block.timestamp - startedAt < cfg.gracePeriod) return NavFailure.GRACE_PERIOD;
+        return NavFailure.OK;
     }
 
     /// @dev Reads the approved feed per its kind. A Chainlink-style feed returns `observedAt == 0`, because it
@@ -380,13 +419,16 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         view
         returns (NavFailure)
     {
-        if (block.timestamp > publishedAt && block.timestamp - publishedAt > cfg.maxPublicationAge) {
-            return NavFailure.PUBLICATION_STALE;
-        }
+        // F3: a zero or FUTURE publication time is not age zero, it is unusable data. Previously the age
+        // comparison was simply skipped when `publishedAt >= block.timestamp`, so a feed stamped ahead of
+        // the chain bypassed the staleness bound entirely for as long as the stamp stayed in the future.
+        if (publishedAt == 0 || publishedAt > block.timestamp) return NavFailure.INVALID_TIMESTAMP;
+        if (block.timestamp - publishedAt > cfg.maxPublicationAge) return NavFailure.PUBLICATION_STALE;
+
         if (cfg.requiresObservationTime && observedAt == 0) return NavFailure.OBSERVATION_UNAVAILABLE;
         if (observedAt != 0) {
             // A valuation dated in the future is not fresh, it is wrong.
-            if (observedAt > block.timestamp) return NavFailure.ZERO_OR_NEGATIVE;
+            if (observedAt > block.timestamp) return NavFailure.INVALID_TIMESTAMP;
             if (block.timestamp - observedAt > cfg.maxObservationAge) return NavFailure.OBSERVATION_STALE;
         }
         return NavFailure.OK;
@@ -411,9 +453,10 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         (uint80 round, int256 answer,, uint256 updatedAt, uint80 answeredIn) =
             IAggregatorV3(cfg.cashFeed).latestRoundData();
         if (answer <= 0 || answeredIn < round) return (0, NavFailure.CASH_FEED_FAILED);
-        if (block.timestamp > updatedAt && block.timestamp - updatedAt > cfg.maxPublicationAge) {
-            return (0, NavFailure.CASH_FEED_FAILED);
-        }
+        // F3: same rule as the NAV clock. A cash feed stamped in the future is unusable, not fresh, and it
+        // sits in the DENOMINATOR, so accepting it is the most damaging version of this bug.
+        if (updatedAt == 0 || updatedAt > block.timestamp) return (0, NavFailure.INVALID_TIMESTAMP);
+        if (block.timestamp - updatedAt > cfg.maxPublicationAge) return (0, NavFailure.CASH_FEED_FAILED);
         if (_outsideBounds(answer, cfg.cashMinAnswer, cfg.cashMaxAnswer)) {
             return (0, NavFailure.CASH_FEED_FAILED);
         }

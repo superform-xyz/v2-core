@@ -39,6 +39,8 @@ contract GyldBondRegistry is AccessControl {
     error CASH_FEED_REQUIRED();
     error INVALID_FEED_KIND();
     error INVALID_BOUNDS();
+    /// @notice F4: clearing an override and recording a total loss are different actions
+    error RECOVERY_NOT_SET();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -85,6 +87,11 @@ contract GyldBondRegistry is AccessControl {
         uint256 gracePeriod;
         bool navSuspended;
         uint256 recoveryNav;
+        /// @notice F4: whether `recoveryNav` is in force. Separate from the value, so a recovery of ZERO
+        ///         (a total loss) is expressible. Previously `recoveryNav != 0` was the enable flag, which
+        ///         made executing a zero recovery indistinguishable from clearing the override and
+        ///         silently resumed the feed on a defaulted instrument.
+        bool recoveryNavSet;
         bool registered;
     }
 
@@ -99,6 +106,11 @@ contract GyldBondRegistry is AccessControl {
     mapping(address bondToken => uint256 executeAt) public pendingFeedAt;
     mapping(address bondToken => address feed) public pendingFeed;
     mapping(address bondToken => uint8 kind) public pendingFeedKind;
+    /// @notice F6: bounds travel WITH the feed change. A replacement feed with different decimals needs
+    ///         bounds in its own units, and leaving the old ones in place made every normal value trip the
+    ///         circuit breaker.
+    mapping(address bondToken => int192 min) public pendingFeedMinAnswer;
+    mapping(address bondToken => int192 max) public pendingFeedMaxAnswer;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -112,6 +124,10 @@ contract GyldBondRegistry is AccessControl {
     event NavSuspended(address indexed bondToken, bool suspended);
     event RecoveryNavProposed(address indexed bondToken, uint256 recoveryNav, uint256 executeAt);
     event RecoveryNavSet(address indexed bondToken, uint256 recoveryNav);
+    event RecoveryNavCleared(address indexed bondToken);
+    event RecoveryNavProposalCancelled(address indexed bondToken);
+    event FeedChangeProposalCancelled(address indexed bondToken);
+    event PendingChangesCleared(address indexed bondToken);
     event FeedChangeProposed(address indexed bondToken, address indexed newFeed, uint8 kind, uint256 executeAt);
     event FeedChanged(address indexed bondToken, address indexed newFeed, uint8 kind);
     event CircuitBreakerBoundsRefreshed(address indexed bondToken);
@@ -156,6 +172,7 @@ contract GyldBondRegistry is AccessControl {
         // Deliberately NOT copied from the caller: an instrument is never born suspended or with a recovery NAV.
         stored.navSuspended = false;
         stored.recoveryNav = 0;
+        stored.recoveryNavSet = false;
 
         _precomputeScales(bondToken);
 
@@ -236,21 +253,62 @@ contract GyldBondRegistry is AccessControl {
     }
 
     function executeRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        // F5: a proposal must apply to a LIVE registration. Without this, a matured proposal could be
+        // executed against a deregistered instrument, or inherited by a later re-registration.
+        _requireRegistered(bondToken);
         uint256 executeAt = pendingRecoveryNavAt[bondToken];
         if (executeAt == 0) revert CHANGE_NOT_PENDING();
         if (block.timestamp < executeAt) revert CHANGE_TIMELOCK_NOT_ELAPSED();
         uint256 value = pendingRecoveryNav[bondToken];
         _instruments[bondToken].recoveryNav = value;
+        // F4: the flag, not the value, is what enables the override, so zero is a valid total loss.
+        _instruments[bondToken].recoveryNavSet = true;
         delete pendingRecoveryNav[bondToken];
         delete pendingRecoveryNavAt[bondToken];
         emit RecoveryNavSet(bondToken, value);
     }
 
+    /// @notice F4: removes a terminal override and returns the instrument to its feed. A SEPARATE action
+    ///         from recording a recovery of zero, which is a total loss and keeps the override in force.
+    /// @dev Not timelocked: this direction restores feed-based valuation, and the feed's own freshness and
+    ///      circuit-breaker checks still apply, so it cannot be used to install a number.
+    function clearRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        _requireRegistered(bondToken);
+        if (!_instruments[bondToken].recoveryNavSet) revert RECOVERY_NOT_SET();
+        _instruments[bondToken].recoveryNav = 0;
+        _instruments[bondToken].recoveryNavSet = false;
+        emit RecoveryNavCleared(bondToken);
+    }
+
+    /// @notice F5: withdraws a pending recovery proposal. Re-proposing only restarts a clock; it is not
+    ///         cancellation, and a stale matured proposal is executable forever without this.
+    function cancelRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        if (pendingRecoveryNavAt[bondToken] == 0) revert CHANGE_NOT_PENDING();
+        delete pendingRecoveryNav[bondToken];
+        delete pendingRecoveryNavAt[bondToken];
+        emit RecoveryNavProposalCancelled(bondToken);
+    }
+
+    /// @notice F5: withdraws a pending feed change.
+    function cancelFeedChange(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        if (pendingFeedAt[bondToken] == 0) revert CHANGE_NOT_PENDING();
+        _clearPendingFeed(bondToken);
+        emit FeedChangeProposalCancelled(bondToken);
+    }
+
     /// @notice Proposes a change of the approved feed source
+    /// @param minAnswer Circuit-breaker floor in the NEW feed's units; zero disables that side
+    /// @param maxAnswer Circuit-breaker ceiling in the NEW feed's units; zero disables that side
+    /// @dev F6: THE BOUNDS TRAVEL WITH THE FEED. A replacement whose `decimals()` differ needs bounds in its
+    ///      own units. Previously only `navFeedScale` was refreshed, so an 8-decimal feed replaced by an
+    ///      economically identical 18-decimal one left the old ceiling in place and tripped the circuit
+    ///      breaker on every normal value, with no setter to repair it.
     function proposeFeedChange(
         address bondToken,
         address newFeed,
-        uint8 kind
+        uint8 kind,
+        int192 minAnswer,
+        int192 maxAnswer
     )
         external
         onlyRole(INSTRUMENT_MANAGER_ROLE)
@@ -258,8 +316,11 @@ contract GyldBondRegistry is AccessControl {
         _requireRegistered(bondToken);
         if (newFeed == address(0)) revert ZERO_ADDRESS();
         if (kind > FEED_KIND_GYLD_NATIVE) revert INVALID_FEED_KIND();
+        _validateBounds(minAnswer, maxAnswer);
         pendingFeed[bondToken] = newFeed;
         pendingFeedKind[bondToken] = kind;
+        pendingFeedMinAnswer[bondToken] = minAnswer;
+        pendingFeedMaxAnswer[bondToken] = maxAnswer;
         pendingFeedAt[bondToken] = block.timestamp + DEREGISTER_DELAY;
         emit FeedChangeProposed(bondToken, newFeed, kind, pendingFeedAt[bondToken]);
     }
@@ -268,6 +329,8 @@ contract GyldBondRegistry is AccessControl {
     /// @dev The suspension is the point: a feed change must never silently re-point what a vault is marked at.
     ///      Resuming is a separate explicit `setNavSuspended(bondToken, false)`.
     function executeFeedChange(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        // F5: the proposal must apply to a live registration.
+        _requireRegistered(bondToken);
         uint256 executeAt = pendingFeedAt[bondToken];
         if (executeAt == 0) revert CHANGE_NOT_PENDING();
         if (block.timestamp < executeAt) revert CHANGE_TIMELOCK_NOT_ELAPSED();
@@ -279,11 +342,12 @@ contract GyldBondRegistry is AccessControl {
 
         cfg.navFeed = newFeed;
         cfg.navFeedKind = kind;
+        // F6: install the bounds the proposal carried, in the new feed's units.
+        cfg.navMinAnswer = pendingFeedMinAnswer[bondToken];
+        cfg.navMaxAnswer = pendingFeedMaxAnswer[bondToken];
         cfg.navSuspended = true;
 
-        delete pendingFeed[bondToken];
-        delete pendingFeedKind[bondToken];
-        delete pendingFeedAt[bondToken];
+        _clearPendingFeed(bondToken);
 
         _precomputeScales(bondToken);
 
@@ -307,6 +371,13 @@ contract GyldBondRegistry is AccessControl {
         if (block.timestamp < executeAt) revert DEREGISTRATION_TIMELOCK_NOT_ELAPSED();
         delete _instruments[bondToken];
         delete pendingDeregistration[bondToken];
+        // F5: clear every other pending change too. Previously a matured recovery or feed proposal survived
+        // deregistration and could be executed against a LATER re-registration of the same bond token,
+        // installing a value proposed for a configuration that no longer exists, with no fresh delay.
+        _clearPendingFeed(bondToken);
+        delete pendingRecoveryNav[bondToken];
+        delete pendingRecoveryNavAt[bondToken];
+        emit PendingChangesCleared(bondToken);
         emit InstrumentDeregistered(bondToken);
     }
 
@@ -342,6 +413,14 @@ contract GyldBondRegistry is AccessControl {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    function _clearPendingFeed(address bondToken) private {
+        delete pendingFeed[bondToken];
+        delete pendingFeedKind[bondToken];
+        delete pendingFeedMinAnswer[bondToken];
+        delete pendingFeedMaxAnswer[bondToken];
+        delete pendingFeedAt[bondToken];
+    }
 
     function _requireRegistered(address bondToken) private view {
         if (!_instruments[bondToken].registered) revert INSTRUMENT_NOT_REGISTERED();

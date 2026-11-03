@@ -57,11 +57,10 @@ contract MockMutableDecimalsToken {
 }
 
 /// @title GyldBondReviewFindingsTest
-/// @notice Executable verification of the findings raised by the parallel security review of the Gyld change
-///         set. Every test here asserts the CURRENT behaviour, so each finding is reproducible rather than
-///         asserted, and so the assertions flip visibly when a fix lands.
-/// @dev These are deliberately separate from the suites that pin intended behaviour. Each test names the
-///      finding it reproduces and what the proposed fix would change.
+/// @notice Verification that the security-review findings are FIXED. This file began as a set of
+///         reproductions asserting the buggy behaviour; each test has since been flipped to assert the
+///         corrected behaviour, so it now reads as a regression suite for those fixes.
+/// @dev Each test still names the finding it came from, so the history is traceable from the code.
 contract GyldBondReviewFindingsTest is Test {
     GyldBondRegistry internal registry;
     GyldBondYieldSourceOracle internal oracle;
@@ -80,6 +79,8 @@ contract GyldBondReviewFindingsTest is Test {
     uint8 internal KIND_NATIVE;
 
     uint256 internal constant MAX_PUB_AGE = 2 hours;
+    /// @dev The new named code for a zero or future clock (F3/F7)
+    uint8 internal constant INVALID_TS = uint8(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP);
     uint256 internal constant MAX_OBS_AGE = 2 days;
 
     function setUp() public {
@@ -135,44 +136,61 @@ contract GyldBondReviewFindingsTest is Test {
        P1-1 — THE SUSPENSION SWITCH IS INERT ONCE A RECOVERY NAV IS SET
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev CONFIRMED. `_nav` and `previewNav` both check `recoveryNav` BEFORE `navSuspended`, so once an
-    ///      override is set the un-timelocked incident switch stops affecting valuation entirely. The status
-    ///      struct then reports `suspended == true` AND `failureCode == OK` at the same time, which is
-    ///      internally contradictory, and the batch read reports the row as successful.
-    ///      Proposed fix: check `navSuspended` first in both functions.
-    function test_Finding_P1_1_SuspensionIsInertOnceRecoveryNavIsSet() public {
+    /// @dev FIXED (F2). `navSuspended` is now checked BEFORE the recovery override in both `_nav` and
+    ///      `previewNav`, so the un-timelocked incident switch works even once a terminal value is installed.
+    ///      The contradictory "suspended AND OK" status is gone.
+    function test_Fixed_F2_SuspensionNowOutranksTheRecoveryOverride() public {
         _register(_cfg());
         _setRecoveryNav(40e6); // 40.00 cash per bond
         vm.prank(admin);
         registry.setNavSuspended(address(bond), true);
 
         GyldBondYieldSourceOracle.NavStatus memory status = oracle.previewNav(address(bond));
-        assertTrue(status.suspended, "governance did suspend");
-        assertEq(status.failureCode, uint8(GyldBondYieldSourceOracle.NavFailure.OK), "yet the status says OK");
-        assertEq(status.nav, 40e6, "and a price is still published");
+        assertTrue(status.suspended, "governance suspended");
+        assertEq(
+            status.failureCode,
+            uint8(GyldBondYieldSourceOracle.NavFailure.SUSPENDED),
+            "and the status now AGREES with the flag"
+        );
+        assertEq(status.nav, 0, "no price is published while suspended");
 
-        // Every value read keeps answering while suspended.
-        assertEq(oracle.getPricePerShare(address(bond)), 40e6);
+        // Every value read now refuses.
+        vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
+        oracle.getPricePerShare(address(bond));
         bond.mint(holder, 1500e18);
-        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 60_000e6);
+        vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
+        oracle.getTVLByOwnerOfShares(address(bond), holder);
     }
 
-    /// @dev CONFIRMED, and this is the consequence that matters: the guard hook authorises a TRADE of an
-    ///      instrument governance has suspended, because it reads only `failureCode` and never `suspended`.
-    ///      Proposed fix: have the guard check `status.suspended` directly, independently of the code mapping.
-    function test_Finding_P1_1_GuardAuthorisesATradeOfASuspendedInstrument() public {
+    /// @dev And the override still works when the instrument is NOT suspended, which is the whole point of
+    ///      having it: a defaulted-but-unsuspended instrument values at its agreed recovery.
+    function test_Fixed_F2_RecoveryOverrideStillAppliesWhenNotSuspended() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+        assertEq(oracle.getPricePerShare(address(bond)), 40e6, "the override is in force");
+        assertEq(oracle.previewNav(address(bond)).failureCode, 0);
+    }
+
+    /// @dev FIXED (F2). The guard now reads `status.suspended` DIRECTLY, defensively, rather than inferring
+    ///      it from the oracle's failure code. So it refuses even if the oracle's ordering ever regresses.
+    function test_Fixed_F2_GuardRefusesASuspendedInstrument() public {
         _register(_cfg());
         _setRecoveryNav(40e6);
         vm.prank(admin);
         registry.setNavSuspended(address(bond), true);
 
-        assertEq(guard.previewTradable(_guardLeaf(), holder), 0, "the guard reports tradable");
-        guard.build(address(0), holder, _guardLeaf()); // and does not revert
+        assertEq(
+            guard.previewTradable(_guardLeaf(), holder),
+            uint256(uint8(GyldBondYieldSourceOracle.NavFailure.SUSPENDED)),
+            "the preview reports suspension"
+        );
+        vm.expectRevert(GyldTradeGuardHook.NAV_SUSPENDED.selector);
+        guard.build(address(0), holder, _guardLeaf());
     }
 
-    /// @dev CONFIRMED. The batch read's `succeeded` mask is the pipeline's "decline to publish" safety net.
-    ///      With a recovery NAV set, a suspended instrument reports success, so the net is switched off.
-    function test_Finding_P1_1_BatchReadReportsASuspendedRowAsSuccessful() public {
+    /// @dev FIXED (F2). The batch read's `succeeded` mask is the pipeline's decline-to-publish safety net.
+    ///      A suspended row now reports FAILURE, so the net works again even with an override installed.
+    function test_Fixed_F2_BatchReadReportsASuspendedRowAsUnsuccessful() public {
         _register(_cfg());
         _setRecoveryNav(40e6);
         vm.prank(admin);
@@ -186,8 +204,8 @@ contract GyldBondReviewFindingsTest is Test {
         owners[0][0] = holder;
 
         (uint256[][] memory tvls, bool[][] memory ok) = oracle.getTVLByOwnerOfSharesMultiple(sources, owners);
-        assertTrue(ok[0][0], "a suspended instrument publishes as healthy");
-        assertEq(tvls[0][0], 40e6);
+        assertFalse(ok[0][0], "a suspended instrument declines to publish");
+        assertEq(tvls[0][0], 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -227,17 +245,60 @@ contract GyldBondReviewFindingsTest is Test {
         assertEq(oracle.getPricePerShare(address(bond)), type(uint128).max, "the breaker is not consulted");
     }
 
-    /// @dev A zero recovery NAV is indistinguishable from "no override", which is how an override is cleared.
-    ///      Pinned because it means the override cannot express "this bond is worth nothing".
-    function test_Finding_P1_2_ZeroRecoveryNavMeansNoOverrideNotWorthless() public {
+    /// @dev FIXED (F4). An explicit `recoveryNavSet` flag now enables the override, so a recovery of ZERO is
+    ///      a representable total loss rather than being indistinguishable from clearing it. Executing a zero
+    ///      recovery no longer resumes the feed on a defaulted instrument.
+    function test_Fixed_F4_ZeroRecoveryMeansTotalLossNotNoOverride() public {
         _register(_cfg());
         _setRecoveryNav(40e6);
         assertEq(oracle.getPricePerShare(address(bond)), 40e6);
 
         _setRecoveryNav(0);
         navFeed.setUpdatedAt(block.timestamp); // the two timelock warps aged the feed; republish
-        // Back to the feed, not to a zero valuation.
+        assertTrue(registry.getInstrumentConfig(address(bond)).recoveryNavSet, "the override is STILL in force");
+
+        // The ASSET side stays readable, so a worthless holding remains visible and marks at zero rather
+        // than silently reverting to a par feed price.
+        assertEq(oracle.getPricePerShare(address(bond)), 0, "marked at zero, not at the feed");
+        bond.mint(holder, 1500e18);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 0, "a worthless holding is visible");
+        assertEq(oracle.getAssetOutput(address(bond), address(cash), 1500e18), 0);
+
+        // The SHARE side divides by the price, so zero is a named refusal rather than a panic.
+        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_PRICE.selector);
+        oracle.getShareOutput(address(bond), address(cash), 1e6);
+        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_PRICE.selector);
+        oracle.getWithdrawalShareOutput(address(bond), address(cash), 1e6);
+
+        // And it is not a tradable price.
+        assertEq(
+            oracle.previewNav(address(bond)).failureCode,
+            uint8(GyldBondYieldSourceOracle.NavFailure.ZERO_OR_NEGATIVE),
+            "not tradable"
+        );
+        vm.expectRevert(GyldTradeGuardHook.INVALID_PRICE.selector);
+        guard.build(address(0), holder, _guardLeaf());
+    }
+
+    /// @dev And clearing is now a SEPARATE, explicit action that returns the instrument to its feed.
+    function test_Fixed_F4_ClearingIsDistinctFromRecordingATotalLoss() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+
+        vm.prank(admin);
+        registry.clearRecoveryNav(address(bond));
+        assertFalse(registry.getInstrumentConfig(address(bond)).recoveryNavSet, "override removed");
+
+        navFeed.setUpdatedAt(block.timestamp);
         assertEq(oracle.getPricePerShare(address(bond)), 102.37e6, "the feed is authoritative again");
+    }
+
+    /// @dev Clearing an override that was never set is a mistake worth naming.
+    function test_Fixed_F4_ClearingWhenNothingIsSetReverts() public {
+        _register(_cfg());
+        vm.expectRevert(GyldBondRegistry.RECOVERY_NOT_SET.selector);
+        vm.prank(admin);
+        registry.clearRecoveryNav(address(bond));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -251,55 +312,55 @@ contract GyldBondReviewFindingsTest is Test {
     ///      Proposed fix: reject a future timestamp outright with a dedicated failure code, on both clocks and
     ///      in all four places (oracle `_checkFreshness`, oracle `_toCashUnits`, guard `_requireTradable`,
     ///      guard `previewTradable`).
-    function test_Finding_P1_3_FutureDatedPublicationSuspendsTheClock() public {
+    /// @dev FIXED (F3). A future publication time is now rejected as unusable data instead of being read as
+    ///      age zero. Previously the age comparison was skipped whenever the stamp was ahead of the chain,
+    ///      so a feed stamped into the future bypassed the staleness bound for as long as the stamp lasted.
+    function test_Fixed_F3_FutureDatedPublicationIsRejected() public {
         _register(_cfg());
-        // A publisher bug or clock skew stamps the round ten years ahead. The ANSWER is from today.
         navFeed.setUpdatedAt(block.timestamp + 3650 days);
-        assertEq(oracle.previewNav(address(bond)).failureCode, 0, "fresh, as a current publication");
+        assertEq(oracle.previewNav(address(bond)).failureCode, INVALID_TS, "a future stamp is invalid, not fresh");
+        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_TIMESTAMP.selector);
+        oracle.getPricePerShare(address(bond));
+    }
 
-        // A year later the answer is a year old and the feed has not published since. The 2-hour bound is
-        // still not applied, because the stamp is STILL in the future.
-        vm.warp(block.timestamp + 365 days);
-        assertEq(
-            oracle.previewNav(address(bond)).failureCode,
-            uint8(GyldBondYieldSourceOracle.NavFailure.OK),
-            "a year-old NAV reads as fresh under a future-dated stamp"
-        );
-        assertEq(oracle.getPricePerShare(address(bond)), 102.37e6, "and is still marked");
+    /// @dev A zero publication time is rejected too, which is what an uninitialised feed reports.
+    function test_Fixed_F3_ZeroPublicationTimeIsRejected() public {
+        _register(_cfg());
+        navFeed.setUpdatedAt(0);
+        assertEq(oracle.previewNav(address(bond)).failureCode, INVALID_TS);
+    }
 
-        // NOTE ON SCOPE, established by running this rather than reasoning about it: the bypass lasts exactly
-        // as long as the stamp stays ahead of the block clock, NOT forever. Once time catches up the normal
-        // staleness check resumes, which this asserts so the finding is not overstated.
-        vm.warp(block.timestamp + 3650 days);
-        assertEq(
-            oracle.previewNav(address(bond)).failureCode,
-            uint8(GyldBondYieldSourceOracle.NavFailure.PUBLICATION_STALE),
-            "once the clock catches up, staleness applies again"
-        );
+    /// @dev And the normal path is untouched: a stamp at or inside the bound still passes.
+    function test_Fixed_F3_CurrentPublicationStillPasses() public {
+        _register(_cfg());
+        navFeed.setUpdatedAt(block.timestamp - MAX_PUB_AGE);
+        assertEq(oracle.previewNav(address(bond)).failureCode, 0, "the bound itself is still fresh");
     }
 
     /// @dev CONFIRMED. The guard inherits the same one-sided comparison, so it keeps authorising trades.
-    function test_Finding_P1_3_GuardAlsoAcceptsAYearOldFutureDatedNav() public {
+    /// @dev FIXED (F3) in the guard too, on both its paths.
+    function test_Fixed_F3_GuardRejectsAFutureDatedNav() public {
         _register(_cfg());
         navFeed.setUpdatedAt(block.timestamp + 3650 days);
-        vm.warp(block.timestamp + 365 days);
 
-        assertEq(guard.previewTradable(_guardLeaf(), holder), 0, "the guard reports tradable");
+        assertEq(guard.previewTradable(_guardLeaf(), holder), INVALID_TS, "the preview names it");
+        vm.expectRevert(GyldTradeGuardHook.INVALID_TIMESTAMP.selector);
         guard.build(address(0), holder, _guardLeaf());
     }
 
     /// @dev CONFIRMED on the cash feed too: `_toCashUnits` carries the identical one-sided guard.
-    function test_Finding_P1_3_FutureDatedCashFeedIsNeverStale() public {
+    function test_Fixed_F3_FutureDatedCashFeedIsRejected() public {
         GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
         cfg.navIsUsdDenominated = true;
         cfg.cashFeed = address(cashFeed);
         _register(cfg);
 
         cashFeed.setUpdatedAt(block.timestamp + 3650 days);
-        vm.warp(block.timestamp + 365 days);
         navFeed.setUpdatedAt(block.timestamp); // keep the NAV side fresh to isolate the cash side
 
-        assertEq(oracle.previewNav(address(bond)).failureCode, 0, "a year-old cash price reads as fresh");
+        // FIXED (F3): the cash price sits in the DENOMINATOR, so accepting a future stamp there was the most
+        // damaging version of this bug.
+        assertEq(oracle.previewNav(address(bond)).failureCode, INVALID_TS, "the cash clock is validated too");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -311,7 +372,7 @@ contract GyldBondReviewFindingsTest is Test {
     ///      preview depends on that, so this is the same class as the bug fixed one layer up on 2026-11-02,
     ///      in the copy that was missed.
     ///      Proposed fix: `if (startedAt == 0 || startedAt > block.timestamp) return false;`
-    function test_Finding_P2_7_FutureSequencerTimestampPanicsPreviewNav() public {
+    function test_Fixed_F7_FutureSequencerTimestampIsRejectedNotPanicking() public {
         MockSettableSequencer seq = new MockSettableSequencer(block.timestamp);
         GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
         cfg.sequencerUptimeFeed = address(seq);
@@ -319,27 +380,27 @@ contract GyldBondReviewFindingsTest is Test {
         _register(cfg);
 
         seq.setStartedAt(block.timestamp + 1);
-        vm.expectRevert(stdError.arithmeticError);
-        oracle.previewNav(address(bond));
-
-        // And it takes the guard's never-reverting preview with it.
-        vm.expectRevert(stdError.arithmeticError);
-        guard.previewTradable(_guardLeaf(), holder);
+        // FIXED (F7): reported as a named failure instead of panicking, so the preview stays total.
+        assertEq(oracle.previewNav(address(bond)).failureCode, INVALID_TS, "no panic, a reason code");
+        assertEq(guard.previewTradable(_guardLeaf(), holder), INVALID_TS, "and the guard's preview survives");
     }
 
     /// @dev CONFIRMED. Chainlink uses `startedAt == 0` to signal a round that has not started, i.e. round
     ///      data is unavailable. `block.timestamp - 0 >= gracePeriod` is true, so the oracle reads that as
     ///      "sequencer up and past its grace period": the protection is inverted exactly when the data is
     ///      missing.
-    function test_Finding_P2_7_ZeroSequencerTimestampReadsAsUp() public {
+    function test_Fixed_F7_ZeroSequencerTimestampIsRejected() public {
         MockSettableSequencer seq = new MockSettableSequencer(0);
         GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
         cfg.sequencerUptimeFeed = address(seq);
         cfg.gracePeriod = 1 hours;
         _register(cfg);
 
-        assertEq(oracle.previewNav(address(bond)).failureCode, 0, "an unstarted round reads as healthy");
-        assertEq(oracle.getPricePerShare(address(bond)), 102.37e6);
+        // FIXED (F7): zero is Chainlink's "round has not started", now rejected rather than read as an
+        // ancient healthy timestamp.
+        assertEq(oracle.previewNav(address(bond)).failureCode, INVALID_TS, "an unstarted round is invalid");
+        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_TIMESTAMP.selector);
+        oracle.getPricePerShare(address(bond));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -420,7 +481,7 @@ contract GyldBondReviewFindingsTest is Test {
         usdFeed.setLatestAnswer(102.37e8);
 
         vm.prank(admin);
-        registry.proposeFeedChange(address(bond), address(usdFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(usdFeed), KIND_CHAINLINK, 0, 0);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         vm.prank(admin);
         registry.executeFeedChange(address(bond));
@@ -495,7 +556,7 @@ contract GyldBondReviewFindingsTest is Test {
     ///      registry's own NatSpec forbids while a position is live.
     ///      Proposed fix: carry the bounds in the feed-change payload, or force-suspend and require the live
     ///      answer to sit inside the stored bounds after any scale change.
-    function test_Finding_P2_4_FeedSwapWithDifferentDecimalsDeadlocksTheInstrument() public {
+    function test_Fixed_F6_FeedSwapCarriesItsOwnBounds() public {
         GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
         cfg.navMinAnswer = 90e8;
         cfg.navMaxAnswer = 110e8; // sane bounds, in the 8-decimal feed's units
@@ -505,25 +566,19 @@ contract GyldBondReviewFindingsTest is Test {
         MockAggregator feed18 = new MockAggregator(18);
         feed18.setLatestAnswer(102.37e18); // the same price, at 18 decimals
         vm.startPrank(admin);
-        registry.proposeFeedChange(address(bond), address(feed18), KIND_CHAINLINK);
+        // FIXED (F6): the proposal carries bounds in the NEW feed's units, so a scale change is expressible.
+        registry.proposeFeedChange(address(bond), address(feed18), KIND_CHAINLINK, 90e18, 110e18);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         registry.executeFeedChange(address(bond));
-        registry.setNavSuspended(address(bond), false); // undo the force-suspension
+        registry.setNavSuspended(address(bond), false); // the force-suspension still applies, then resume
         vm.stopPrank();
+        feed18.setUpdatedAt(block.timestamp); // the timelock warp aged it; publish a current round
 
-        assertEq(
-            oracle.previewNav(address(bond)).failureCode,
-            uint8(GyldBondYieldSourceOracle.NavFailure.CIRCUIT_BREAKER),
-            "the stale bounds trip on every read"
-        );
-        // And there is no way to fix the bounds without deregistering.
-        vm.prank(admin);
-        registry.refreshScales(address(bond));
-        assertEq(
-            oracle.previewNav(address(bond)).failureCode,
-            uint8(GyldBondYieldSourceOracle.NavFailure.CIRCUIT_BREAKER),
-            "refreshScales does not touch the bounds"
-        );
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.navFeedScale, 1e18, "scale refreshed");
+        assertEq(stored.navMaxAnswer, 110e18, "AND the bounds came with it");
+        assertEq(oracle.previewNav(address(bond)).failureCode, 0, "an economically identical feed values normally");
+        assertEq(oracle.getPricePerShare(address(bond)), 102.37e6, "same price, new scale");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -559,7 +614,7 @@ contract GyldBondReviewFindingsTest is Test {
         _register(_cfg());
         vm.startPrank(admin);
         registry.proposeRecoveryNav(address(bond), 40e6);
-        registry.proposeFeedChange(address(bond), address(cashFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(cashFeed), KIND_CHAINLINK, 0, 0);
         vm.stopPrank();
 
         // The only way to neutralise either is to re-propose, which restarts the clock but cannot clear it.
@@ -630,19 +685,16 @@ contract GyldBondReviewFindingsTest is Test {
     ///      is reported as `ZERO_OR_NEGATIVE` and surfaces as `INVALID_PRICE`. A monitor reading the code will
     ///      log "zero or negative price" when the real signal is a timestamp from the future.
     ///      Proposed fix: add the enum member, return it, and revert with the declared error.
-    function test_Finding_P3_1_FutureObservationIsMisreportedAsZeroOrNegative() public {
+    function test_Fixed_FutureObservationHasItsOwnFailureCode() public {
         GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
         cfg.navFeed = address(nativeFeed);
         cfg.navFeedKind = KIND_NATIVE;
         _register(cfg);
 
         nativeFeed.setNav(address(bond), 102.37e8, block.timestamp + 1 days, block.timestamp);
-        assertEq(
-            oracle.previewNav(address(bond)).failureCode,
-            uint8(GyldBondYieldSourceOracle.NavFailure.ZERO_OR_NEGATIVE),
-            "a future valuation is reported as a zero or negative price"
-        );
-        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_PRICE.selector);
+        // FIXED: a future valuation now gets its own named code instead of being reported as a zero price.
+        assertEq(oracle.previewNav(address(bond)).failureCode, INVALID_TS, "named for what it is");
+        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_TIMESTAMP.selector);
         oracle.getPricePerShare(address(bond));
     }
 }

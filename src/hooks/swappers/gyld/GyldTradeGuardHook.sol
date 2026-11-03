@@ -27,11 +27,20 @@ import {
 ///      the curator signs, not of the venue call. Baking it into the trade hook would mean you could not SELL
 ///      during a credit event, which is exactly when selling matters most. As a separate leaf it becomes a
 ///      root-authoring choice: mandatory in buy roots, omitted or loosened in sell roots.
-/// @dev WHY IT IS NEEDED AT ALL, given strategy permissions already exist. `SuperVaultStrategy.executeHooks`
-///      gates on the manager role, hook registration and the Merkle proof. It does NOT call
-///      `_validateStrategyState`, so today a manager holding a valid leaf can trade while the strategy is
-///      paused and its price per share is stale. This hook closes that on-chain, which is precisely the brief's
-///      point that existing strategy permissions alone do not establish these protections.
+/// @dev WHAT THIS HOOK DOES NOT DO, stated plainly because the leaf author relies on it. It checks ONLY the
+///      instrument named in its OWN calldata: registration, the expected cash denomination, suspension and
+///      the two freshness clocks. It does NOT check strategy pause or price-per-share staleness. An earlier
+///      version of this comment claimed it closed the `executeHooks` gap where `_validateStrategyState` is
+///      never called; that was wrong, because the aggregator dependency needed for a pause or PPS check was
+///      dropped during implementation. If that policy is required, it has to be added here or enforced in
+///      the periphery. The `account` argument is unused for the same reason: every check is
+///      account-independent.
+/// @dev AND IT IS NOT BOUND TO THE TRADE IT ACCOMPANIES. `SuperVaultStrategy.executeHooks` authorises each
+///      hook independently, so a trade leaf's proof does not require this leaf, its ordering, or a matching
+///      bond. Including this hook in a root does not make it mandatory, and a root holding both a guard leaf
+///      for bond A and a trade leaf for bond B authorises guarding A while trading B. Pairing them correctly
+///      is therefore a requirement on the LEAF BUILDER, not something enforced on-chain. Binding them would
+///      need a transaction-scoped attestation keyed by account, instrument, direction and the exact trade.
 /// @dev THE TWO CLOCKS ARE NOT INTERCHANGEABLE. `maxPublicationAge` bounds how long ago the number reached this
 ///      chain; `maxObservationAge` bounds how old the issuer's valuation itself is. A feed can publish a day-old
 ///      valuation seconds ago and look perfectly fresh on the publication clock alone.
@@ -92,6 +101,10 @@ contract GyldTradeGuardHook is BaseHook, ISuperHookInflowOutflow {
     error OBSERVATION_TIME_UNAVAILABLE();
     error SEQUENCER_DOWN();
     error CASH_FEED_FAILED();
+    /// @notice F3: a feed reported a zero or future timestamp
+    error INVALID_TIMESTAMP();
+    /// @notice F7: the sequencer is up but still inside its grace period
+    error GRACE_PERIOD_NOT_OVER();
 
     /*//////////////////////////////////////////////////////////////
                                  TYPES
@@ -138,20 +151,15 @@ contract GyldTradeGuardHook is BaseHook, ISuperHookInflowOutflow {
     {
         Vars memory vars = _decode(data);
         GyldBondYieldSourceOracle.NavStatus memory status = GYLD_ORACLE.previewNav(vars.bondToken);
-        if (status.failureCode != 0) return status.failureCode;
+        // The order MIRRORS `_requireTradable`, so the preview names the same cause the strict path would.
+        // Previously the failure code was checked first, so an instrument that was both suspended and named
+        // with the wrong cash token reported a transient suspension while execution reverted on the
+        // permanently wrong leaf, and an OMS trusting the preview would retry forever.
+        if (!status.registered) return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.NOT_REGISTERED));
+        if (status.suspended) return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.SUSPENDED));
         if (status.cashToken != vars.cashToken) return 101;
-        // The `block.timestamp >` comparisons are not redundant: a feed may report a timestamp in the future,
-        // and an unguarded subtraction would make this preview PANIC. It must never revert, so the age of a
-        // future-dated publication is treated as zero and left to the strict path to judge.
-        if (block.timestamp > status.publishedAt && block.timestamp - status.publishedAt > vars.maxPublicationAge) {
-            return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.PUBLICATION_STALE));
-        }
-        if (status.observedAt != 0 && block.timestamp > status.observedAt) {
-            if (block.timestamp - status.observedAt > vars.maxObservationAge) {
-                return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.OBSERVATION_STALE));
-            }
-        }
-        return 0;
+        if (status.failureCode != 0) return status.failureCode;
+        return _clockFailure(status, vars);
     }
 
     /// @inheritdoc BaseHook
@@ -248,33 +256,76 @@ contract GyldTradeGuardHook is BaseHook, ISuperHookInflowOutflow {
         GyldBondYieldSourceOracle.NavStatus memory status = GYLD_ORACLE.previewNav(vars.bondToken);
 
         if (!status.registered) revert INSTRUMENT_NOT_REGISTERED();
+        // F2: read the FLAG, defensively, rather than relying on the oracle's code mapping. The oracle now
+        // orders suspension ahead of the recovery override, but this check means the guard stops a suspended
+        // instrument even if that ordering ever regresses.
+        if (status.suspended) revert NAV_SUSPENDED();
         // A feed or denomination change between signing and execution must not go unnoticed.
         if (status.cashToken != vars.cashToken) revert CASH_DENOMINATION_MISMATCH();
 
         _revertForFailure(GyldBondYieldSourceOracle.NavFailure(status.failureCode));
         if (status.nav == 0) revert INVALID_PRICE();
 
-        // The leaf's bounds may be stricter than the registry's; enforce the leaf's.
-        if (block.timestamp > status.publishedAt && block.timestamp - status.publishedAt > vars.maxPublicationAge) {
+        // F3: a zero or future clock is unusable data, not age zero. One shared evaluation with the
+        // preview, so the two paths cannot disagree about which clock failed.
+        uint256 clock = _clockFailure(status, vars);
+        if (clock == uint256(uint8(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP))) {
+            revert INVALID_TIMESTAMP();
+        }
+        if (clock == uint256(uint8(GyldBondYieldSourceOracle.NavFailure.PUBLICATION_STALE))) {
             revert NAV_PUBLICATION_STALE();
         }
-        if (status.observedAt != 0 && block.timestamp > status.observedAt) {
-            if (block.timestamp - status.observedAt > vars.maxObservationAge) revert NAV_OBSERVATION_STALE();
+        if (clock == uint256(uint8(GyldBondYieldSourceOracle.NavFailure.OBSERVATION_STALE))) {
+            revert NAV_OBSERVATION_STALE();
         }
+    }
+
+    /// @dev The LEAF's freshness verdict, shared by the strict and preview paths so they cannot disagree.
+    ///      Returns a `NavFailure` code as a uint256, or zero when both clocks are acceptable. The leaf's
+    ///      bounds may be stricter than the registry's; this enforces the leaf's.
+    function _clockFailure(
+        GyldBondYieldSourceOracle.NavStatus memory status,
+        Vars memory vars
+    )
+        private
+        view
+        returns (uint256)
+    {
+        if (status.publishedAt == 0 || status.publishedAt > block.timestamp) {
+            return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP));
+        }
+        if (block.timestamp - status.publishedAt > vars.maxPublicationAge) {
+            return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.PUBLICATION_STALE));
+        }
+        if (status.observedAt == 0) return 0;
+        if (status.observedAt > block.timestamp) {
+            return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP));
+        }
+        if (block.timestamp - status.observedAt > vars.maxObservationAge) {
+            return uint256(uint8(GyldBondYieldSourceOracle.NavFailure.OBSERVATION_STALE));
+        }
+        return 0;
     }
 
     /// @dev Translates the oracle's diagnostic code into this hook's named errors, so an operator sees why a
     ///      guarded leaf refused rather than an opaque price failure.
     function _revertForFailure(GyldBondYieldSourceOracle.NavFailure failure) private pure {
         if (failure == GyldBondYieldSourceOracle.NavFailure.OK) return;
+        _revertForClock(failure);
         if (failure == GyldBondYieldSourceOracle.NavFailure.SUSPENDED) revert NAV_SUSPENDED();
+        if (failure == GyldBondYieldSourceOracle.NavFailure.SEQUENCER_DOWN_CODE) revert SEQUENCER_DOWN();
+        if (failure == GyldBondYieldSourceOracle.NavFailure.GRACE_PERIOD) revert GRACE_PERIOD_NOT_OVER();
+        if (failure == GyldBondYieldSourceOracle.NavFailure.CASH_FEED_FAILED) revert CASH_FEED_FAILED();
+        revert INVALID_PRICE();
+    }
+
+    /// @dev The freshness half of the mapping, split out to keep each function inside the complexity budget
+    function _revertForClock(GyldBondYieldSourceOracle.NavFailure failure) private pure {
         if (failure == GyldBondYieldSourceOracle.NavFailure.PUBLICATION_STALE) revert NAV_PUBLICATION_STALE();
         if (failure == GyldBondYieldSourceOracle.NavFailure.OBSERVATION_STALE) revert NAV_OBSERVATION_STALE();
+        if (failure == GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP) revert INVALID_TIMESTAMP();
         if (failure == GyldBondYieldSourceOracle.NavFailure.OBSERVATION_UNAVAILABLE) {
             revert OBSERVATION_TIME_UNAVAILABLE();
         }
-        if (failure == GyldBondYieldSourceOracle.NavFailure.SEQUENCER_DOWN_CODE) revert SEQUENCER_DOWN();
-        if (failure == GyldBondYieldSourceOracle.NavFailure.CASH_FEED_FAILED) revert CASH_FEED_FAILED();
-        revert INVALID_PRICE();
     }
 }

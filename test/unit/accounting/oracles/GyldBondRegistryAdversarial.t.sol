@@ -88,76 +88,81 @@ contract GyldBondRegistryAdversarialTest is Test {
           PENDING PROPOSALS CROSSING A DEREGISTRATION — FINDINGS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev FINDING (awaiting an owner decision, pinned here so the behaviour is explicit).
-    ///      `executeDeregisterInstrument` deletes `_instruments[bondToken]` and `pendingDeregistration`, but
-    ///      NOT `pendingRecoveryNav` / `pendingRecoveryNavAt`. A proposal made against the OLD instrument
-    ///      therefore survives deregistration and can be executed against a NEWLY registered instrument with
-    ///      the same bond token, applying a terminal valuation override that was never proposed for it and
-    ///      without a fresh two-day delay from the new registration.
-    ///      Fix: clear every pending change in `executeDeregisterInstrument`.
-    function test_Finding_PendingRecoveryNavSurvivesDeregistrationAndReRegistration() public {
+    /// @dev FIXED (F5). `executeDeregisterInstrument` now clears EVERY pending change, not just its own
+    ///      clock, so a proposal made against an old configuration cannot be inherited by a later
+    ///      re-registration of the same bond token without a fresh delay.
+    function test_Fixed_F5_DeregistrationClearsAPendingRecoveryProposal() public {
         _register(address(bond));
 
         vm.prank(manager);
         registry.proposeRecoveryNav(address(bond), 0.4e6);
         uint256 executeAt = registry.pendingRecoveryNavAt(address(bond));
 
+        assertGt(executeAt, 0, "it was pending before deregistration");
         _deregister(address(bond));
-        assertEq(registry.pendingRecoveryNav(address(bond)), 0.4e6, "the proposal is NOT cleared");
-        assertEq(registry.pendingRecoveryNavAt(address(bond)), executeAt, "and neither is its clock");
+        assertEq(registry.pendingRecoveryNav(address(bond)), 0, "the proposal is cleared");
+        assertEq(registry.pendingRecoveryNavAt(address(bond)), 0, "and so is its clock");
 
-        // A fresh registration of the same bond token starts with no override, as the registry intends.
         _register(address(bond));
         assertEq(registry.getInstrumentConfig(address(bond)).recoveryNav, 0, "born clean");
+        assertFalse(registry.getInstrumentConfig(address(bond)).recoveryNavSet, "and with no override");
 
-        // But the stale proposal is still executable against it.
+        // Nothing survives to be inherited by the new registration.
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
         vm.prank(manager);
         registry.executeRecoveryNav(address(bond));
-        assertEq(
-            registry.getInstrumentConfig(address(bond)).recoveryNav,
-            0.4e6,
-            "a stale proposal re-pointed the new instrument's valuation"
-        );
     }
 
-    /// @dev FINDING, same root cause on the feed-change path. Milder, because applying a feed change
-    ///      force-suspends valuation, so the stale change cannot silently re-mark a position.
-    function test_Finding_PendingFeedChangeSurvivesDeregistrationAndReRegistration() public {
+    /// @dev FIXED (F5), same root cause on the feed-change path.
+    function test_Fixed_F5_DeregistrationClearsAPendingFeedChange() public {
         _register(address(bond));
 
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(otherFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(otherFeed), KIND_CHAINLINK, 0, 0);
 
         _deregister(address(bond));
-        assertEq(registry.pendingFeed(address(bond)), address(otherFeed), "the proposal is NOT cleared");
+        assertEq(registry.pendingFeed(address(bond)), address(0), "the proposal is cleared");
+        assertEq(registry.pendingFeedAt(address(bond)), 0, "and so is its clock");
 
         _register(address(bond));
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
         vm.prank(manager);
         registry.executeFeedChange(address(bond));
-
-        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
-        assertEq(stored.navFeed, address(otherFeed), "a stale proposal swapped the new instrument's feed");
-        assertTrue(stored.navSuspended, "but it force-suspends, so nothing is silently re-marked");
     }
 
-    /// @dev FINDING. Neither `executeRecoveryNav` nor `executeFeedChange` calls `_requireRegistered`, so both
-    ///      can be executed against a bond token that is not registered at all, writing into a deleted struct.
-    ///      Harmless today only because `registerInstrument` explicitly re-zeroes `recoveryNav`, and because
-    ///      every oracle read gates on `registered`.
-    function test_Finding_TimelockedChangesExecuteOnAnUnregisteredInstrument() public {
+    /// @dev FIXED (F5). Both execute functions now require a LIVE registration, so neither can write into a
+    ///      deleted struct.
+    function test_Fixed_F5_TimelockedChangesRequireALiveRegistration() public {
         _register(address(bond));
         vm.prank(manager);
         registry.proposeRecoveryNav(address(bond), 0.4e6);
         _deregister(address(bond));
 
         assertFalse(registry.isRegistered(address(bond)));
-        vm.prank(manager);
-        registry.executeRecoveryNav(address(bond)); // does not revert
-
-        // The write landed on an unregistered instrument, which no read will honour.
-        assertFalse(registry.isRegistered(address(bond)), "still unregistered");
         vm.expectRevert(GyldBondRegistry.INSTRUMENT_NOT_REGISTERED.selector);
-        registry.getInstrumentConfig(address(bond));
+        vm.prank(manager);
+        registry.executeRecoveryNav(address(bond));
+    }
+
+    /// @dev F5: a pending proposal can now be WITHDRAWN rather than only re-proposed.
+    function test_Fixed_F5_PendingProposalsCanBeCancelled() public {
+        _register(address(bond));
+        vm.startPrank(manager);
+        registry.proposeRecoveryNav(address(bond), 0.4e6);
+        registry.cancelRecoveryNav(address(bond));
+        assertEq(registry.pendingRecoveryNavAt(address(bond)), 0, "recovery proposal withdrawn");
+
+        registry.proposeFeedChange(address(bond), address(otherFeed), KIND_CHAINLINK, 0, 0);
+        registry.cancelFeedChange(address(bond));
+        assertEq(registry.pendingFeedAt(address(bond)), 0, "feed proposal withdrawn");
+
+        // A withdrawn proposal cannot be executed by waiting out the original clock.
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY() + 1);
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
+        registry.executeRecoveryNav(address(bond));
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
+        registry.executeFeedChange(address(bond));
+        vm.stopPrank();
     }
 
     /// @dev A re-proposal overwrites the pending value AND restarts the clock, so a manager cannot stack a
@@ -186,10 +191,10 @@ contract GyldBondRegistryAdversarialTest is Test {
     function test_ReProposingFeedChange_RestartsTheClock() public {
         _register(address(bond));
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(otherFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(otherFeed), KIND_CHAINLINK, 0, 0);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY() - 1);
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(navFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(navFeed), KIND_CHAINLINK, 0, 0);
 
         assertEq(registry.pendingFeed(address(bond)), address(navFeed));
         vm.expectRevert(GyldBondRegistry.CHANGE_TIMELOCK_NOT_ELAPSED.selector);

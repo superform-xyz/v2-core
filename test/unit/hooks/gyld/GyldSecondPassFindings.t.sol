@@ -290,12 +290,11 @@ contract GyldSecondPassFindingsTest is Test {
       FINDING 10 — PREVIEW AND STRICT PATHS DISAGREE ON WHICH REASON
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev CONFIRMED. For an instrument that is BOTH suspended and named with the wrong cash token, the
-    ///      preview reports SUSPENDED (a transient condition that clears) while execution reverts
-    ///      CASH_DENOMINATION_MISMATCH (a permanently wrong leaf). An OMS that trusts the preview retries a
-    ///      leaf that can never execute.
-    ///      Proposed fix: mirror the strict order in the preview, i.e. registered, denomination, failureCode.
-    function test_Finding_PreviewAndStrictPathsNameDifferentReasons() public {
+    /// @dev FIXED. The preview now mirrors the strict path's ordering, so for an instrument that is BOTH
+    ///      suspended and named with the wrong cash token, both paths name suspension. Previously the
+    ///      preview blamed a transient condition while execution reverted on a permanently wrong leaf, so an
+    ///      OMS trusting the preview would retry a leaf that could never execute.
+    function test_Fixed_PreviewAndStrictPathsNameTheSameReason() public {
         MockERC20 bond = new MockERC20("Gyld Bond", "GB", 18);
         MockERC20 wrongCash = new MockERC20("DAI", "DAI", 18);
         _register(_cfg(address(bond), address(chainlinkFeed), registry.FEED_KIND_CHAINLINK()));
@@ -309,9 +308,9 @@ contract GyldSecondPassFindingsTest is Test {
         assertEq(
             guard.previewTradable(leaf, holder),
             uint256(uint8(GyldBondYieldSourceOracle.NavFailure.SUSPENDED)),
-            "the preview blames suspension, which clears"
+            "the preview names suspension"
         );
-        vm.expectRevert(GyldTradeGuardHook.CASH_DENOMINATION_MISMATCH.selector);
+        vm.expectRevert(GyldTradeGuardHook.NAV_SUSPENDED.selector);
         guard.build(address(0), holder, leaf);
     }
 

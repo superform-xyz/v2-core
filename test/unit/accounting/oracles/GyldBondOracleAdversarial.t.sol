@@ -144,7 +144,7 @@ contract GyldBondOracleAdversarialTest is Test {
         _register(cfg);
         // Swap the feed in via the timelocked path, since registration itself needs a working `decimals()`.
         vm.startPrank(admin);
-        registry.proposeFeedChange(address(bond), address(emptyFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(emptyFeed), KIND_CHAINLINK, 0, 0);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         vm.expectRevert(); // `decimals()` on the new feed returns nothing
         registry.executeFeedChange(address(bond));

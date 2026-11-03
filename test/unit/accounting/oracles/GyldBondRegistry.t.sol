@@ -515,7 +515,7 @@ contract GyldBondRegistryTest is Test {
         vm.expectEmit(true, true, true, true);
         emit GyldBondRegistry.FeedChangeProposed(address(bond), address(newFeed), 0, executeAt);
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(newFeed), 0);
+        registry.proposeFeedChange(address(bond), address(newFeed), 0, 0, 0);
         assertEq(registry.pendingFeed(address(bond)), address(newFeed));
         assertEq(registry.pendingFeedKind(address(bond)), 0);
         assertEq(registry.pendingFeedAt(address(bond)), executeAt);
@@ -536,27 +536,27 @@ contract GyldBondRegistryTest is Test {
         _register(_cfg());
         _expectUnauthorized(outsider);
         vm.prank(outsider);
-        registry.proposeFeedChange(address(bond), address(cashFeed), 0);
+        registry.proposeFeedChange(address(bond), address(cashFeed), 0, 0, 0);
     }
 
     function test_FeedChange_RevertIf_ProposeNotRegistered() public {
         vm.expectRevert(GyldBondRegistry.INSTRUMENT_NOT_REGISTERED.selector);
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(cashFeed), 0);
+        registry.proposeFeedChange(address(bond), address(cashFeed), 0, 0, 0);
     }
 
     function test_FeedChange_RevertIf_NewFeedZero() public {
         _register(_cfg());
         vm.expectRevert(GyldBondRegistry.ZERO_ADDRESS.selector);
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(0), 0);
+        registry.proposeFeedChange(address(bond), address(0), 0, 0, 0);
     }
 
     function test_FeedChange_RevertIf_KindUnknown() public {
         _register(_cfg());
         vm.expectRevert(GyldBondRegistry.INVALID_FEED_KIND.selector);
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(cashFeed), 2);
+        registry.proposeFeedChange(address(bond), address(cashFeed), 2, 0, 0);
     }
 
     function test_FeedChange_RevertIf_ExecuteNotPending() public {
@@ -569,7 +569,7 @@ contract GyldBondRegistryTest is Test {
     function test_FeedChange_RevertIf_TimelockNotElapsed() public {
         _register(_cfg());
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(cashFeed), 0);
+        registry.proposeFeedChange(address(bond), address(cashFeed), 0, 0, 0);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY() - 1);
         vm.expectRevert(GyldBondRegistry.CHANGE_TIMELOCK_NOT_ELAPSED.selector);
         vm.prank(manager);
@@ -579,7 +579,7 @@ contract GyldBondRegistryTest is Test {
     function test_FeedChange_RevertIf_ExecuteNotManager() public {
         _register(_cfg());
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(cashFeed), 0);
+        registry.proposeFeedChange(address(bond), address(cashFeed), 0, 0, 0);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         _expectUnauthorized(outsider);
         vm.prank(outsider);
@@ -595,7 +595,7 @@ contract GyldBondRegistryTest is Test {
         _register(cfg);
 
         vm.prank(manager);
-        registry.proposeFeedChange(address(bond), address(cashFeed), KIND_CHAINLINK);
+        registry.proposeFeedChange(address(bond), address(cashFeed), KIND_CHAINLINK, 0, 0);
         vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
         vm.expectRevert(GyldBondRegistry.INVALID_FEED_KIND.selector);
         vm.prank(manager);

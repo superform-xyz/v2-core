@@ -12,16 +12,18 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../../mocks/MockAggregator.sol";
 import { MockGyldNavFeed } from "../../../mocks/gyld/MockGyldNavFeed.sol";
 
-/// @dev Sequencer uptime stand-in whose index-3 word is settable. `MockL2Sequencer` always returns
-///      `block.timestamp` there, so it cannot express "the sequencer came back up N seconds ago" and cannot
-///      exercise the grace-period branch. Index 3 is the word the repo's oracles read as `startedAt`
-///      (`UniV2LPYieldSourceOracle._checkSequencer` destructures identically), so this mock matches that.
+/// @dev Sequencer uptime stand-in with the two clocks SEPARATE. Index 2 is `startedAt`, the status
+///      transition time, which is what a grace period is measured from and what the oracle now reads. Index
+///      3 is `updatedAt`, the round's publication time. An earlier version of this mock returned the same
+///      value in both positions, which made it impossible for any test to notice which one the oracle used.
 contract MockSequencer {
     int256 private _answer;
     uint256 private _startedAt;
+    uint256 private _updatedAt;
 
     constructor() {
         _startedAt = block.timestamp;
+        _updatedAt = block.timestamp;
     }
 
     function setAnswer(int256 answer) external {
@@ -32,8 +34,12 @@ contract MockSequencer {
         _startedAt = startedAt;
     }
 
+    function setUpdatedAt(uint256 updatedAt) external {
+        _updatedAt = updatedAt;
+    }
+
     function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
-        return (1, _answer, _startedAt, _startedAt, 1);
+        return (1, _answer, _startedAt, _updatedAt, 1);
     }
 
     function decimals() external pure returns (uint8) {
@@ -386,18 +392,16 @@ contract GyldBondYieldSourceOracleTest is Test {
         GyldBondYieldSourceOracle.NavStatus memory status = _preview();
         assertEq(status.failureCode, uint8(GyldBondYieldSourceOracle.NavFailure.OK));
         assertEq(status.nav, 0.4e6);
-        // Pinned, not blessed: a synthesised "now" on both clocks is what makes an override permanently
-        // fresh, which is part of finding A1 rather than an intended property.
-        assertEq(status.observedAt, block.timestamp, "an override synthesises a current timestamp");
+        // An override synthesises a current timestamp on both clocks, which is correct for a decided
+        // number: it is not a feed reading and has no staleness of its own. Only reachable while the
+        // instrument is NOT suspended, since suspension now takes precedence.
+        assertEq(status.observedAt, block.timestamp, "an override is current by construction");
     }
 
-    /// @dev FINDING, NOT A DESIGN GUARD. Suspension is checked AFTER the override, so once a recovery NAV is
-    ///      set the un-timelocked incident switch stops affecting valuation at all. This test pins the CURRENT
-    ///      behaviour so it is visible; it is NOT a statement that the behaviour is correct. It will and
-    ///      SHOULD go red when finding A1 is fixed by checking `navSuspended` first.
-    ///      The full reproduction, including the guard authorising a trade of a suspended instrument, is
-    ///      `GyldBondReviewFindingsTest.test_Finding_P1_1_*`. See the session log.
-    function test_Finding_RecoveryNavOutranksTheSuspensionSwitch() public {
+    /// @dev FIXED (F2). Suspension now takes precedence over the recovery override in both paths, so the
+    ///      un-timelocked incident switch works even once a terminal value is installed. This test used to
+    ///      pin the inverse behaviour; it now pins the fix.
+    function test_SuspensionOutranksTheRecoveryOverride() public {
         _registerDefault();
         vm.prank(admin);
         registry.proposeRecoveryNav(address(bond), 0.4e6);
@@ -406,8 +410,9 @@ contract GyldBondYieldSourceOracleTest is Test {
         registry.executeRecoveryNav(address(bond));
         _suspend(true);
 
-        assertEq(oracle.getPricePerShare(address(bond)), 0.4e6);
-        assertEq(_preview().failureCode, uint8(GyldBondYieldSourceOracle.NavFailure.OK));
+        vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
+        oracle.getPricePerShare(address(bond));
+        assertEq(_preview().failureCode, uint8(GyldBondYieldSourceOracle.NavFailure.SUSPENDED));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -434,9 +439,27 @@ contract GyldBondYieldSourceOracleTest is Test {
         _register(cfg);
         sequencer.setStartedAt(block.timestamp - 30 minutes); // restarted half an hour ago
 
-        _assertFailure(GyldBondYieldSourceOracle.NavFailure.SEQUENCER_DOWN_CODE);
-        vm.expectRevert(GyldBondYieldSourceOracle.SEQUENCER_DOWN.selector);
+        // The grace period is now reported DISTINCTLY from the sequencer being down, which is what an
+        // operator needs in order to tell "wait" from "something is wrong".
+        _assertFailure(GyldBondYieldSourceOracle.NavFailure.GRACE_PERIOD);
+        vm.expectRevert(GyldBondYieldSourceOracle.GRACE_PERIOD_NOT_OVER.selector);
         oracle.getPricePerShare(address(bond));
+    }
+
+    /// @dev F7 REGRESSION, and the test no mock could express before. The sequencer came back up a day ago
+    ///      (index 2) but the feed published a round just now (index 3). Reading the publication time would
+    ///      make the grace period look unelapsed and block a healthy chain; reading the transition time, as
+    ///      Chainlink's own consumer example does, correctly allows it.
+    function test_Sequencer_GracePeriodMeasuredFromStartedAtNotUpdatedAt() public {
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.sequencerUptimeFeed = address(sequencer);
+        cfg.gracePeriod = 1 hours;
+        _register(cfg);
+
+        sequencer.setStartedAt(block.timestamp - 1 days); // up for a day
+        sequencer.setUpdatedAt(block.timestamp); // heartbeat round just now
+
+        assertEq(oracle.getPricePerShare(address(bond)), NAV_IN_CASH, "a long-up sequencer is not in grace");
     }
 
     function test_Sequencer_UpAndPastGracePeriod_Allows() public {
@@ -571,12 +594,12 @@ contract GyldBondYieldSourceOracleTest is Test {
         assertEq(oracle.getPricePerShare(address(bond)), NAV_IN_CASH);
     }
 
-    /// @dev A valuation dated in the future is not fresh, it is wrong.
+    /// @dev A valuation dated in the future is not fresh, it is wrong, and it now says so by name.
     function test_NativeFeed_FutureObservation_IsUnusable() public {
         _registerNative();
         nativeFeed.setNav(address(bond), uint256(NAV_ANSWER), block.timestamp + 1, block.timestamp);
-        _assertFailure(GyldBondYieldSourceOracle.NavFailure.ZERO_OR_NEGATIVE);
-        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_PRICE.selector);
+        _assertFailure(GyldBondYieldSourceOracle.NavFailure.INVALID_TIMESTAMP);
+        vm.expectRevert(GyldBondYieldSourceOracle.INVALID_TIMESTAMP.selector);
         oracle.getPricePerShare(address(bond));
     }
 
