@@ -17,6 +17,10 @@ FIREBLOCKS_SENDER_DEFAULT="0x28b7599f461D104f07D78215Fa6F9B959851f93d"
 # ===== LOAD SHARED UTILITIES =====
 source "$SCRIPT_DIR/../utils/oracle-utils.sh"
 
+# forge checks the sender covers (foundry.toml gas_limit / 1e8) * 1.2 * basefee before a
+# broadcast; u64::MAX makes that ~11 ETH on Katana. 1e9 is ample for any script here.
+SCRIPT_GAS_LIMIT="${SCRIPT_GAS_LIMIT:-1000000000}"
+
 # ===== HELPER FUNCTIONS =====
 log() {
     local level=$1
@@ -219,6 +223,11 @@ for network_def in "${NETWORKS[@]}"; do
         988) export FIREBLOCKS_ASSET_ID="GUSDT_STABLE" ;;
         4663) export FIREBLOCKS_ASSET_ID="ROBINHOOD" ;;
         5042) export FIREBLOCKS_ASSET_ID="${ARC_FIREBLOCKS_ASSET_ID:-ARC}" ;;
+        # Katana (747474) is absent from the fireblocks-web3-provider chainId map entirely, so
+        # the assetId resolves to undefined and the delegated signing request fails — surfacing
+        # as "submission outcome for delegated operation 0 is unknown" rather than a clear error.
+        # Override with KATANA_FIREBLOCKS_ASSET_ID if the workspace names the asset differently.
+        747474) export FIREBLOCKS_ASSET_ID="${KATANA_FIREBLOCKS_ASSET_ID:-KATANA_ETH}" ;;
         *)   unset FIREBLOCKS_ASSET_ID ;;
     esac
 
@@ -327,6 +336,7 @@ for network_def in "${NETWORKS[@]}"; do
     # Execute forge script with Fireblocks
     # Note: Empty strings for salt namespace and branch name for staging/prod
     fireblocks-json-rpc --http -- forge script script/AddToSuperLedgerConfiguration.s.sol:AddToSuperLedgerConfiguration \
+        --gas-limit "$SCRIPT_GAS_LIMIT" \
         --sig 'run(uint256,uint64,string,string,string[],address[])' \
         $FORGE_ENV \
         $CHAIN_ID \

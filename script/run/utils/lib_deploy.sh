@@ -44,6 +44,21 @@ skipped_networks=0
 # Chains where forge doesn't support --chain (not in forge's internal registry)
 FORGE_UNSUPPORTED_CHAINS=("988" "7091047534" "5042")
 
+# Gas limit for forge SCRIPT EXECUTION. Not the per-transaction limit: forge still estimates
+# each broadcast transaction on its own (a core deploy comes out at 0.27M-4.6M per contract).
+#
+# foundry.toml sets gas_limit = u64::MAX for tests. Before executing a broadcast, forge checks
+# the sender can cover (gas_limit / 1e8) * 1.2 * basefee. With u64::MAX that is 1.84e11 gas, so
+# the demand scales straight off the chain's basefee and is independent of what the script does:
+#   Katana  (basefee 0.05 gwei, pinned) -> 11.07 ETH of balance required to deploy ~$21 of code
+#   Base    (basefee 0.005 gwei)        ->  1.11 ETH
+# The run aborts with "transaction validation error: lack of funds ... for max fee". Chains whose
+# contracts are already deployed never hit it, because the script then broadcasts nothing at all.
+#
+# 1e9 clears the largest script body here (the 86-contract Katana core deploy needs >3e8) and
+# brings the balance check down to a few hundred gwei. Override for an unusually large script.
+SCRIPT_GAS_LIMIT="${SCRIPT_GAS_LIMIT:-1000000000}"
+
 # Cached deployer address (populated after keystore password is provided)
 DEPLOYER_ADDRESS=""
 
@@ -280,12 +295,22 @@ load_credentials() {
     echo -e "${CYAN}   - Loading Etherscan V2 API credentials...${NC}"
     if ! load_etherscan_api_key; then
         echo -e "${RED}Failed to load Etherscan V2 API key${NC}"
-        echo -e "${RED}   Contract verification will not work without this credential${NC}"
-        exit 1
+        echo -e "${YELLOW}   Deploying WITHOUT inline verification. The contracts still deploy;
+   verify them afterwards with ./script/run/verify/verify_v2_staging_prod.sh $ENVIRONMENT${NC}"
+        # Previously exit 1. Verification is a separate stage here (there is a dedicated
+        # verify script), so a missing explorer key must not block a funded deploy —
+        # especially as the old loader reported success with an empty key, which turned
+        # this into a forge "--etherscan-api-key needs a value" error much later on.
+        VERIFY_FLAG=""
+        unset ETHERSCANV2_API_KEY
     fi
 
     echo -e "${GREEN}Configuration loaded successfully${NC}"
-    echo -e "${CYAN}   - Using Etherscan V2 verification${NC}"
+    if [[ -n "${ETHERSCANV2_API_KEY:-}" ]]; then
+        echo -e "${CYAN}   - Using Etherscan V2 verification${NC}"
+    else
+        echo -e "${YELLOW}   - Verification DISABLED (no explorer key)${NC}"
+    fi
     echo -e "${CYAN}   - Environment: $ENVIRONMENT${NC}"
     echo -e "${CYAN}   - Account: $ACCOUNT${NC}"
 }
@@ -1073,7 +1098,13 @@ deploy_to_network() {
 
     # Skip inline verification for chains with aggressive block explorer rate limiting
     local chain_verify_flag="$VERIFY_FLAG"
-    local chain_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
+    local chain_etherscan_flags="--etherscan-api-key ${ETHERSCANV2_API_KEY} --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
+    # An empty key would collapse to `--etherscan-api-key --verifier ...`, which forge
+    # rejects before running anything. Deploy unverified and verify separately instead.
+    if [[ -z "${ETHERSCANV2_API_KEY:-}" ]]; then
+        chain_verify_flag=""
+        chain_etherscan_flags=""
+    fi
     case $network_id in
         14|999|988|7091047534|5042) # Flare, HyperEVM, Stable, Plataberget, Arc - no etherscan support or rate limiting
             chain_verify_flag=""
@@ -1120,6 +1151,7 @@ deploy_to_network() {
 
         forge script "$forge_script" \
             --sig "${DEPLOY_SIG:-run(bool,uint256,uint64)}" false $FORGE_ENV $network_id \
+            --gas-limit "$SCRIPT_GAS_LIMIT" \
             --account "$ACCOUNT" \
             $KEYSTORE_PASSWORD_FLAG \
             --rpc-url "${!rpc_var}" \

@@ -34,6 +34,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.acrossSpokePoolV3s[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[STABLE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[ARC_CHAIN_ID] = address(0); // Across not deployed on Arc yet
+        configuration.acrossSpokePoolV3s[KATANA_CHAIN_ID] = address(0); // Across not on Katana
 
         // ===== RELAY DEPOSITORY ADDRESSES =====
         // Enablement is a deploy-time decision: set a chain to RELAY_DEPOSITORY_CANONICAL (after
@@ -57,6 +58,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.relayDepositories[FLARE_CHAIN_ID] = address(0); // Relay not deployed on Flare
         configuration.relayDepositories[STABLE_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Stable (988) deployed
         configuration.relayDepositories[ARC_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Relay live on Arc (chain 5042)
+        configuration.relayDepositories[KATANA_CHAIN_ID] = RELAY_DEPOSITORY_CANONICAL; // Relay live on Katana
 
         // ===== CCTP V2 MESSAGE TRANSMITTER + NATIVE USDC ADDRESSES =====
         // Enablement is a deploy-time decision: BOTH the transmitter and native USDC must be set for a
@@ -80,6 +82,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.messageTransmittersV2[FLARE_CHAIN_ID] = address(0); // CCTP not live
         configuration.messageTransmittersV2[STABLE_CHAIN_ID] = address(0); // CCTP not live
         configuration.messageTransmittersV2[ROBINHOOD_CHAIN_ID] = address(0); // CCTP not live
+        configuration.messageTransmittersV2[KATANA_CHAIN_ID] = address(0); // CCTP v2 not on Katana
 
         // ===== CIRCLE GATEWAY MINTER =====
         // Enablement is a deploy-time decision: BOTH the Gateway minter and native USDC must be set for a chain
@@ -105,6 +108,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.gatewayMinters[STABLE_CHAIN_ID] = address(0); // Gateway not live
         configuration.gatewayMinters[ROBINHOOD_CHAIN_ID] = address(0); // Gateway not live
         configuration.gatewayMinters[ARC_CHAIN_ID] = address(0); // Verify before enabling
+        configuration.gatewayMinters[KATANA_CHAIN_ID] = address(0); // Circle Gateway not on Katana
 
         // Native USDC (the token CCTP V2 mints on each chain)
         configuration.usdcs[MAINNET_CHAIN_ID] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -117,6 +121,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.usdcs[LINEA_CHAIN_ID] = 0x176211869cA2b568f2A7D4EE941E073a821EE1ff;
         configuration.usdcs[SONIC_CHAIN_ID] = 0x29219dd400f2Bf60E5a23d13Be72B486D4038894;
         configuration.usdcs[WORLDCHAIN_CHAIN_ID] = 0x79A02482A880bCE3F13e09Da970dC34db4CD24d1;
+        configuration.usdcs[KATANA_CHAIN_ID] = address(0); // no CCTP/Gateway on Katana
 
         // ===== DEBRIDGE DLN SOURCE ADDRESSES =====
         configuration.debridgeSrcDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_SRC;
@@ -137,6 +142,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.debridgeSrcDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeSrcDln[STABLE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeSrcDln[ARC_CHAIN_ID] = DEBRIDGE_DLN_SRC; // deBridge live on Arc (chain 5042)
+        configuration.debridgeSrcDln[KATANA_CHAIN_ID] = address(0); // deBridge not on Katana
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
@@ -157,6 +163,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.debridgeDstDln[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeDstDln[STABLE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.debridgeDstDln[ARC_CHAIN_ID] = DEBRIDGE_DLN_DST; // deBridge live on Arc (chain 5042)
+        configuration.debridgeDstDln[KATANA_CHAIN_ID] = address(0); // deBridge not on Katana
 
         // ===== LAYERZERO V2 ENDPOINT ADDRESSES =====
         // Standard EndpointV2 address on most chains
@@ -179,6 +186,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         // HyperEVM has its own EndpointV2 address
         configuration.lzEndpointV2s[HYPEREVM_CHAIN_ID] = LZ_ENDPOINT_V2_HYPEREVM;
         configuration.lzEndpointV2s[ARC_CHAIN_ID] = LZ_ENDPOINT_V2_ALT; // LZ V2 (alt) endpoint present on Arc
+        configuration.lzEndpointV2s[KATANA_CHAIN_ID] = LZ_ENDPOINT_V2_ALT; // LZ V2 alt endpoint on Katana
 
         // ===== STARGATE V2 TOKEN MESSAGING ADDRESSES =====
         configuration.stargateTokenMessagings[MAINNET_CHAIN_ID] = 0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980;
@@ -197,6 +205,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.stargateTokenMessagings[STABLE_CHAIN_ID] = 0xd027aFcc69ffA2bCB288BA68da6B71EC90d7B1d2;
         configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
         configuration.stargateTokenMessagings[ARC_CHAIN_ID] = address(0); // Stargate token messaging not configured on Arc
+        configuration.stargateTokenMessagings[KATANA_CHAIN_ID] = address(0); // not in Stargate v2 deployments
 
         // ===== STARGATE ALLOWED OFTs (non-pool OFT contracts that use LZ compose) =====
         _setStargateOFTConfiguration();
@@ -224,6 +233,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         // fleet deploy (permissionless; original mainnet calldata reproduces 0x…BA3 exactly)
         configuration.permit2s[PLATABERGET_CHAIN_ID] = PERMIT2;
         configuration.permit2s[ARC_CHAIN_ID] = PERMIT2; // canonical Permit2 present on Arc
+        configuration.permit2s[KATANA_CHAIN_ID] = PERMIT2; // Permit2 present on Katana
 
         // ===== MERKL DISTRIBUTOR ADDRESSES =====
         configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR;
@@ -244,6 +254,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.merklDistributors[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.merklDistributors[STABLE_CHAIN_ID] = MERKL_DISTRIBUTOR;
         configuration.merklDistributors[ARC_CHAIN_ID] = MERKL_DISTRIBUTOR; // Merkl live on Arc (chain 5042)
+        configuration.merklDistributors[KATANA_CHAIN_ID] = MERKL_DISTRIBUTOR; // Merkl live on Katana
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
@@ -265,6 +276,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.aggregationRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.aggregationRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.aggregationRouters[ARC_CHAIN_ID] = address(0); // 1inch not deployed on Arc
+        configuration.aggregationRouters[KATANA_CHAIN_ID] = address(0); // 1inch not on Katana
 
         // Aerodrome is a Base-only integration. Unset chains are intentionally unsupported.
         configuration.aerodromeUniversalRouters[BASE_CHAIN_ID] = AERODROME_UNIVERSAL_ROUTER_BASE;
@@ -286,6 +298,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.odosRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouters[ARC_CHAIN_ID] = address(0); // Odos v2 not deployed on Arc
+        configuration.odosRouters[KATANA_CHAIN_ID] = address(0); // Odos API down (530); router unverified
 
         // ===== ODOS V3 ROUTER ADDRESSES =====
         // Same CREATE2 address on all EVM chains where deployed
@@ -305,6 +318,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.odosRouterV3s[HYPEREVM_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouterV3s[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.odosRouterV3s[ARC_CHAIN_ID] = address(0); // Odos v3 not deployed on Arc
+        configuration.odosRouterV3s[KATANA_CHAIN_ID] = address(0); // Odos API down (530); router unverified
 
         // ===== KYBERSWAP ROUTER AND SCALE HELPER ADDRESSES =====
         // Same address across all supported chains
@@ -326,6 +340,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.kyberSwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.kyberSwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.kyberSwapRouters[ARC_CHAIN_ID] = KYBER_ROUTER; // KyberSwap live on Arc (chain 5042)
+        configuration.kyberSwapRouters[KATANA_CHAIN_ID] = address(0); // KyberSwap not on Katana
 
         configuration.kyberSwapScaleHelpers[MAINNET_CHAIN_ID] = KYBER_SCALE_HELPER;
         configuration.kyberSwapScaleHelpers[BASE_CHAIN_ID] = KYBER_SCALE_HELPER;
@@ -345,6 +360,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.kyberSwapScaleHelpers[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.kyberSwapScaleHelpers[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.kyberSwapScaleHelpers[ARC_CHAIN_ID] = KYBER_SCALE_HELPER; // KyberSwap scale helper present on Arc
+        configuration.kyberSwapScaleHelpers[KATANA_CHAIN_ID] = address(0); // KyberSwap not on Katana
 
         // ===== OPENOCEAN SPARKDEX V4 ADDRESSES =====
         // OpenOcean V4 SparkDexV4 routing is used only on Flare.
@@ -359,12 +375,14 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pancakeSwapRouters[BASE_CHAIN_ID] = PANCAKESWAP_ROUTER;
         configuration.pancakeSwapRouters[ARC_CHAIN_ID] = PANCAKESWAP_ROUTER;
         configuration.pancakeSwapRouters[ROBINHOOD_CHAIN_ID] = PANCAKESWAP_ROUTER_RH;
+        configuration.pancakeSwapRouters[KATANA_CHAIN_ID] = address(0); // no known PancakeSwap deployment
         // Router-side native sentinel: default 0xEeee…, Arc uses 0x3600…0000. One entry per configured router
         // chain (a zero placeholder would make the hook constructor revert).
         configuration.pancakeSwapNativePlaceholders[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.pancakeSwapNativePlaceholders[BASE_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
         configuration.pancakeSwapNativePlaceholders[ARC_CHAIN_ID] = PANCAKESWAP_NATIVE_ARC;
         configuration.pancakeSwapNativePlaceholders[ROBINHOOD_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
+        configuration.pancakeSwapNativePlaceholders[KATANA_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // ETH-gas sentinel
 
         // ===== PENDLE ROUTER ADDRESSES =====
         configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
@@ -384,6 +402,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pendleRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.pendleRouters[ARC_CHAIN_ID] = address(0); // Pendle not deployed on Arc
+        configuration.pendleRouters[KATANA_CHAIN_ID] = address(0); // Pendle not on Katana
 
         // ===== PENDLE PT AMORTIZED ORACLE ADDRESSES (V1) =====
         // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
@@ -407,6 +426,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pendlePTAmortizedOracles[FLARE_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[STABLE_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOracles[ARC_CHAIN_ID] = address(0); // deployed dynamically
+        configuration.pendlePTAmortizedOracles[KATANA_CHAIN_ID] = address(0); // deployed dynamically
 
         // ===== PENDLE PT AMORTIZED ORACLE V2 ADDRESSES =====
         // NOTE: Set to address(0) - oracles are deployed via DeployV2Core and config is updated dynamically
@@ -430,6 +450,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.pendlePTAmortizedOraclesV2[FLARE_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[STABLE_CHAIN_ID] = address(0);
         configuration.pendlePTAmortizedOraclesV2[ARC_CHAIN_ID] = address(0); // deployed dynamically
+        configuration.pendlePTAmortizedOraclesV2[KATANA_CHAIN_ID] = address(0); // deployed dynamically
 
         // ===== NATIVE TOKEN ADDRESSES =====
         configuration.nativeTokens[MAINNET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT;
@@ -452,6 +473,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.nativeTokens[SEPOLIA_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // testnet
         configuration.nativeTokens[PLATABERGET_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // testnet (no Permit2 on chain)
         configuration.nativeTokens[ARC_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // USDC-native gas; sentinel native token
+        configuration.nativeTokens[KATANA_CHAIN_ID] = NATIVE_TOKEN_DEFAULT; // ETH-gas sentinel
 
         // ===== UNISWAP V4 POOL MANAGER ADDRESSES =====
         configuration.uniswapV4PoolManagers[MAINNET_CHAIN_ID] = 0x000000000004444c5dc75cB358380D2e3dE08A90;
@@ -472,6 +494,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV4PoolManagers[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV4PoolManagers[ARC_CHAIN_ID] = address(0); // Uniswap v4 not deployed on Arc
+        configuration.uniswapV4PoolManagers[KATANA_CHAIN_ID] = address(0); // not in Uniswap SDK chain registry
 
         // ===== UNISWAP V3 SWAP ROUTER ADDRESSES =====
         // Using SwapRouter (exactInputSingle with deadline in struct)
@@ -492,6 +515,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV3SwapRouters[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV3SwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV3SwapRouters[ARC_CHAIN_ID] = address(0); // Uniswap v3 not deployed on Arc
+        configuration.uniswapV3SwapRouters[KATANA_CHAIN_ID] = address(0); // not in Uniswap SDK chain registry
 
         // ===== UNISWAP V3 SWAP ROUTER 02 ADDRESSES =====
         // Using SwapRouter02 (exactInputSingle WITHOUT deadline in struct)
@@ -512,6 +536,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV3SwapRouter02s[FLARE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV3SwapRouter02s[STABLE_CHAIN_ID] = 0x32eaf9B5d5F2CD7361c5012890C943D7de84C22a;
         configuration.uniswapV3SwapRouter02s[ARC_CHAIN_ID] = address(0); // Uniswap v3 router02 not deployed on Arc
+        configuration.uniswapV3SwapRouter02s[KATANA_CHAIN_ID] = address(0); // not in Uniswap SDK chain registry
 
         // ===== UNISWAP V2 SWAP ROUTER ADDRESSES =====
         // SparkDex on Flare is a Uniswap V2 fork
@@ -532,6 +557,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.uniswapV2SwapRouters[FLARE_CHAIN_ID] = SPARKDEX_V2_ROUTER_FLARE;
         configuration.uniswapV2SwapRouters[STABLE_CHAIN_ID] = address(0); // Not deployed
         configuration.uniswapV2SwapRouters[ARC_CHAIN_ID] = address(0); // Uniswap v2 not deployed on Arc
+        configuration.uniswapV2SwapRouters[KATANA_CHAIN_ID] = address(0); // not in Uniswap SDK chain registry
 
         // ===== SPARK PSM3 ADDRESSES =====
         // PSM3 is only deployed on Base
@@ -551,6 +577,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.sparkPsm3s[HYPEREVM_CHAIN_ID] = address(0);
         configuration.sparkPsm3s[FLARE_CHAIN_ID] = address(0);
         configuration.sparkPsm3s[STABLE_CHAIN_ID] = address(0);
+        configuration.sparkPsm3s[KATANA_CHAIN_ID] = address(0); // Spark PSM3 is Base-only
 
         // ===== DETH FOUNDATION ADDRESS =====
         // DETH async redemption routing: the FOUNDATION address receives ERC-721 NFT receipts
