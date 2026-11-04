@@ -23,6 +23,7 @@ abstract contract Constants {
     string internal constant STABLE_KEY = "Stable";
     string internal constant ROBINHOOD_KEY = "RH";
     string internal constant ARC_KEY = "Arc";
+    string internal constant KATANA_KEY = "Katana";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant PLATABERGET_KEY = "Plataberget";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
@@ -74,6 +75,7 @@ abstract contract Constants {
     uint64 internal constant STABLE_CHAIN_ID = 988;
     uint64 internal constant ROBINHOOD_CHAIN_ID = 4663; // Robinhood Chain (Arbitrum Orbit L2)
     uint64 internal constant ARC_CHAIN_ID = 5042; // Circle Arc L1 (USDC-native gas); testnet is 5_042_002
+    uint64 internal constant KATANA_CHAIN_ID = 747_474; // Katana mainnet (OP Stack L2, ETH gas)
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant PLATABERGET_CHAIN_ID = 7_091_047_534; // Glamsterdam devnet-class testnet

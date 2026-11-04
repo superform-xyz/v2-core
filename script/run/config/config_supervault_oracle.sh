@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 # Colors for better visual output
+
+# forge checks the sender covers (foundry.toml gas_limit / 1e8) * 1.2 * basefee before a
+# broadcast; u64::MAX makes that ~11 ETH on Katana. 1e9 is ample for any script here.
+SCRIPT_GAS_LIMIT="${SCRIPT_GAS_LIMIT:-1000000000}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -155,6 +159,7 @@ export FIREBLOCKS_CHAIN_ID="$CHAIN_ID"
 echo -e "${YELLOW}   Executing forge script via Fireblocks...${NC}"
 
 fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
+    --gas-limit "$SCRIPT_GAS_LIMIT" \
     --sig 'runSuperVaultOracleConfiguration(uint256,uint64)' $FORGE_ENV $CHAIN_ID \
     --rpc-url {} \
     --sender 0x28b7599f461D104f07D78215Fa6F9B959851f93d \

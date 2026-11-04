@@ -15,6 +15,7 @@ NETWORKS=(
     "14:Flare:FLARE_MAINNET"
     "4663:RH:RH_MAINNET"
     "5042:Arc:ARC_MAINNET"
+    "747474:Katana:KATANA_MAINNET"
     "7091047534:Plataberget:PLATABERGET_TESTNET"
 )
 
@@ -48,6 +49,9 @@ get_network_name() {
             ;;
         5042)
             echo "Arc"
+            ;;
+        747474)
+            echo "Katana"
             ;;
         11155111)
             echo "Sepolia"
@@ -93,6 +97,9 @@ get_rpc_var() {
         5042)
             echo "ARC_MAINNET"
             ;;
+        747474)
+            echo "KATANA_MAINNET"
+            ;;
         11155111)
             echo "SEPOLIA_TESTNET"
             ;;
@@ -136,6 +143,9 @@ get_rpc_url() {
             ;;
         5042)
             echo "$ARC_MAINNET"
+            ;;
+        747474)
+            echo "$KATANA_MAINNET"
             ;;
         11155111)
             echo "$SEPOLIA_TESTNET"
@@ -231,6 +241,10 @@ load_rpc_urls() {
     export ARC_MAINNET="$(op_read_rpc ARC_RPC_URL)"
         [[ -z "${ARC_MAINNET}" ]] && failed_rpcs+=("ARC_RPC_URL")
 
+    echo "  • Loading Katana RPC..."
+    export KATANA_MAINNET="$(op_read_rpc KATANA_RPC_URL)"
+        [[ -z "${KATANA_MAINNET}" ]] && failed_rpcs+=("KATANA_RPC_URL")
+
     # Testnets (Glamsterdam compatibility) — public endpoints, hardcoded; no 1Password items needed.
     # An exported SEPOLIA_RPC_URL / PLATABERGET_RPC_URL env var overrides the default.
     echo "  • Loading Sepolia RPC (public default)..."
@@ -254,11 +268,17 @@ load_rpc_urls() {
 # Load Etherscan V2 API key for verification
 load_etherscan_api_key() {
     echo "Loading Etherscan V2 API key for staging verification..."
-    if ! export ETHERSCANV2_API_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY/credential 2>/dev/null); then
+    # `export VAR=$(...)` always exits 0, so a failed op read printed "loaded" with an
+    # empty value. Assign first, check, then export.
+    local _key
+    _key=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY/credential 2>/dev/null) || true
+    if [[ -z "$_key" ]]; then
         echo "❌ Failed to load ETHERSCANV2_API_KEY from 1Password"
+        echo "   Is the 1Password session live? Check: op whoami"
         echo "   Contract verification will not work without this credential"
         return 1
     fi
+    export ETHERSCANV2_API_KEY="$_key"
     echo "✅ Etherscan V2 API key loaded for staging"
 }
 
