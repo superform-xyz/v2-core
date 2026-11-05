@@ -281,12 +281,16 @@ contract GyldBondReviewFindingsTest is Test {
     }
 
     /// @dev And clearing is now a SEPARATE, explicit action that returns the instrument to its feed.
+    ///      R2-1: it is also timelocked, so it takes propose + wait + execute rather than one call.
     function test_Fixed_F4_ClearingIsDistinctFromRecordingATotalLoss() public {
         _register(_cfg());
         _setRecoveryNav(40e6);
 
         vm.prank(admin);
-        registry.clearRecoveryNav(address(bond));
+        registry.proposeClearRecoveryNav(address(bond));
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
         assertFalse(registry.getInstrumentConfig(address(bond)).recoveryNavSet, "override removed");
 
         navFeed.setUpdatedAt(block.timestamp);
@@ -298,7 +302,151 @@ contract GyldBondReviewFindingsTest is Test {
         _register(_cfg());
         vm.expectRevert(GyldBondRegistry.RECOVERY_NOT_SET.selector);
         vm.prank(admin);
-        registry.clearRecoveryNav(address(bond));
+        registry.proposeClearRecoveryNav(address(bond));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+      R2-1 — AN IMMEDIATE CLEAR ERASED AN IMPAIRMENT WITHOUT THE DELAY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The round-two reproduction. Recovery NAV 40 is in force while the feed carries a fresh, in-bounds
+    ///      par value of ~102.37. Before the fix, one `clearRecoveryNav` call moved the mark from 40 to the
+    ///      feed in the same block — a manager-governance control regression, since the registry delays every
+    ///      other valuation change by two days. Now the clear is proposed and only lands after the delay, so
+    ///      the impaired mark holds in the meantime.
+    function test_Fixed_R2_1_ClearingAnImpairmentIsTimelocked() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+        navFeed.setUpdatedAt(block.timestamp);
+        assertEq(oracle.getPricePerShare(address(bond)), 40e6, "impaired mark in force");
+
+        vm.prank(admin);
+        registry.proposeClearRecoveryNav(address(bond));
+
+        // Proposing changes nothing on its own: the impairment still stands.
+        navFeed.setUpdatedAt(block.timestamp);
+        assertEq(oracle.getPricePerShare(address(bond)), 40e6, "still impaired while pending");
+
+        // And it cannot be rushed.
+        vm.expectRevert(GyldBondRegistry.CHANGE_TIMELOCK_NOT_ELAPSED.selector);
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
+
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
+        navFeed.setUpdatedAt(block.timestamp);
+        assertEq(oracle.getPricePerShare(address(bond)), 102.37e6, "feed authoritative only after the delay");
+    }
+
+    /// @dev A clear proposed and aged BEFORE a later impairment must not be executable afterwards, or the
+    ///      delay buys nothing: the manager could keep a matured clear parked and undo any future write-down.
+    function test_Fixed_R2_1_ANewRecoveryDecisionInvalidatesAPendingClear() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+
+        vm.prank(admin);
+        registry.proposeClearRecoveryNav(address(bond));
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+
+        // A fresh, harsher impairment lands while the clear sits matured.
+        _setRecoveryNav(10e6);
+        assertEq(registry.pendingClearRecoveryNavAt(address(bond)), 0, "pending clear invalidated");
+
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
+
+        navFeed.setUpdatedAt(block.timestamp);
+        assertEq(oracle.getPricePerShare(address(bond)), 10e6, "the later impairment holds");
+    }
+
+    /// @dev The proposal is withdrawable, and a withdrawn one is not executable.
+    function test_Fixed_R2_1_ClearProposalCanBeCancelled() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+
+        vm.prank(admin);
+        registry.proposeClearRecoveryNav(address(bond));
+        vm.prank(admin);
+        registry.cancelClearRecoveryNav(address(bond));
+        assertEq(registry.pendingClearRecoveryNavAt(address(bond)), 0, "withdrawn");
+
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
+    }
+
+    /// @dev Every leg of the new action is role-gated, like the install direction.
+    function test_Fixed_R2_1_ClearActionsAreRoleGated() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+        address stranger = address(0xBADBAD);
+
+        vm.prank(stranger);
+        vm.expectRevert();
+        registry.proposeClearRecoveryNav(address(bond));
+
+        vm.prank(admin);
+        registry.proposeClearRecoveryNav(address(bond));
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+
+        vm.prank(stranger);
+        vm.expectRevert();
+        registry.executeClearRecoveryNav(address(bond));
+
+        vm.prank(stranger);
+        vm.expectRevert();
+        registry.cancelClearRecoveryNav(address(bond));
+    }
+
+    /// @dev A zero recovery (total loss) is cleared through the same delayed route — removing it must not be
+    ///      a shortcut back to par either.
+    function test_Fixed_R2_1_ClearingAZeroRecoveryIsAlsoTimelocked() public {
+        _register(_cfg());
+        _setRecoveryNav(0);
+
+        vm.prank(admin);
+        registry.proposeClearRecoveryNav(address(bond));
+        vm.expectRevert(GyldBondRegistry.CHANGE_TIMELOCK_NOT_ELAPSED.selector);
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
+
+        // Still worthless until the delay elapses.
+        navFeed.setUpdatedAt(block.timestamp);
+        assertEq(
+            oracle.previewNav(address(bond)).failureCode,
+            uint8(GyldBondYieldSourceOracle.NavFailure.ZERO_OR_NEGATIVE),
+            "total loss holds while pending"
+        );
+
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
+        navFeed.setUpdatedAt(block.timestamp);
+        assertEq(oracle.getPricePerShare(address(bond)), 102.37e6, "feed restored after the delay");
+    }
+
+    /// @dev Deregistration clears the new pending state too, so a re-registered bond does not inherit it.
+    function test_Fixed_R2_1_PendingClearDoesNotSurviveDeregistration() public {
+        _register(_cfg());
+        _setRecoveryNav(40e6);
+
+        vm.prank(admin);
+        registry.proposeClearRecoveryNav(address(bond));
+
+        vm.prank(admin);
+        registry.proposeDeregisterInstrument(address(bond));
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.prank(admin);
+        registry.executeDeregisterInstrument(address(bond));
+        assertEq(registry.pendingClearRecoveryNavAt(address(bond)), 0, "cleared on deregistration");
+
+        _register(_cfg());
+        vm.expectRevert(GyldBondRegistry.CHANGE_NOT_PENDING.selector);
+        vm.prank(admin);
+        registry.executeClearRecoveryNav(address(bond));
     }
 
     /*//////////////////////////////////////////////////////////////

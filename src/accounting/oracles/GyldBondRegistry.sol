@@ -103,6 +103,10 @@ contract GyldBondRegistry is AccessControl {
     mapping(address bondToken => uint256 executeAt) public pendingDeregistration;
     mapping(address bondToken => uint256 executeAt) public pendingRecoveryNavAt;
     mapping(address bondToken => uint256 value) public pendingRecoveryNav;
+    /// @notice R2-1: removing an override is as much a valuation change as installing one, so it carries the
+    ///         same delay. Clearing hands the mark back to the feed, which may be a fresh, in-bounds par
+    ///         value, so an immediate clear could lift an impaired mark to par in a single transaction.
+    mapping(address bondToken => uint256 executeAt) public pendingClearRecoveryNavAt;
     mapping(address bondToken => uint256 executeAt) public pendingFeedAt;
     mapping(address bondToken => address feed) public pendingFeed;
     mapping(address bondToken => uint8 kind) public pendingFeedKind;
@@ -126,6 +130,9 @@ contract GyldBondRegistry is AccessControl {
     event RecoveryNavSet(address indexed bondToken, uint256 recoveryNav);
     event RecoveryNavCleared(address indexed bondToken);
     event RecoveryNavProposalCancelled(address indexed bondToken);
+    /// @notice R2-1: the clear direction is timelocked too, so it has its own propose/cancel signals.
+    event RecoveryNavClearProposed(address indexed bondToken, uint256 executeAt);
+    event RecoveryNavClearProposalCancelled(address indexed bondToken);
     event FeedChangeProposalCancelled(address indexed bondToken);
     event PendingChangesCleared(address indexed bondToken);
     event FeedChangeProposed(address indexed bondToken, address indexed newFeed, uint8 kind, uint256 executeAt);
@@ -265,19 +272,48 @@ contract GyldBondRegistry is AccessControl {
         _instruments[bondToken].recoveryNavSet = true;
         delete pendingRecoveryNav[bondToken];
         delete pendingRecoveryNavAt[bondToken];
+        // R2-1: a new recovery decision invalidates any outstanding clear. Without this, a clear proposed
+        // and aged BEFORE a later impairment could be executed immediately afterwards and undo it.
+        delete pendingClearRecoveryNavAt[bondToken];
         emit RecoveryNavSet(bondToken, value);
     }
 
-    /// @notice F4: removes a terminal override and returns the instrument to its feed. A SEPARATE action
-    ///         from recording a recovery of zero, which is a total loss and keeps the override in force.
-    /// @dev Not timelocked: this direction restores feed-based valuation, and the feed's own freshness and
-    ///      circuit-breaker checks still apply, so it cannot be used to install a number.
-    function clearRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+    /// @notice F4: proposes removal of a terminal override, returning the instrument to its feed. A SEPARATE
+    ///         action from recording a recovery of zero, which is a total loss and keeps the override in force.
+    /// @dev R2-1: this carries the SAME delay as installing an override. The earlier reasoning — that
+    ///      restoring the feed "cannot be used to install a number" — was wrong: the feed can hold a fresh,
+    ///      in-bounds par value while the override records a credit impairment, so an immediate clear raises
+    ///      the mark from the impaired figure to par in one transaction (40 -> 100 cash units in the
+    ///      reproduction), and reopens the feed-based tradability path. Freshness and the circuit breaker
+    ///      validate the feed's ordinary range, not whether it should supersede a recorded credit event.
+    function proposeClearRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
         _requireRegistered(bondToken);
+        if (!_instruments[bondToken].recoveryNavSet) revert RECOVERY_NOT_SET();
+        pendingClearRecoveryNavAt[bondToken] = block.timestamp + DEREGISTER_DELAY;
+        emit RecoveryNavClearProposed(bondToken, pendingClearRecoveryNavAt[bondToken]);
+    }
+
+    /// @notice Executes a matured clear proposal, returning the instrument to feed-based valuation.
+    function executeClearRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        // F5: a proposal must apply to a LIVE registration, so it cannot be inherited by a re-registration.
+        _requireRegistered(bondToken);
+        uint256 executeAt = pendingClearRecoveryNavAt[bondToken];
+        if (executeAt == 0) revert CHANGE_NOT_PENDING();
+        if (block.timestamp < executeAt) revert CHANGE_TIMELOCK_NOT_ELAPSED();
+        // Defence in depth: `executeRecoveryNav` already invalidates an outstanding clear, so a cleared or
+        // re-impaired instrument cannot reach here with a stale proposal.
         if (!_instruments[bondToken].recoveryNavSet) revert RECOVERY_NOT_SET();
         _instruments[bondToken].recoveryNav = 0;
         _instruments[bondToken].recoveryNavSet = false;
+        delete pendingClearRecoveryNavAt[bondToken];
         emit RecoveryNavCleared(bondToken);
+    }
+
+    /// @notice Withdraws a pending clear proposal, keeping the override in force.
+    function cancelClearRecoveryNav(address bondToken) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        if (pendingClearRecoveryNavAt[bondToken] == 0) revert CHANGE_NOT_PENDING();
+        delete pendingClearRecoveryNavAt[bondToken];
+        emit RecoveryNavClearProposalCancelled(bondToken);
     }
 
     /// @notice F5: withdraws a pending recovery proposal. Re-proposing only restarts a clock; it is not
@@ -377,6 +413,8 @@ contract GyldBondRegistry is AccessControl {
         _clearPendingFeed(bondToken);
         delete pendingRecoveryNav[bondToken];
         delete pendingRecoveryNavAt[bondToken];
+        // R2-1: the clear proposal is pending state like any other and must not outlive the registration.
+        delete pendingClearRecoveryNavAt[bondToken];
         emit PendingChangesCleared(bondToken);
         emit InstrumentDeregistered(bondToken);
     }
