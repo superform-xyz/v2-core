@@ -184,6 +184,12 @@ abstract contract ConstantsOtherHooks {
     /// @dev MANDATORY in every Gyld leaf, not optional hardening: `ApproveAndTradeGyldBondHook` gates only on
     ///      the registry's approved pair, and `isApprovedPair` stays true while an instrument is suspended.
     string internal constant GYLD_TRADE_GUARD_HOOK_KEY = "GyldTradeGuardHook";
+    /// @notice F1: the tradability policy the two trade instances pin in an immutable
+    string internal constant GYLD_TRADE_POLICY_KEY = "GyldTradePolicy";
+    /// @notice Max age of the aggregator's price-per-share observation the policy will accept.
+    /// @dev Deliberately NOT the strategy's own `ppsExpiration`, which the manager sets. 1 day is a
+    ///      starting value: tighten once the real PPS publication cadence is known.
+    uint256 internal constant GYLD_MAX_PPS_AGE = 1 days;
 
     // TWO trade instances per pair, one per direction, and that is MANDATORY rather than preferable.
     // `MAX_INPUT_AMOUNT` is a single immutable in RAW input-token units and applies to whichever token is

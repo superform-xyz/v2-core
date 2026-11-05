@@ -68,6 +68,8 @@ import { ApproveAndTradeGyldBondHook } from "../../../src/hooks/swappers/gyld/Ap
 import { GyldTradeGuardHook } from "../../../src/hooks/swappers/gyld/GyldTradeGuardHook.sol";
 import { GyldBondRegistry } from "../../../src/accounting/oracles/GyldBondRegistry.sol";
 import { GyldBondYieldSourceOracle } from "../../../src/accounting/oracles/GyldBondYieldSourceOracle.sol";
+import { GyldTradePolicy } from "../../../src/accounting/oracles/GyldTradePolicy.sol";
+import { IGyldTradePolicy } from "../../../src/interfaces/accounting/IGyldTradePolicy.sol";
 import { AaveV4HealthCheckHook } from "../../../src/hooks/loan/aave-v4/AaveV4HealthCheckHook.sol";
 import { OfframpTokensHook } from "../../../src/hooks/tokens/OfframpTokensHook.sol";
 import {
@@ -560,8 +562,12 @@ contract HookSizingInterfaceTest is Helpers {
         GyldBondRegistry gyldRegistry = new GyldBondRegistry(address(this));
         GyldBondYieldSourceOracle gyldOracle =
             new GyldBondYieldSourceOracle(address(this), address(gyldRegistry));
+        GyldTradePolicy gyldPolicy =
+            new GyldTradePolicy(address(gyldRegistry), address(gyldOracle), address(0), 0);
         approveAndTradeGyldBond =
-            new ApproveAndTradeGyldBondHook(DUMMY_MORPHO, type(uint256).max);
+            new ApproveAndTradeGyldBondHook(
+                DUMMY_MORPHO, type(uint256).max, address(gyldPolicy), IGyldTradePolicy.TradeSide.BUY
+            );
         gyldTradeGuard = new GyldTradeGuardHook(address(gyldOracle));
         aaveV4HealthCheck = new AaveV4HealthCheckHook();
         offrampTokens = new OfframpTokensHook();

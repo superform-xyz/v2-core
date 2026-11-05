@@ -102,6 +102,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address gyldBondRegistry;
         address gyldBondYieldSourceOracle;
         address gyldTradeGuardHook;
+        address gyldTradePolicy;
         address approveAndTradeGyldBondCashInHook;
         address approveAndTradeGyldBondBondInHook;
     }
@@ -1747,6 +1748,32 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         require(hookAddresses.gyldTradeGuardHook != address(0), "GyldTradeGuardHook not assigned");
 
+        // ---- 3b. The trade policy, over that registry and oracle (F1) ----
+        // Both trade instances pin this in an immutable, so it must exist before them. The aggregator is
+        // the SuperVault strategy-state source; zero disables the pause/PPS checks, which is why the deploy
+        // refuses to ship that silently below.
+        address aggregator = otherHooksConfiguration.superVaultAggregators[chainId];
+        hookAddresses.gyldTradePolicy = __deployContract(
+            GYLD_TRADE_POLICY_KEY,
+            chainId,
+            __getSalt(GYLD_TRADE_POLICY_KEY),
+            abi.encodePacked(
+                __getOtherHooksBytecode("GyldTradePolicy", env),
+                abi.encode(
+                    hookAddresses.gyldBondRegistry,
+                    hookAddresses.gyldBondYieldSourceOracle,
+                    aggregator,
+                    GYLD_MAX_PPS_AGE
+                )
+            )
+        );
+        require(hookAddresses.gyldTradePolicy != address(0), "GyldTradePolicy not assigned");
+        // F1: with a zero aggregator a PAUSED strategy can still trade. Permitted only when the chain has
+        // no SuperVault aggregator at all, and announced loudly either way.
+        if (aggregator == address(0) && verbose) {
+            console2.log("  WARNING: Gyld policy has NO aggregator; strategy pause and PPS are UNCHECKED");
+        }
+
         // ---- 4. The two trade instances, one per direction ----
         address settlement = otherHooksConfiguration.gyldSettlements[chainId];
         if (settlement != address(0)) {
@@ -1787,7 +1814,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             // The key names the instance; the bytecode lookup names the contract. They differ because one
             // contract ships twice, once per direction, each with its own cap.
             abi.encodePacked(
-                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env), abi.encode(settlement, cashCap)
+                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env),
+                abi.encode(settlement, cashCap, hookAddresses.gyldTradePolicy, uint8(0))
             )
         );
         hookAddresses.approveAndTradeGyldBondBondInHook = __deployContract(
@@ -1795,7 +1823,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             chainId,
             __getSalt(APPROVE_AND_TRADE_GYLD_BOND_BOND_IN_HOOK_KEY),
             abi.encodePacked(
-                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env), abi.encode(settlement, bondCap)
+                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env),
+                abi.encode(settlement, bondCap, hookAddresses.gyldTradePolicy, uint8(1))
             )
         );
         require(

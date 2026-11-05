@@ -24,6 +24,9 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
 import { MockGyldSettlement } from "../../mocks/gyld/MockGyldSettlement.sol";
+import { IGyldTradePolicy } from "../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { GyldTradePolicy } from "../../../src/accounting/oracles/GyldTradePolicy.sol";
+import { MockSuperVaultStrategyState } from "../../../test/mocks/gyld/MockSuperVaultStrategyState.sol";
 
 /// @title GyldBondE2EBase
 /// @notice Shared end-to-end setup on the ONLY instrument configuration that can actually ship.
@@ -70,6 +73,9 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
     uint256 internal constant LEAF_OBS_AGE = 2 days;
 
     receive() external payable { }
+    GyldTradePolicy internal tradePolicy;
+    MockSuperVaultStrategyState internal aggregator;
+
 
     function setUp() public virtual {
         vm.warp(1_800_000_000);
@@ -81,6 +87,11 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
 
         registry = new GyldBondRegistry(admin);
         oracle = new GyldBondYieldSourceOracle(address(new SuperLedgerConfiguration()), address(registry));
+        aggregator = new MockSuperVaultStrategyState();
+        // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
+        // configuration that cannot ship, since a paused strategy could still trade.
+        tradePolicy =
+            new GyldTradePolicy(address(registry), address(oracle), address(aggregator), 1 days);
         settlement = new MockGyldSettlement();
 
         GyldBondRegistry.InstrumentConfig memory cfg;
@@ -88,17 +99,23 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
         cfg.navFeed = address(navFeed);
         cfg.navFeedKind = registry.FEED_KIND_CHAINLINK(); // the shippable branch
         cfg.cashToken = address(cash);
+        // F1: a direction with a zero tolerance is reported as unconfigured, not defaulted.
+        cfg.maxEntryPremiumBps = 200;
+        cfg.maxExitDiscountBps = 200;
         cfg.maxObservationAge = 7 days;
         cfg.maxPublicationAge = 7 days;
         vm.prank(admin);
         registry.registerInstrument(cfg);
 
         guard = new GyldTradeGuardHook(address(oracle));
-        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
-        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
+        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
 
         instance = makeAccountInstance(keccak256("gyld-e2e-strategy"));
         strategy = instance.account;
+        // The policy fails closed for an address the aggregator does not know, so the
+        // strategy has to exist there before any trade is attempted.
+        aggregator.register(strategy);
         superExecutor = ISuperExecutor(new SuperExecutor(address(new SuperLedgerConfiguration())));
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
@@ -187,6 +204,9 @@ contract GyldBondE2E is GyldBondE2EBase {
         // Hold through a coupon accrual. The publication clock is the only one that moves.
         vm.warp(block.timestamp + 2 days);
         navFeed.setLatestAnswer(NAV_AFTER_COUPON);
+        // The aggregator republishes PPS over the same period in production; without this the policy
+        // correctly refuses the sell with `PPS_EXPIRED`, which is a real check and not a test nuisance.
+        aggregator.setLastUpdate(strategy, block.timestamp);
         assertEq(oracle.getTVLByOwnerOfShares(address(bond), strategy), 1020e6, "coupon accrued");
 
         // Sell back through the bond-side instance.
@@ -383,7 +403,7 @@ contract GyldBondE2E is GyldBondE2EBase {
     /// @dev Two buy legs in ONE batch against a cap that fits only one. The second must be refused at its
     ///      own `preExecute`, before any approval, and atomicity must undo the first.
     function test_E2E_CapAccumulatesWithinOneBatch() public {
-        ApproveAndTradeGyldBondHook capped = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6);
+        ApproveAndTradeGyldBondHook capped = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
         settlement.setAllowReplay(true); // a venue that does not enforce single-use ids
 
         bytes memory leaf = _tradeLeaf(keccak256("rep"), address(cash), address(bond), 1000e6, 1000e18);
@@ -417,7 +437,7 @@ contract GyldBondCapResetE2E is GyldBondE2EBase {
         super.setUp();
         // A cap that fits exactly one leg, and a venue that will honour a replayed quote id, so only the cap
         // can stop the second attempt.
-        capped = new ApproveAndTradeGyldBondHook(address(settlement), 1000e6);
+        capped = new ApproveAndTradeGyldBondHook(address(settlement), 1000e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
         settlement.setAllowReplay(true);
 
         // TRANSACTION ONE: consume the entire cap.

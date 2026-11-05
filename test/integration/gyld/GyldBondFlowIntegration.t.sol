@@ -20,6 +20,9 @@ import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockGyldSettlement } from "../../mocks/gyld/MockGyldSettlement.sol";
 import { MockGyldNavFeed } from "../../mocks/gyld/MockGyldNavFeed.sol";
+import { IGyldTradePolicy } from "../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { GyldTradePolicy } from "../../../src/accounting/oracles/GyldTradePolicy.sol";
+import { MockSuperVaultStrategyState } from "../../../test/mocks/gyld/MockSuperVaultStrategyState.sol";
 import {
     MockGyldSettlementWithExtraPowers,
     MockReentrantGyldSettlement
@@ -61,6 +64,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
 
     uint256 internal constant LEAF_OBS_AGE = 2 days;
     uint256 internal constant LEAF_PUB_AGE = 1 days;
+    GyldTradePolicy internal tradePolicy;
+    MockSuperVaultStrategyState internal aggregator;
+
 
     function setUp() public {
         vm.warp(1_800_000_000);
@@ -72,6 +78,11 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
 
         registry = new GyldBondRegistry(admin);
         oracle = new GyldBondYieldSourceOracle(address(new SuperLedgerConfiguration()), address(registry));
+        aggregator = new MockSuperVaultStrategyState();
+        // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
+        // configuration that cannot ship, since a paused strategy could still trade.
+        tradePolicy =
+            new GyldTradePolicy(address(registry), address(oracle), address(aggregator), 1 days);
         settlement = new MockGyldSettlement();
 
         GyldBondRegistry.InstrumentConfig memory cfg;
@@ -79,6 +90,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         cfg.navFeed = address(navFeed);
         cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
         cfg.cashToken = address(cash);
+        // F1: a direction with a zero tolerance is reported as unconfigured, not defaulted.
+        cfg.maxEntryPremiumBps = 200;
+        cfg.maxExitDiscountBps = 200;
         cfg.maxObservationAge = 7 days;
         cfg.maxPublicationAge = 7 days;
         cfg.requiresObservationTime = true;
@@ -86,10 +100,13 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         registry.registerInstrument(cfg);
 
         guardHook = new GyldTradeGuardHook(address(oracle));
-        tradeHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
+        tradeHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
 
         instance = makeAccountInstance(keccak256("gyld-strategy"));
         strategy = instance.account;
+        // The policy fails closed for an address the aggregator does not know, so the
+        // strategy has to exist there before any trade is attempted.
+        aggregator.register(strategy);
         superExecutor = ISuperExecutor(new SuperExecutor(address(new SuperLedgerConfiguration())));
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
@@ -190,13 +207,14 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
 
         // ---- HOLD through a coupon accrual ----
         vm.warp(block.timestamp + 30 days);
+        aggregator.setLastUpdate(strategy, block.timestamp);
         navFeed.setFreshNav(address(bond), NAV_AFTER_COUPON);
         assertEq(oracle.getTVLByOwnerOfShares(address(bond), strategy), 1020e6, "complete NAV includes coupon accrual");
         assertEq(oracle.getPricePerShare(address(bond)), 1.02e6);
 
         // ---- SELL back to cash ----
         // A second instance, because the cap is denominated in the input token's raw units.
-        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
+        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
         uint256 cashBack = 1020e6;
         bytes memory sellData = _tradeData(
             keccak256("sell-1"), address(bond), address(cash), bondsOut, cashBack, cashBack, block.timestamp + 1 hours
@@ -316,7 +334,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     /// @dev The per-transaction cap bounds a repeated leaf inside ONE batch, which is the only on-chain bound
     ///      on a compromised manager key, because a SuperVault leaf carries no amount.
     function test_RepeatedLeafInOneBatch_IsCappedAtPreExecute() public {
-        ApproveAndTradeGyldBondHook cappedHook = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6);
+        ApproveAndTradeGyldBondHook cappedHook = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
         settlement.setAllowReplay(true); // a venue that does NOT enforce single-use quote ids
 
         bytes memory tradeData = _tradeData(
@@ -381,15 +399,27 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Both hooks are NONACCOUNTING, so the ledger never consults this oracle and a suspended instrument
-    ///      cannot brick accounting. Proven by selling with the instrument suspended for VALUATION while the
-    ///      guard is absent from the chain: the trade itself needs no NAV.
+    ///      cannot brick accounting. Proven by selling with the instrument suspended for VALUATION: the
+    ///      LEDGER needs no NAV for a NONACCOUNTING hook.
+    /// @dev F1: the TRADE does now need a usable number, which is a deliberate change. A suspended
+    ///      instrument with no recovery mark is refused (`NO_EXIT_MARK`), so this test publishes the
+    ///      timelocked mark first — the T2 credit-event exit path — and the ledger assertion below is
+    ///      unaffected either way. `test_Fixed_F1_SellOfSuspendedBondWithNoMarkIsRefused` covers the refusal.
     function test_NonAccounting_LedgerNeverTouchesTheOracle() public {
         executeOp(_buyOp(1000e6, 1000e18, keccak256("buy-na")));
 
         vm.prank(admin);
         registry.setNavSuspended(address(bond), true);
 
-        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
+        // Governance publishes the exit mark through the normal two-day delay.
+        vm.prank(admin);
+        registry.proposeRecoveryNav(address(bond), 1e6);
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.prank(admin);
+        registry.executeRecoveryNav(address(bond));
+        aggregator.setLastUpdate(strategy, block.timestamp);
+
+        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
         cash.mint(address(settlement), 1000e6);
         bytes memory sellData = _tradeData(
             keccak256("sell-na"), address(bond), address(cash), 1000e18, 1000e6, 1000e6, block.timestamp + 1 hours
@@ -429,7 +459,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     ///      containment the finding's severity depends on, so it is pinned at the executor level too.
     function test_Finding_OpaqueCalldataSweep_IsContainedByBatchAtomicity() public {
         MockGyldSettlementWithExtraPowers venue = new MockGyldSettlementWithExtraPowers();
-        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP);
+        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
         address thief = address(0xBAD);
 
         bytes memory hostile = venue.encodeSweep(address(cash), thief, 1000e6);
@@ -458,12 +488,12 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         assertEq(cash.allowance(strategy, address(venue)), 0, "no allowance survived");
     }
 
-    /// @dev Companion to `GyldHooksAdversarialTest.test_Finding_GuardDoesNotBindToTheTradeItAccompanies`.
-    ///      THIS ONE IS NOT CONTAINED. A batch pairing a guard on a healthy instrument with a trade of a
-    ///      SUSPENDED one succeeds end to end, because nothing on-chain ties the two leaves together. The
-    ///      pairing is therefore a correctness requirement on the leaf builder, and this test exists so that
-    ///      fact cannot be forgotten.
-    function test_Finding_MismatchedGuardAndTrade_SucceedsInOneBatch() public {
+    /// @dev F1 FIXED, and this is the headline reproduction. Pairing a guard on a HEALTHY instrument with a
+    ///      trade of a SUSPENDED one used to succeed end to end: nothing on-chain tied the two leaves
+    ///      together, so the guard was decoration. The trade hook now consults `GyldTradePolicy` from its
+    ///      own `_preExecute`, which the executor always runs, so the mismatch is refused on the suspended
+    ///      instrument no matter what the accompanying guard leaf says.
+    function test_Fixed_F1_MismatchedGuardAndTradeIsRefused() public {
         MockERC20 healthyBond = new MockERC20("Healthy Bond", "HB", 18);
         MockGyldNavFeed healthyFeed = new MockGyldNavFeed(8);
         healthyFeed.setFreshNav(address(healthyBond), NAV_AT_ENTRY);
@@ -473,6 +503,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         cfg.navFeed = address(healthyFeed);
         cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
         cfg.cashToken = address(cash);
+        // F1: a direction with a zero tolerance is reported as unconfigured, not defaulted.
+        cfg.maxEntryPremiumBps = 200;
+        cfg.maxExitDiscountBps = 200;
         cfg.maxObservationAge = 7 days;
         cfg.maxPublicationAge = 7 days;
         cfg.requiresObservationTime = true;
@@ -495,22 +528,29 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
             keccak256("mismatched"), address(cash), address(bond), 1000e6, 1000e18, 1000e18, block.timestamp + 1 hours
         );
 
-        executeOp(
-            _getExecOps(
-                instance,
-                superExecutor,
-                abi.encode(ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data }))
-            )
-        );
+        // The guard leaf still passes on its own: it is checking the HEALTHY instrument, exactly as the
+        // finding described. That is why it was never a gate.
+        vm.prank(strategy);
+        guardHook.preExecute(address(0), strategy, guardLeaf);
 
-        assertEq(bond.balanceOf(strategy), 1000e18, "a suspended instrument was traded under a healthy guard");
+        // And the trade is refused anyway, inside the TRADE hook's own `preExecute` — the execution the
+        // executor always runs for this hook, which is what makes it unskippable. Asserted directly rather
+        // than through the 4337 frame, where the EntryPoint would wrap the selector in
+        // `UserOperationReverted` and hide which check fired.
+        vm.prank(strategy);
+        vm.expectRevert(GyldTradePolicy.NAV_SUSPENDED.selector);
+        tradeHook.preExecute(address(0), strategy, data[1]);
+
+        // Nothing moved: no bonds acquired, no cash spent.
+        assertEq(bond.balanceOf(strategy), 0, "the suspended instrument was NOT traded");
+        assertEq(cash.balanceOf(strategy), 10_000e6, "and no cash left the account");
     }
 
     /// @dev Companion to the reentrancy suite: a venue that rotates the account's execution context mid-fill
     ///      makes the hook fail closed, and the executor then rolls the input transfer back.
     function test_Reentrancy_ContextRotation_IsContainedByBatchAtomicity() public {
         MockReentrantGyldSettlement venue = new MockReentrantGyldSettlement();
-        ApproveAndTradeGyldBondHook reHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP);
+        ApproveAndTradeGyldBondHook reHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
 
         bytes memory venueCalldata = venue.encodeFill(
             keccak256("reenter"), strategy, address(cash), address(bond), 1000e6, 1000e18, block.timestamp + 1 hours

@@ -12,6 +12,8 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../../mocks/MockAggregator.sol";
 import { MockGyldNavFeed } from "../../../mocks/gyld/MockGyldNavFeed.sol";
 import { MockGyldSettlement } from "../../../mocks/gyld/MockGyldSettlement.sol";
+import { IGyldTradePolicy } from "../../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { MockGyldTradePolicy } from "../../../../test/mocks/gyld/MockGyldTradePolicy.sol";
 
 /// @dev A bond token that can be redenominated after registration, modelling a proxied or upgradeable
 ///      series token. Gyld's real stack deploys each series through a TokenFactory, so a proxy is the
@@ -84,8 +86,11 @@ contract GyldSecondPassFindingsTest is Test {
     ///      happens when they are applied to the WRONG direction.
     uint256 internal constant CASH_CAP = 500_000e6;
     uint256 internal constant BOND_CAP = 500_000e18;
+    MockGyldTradePolicy internal tradePolicy;
+
 
     function setUp() public {
+        tradePolicy = new MockGyldTradePolicy();
         vm.warp(1_800_000_000);
         registry = new GyldBondRegistry(admin);
         oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry));
@@ -206,7 +211,7 @@ contract GyldSecondPassFindingsTest is Test {
         _register(_cfg(address(bond), address(chainlinkFeed), registry.FEED_KIND_CHAINLINK()));
 
         // The SELL-side instance, carrying the bond-denominated cap.
-        ApproveAndTradeGyldBondHook bondInHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
+        ApproveAndTradeGyldBondHook bondInHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
 
         // A BUY leaf: cash in, bond out. The cash amount is far above the cash-side cap AND above the
         // entire live vbUSDC supply on Katana (about 5.72M), yet it builds.
@@ -224,7 +229,7 @@ contract GyldSecondPassFindingsTest is Test {
         MockERC20 bond = new MockERC20("Gyld Bond", "GB", 18);
         _register(_cfg(address(bond), address(chainlinkFeed), registry.FEED_KIND_CHAINLINK()));
 
-        ApproveAndTradeGyldBondHook cashInHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
+        ApproveAndTradeGyldBondHook cashInHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
 
         bytes memory data = _tradeData(address(bond), address(cash), 1e18); // one whole bond
         vm.expectRevert(ApproveAndTradeGyldBondHook.INPUT_EXCEEDS_CAP.selector);
@@ -237,8 +242,8 @@ contract GyldSecondPassFindingsTest is Test {
         MockERC20 bond = new MockERC20("Gyld Bond", "GB", 18);
         _register(_cfg(address(bond), address(chainlinkFeed), registry.FEED_KIND_CHAINLINK()));
 
-        ApproveAndTradeGyldBondHook a = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
-        ApproveAndTradeGyldBondHook b = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
+        ApproveAndTradeGyldBondHook a = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        ApproveAndTradeGyldBondHook b = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
 
         assertTrue(address(a) != address(b), "distinct addresses, as the deploy asserts");
         assertTrue(a.MAX_INPUT_AMOUNT() != b.MAX_INPUT_AMOUNT(), "distinct caps, as the deploy asserts");

@@ -11,6 +11,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
 import { ISuperHookSwap } from "../../../interfaces/ISuperHookSwap.sol";
+import { IGyldTradePolicy } from "../../../interfaces/accounting/IGyldTradePolicy.sol";
 import {
     ISuperHookContextAware,
     ISuperHookInspector,
@@ -26,9 +27,11 @@ import {
 ///      neither authorises any other token. That is the repo convention for every venue — there is not a single
 ///      direction-flag swap hook in `src/hooks/swappers/` — and the committed pair is what constrains which
 ///      tokens a leaf may touch.
-/// @dev NO REGISTRY DEPENDENCY. Unlike the oracle and the guard, this hook reads no instrument configuration.
-///      Tradability is the guard's job; see `_validatePair` for why a pair whitelist here would be redundant
-///      and misleading.
+/// @dev NO REGISTRY DEPENDENCY, BUT NOT NO TRADABILITY CHECK. This hook reads no instrument configuration and
+///      imports no registry: everything Gyld-specific sits behind `IGyldTradePolicy`, one immutable address.
+///      Tradability IS enforced here, by calling that policy from this hook's own `_preExecute` (eligibility)
+///      and `_postExecute` (realised price). That is review finding F1: it used to be the separate
+///      `GyldTradeGuardHook` leaf's job, which a leaf author could simply omit. See `_validatePair`.
 /// @dev THE STRATEGY IS THE TRADING ACCOUNT, PAYER AND RECIPIENT. Every execution below runs as the executing
 ///      smart account. This hook never holds a token, never takes an approval for itself, and names no operator.
 ///      That property only survives end to end if the venue pulls from and delivers to `msg.sender`, or
@@ -61,7 +64,9 @@ import {
 /// @dev `usePrevHookAmount` is read and REJECTED when true; a venue-signed quote cannot absorb a resized
 ///      amount. `inputAmount` bounds the allowance only and is NOT the spend. `outputQuote` and `outputMin`
 ///      are caller-supplied and are NOT committed into the Merkle leaf, so `MIN_OUT_NOT_MET` guards an
-///      honest manager's mistake; `MAX_INPUT_AMOUNT` is what bounds a compromised key.
+///      honest manager's mistake. A compromised key is bounded by `MAX_INPUT_AMOUNT` AND, since F1, by
+///      `TRADE_POLICY.validateFill`: a NAV-derived floor on the REALISED amounts, so setting
+///      `outputMin = 1` no longer lets a manager donate the strategy's holdings.
 /// @dev TWO DELIBERATE DEVIATIONS FROM THE MAJORITY OF THE SWAP FAMILY, both relevant to whoever builds the
 ///      calldata off-chain. Pinned by `GyldSwapEncodingConformance.t.sol`.
 ///      1. `outputQuote` IS CONSTRAINED. Most swappers treat it as informational and never read it beyond
@@ -97,6 +102,18 @@ contract ApproveAndTradeGyldBondHook is
     ///      This is the only on-chain bound on a compromised manager key in the SuperVault path.
     uint256 public immutable MAX_INPUT_AMOUNT;
 
+    /// @notice The tradability policy, consulted from this hook's own `_preExecute` and `_postExecute`.
+    /// @dev F1: NOT OPTIONAL. The guard hook could be omitted from a leaf because the strategy authorises
+    ///      each leaf independently and nothing recorded that a guard ran. This call sits inside an
+    ///      execution `BaseHook.build` always emits and `BaseHook` always requires, so it cannot be skipped.
+    IGyldTradePolicy public immutable TRADE_POLICY;
+
+    /// @notice Which side of the instrument this instance trades.
+    /// @dev Pinned at deploy time, so it is part of the initcode, therefore part of the CREATE2 address,
+    ///      therefore part of every Merkle leaf naming this hook. A BUY proof cannot be presented to the
+    ///      SELL instance: that is a different hook address and so a different leaf.
+    IGyldTradePolicy.TradeSide public immutable SIDE;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -127,12 +144,29 @@ contract ApproveAndTradeGyldBondHook is
     error OUTPUT_BALANCE_DECREASED();
     error ALLOWANCE_NOT_CLEARED();
     error SNAPSHOT_NOT_TAKEN();
+    /// @notice F1: the venue delivered output without taking any input. A SELL that spends no bonds is not
+    ///         a sale, and it would otherwise satisfy the output-side assertions on its own.
+    error NO_INPUT_SPENT();
+    /// @notice F1: the input balance GREW across the leg, so the over-spend comparison is meaningless.
+    ///         Previously this silently skipped the check instead of failing.
+    error INPUT_BALANCE_INCREASED();
 
-    constructor(address gyldSettlement_, uint256 maxInputAmount_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
-        if (gyldSettlement_ == address(0)) revert ADDRESS_NOT_VALID();
+    constructor(
+        address gyldSettlement_,
+        uint256 maxInputAmount_,
+        address tradePolicy_,
+        IGyldTradePolicy.TradeSide side_
+    )
+        BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP)
+    {
+        // F1: a nullable policy would recreate exactly the omission hole this fix closes, moved from the
+        // root author to the deployer. A no-op policy implementation is rejected for the same reason.
+        if (gyldSettlement_ == address(0) || tradePolicy_ == address(0)) revert ADDRESS_NOT_VALID();
         if (maxInputAmount_ == 0) revert AMOUNT_NOT_VALID();
         GYLD_SETTLEMENT = gyldSettlement_;
         MAX_INPUT_AMOUNT = maxInputAmount_;
+        TRADE_POLICY = IGyldTradePolicy(tradePolicy_);
+        SIDE = side_;
     }
 
     /// @notice Human-readable name for UI display
@@ -211,8 +245,12 @@ contract ApproveAndTradeGyldBondHook is
     ///        - the outcome assertions in `_postExecute` catch a pair that delivers nothing.
     ///      Removing it also removes a trap: `isApprovedPair` stays true while an instrument is SUSPENDED,
     ///      so a registry check here would have looked like a tradability gate without being one.
-    ///      `GyldTradeGuardHook` is unambiguously the thing that enforces tradability, and it is mandatory
-    ///      in every Gyld leaf.
+    ///      Tradability is enforced by `TRADE_POLICY.validateTrade`, which THIS hook calls from its own
+    ///      `_preExecute`, so it cannot be omitted. The earlier claim here — that `GyldTradeGuardHook` is
+    ///      "mandatory in every Gyld leaf" — was false and was review finding F1: the strategy authorises
+    ///      each leaf independently and nothing recorded that a guard had run, so a leaf could omit the
+    ///      guard entirely or guard one bond while trading another. The guard now only TIGHTENS the
+    ///      registry's freshness bounds for a cautious root; it is not the gate.
     function _validatePair(address inputToken, address outputToken) private pure {
         if (!_isERC20(inputToken) || !_isERC20(outputToken)) revert NATIVE_ETH_NOT_SUPPORTED();
         if (inputToken == outputToken) revert SAME_INPUT_OUTPUT_TOKEN();
@@ -352,13 +390,17 @@ contract ApproveAndTradeGyldBondHook is
     //////////////////////////////////////////////////////////////*/
 
     function _preExecute(address, address account, bytes calldata data) internal override {
+        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
+        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
+
+        // F1: the eligibility gate the guard leaf could not provide, inside an execution that cannot be
+        // omitted. First, so a non-tradable instrument burns the least gas and never touches transient state.
+        TRADE_POLICY.validateTrade(account, SIDE, inputToken, outputToken, data);
+
         // Per-transaction cap on the running sum, checked before any approval is granted.
         uint256 spent = _getTxSpent(account) + BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         if (spent > MAX_INPUT_AMOUNT) revert INPUT_EXCEEDS_CAP();
         _setTxSpent(account, spent);
-
-        address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
-        address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
 
         _setOutAmount(IERC20(outputToken).balanceOf(account), account);
         // Input-side snapshot: the only way to notice a venue that takes cash and delivers nothing
@@ -386,16 +428,35 @@ contract ApproveAndTradeGyldBondHook is
         // than was authorised means the venue over-pulled, whatever it reported.
         uint256 inputBefore = _getInBalance(account);
         uint256 inputAfter = IERC20(inputToken).balanceOf(account);
-        if (inputBefore > inputAfter) {
-            uint256 inputSpent = inputBefore - inputAfter;
-            if (inputSpent > BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET)) {
-                revert INPUT_OVERSPENT();
-            }
+        // F1: named rather than silently skipped. An input balance that GREW makes the over-spend
+        // comparison meaningless, and the old `if (inputBefore > inputAfter)` branch let it pass.
+        if (inputBefore < inputAfter) revert INPUT_BALANCE_INCREASED();
+        uint256 inputSpent = inputBefore - inputAfter;
+        // F1: a venue that delivers output while taking nothing is not a trade. Safe to require because
+        // `inputToken != outputToken` is enforced at decode, so this leg's proceeds cannot inflate it.
+        if (inputSpent == 0) revert NO_INPUT_SPENT();
+        if (inputSpent > BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET)) {
+            revert INPUT_OVERSPENT();
         }
         _setInBalance(account, 0);
 
         // No standing allowance may survive: catches tokens whose approve(0) silently no-ops.
         if (IERC20(inputToken).allowance(account, GYLD_SETTLEMENT) != 0) revert ALLOWANCE_NOT_CLEARED();
+
+        // F1: the realised-price gate, on MEASURED amounts. The header `inputAmount` is an allowance
+        // ceiling rather than the spend, so a floor derived from it would reject honest trades whenever a
+        // venue spends less than authorised. Last, so the policy is never reached on a leg that already
+        // failed this hook's own invariants.
+        TRADE_POLICY.validateFill(
+            IGyldTradePolicy.FillArgs({
+                account: account,
+                side: SIDE,
+                inputToken: inputToken,
+                outputToken: outputToken,
+                inputSpent: inputSpent,
+                received: received
+            })
+        );
 
         _setOutAmount(received, account);
         _setOutToken(outputToken, account);

@@ -14,6 +14,8 @@ import { GyldBondRegistry } from "../../../../../src/accounting/oracles/GyldBond
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../../../mocks/MockAggregator.sol";
 import { MockGyldSettlement } from "../../../../mocks/gyld/MockGyldSettlement.sol";
+import { IGyldTradePolicy } from "../../../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { MockGyldTradePolicy } from "../../../../../test/mocks/gyld/MockGyldTradePolicy.sol";
 
 /// @title GyldSwapEncodingConformanceTest
 /// @notice Pins `ApproveAndTradeGyldBondHook` to the Layer 1 swap calldata standard declared by
@@ -40,8 +42,11 @@ contract GyldSwapEncodingConformanceTest is Test {
     uint256 internal constant SENTINEL_AMOUNT = 0x33;
     uint256 internal constant SENTINEL_QUOTE = 0x44;
     uint256 internal constant SENTINEL_MIN = 0x55;
+    MockGyldTradePolicy internal tradePolicy;
+
 
     function setUp() public {
+        tradePolicy = new MockGyldTradePolicy();
         vm.warp(1_800_000_000);
         bond = new MockERC20("Gyld Bond", "GB", 18);
         cash = new MockERC20("Vault Bridge USDC", "vbUSDC", 6);
@@ -59,7 +64,9 @@ contract GyldSwapEncodingConformanceTest is Test {
         registry.registerInstrument(cfg);
 
         settlement = new MockGyldSettlement();
-        hook = new ApproveAndTradeGyldBondHook(address(settlement), type(uint128).max);
+        hook = new ApproveAndTradeGyldBondHook(
+            address(settlement), type(uint128).max, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
     }
 
     function _header(bool usePrev) internal pure returns (ISuperHookSwap.SwapHeader memory) {

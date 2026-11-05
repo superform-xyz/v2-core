@@ -30,6 +30,10 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         // ahead of the venue, while the trade hooks pin a settlement address that does not exist yet.
         mapping(uint64 chainId => bool enabled) gyldOracleEnabled;
         mapping(uint64 chainId => address gyldSettlement) gyldSettlements;
+    /// @notice SuperVaultAggregator per chain, for `GyldTradePolicy`'s strategy pause / PPS checks.
+    /// @dev Zero means those checks are DISABLED and a paused strategy could still trade, so leave it
+    ///      unset only on a chain with no SuperVault aggregator. The deploy script warns when it is zero.
+    mapping(uint64 chainId => address aggregator) superVaultAggregators;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxCashInputAmounts;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxBondInputAmounts;
     }

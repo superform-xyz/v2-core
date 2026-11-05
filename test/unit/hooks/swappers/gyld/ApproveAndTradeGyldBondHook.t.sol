@@ -29,6 +29,8 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { MockAggregator } from "../../../../mocks/MockAggregator.sol";
 import { MockGyldSettlement } from "../../../../mocks/gyld/MockGyldSettlement.sol";
 import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
+import { IGyldTradePolicy } from "../../../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { MockGyldTradePolicy } from "../../../../../test/mocks/gyld/MockGyldTradePolicy.sol";
 
 /// @dev A token whose `approve(spender, 0)` silently no-ops, which is the exact family of token the hook's
 ///      post-trade allowance assertion exists for.
@@ -74,8 +76,11 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
     uint256 internal constant BOND_MIN = 995e18;
 
     bytes32 internal constant QUOTE_ID = keccak256("quote-1");
+    MockGyldTradePolicy internal tradePolicy;
+
 
     function setUp() public {
+        tradePolicy = new MockGyldTradePolicy();
         account = address(this);
         vm.warp(1_800_000_000);
 
@@ -87,7 +92,7 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
 
         registry = new GyldBondRegistry(admin);
         settlement = new MockGyldSettlement();
-        hook = new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT);
+        hook = new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(cash));
 
         _registerBond(address(bond));
@@ -199,12 +204,12 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
 
     function test_Constructor_RevertIf_SettlementZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndTradeGyldBondHook(address(0), MAX_INPUT);
+        new ApproveAndTradeGyldBondHook(address(0), MAX_INPUT, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
     }
 
     function test_Constructor_RevertIf_CapZero() public {
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        new ApproveAndTradeGyldBondHook(address(settlement), 0);
+        new ApproveAndTradeGyldBondHook(address(settlement), 0, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -725,20 +730,34 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
         assertEq(hook.getOutAmount(account), BOND_QUOTE);
     }
 
-    /// @dev An input balance that GREW (an unrelated inbound transfer mid-batch) is not an overspend.
-    function test_PostExecute_InputBalanceIncreased_IsNotAnOverspend() public {
+    /// @dev F1: an input balance that GREW makes the over-spend comparison meaningless, so it is now a
+    ///      NAMED failure. Previously the whole over-spend branch was skipped and the leg passed silently,
+    ///      which also meant a venue could deliver output while taking nothing.
+    function test_PostExecute_RevertIf_InputBalanceIncreased() public {
         bytes memory data = _buyData();
         hook.preExecute(address(0), account, data);
         bond.mint(account, BOND_QUOTE);
         cash.mint(account, 1e6);
+        vm.expectRevert(ApproveAndTradeGyldBondHook.INPUT_BALANCE_INCREASED.selector);
         hook.postExecute(address(0), account, data);
-        assertEq(hook.getOutAmount(account), BOND_QUOTE);
+    }
+
+    /// @dev F1: and a leg that takes no input at all is not a trade.
+    function test_PostExecute_RevertIf_NoInputSpent() public {
+        bytes memory data = _buyData();
+        hook.preExecute(address(0), account, data);
+        bond.mint(account, BOND_QUOTE);
+        vm.expectRevert(ApproveAndTradeGyldBondHook.NO_INPUT_SPENT.selector);
+        hook.postExecute(address(0), account, data);
     }
 
     function test_PostExecute_RevertIf_AllowanceNotCleared() public {
         bytes memory data = _buyData();
         hook.preExecute(address(0), account, data);
         bond.mint(account, BOND_QUOTE);
+        // Spend the input too: without it the leg trips `NO_INPUT_SPENT` first and this assertion would
+        // pass for the wrong reason.
+        cash.burn(account, CASH_IN);
         cash.approve(address(settlement), 1);
         vm.expectRevert(ApproveAndTradeGyldBondHook.ALLOWANCE_NOT_CLEARED.selector);
         hook.postExecute(address(0), account, data);

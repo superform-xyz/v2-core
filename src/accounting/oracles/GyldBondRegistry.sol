@@ -41,6 +41,8 @@ contract GyldBondRegistry is AccessControl {
     error INVALID_BOUNDS();
     /// @notice F4: clearing an override and recording a total loss are different actions
     error RECOVERY_NOT_SET();
+    /// @notice F1: a trade-floor tolerance above 100%
+    error INVALID_BPS();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -50,6 +52,15 @@ contract GyldBondRegistry is AccessControl {
 
     /// @notice Delay on changes that alter what a holding is worth
     uint256 public constant DEREGISTER_DELAY = 2 days;
+    /// @notice Basis-point denominator for the trade-floor tolerances
+    uint16 public constant BPS_DENOMINATOR = 10_000;
+    /// @notice Hard ceiling on either trade-floor tolerance, in bps (20%).
+    /// @dev F1: stops a fat-fingered or malicious 10_000 — which would make the realised-price floor
+    ///      vacuous — from being settable at all. A tolerance wider than this is not a tolerance, and
+    ///      widening past it has to be a deliberate contract change rather than one ops transaction.
+    ///      Note 0 is NOT rejected here: it stores as "unconfigured", which `GyldTradePolicy` reports as a
+    ///      named `TRADE_FLOORS_NOT_SET` failure rather than silently applying a default nobody chose.
+    uint16 public constant MAX_TOLERANCE_BPS = 2_000;
 
     /// @notice Upper bound on any configurable age, so a mis-signed configuration cannot authorise a year-old NAV
     uint256 public constant MAX_AGE_CEILING = 30 days;
@@ -92,6 +103,17 @@ contract GyldBondRegistry is AccessControl {
         ///         made executing a zero recovery indistinguishable from clearing the override and
         ///         silently resumed the feed on a defaulted instrument.
         bool recoveryNavSet;
+        /// @notice F1: how far the REALISED entry price may sit above NAV, in bps. Read by
+        ///         `GyldTradePolicy.validateFill` on a BUY and applied to observed balance deltas, so it
+        ///         binds regardless of the `outputMin` the caller put in the header.
+        /// @dev Lives here rather than in the policy's initcode so a tolerance can be recalibrated with one
+        ///      role-gated transaction instead of two fresh CREATE2 hook addresses and a Merkle root re-sign.
+        ///      10_000 makes the floor vacuous; it is permitted but never a default (see `_validateFloors`).
+        uint16 maxEntryPremiumBps;
+        /// @notice F1: how far the REALISED exit price may sit below NAV, in bps. The SELL counterpart of
+        ///         `maxEntryPremiumBps`, applied against the live NAV or, during a credit event, the
+        ///         timelocked `recoveryNav`.
+        uint16 maxExitDiscountBps;
         bool registered;
     }
 
@@ -139,6 +161,8 @@ contract GyldBondRegistry is AccessControl {
     event FeedChanged(address indexed bondToken, address indexed newFeed, uint8 kind);
     event CircuitBreakerBoundsRefreshed(address indexed bondToken);
     event StalenessBoundsUpdated(address indexed bondToken, uint256 maxObservationAge, uint256 maxPublicationAge);
+    /// @notice F1: alert on this — a widening tolerance is the fail-open direction.
+    event TradeFloorsUpdated(address indexed bondToken, uint16 maxEntryPremiumBps, uint16 maxExitDiscountBps);
 
     constructor(address admin) {
         if (admin == address(0)) revert ZERO_ADDRESS();
@@ -175,6 +199,8 @@ contract GyldBondRegistry is AccessControl {
         stored.requiresObservationTime = cfg.requiresObservationTime;
         stored.sequencerUptimeFeed = cfg.sequencerUptimeFeed;
         stored.gracePeriod = cfg.gracePeriod;
+        stored.maxEntryPremiumBps = cfg.maxEntryPremiumBps;
+        stored.maxExitDiscountBps = cfg.maxExitDiscountBps;
         stored.registered = true;
         // Deliberately NOT copied from the caller: an instrument is never born suspended or with a recovery NAV.
         stored.navSuspended = false;
@@ -194,6 +220,7 @@ contract GyldBondRegistry is AccessControl {
             revert ZERO_ADDRESS();
         }
         if (cfg.bondToken == cfg.cashToken) revert IDENTICAL_TOKENS();
+        _validateFloors(cfg.maxEntryPremiumBps, cfg.maxExitDiscountBps);
         if (cfg.navFeedKind > FEED_KIND_GYLD_NATIVE) revert INVALID_FEED_KIND();
         if (cfg.navIsUsdDenominated && cfg.cashFeed == address(0)) revert CASH_FEED_REQUIRED();
         // An instrument that requires observation time cannot be served by a feed that cannot express it.
@@ -229,6 +256,41 @@ contract GyldBondRegistry is AccessControl {
         _instruments[bondToken].maxObservationAge = maxObservationAge;
         _instruments[bondToken].maxPublicationAge = maxPublicationAge;
         emit StalenessBoundsUpdated(bondToken, maxObservationAge, maxPublicationAge);
+    }
+
+    /// @notice Sets how far a REALISED trade price may deviate from NAV, in bps, per direction
+    /// @dev F1: these bound `GyldTradePolicy.validateFill`, which measures observed balance deltas, so they
+    ///      cap value leakage per trade even when the caller's header `outputMin` is permissive.
+    /// @dev NOT timelocked, matching `setStalenessBounds` above: both are risk tolerances rather than
+    ///      valuations, and the two timelocked paths in this contract (`recoveryNav`, feed changes) both
+    ///      change what an instrument is WORTH. Loosening is the fail-open direction and is deliberately
+    ///      left as a single role-gated transaction so an incident can be responded to at incident speed —
+    ///      alert on `TradeFloorsUpdated` and treat a widening as an event needing a reason.
+    /// @param bondToken The registered instrument
+    /// @param maxEntryPremiumBps BUY tolerance; 10_000 disables the floor entirely
+    /// @param maxExitDiscountBps SELL tolerance; 10_000 disables the floor entirely
+    function setTradeFloors(
+        address bondToken,
+        uint16 maxEntryPremiumBps,
+        uint16 maxExitDiscountBps
+    )
+        external
+        onlyRole(INSTRUMENT_MANAGER_ROLE)
+    {
+        _requireRegistered(bondToken);
+        _validateFloors(maxEntryPremiumBps, maxExitDiscountBps);
+        _instruments[bondToken].maxEntryPremiumBps = maxEntryPremiumBps;
+        _instruments[bondToken].maxExitDiscountBps = maxExitDiscountBps;
+        emit TradeFloorsUpdated(bondToken, maxEntryPremiumBps, maxExitDiscountBps);
+    }
+
+    /// @dev Rejected rather than clamped, so a mis-set value is visible instead of silently narrowed.
+    ///      The ceiling is `MAX_TOLERANCE_BPS`, not 100%: a floor computed from a 100% tolerance is
+    ///      vacuous, and allowing it would let one ops transaction disable the F1 price protection.
+    function _validateFloors(uint16 maxEntryPremiumBps, uint16 maxExitDiscountBps) private pure {
+        if (maxEntryPremiumBps > MAX_TOLERANCE_BPS || maxExitDiscountBps > MAX_TOLERANCE_BPS) {
+            revert INVALID_BPS();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

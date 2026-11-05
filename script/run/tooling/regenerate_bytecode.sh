@@ -336,6 +336,7 @@ SUPERVAULT_CAP_BRIDGE_HOOK_CONTRACTS=(
 GYLD_CONTRACTS=(
     "GyldBondRegistry"
     "GyldBondYieldSourceOracle"
+    "GyldTradePolicy"
     "GyldTradeGuardHook"
     "ApproveAndTradeGyldBondHook"
 )

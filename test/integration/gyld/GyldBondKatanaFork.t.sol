@@ -24,6 +24,9 @@ import { MockGyldSettlement } from "../../mocks/gyld/MockGyldSettlement.sol";
 import { MockGyldNavFeed } from "../../mocks/gyld/MockGyldNavFeed.sol";
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
 import { ConstantsOtherHooks } from "../../../script/utils/ConstantsOtherHooks.sol";
+import { IGyldTradePolicy } from "../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { GyldTradePolicy } from "../../../src/accounting/oracles/GyldTradePolicy.sol";
+import { MockSuperVaultStrategyState } from "../../../test/mocks/gyld/MockSuperVaultStrategyState.sol";
 
 /// @dev `ConstantsOtherHooks` and the test `Constants` both declare several names, so the production
 ///      values are read through this wrapper instead of by inheritance. Same approach as
@@ -99,6 +102,9 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
     uint256 internal constant LEAF_PUB_AGE = 1 days;
 
     receive() external payable { }
+    GyldTradePolicy internal tradePolicy;
+    MockSuperVaultStrategyState internal aggregator;
+
 
     function setUp() public {
         string memory rpc = envOr("KATANA_RPC_URL", "https://rpc.katana.network");
@@ -116,12 +122,20 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         registry = new GyldBondRegistry(admin);
         oracle = new GyldBondYieldSourceOracle(address(new SuperLedgerConfiguration()), address(registry));
+        aggregator = new MockSuperVaultStrategyState();
+        // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
+        // configuration that cannot ship, since a paused strategy could still trade.
+        tradePolicy =
+            new GyldTradePolicy(address(registry), address(oracle), address(aggregator), 1 days);
 
         GyldBondRegistry.InstrumentConfig memory cfg;
         cfg.bondToken = address(bond);
         cfg.navFeed = address(navFeed);
         cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
         cfg.cashToken = VB_USDC;
+        // F1: a direction with a zero tolerance is reported as unconfigured, not defaulted.
+        cfg.maxEntryPremiumBps = 200;
+        cfg.maxExitDiscountBps = 200;
         cfg.navIsUsdDenominated = true; // the NAV feed quotes USD, so it MUST go through the cash feed
         cfg.cashFeed = USDC_USD_FEED;
         cfg.requiresObservationTime = true;
@@ -133,11 +147,14 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         registry.registerInstrument(cfg);
 
         guardHook = new GyldTradeGuardHook(address(oracle));
-        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP);
-        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP);
+        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
 
         instance = makeAccountInstance(keccak256("gyld-katana-strategy"));
         strategy = instance.account;
+        // The policy fails closed for an address the aggregator does not know, so the
+        // strategy has to exist there before any trade is attempted.
+        aggregator.register(strategy);
         superExecutor = ISuperExecutor(new SuperExecutor(address(new SuperLedgerConfiguration())));
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
@@ -391,6 +408,9 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         cfg.navFeed = address(clFeed);
         cfg.navFeedKind = registry.FEED_KIND_CHAINLINK();
         cfg.cashToken = VB_USDC;
+        // F1: a direction with a zero tolerance is reported as unconfigured, not defaulted.
+        cfg.maxEntryPremiumBps = 200;
+        cfg.maxExitDiscountBps = 200;
         cfg.navIsUsdDenominated = true;
         cfg.cashFeed = USDC_USD_FEED;
         cfg.maxObservationAge = 7 days;
@@ -471,6 +491,9 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         cfg.navFeed = address(clFeed);
         cfg.navFeedKind = registry.FEED_KIND_CHAINLINK();
         cfg.cashToken = VB_USDC;
+        // F1: a direction with a zero tolerance is reported as unconfigured, not defaulted.
+        cfg.maxEntryPremiumBps = 200;
+        cfg.maxExitDiscountBps = 200;
         cfg.maxObservationAge = 7 days;
         cfg.maxPublicationAge = 7 days;
         vm.prank(admin);
