@@ -145,7 +145,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -276,7 +276,8 @@
         "UniV3CLPYieldSourceOracle": "0xb09F2ba9777f7b4e8B861d27e7FD6aD563ee579e",
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f"
       }
     },
     "Avalanche": {
@@ -399,7 +400,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -563,7 +564,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -734,7 +735,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -913,7 +914,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -1035,7 +1036,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -1177,7 +1178,7 @@
         "SuperLedgerConfiguration": "0x102146454720de58Ee1331F7a91cdCC1F0c346E0",
         "SuperNativePaymaster": "0x7f6C76A25B22832096909941A93f3e17d73A1471",
         "SuperSenderCreator": "0xEe885bD357B603cdC18239b8036e2510Ed2d1E35",
-        "SuperSponsorshipPaymaster": "0x40491756bC208e0dfC10e84264B1f00473ff1721",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f",
         "SuperValidator": "0x5C563Ba4881e3c2710BABe76282895EfE5C8247d",
         "SuperValidatorV2": "0x4E44467EF4bdBe3fc768708FDbc1f6267f4FF916",
         "SuperVaultYieldSourceOracle": "0x2339E250Cc72694BFea62C594B267270d728fD2b",
@@ -1289,7 +1290,8 @@
         "UniV3CLPYieldSourceOracle": "0xb09F2ba9777f7b4e8B861d27e7FD6aD563ee579e",
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f"
       }
     },
     "RH": {
@@ -1424,7 +1426,8 @@
         "UniV3CLPYieldSourceOracle": "0xb09F2ba9777f7b4e8B861d27e7FD6aD563ee579e",
         "Withdraw7540VaultHook": "0x1c1dA1DdE4fD3f814DF4ec4fdf31CB19D2519a3e",
         "WithdrawWithId7540VaultHook": "0x3AeD3FA564dF8cDF336d5736f473971e5e2E4cFD",
-        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F"
+        "YoYieldSourceOracle": "0x509223CE467365432C5211f51AdF71831B253d7F",
+        "SuperSponsorshipPaymaster": "0x5A7048BF3F78F4Cb58f466Abff755E776dDa2b5f"
       }
     },
     "Stable": {
@@ -1512,5 +1515,5 @@
       "vnet_id": ""
     }
   },
-  "updated_at": "2026-10-28T10:56:44Z"
+  "updated_at": "2026-11-05T17:45:52Z"
 }
