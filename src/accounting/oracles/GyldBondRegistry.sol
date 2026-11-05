@@ -121,6 +121,15 @@ contract GyldBondRegistry is AccessControl {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Max age of the SuperVault aggregator's price-per-share observation a trade may rely on.
+    /// @dev F1: REGISTRY-LEVEL, not per-instrument, because PPS freshness is a property of the STRATEGY
+    ///      rather than of any one bond. Lives here rather than in `GyldTradePolicy`'s initcode for the same
+    ///      reason the trade floors do: retuning a tolerance should be one role-gated transaction, not two
+    ///      fresh CREATE2 hook addresses plus a Merkle root re-sign.
+    /// @dev ZERO MEANS UNCONFIGURED, NOT DISABLED. The policy refuses to trade on a chain that has an
+    ///      aggregator while this is unset, rather than silently skipping the age check.
+    uint256 public maxPpsAge;
+
     mapping(address bondToken => InstrumentConfig config) private _instruments;
     mapping(address bondToken => uint256 executeAt) public pendingDeregistration;
     mapping(address bondToken => uint256 executeAt) public pendingRecoveryNavAt;
@@ -163,6 +172,8 @@ contract GyldBondRegistry is AccessControl {
     event StalenessBoundsUpdated(address indexed bondToken, uint256 maxObservationAge, uint256 maxPublicationAge);
     /// @notice F1: alert on this — a widening tolerance is the fail-open direction.
     event TradeFloorsUpdated(address indexed bondToken, uint16 maxEntryPremiumBps, uint16 maxExitDiscountBps);
+    /// @notice F1: registry-wide PPS freshness tolerance changed
+    event MaxPpsAgeUpdated(uint256 maxPpsAge);
 
     constructor(address admin) {
         if (admin == address(0)) revert ZERO_ADDRESS();
@@ -256,6 +267,16 @@ contract GyldBondRegistry is AccessControl {
         _instruments[bondToken].maxObservationAge = maxObservationAge;
         _instruments[bondToken].maxPublicationAge = maxPublicationAge;
         emit StalenessBoundsUpdated(bondToken, maxObservationAge, maxPublicationAge);
+    }
+
+    /// @notice Sets the max age of the aggregator's price-per-share observation a trade may rely on
+    /// @dev Mirrors `setStalenessBounds`: a freshness tolerance, role-gated, not timelocked. Bounded by
+    ///      `MAX_AGE_CEILING` so a mis-signed configuration cannot authorise a year-old PPS.
+    /// @param newMaxPpsAge Seconds; 0 stores as UNCONFIGURED and the policy then refuses to trade
+    function setMaxPpsAge(uint256 newMaxPpsAge) external onlyRole(INSTRUMENT_MANAGER_ROLE) {
+        if (newMaxPpsAge > MAX_AGE_CEILING) revert INVALID_STALENESS();
+        maxPpsAge = newMaxPpsAge;
+        emit MaxPpsAgeUpdated(newMaxPpsAge);
     }
 
     /// @notice Sets how far a REALISED trade price may deviate from NAV, in bps, per direction

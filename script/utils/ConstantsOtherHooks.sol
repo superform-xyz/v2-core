@@ -189,6 +189,9 @@ abstract contract ConstantsOtherHooks {
     /// @notice Max age of the aggregator's price-per-share observation the policy will accept.
     /// @dev Deliberately NOT the strategy's own `ppsExpiration`, which the manager sets. 1 day is a
     ///      starting value: tighten once the real PPS publication cadence is known.
+    /// @dev SEEDED POST-DEPLOY via `GyldBondRegistry.setMaxPpsAge`, not a constructor argument — the policy
+    ///      reads it live so retuning it costs one role-gated transaction instead of a hook redeploy. The
+    ///      policy REFUSES to trade while the registry still holds zero.
     uint256 internal constant GYLD_MAX_PPS_AGE = 1 days;
 
     // TWO trade instances per pair, one per direction, and that is MANDATORY rather than preferable.

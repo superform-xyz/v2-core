@@ -7,6 +7,8 @@ import { GyldBondRegistry } from "../../../../src/accounting/oracles/GyldBondReg
 import { GyldBondYieldSourceOracle } from "../../../../src/accounting/oracles/GyldBondYieldSourceOracle.sol";
 import { GyldTradeGuardHook } from "../../../../src/hooks/swappers/gyld/GyldTradeGuardHook.sol";
 import { ApproveAndTradeGyldBondHook } from "../../../../src/hooks/swappers/gyld/ApproveAndTradeGyldBondHook.sol";
+import { GyldTradePolicy } from "../../../../src/accounting/oracles/GyldTradePolicy.sol";
+import { IGyldTradePolicy } from "../../../../src/interfaces/accounting/IGyldTradePolicy.sol";
 
 /// @notice Exposes the deploy script's Gyld path and its configuration so the WIRING can be exercised,
 ///         not a copy of it.
@@ -55,6 +57,10 @@ contract GyldWiringHarness is DeployV2OtherHooks {
     /// @dev The valuation half alone: enabled, no venue, no caps.
     function enableOracleOnly(uint64 chainId) external {
         otherHooksConfiguration.gyldOracleEnabled[chainId] = true;
+    }
+
+    function setAggregator(uint64 chainId, address aggregator_) external {
+        otherHooksConfiguration.superVaultAggregators[chainId] = aggregator_;
     }
 
     function saltFor(string memory key) external view returns (bytes32) {
@@ -443,6 +449,12 @@ contract GyldDeploymentWiringTest is Test {
         ledgerConfig = h.ledgerConfigAddress(ENV_PROD);
         vm.etch(ledgerConfig, hex"600160005260206000f3");
         vm.etch(VENUE, hex"600160005260206000f3");
+        // The deploy refuses a CONFIGURED but codeless aggregator, because a codeless `getPPS` returns
+        // undecodable data and would make every trade revert namelessly. Give the configured addresses
+        // code so these tests exercise the real path rather than that guard.
+        vm.etch(KATANA_AGGREGATOR, hex"600160005260206000f3");
+        vm.etch(address(0xA66), hex"600160005260206000f3");
+        vm.etch(address(0xB77), hex"600160005260206000f3");
     }
 
     /// @dev The venue code check is itself worth pinning: an EOA or a typo'd address would otherwise be
@@ -461,5 +473,153 @@ contract GyldDeploymentWiringTest is Test {
         h.enableFamily(KATANA, VENUE, BOND_CAP, CASH_CAP); // cash slot holds the bond-scaled number
         vm.expectRevert(bytes("GYLD_CAPS_LOOK_SWAPPED: the bond cap must exceed the cash cap"));
         h.deployGyld(KATANA, ENV_PROD);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                  F1 — THE POLICY IS DEPLOYED AND WIRED
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The policy must exist and be bound to the SAME registry and oracle the deploy just made. A
+    ///      policy pointing at a foreign registry would check one instrument list and price against another,
+    ///      and its own constructor rejects that — so this also proves the deploy passes them in the right
+    ///      order.
+    /// @dev Base has no `superVaultAggregators` entry, so it stands in for "a chain without one".
+    uint64 internal constant NO_AGGREGATOR_CHAIN = 8453;
+
+    /// @dev Katana's real SuperVaultAggregator, as `ConfigOtherHooks` sets it.
+    address internal constant KATANA_AGGREGATOR = 0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698;
+
+    function test_DeployPath_PolicyIsBoundToTheDeployedRegistryAndOracle() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertTrue(a.gyldTradePolicy != address(0), "policy deployed");
+        assertTrue(a.gyldTradePolicy.code.length > 0, "policy has code");
+
+        GyldTradePolicy policy = GyldTradePolicy(a.gyldTradePolicy);
+        assertEq(address(policy.REGISTRY()), a.gyldBondRegistry, "same registry");
+        assertEq(address(policy.ORACLE()), a.gyldBondYieldSourceOracle, "same oracle");
+    }
+
+    /// @dev Both trade instances must pin the policy the same deploy produced. If either pinned a stale or
+    ///      zero address, F1 would be reopened at deploy time rather than in the contracts.
+    function test_DeployPath_BothTradeInstancesPinTheDeployedPolicy() public {
+        _etchLedgerConfig();
+        h.enableFamily(KATANA, VENUE, CASH_CAP, BOND_CAP);
+
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertEq(
+            address(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondCashInHook).TRADE_POLICY()),
+            a.gyldTradePolicy,
+            "cash-in pins the policy"
+        );
+        assertEq(
+            address(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondBondInHook).TRADE_POLICY()),
+            a.gyldTradePolicy,
+            "bond-in pins the policy"
+        );
+    }
+
+    /// @dev The sides must be the right way round: cash-in BUYS, bond-in SELLS. Swapping them would let a
+    ///      sell leaf be priced under buy rules, and the mistake would be invisible without this.
+    function test_DeployPath_SidesMatchTheDeployKeys() public {
+        _etchLedgerConfig();
+        h.enableFamily(KATANA, VENUE, CASH_CAP, BOND_CAP);
+
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertEq(
+            uint8(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondCashInHook).SIDE()),
+            uint8(IGyldTradePolicy.TradeSide.BUY),
+            "cash-in is BUY"
+        );
+        assertEq(
+            uint8(ApproveAndTradeGyldBondHook(a.approveAndTradeGyldBondBondInHook).SIDE()),
+            uint8(IGyldTradePolicy.TradeSide.SELL),
+            "bond-in is SELL"
+        );
+    }
+
+    /// @dev The configured aggregator must reach the policy. Zero means a PAUSED strategy could still
+    ///      trade, so a dropped config entry has to be visible.
+    function test_DeployPath_AggregatorReachesThePolicy() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+        address aggregator = address(0xA66);
+        h.setAggregator(KATANA, aggregator);
+
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertEq(
+            address(GyldTradePolicy(a.gyldTradePolicy).AGGREGATOR()), aggregator, "aggregator wired through"
+        );
+    }
+
+    /// @dev An unset aggregator still deploys — a chain with no SuperVault is legitimate — but it must land
+    ///      as zero rather than as something arbitrary. Uses a chain with NO aggregator in
+    ///      `ConfigOtherHooks`, since Katana now has a real one.
+    function test_DeployPath_UnsetAggregatorDeploysAsZero() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(NO_AGGREGATOR_CHAIN);
+
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(NO_AGGREGATOR_CHAIN, ENV_PROD);
+        assertEq(address(GyldTradePolicy(a.gyldTradePolicy).AGGREGATOR()), address(0), "zero, not garbage");
+    }
+
+    /// @dev And the REAL config entry must reach the policy, not just a test-injected one. This is the
+    ///      end-to-end proof that `ConfigOtherHooks.superVaultAggregators[747474]` is actually consumed.
+    function test_DeployPath_KatanaPicksUpTheConfiguredAggregator() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertEq(
+            address(GyldTradePolicy(a.gyldTradePolicy).AGGREGATOR()),
+            KATANA_AGGREGATOR,
+            "Katana's SuperVaultAggregator, from ConfigOtherHooks"
+        );
+    }
+
+    /// @dev The policy is CREATE2-deployed under its own key, so changing the aggregator changes its
+    ///      address — and therefore both trade-hook addresses. This is the cost of pinning it in an
+    ///      immutable and it should be a conscious fact, not a surprise at redeploy time.
+    function test_DeployPath_AggregatorIsPartOfThePolicyAddress() public {
+        uint256 clean = vm.snapshotState();
+
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+        h.setAggregator(KATANA, address(0xA66));
+        address withA = h.deployGyld(KATANA, ENV_PROD).gyldTradePolicy;
+
+        // Same deploy, same salt, different aggregator: a fresh chain state is needed because CREATE2 to an
+        // occupied address would revert rather than return a second address.
+        vm.revertToState(clean);
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+        h.setAggregator(KATANA, address(0xB77));
+        address withB = h.deployGyld(KATANA, ENV_PROD).gyldTradePolicy;
+
+        assertTrue(withA != withB, "aggregator is part of the policy initcode, so part of its address");
+    }
+
+    /// @dev A CONFIGURED but codeless aggregator must be refused at deploy time. It is strictly worse than
+    ///      no aggregator: the policy's registration probe calls `getPPS`, and a codeless address returns
+    ///      empty data that Solidity can neither decode nor catch, so every trade would revert with no
+    ///      reason at all. Zero is a legitimate choice; a typo must not be.
+    function test_Refuses_ConfiguredButCodelessAggregator() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+        h.setAggregator(KATANA, address(0xC0DE1E55)); // deliberately NOT etched
+
+        vm.expectRevert("GYLD_AGGREGATOR_NOT_DEPLOYED");
+        h.deployGyld(KATANA, ENV_PROD);
+    }
+
+    /// @dev The policy is NOT a hook and must not be discovered as one: the manifest generator rglobs
+    ///      `*Hook.sol` under src/hooks/ and the lint fails any discovered file missing from the
+    ///      classification YAML. Pinned here so a later move into src/hooks/ breaks a test rather than CI.
+    function test_PolicyIsNotUnderTheHooksTree() public view {
+        string memory path = "src/accounting/oracles/GyldTradePolicy.sol";
+        assertTrue(vm.isFile(path), "policy lives under src/accounting/oracles");
+        assertFalse(vm.isFile("src/hooks/swappers/gyld/GyldTradePolicy.sol"), "and not under src/hooks");
     }
 }

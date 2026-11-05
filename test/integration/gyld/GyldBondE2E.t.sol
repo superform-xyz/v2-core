@@ -91,7 +91,11 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
         // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
         // configuration that cannot ship, since a paused strategy could still trade.
         tradePolicy =
-            new GyldTradePolicy(address(registry), address(oracle), address(aggregator), 1 days);
+            new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
+        // The policy reads this from the registry and refuses to trade while it is zero, so a
+        // shipping-shaped fixture has to set it.
+        vm.prank(admin);
+        registry.setMaxPpsAge(1 days);
         settlement = new MockGyldSettlement();
 
         GyldBondRegistry.InstrumentConfig memory cfg;

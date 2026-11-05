@@ -764,4 +764,130 @@ contract GyldBondRegistryTest is Test {
         _register(cfg);
         assertEq(registry.isRegistered(address(bond)), valid);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                 F1 — PER-INSTRUMENT REALISED-PRICE FLOORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Floors live here rather than in the policy's initcode so recalibrating a tolerance is one
+    ///      role-gated transaction instead of two fresh CREATE2 hook addresses plus a Merkle root re-sign.
+    function test_TradeFloors_SetAtRegistration() public {
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.maxEntryPremiumBps = 150;
+        cfg.maxExitDiscountBps = 250;
+        _register(cfg);
+
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.maxEntryPremiumBps, 150, "entry stored");
+        assertEq(stored.maxExitDiscountBps, 250, "exit stored");
+    }
+
+    /// @dev Zero stores fine and means "unconfigured". `GyldTradePolicy` reports that as a named
+    ///      `TRADE_FLOORS_NOT_SET` failure rather than applying a default nobody chose.
+    function test_TradeFloors_ZeroIsStorableAndMeansUnconfigured() public {
+        _register(_cfg());
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.maxEntryPremiumBps, 0);
+        assertEq(stored.maxExitDiscountBps, 0);
+    }
+
+    function test_SetTradeFloors_UpdatesBothDirections() public {
+        _register(_cfg());
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), 300, 400);
+
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.maxEntryPremiumBps, 300);
+        assertEq(stored.maxExitDiscountBps, 400);
+    }
+
+    function test_SetTradeFloors_EmitsTheAlertableEvent() public {
+        _register(_cfg());
+        vm.expectEmit(true, false, false, true);
+        emit GyldBondRegistry.TradeFloorsUpdated(address(bond), 300, 400);
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), 300, 400);
+    }
+
+    function test_SetTradeFloors_RevertIf_CallerLacksTheRole() public {
+        _register(_cfg());
+        vm.prank(address(0xBADBAD));
+        vm.expectRevert();
+        registry.setTradeFloors(address(bond), 300, 400);
+    }
+
+    function test_SetTradeFloors_RevertIf_InstrumentIsNotRegistered() public {
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INSTRUMENT_NOT_REGISTERED.selector);
+        registry.setTradeFloors(address(bond), 300, 400);
+    }
+
+    /// @dev THE FAT-FINGER GUARD. A 10_000 tolerance makes the realised-price floor vacuous, i.e. it
+    ///      silently disables the F1 protection, so it must not be settable by one ops transaction at all.
+    function test_SetTradeFloors_RevertIf_ToleranceExceedsTheCeiling() public {
+        _register(_cfg());
+        uint16 ceiling = registry.MAX_TOLERANCE_BPS();
+
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setTradeFloors(address(bond), ceiling + 1, 100);
+
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setTradeFloors(address(bond), 100, ceiling + 1);
+
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setTradeFloors(address(bond), 10_000, 10_000);
+    }
+
+    function test_SetTradeFloors_CeilingItselfIsAccepted() public {
+        _register(_cfg());
+        uint16 ceiling = registry.MAX_TOLERANCE_BPS();
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), ceiling, ceiling);
+        assertEq(registry.getInstrumentConfig(address(bond)).maxEntryPremiumBps, ceiling);
+    }
+
+    /// @dev The ceiling binds at registration too, not only on the setter.
+    function test_Register_RevertIf_FloorsExceedTheCeiling() public {
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.maxEntryPremiumBps = registry.MAX_TOLERANCE_BPS() + 1;
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.registerInstrument(cfg);
+    }
+
+    /// @dev Floors are instrument state, so they do not survive deregistration into a re-registration.
+    function test_TradeFloors_DoNotSurviveDeregistration() public {
+        _register(_cfg());
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), 300, 400);
+
+        vm.prank(admin);
+        registry.proposeDeregisterInstrument(address(bond));
+        vm.warp(block.timestamp + registry.DEREGISTER_DELAY());
+        vm.prank(admin);
+        registry.executeDeregisterInstrument(address(bond));
+
+        _register(_cfg()); // _cfg leaves both at zero
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.maxEntryPremiumBps, 0, "entry did not carry over");
+        assertEq(stored.maxExitDiscountBps, 0, "exit did not carry over");
+    }
+
+    function testFuzz_SetTradeFloors_CeilingIsTheOnlyConstraint(uint16 entryBps, uint16 exitBps) public {
+        _register(_cfg());
+        uint16 ceiling = registry.MAX_TOLERANCE_BPS();
+        bool valid = entryBps <= ceiling && exitBps <= ceiling;
+
+        vm.prank(admin);
+        if (!valid) vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setTradeFloors(address(bond), entryBps, exitBps);
+
+        if (valid) {
+            assertEq(registry.getInstrumentConfig(address(bond)).maxEntryPremiumBps, entryBps);
+            assertEq(registry.getInstrumentConfig(address(bond)).maxExitDiscountBps, exitBps);
+        }
+    }
 }

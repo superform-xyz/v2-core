@@ -1753,6 +1753,13 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // the SuperVault strategy-state source; zero disables the pause/PPS checks, which is why the deploy
         // refuses to ship that silently below.
         address aggregator = otherHooksConfiguration.superVaultAggregators[chainId];
+        // A CONFIGURED but codeless aggregator is worse than none: the policy's registration probe calls
+        // `getPPS`, and a call to a codeless address returns empty data which Solidity cannot decode and
+        // cannot catch, so every trade would revert with NO named reason. Zero is a valid choice; a typo
+        // is not.
+        if (aggregator != address(0)) {
+            require(aggregator.code.length > 0, "GYLD_AGGREGATOR_NOT_DEPLOYED");
+        }
         hookAddresses.gyldTradePolicy = __deployContract(
             GYLD_TRADE_POLICY_KEY,
             chainId,
@@ -1760,10 +1767,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             abi.encodePacked(
                 __getOtherHooksBytecode("GyldTradePolicy", env),
                 abi.encode(
-                    hookAddresses.gyldBondRegistry,
-                    hookAddresses.gyldBondYieldSourceOracle,
-                    aggregator,
-                    GYLD_MAX_PPS_AGE
+                    hookAddresses.gyldBondRegistry, hookAddresses.gyldBondYieldSourceOracle, aggregator
                 )
             )
         );
@@ -1772,6 +1776,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // no SuperVault aggregator at all, and announced loudly either way.
         if (aggregator == address(0) && verbose) {
             console2.log("  WARNING: Gyld policy has NO aggregator; strategy pause and PPS are UNCHECKED");
+        } else if (verbose) {
+            // The policy reads this from the registry and REFUSES to trade while it is zero, so it is a
+            // required post-deploy step rather than a nicety.
+            console2.log("  TODO post-deploy: registry.setMaxPpsAge(GYLD_MAX_PPS_AGE) =", GYLD_MAX_PPS_AGE);
         }
 
         // ---- 4. The two trade instances, one per direction ----

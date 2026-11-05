@@ -563,7 +563,7 @@ contract HookSizingInterfaceTest is Helpers {
         GyldBondYieldSourceOracle gyldOracle =
             new GyldBondYieldSourceOracle(address(this), address(gyldRegistry));
         GyldTradePolicy gyldPolicy =
-            new GyldTradePolicy(address(gyldRegistry), address(gyldOracle), address(0), 0);
+            new GyldTradePolicy(address(gyldRegistry), address(gyldOracle), address(0));
         approveAndTradeGyldBond =
             new ApproveAndTradeGyldBondHook(
                 DUMMY_MORPHO, type(uint256).max, address(gyldPolicy), IGyldTradePolicy.TradeSide.BUY

@@ -124,6 +124,16 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         // To enable the VALUATION half on a chain (registry + oracle + guard, all inert until an
         // instrument is registered):
         //     otherHooksConfiguration.gyldOracleEnabled[KATANA_CHAIN_ID] = true;
+
+        // SuperVaultAggregator — SET, and the one Gyld-adjacent address that IS confirmed. GyldTradePolicy
+        // reads strategy pause and PPS freshness through it; zero would mean a PAUSED strategy could still
+        // trade, so it is wired ahead of the rest rather than left for later.
+        // VERIFIED on Katana mainnet 2026-11-05: 21,772 bytes of code; `isStrategyPaused` and `isPPSStale`
+        // answer for any address (no `validStrategy` upstream); `getPPS` reverts UNKNOWN_STRATEGY
+        // (0x8a525cdd) for a non-strategy, which is precisely the registration probe the policy relies on.
+        // Source: v2-periphery script/output/prod/747474/Katana-latest.json.
+        // Inert until gyldOracleEnabled[747474] is set, because the policy deploys with the oracle half.
+        otherHooksConfiguration.superVaultAggregators[KATANA_CHAIN_ID] = 0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698;
         // VERIFICATION STATUS of the values these mappings would hold, checked 2026-11-02:
         //   gyldOracleEnabled        chain 747474 confirmed live (eth_chainId). Katana is NOT in
         //                            networks-production.sh / networks-staging.sh, so even a targeted run

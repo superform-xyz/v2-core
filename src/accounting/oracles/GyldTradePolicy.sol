@@ -66,6 +66,10 @@ contract GyldTradePolicy is IGyldTradePolicy {
     ///      is a number nobody chose, applied to real value, in the fail-open direction. Call
     ///      `GyldBondRegistry.setTradeFloors` for this instrument.
     error TRADE_FLOORS_NOT_SET();
+    /// @notice The registry has an aggregator wired but no PPS freshness tolerance set.
+    /// @dev Fails CLOSED, like `TRADE_FLOORS_NOT_SET`. Zero means unconfigured rather than "no age check",
+    ///      so forgetting to call `GyldBondRegistry.setMaxPpsAge` cannot silently drop the check.
+    error PPS_AGE_NOT_CONFIGURED();
     /// @notice The realised price breached the instrument's configured tolerance
     error PRICE_OUTSIDE_POLICY(uint256 realised, uint256 floor);
 
@@ -90,11 +94,7 @@ contract GyldTradePolicy is IGyldTradePolicy {
     ///      can still trade.
     ISuperVaultStrategyState public immutable AGGREGATOR;
 
-    /// @notice Max age of the aggregator's PPS observation. 0 disables the age check.
-    /// @dev Deliberately NOT read from the strategy's own `ppsExpiration`, which is manager-settable.
-    uint256 public immutable MAX_PPS_AGE;
-
-    constructor(address registry_, address oracle_, address aggregator_, uint256 maxPpsAge_) {
+    constructor(address registry_, address oracle_, address aggregator_) {
         if (registry_ == address(0) || oracle_ == address(0)) revert ADDRESS_NOT_VALID();
         // A policy wired to an oracle that reads a DIFFERENT registry would check one instrument list and
         // price against another. One comparison closes it at deploy time.
@@ -102,7 +102,6 @@ contract GyldTradePolicy is IGyldTradePolicy {
         REGISTRY = GyldBondRegistry(registry_);
         ORACLE = GyldBondYieldSourceOracle(oracle_);
         AGGREGATOR = ISuperVaultStrategyState(aggregator_);
-        MAX_PPS_AGE = maxPpsAge_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -232,13 +231,15 @@ contract GyldTradePolicy is IGyldTradePolicy {
 
         if (AGGREGATOR.isStrategyPaused(account)) revert STRATEGY_PAUSED();
         if (AGGREGATOR.isPPSStale(account)) revert STALE_PPS();
-        if (MAX_PPS_AGE != 0) {
-            uint256 ts = AGGREGATOR.getLastUpdateTimestamp(account);
-            // Zero or future is WRONG, not merely old. Skipping the subtraction here was a real bug class
-            // in this contract family; do not reintroduce it by comparing ages first.
-            if (ts == 0 || ts > block.timestamp) revert INVALID_PPS_TIMESTAMP();
-            if (block.timestamp - ts > MAX_PPS_AGE) revert PPS_EXPIRED();
-        }
+
+        // Read live from the registry, so retuning this is one role-gated transaction.
+        uint256 maxPpsAge = REGISTRY.maxPpsAge();
+        if (maxPpsAge == 0) revert PPS_AGE_NOT_CONFIGURED();
+        uint256 ts = AGGREGATOR.getLastUpdateTimestamp(account);
+        // Zero or future is WRONG, not merely old. Skipping the subtraction here was a real bug class in
+        // this contract family; do not reintroduce it by comparing ages first.
+        if (ts == 0 || ts > block.timestamp) revert INVALID_PPS_TIMESTAMP();
+        if (block.timestamp - ts > maxPpsAge) revert PPS_EXPIRED();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -353,11 +354,11 @@ contract GyldTradePolicy is IGyldTradePolicy {
         }
         if (AGGREGATOR.isStrategyPaused(account)) return POLICY_CODE_BASE + 10;
         if (AGGREGATOR.isPPSStale(account)) return POLICY_CODE_BASE + 11;
-        if (MAX_PPS_AGE != 0) {
-            uint256 ts = AGGREGATOR.getLastUpdateTimestamp(account);
-            if (ts == 0 || ts > block.timestamp) return POLICY_CODE_BASE + 14;
-            if (block.timestamp - ts > MAX_PPS_AGE) return POLICY_CODE_BASE + 12;
-        }
+        uint256 maxPpsAge = REGISTRY.maxPpsAge();
+        if (maxPpsAge == 0) return POLICY_CODE_BASE + 15;
+        uint256 ts = AGGREGATOR.getLastUpdateTimestamp(account);
+        if (ts == 0 || ts > block.timestamp) return POLICY_CODE_BASE + 14;
+        if (block.timestamp - ts > maxPpsAge) return POLICY_CODE_BASE + 12;
         return 0;
     }
 }

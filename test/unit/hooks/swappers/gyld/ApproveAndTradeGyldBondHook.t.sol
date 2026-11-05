@@ -803,4 +803,89 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
         vm.expectRevert(ApproveAndTradeGyldBondHook.QUOTE_EXPIRED.selector);
         hook.build(address(prevHook), account, data);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                   F1 — THE POLICY IS WIRED AND UNSKIPPABLE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev A nullable policy would recreate exactly the omission hole F1 is about, moved from the root
+    ///      author to the deployer. There is deliberately no no-op policy implementation either.
+    function test_Constructor_RevertIf_PolicyIsZero() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new ApproveAndTradeGyldBondHook(
+            address(settlement), MAX_INPUT, address(0), IGyldTradePolicy.TradeSide.BUY
+        );
+    }
+
+    function test_Constructor_StoresPolicyAndSide() public {
+        assertEq(address(hook.TRADE_POLICY()), address(tradePolicy), "policy pinned");
+        assertEq(uint8(hook.SIDE()), uint8(IGyldTradePolicy.TradeSide.BUY), "side pinned");
+
+        ApproveAndTradeGyldBondHook sellSide = new ApproveAndTradeGyldBondHook(
+            address(settlement), MAX_INPUT, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL
+        );
+        assertEq(uint8(sellSide.SIDE()), uint8(IGyldTradePolicy.TradeSide.SELL), "sell side pinned");
+    }
+
+    /// @dev The side is a constructor argument, so it lands in the initcode and the two directions are
+    ///      DIFFERENT addresses. That is what makes a BUY proof unusable against the SELL instance: a
+    ///      different hook address is a different Merkle leaf.
+    function test_SideChangesTheDeployedAddress() public {
+        bytes memory initcode = abi.encodePacked(
+            vm.getCode("ApproveAndTradeGyldBondHook.sol:ApproveAndTradeGyldBondHook"),
+            abi.encode(address(settlement), MAX_INPUT, address(tradePolicy), uint8(0))
+        );
+        bytes memory initcodeSell = abi.encodePacked(
+            vm.getCode("ApproveAndTradeGyldBondHook.sol:ApproveAndTradeGyldBondHook"),
+            abi.encode(address(settlement), MAX_INPUT, address(tradePolicy), uint8(1))
+        );
+        assertTrue(keccak256(initcode) != keccak256(initcodeSell), "side is part of the initcode");
+    }
+
+    /// @dev `_preExecute` consults the policy. Proven by making the policy refuse and observing the
+    ///      hook's own pre-step fail with the POLICY's error, unwrapped.
+    function test_PreExecute_ConsultsThePolicy() public {
+        tradePolicy.setRejectTrade(true);
+        bytes memory data = _buyData();
+        vm.expectRevert(MockGyldTradePolicy.TRADE_REJECTED.selector);
+        hook.preExecute(address(0), account, data);
+    }
+
+    /// @dev And the refusal happens BEFORE the cap accounting touches transient state, so a refused
+    ///      instrument does not consume the account's per-transaction budget.
+    function test_PreExecute_PolicyRefusalDoesNotConsumeTheCap() public {
+        tradePolicy.setRejectTrade(true);
+        bytes memory data = _buyData();
+        vm.expectRevert(MockGyldTradePolicy.TRADE_REJECTED.selector);
+        hook.preExecute(address(0), account, data);
+
+        // The same account can now trade normally: nothing was recorded against the cap.
+        tradePolicy.setRejectTrade(false);
+        hook.preExecute(address(0), account, data);
+        bond.mint(account, BOND_QUOTE);
+        cash.burn(account, CASH_IN);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), BOND_QUOTE);
+    }
+
+    /// @dev `_postExecute` consults the policy with the realised amounts.
+    function test_PostExecute_ConsultsThePolicy() public {
+        tradePolicy.setRejectFill(true);
+        bytes memory data = _buyData();
+        hook.preExecute(address(0), account, data);
+        bond.mint(account, BOND_QUOTE);
+        cash.burn(account, CASH_IN);
+        vm.expectRevert(MockGyldTradePolicy.FILL_REJECTED.selector);
+        hook.postExecute(address(0), account, data);
+    }
+
+    /// @dev The policy's own error names must reach the caller unwrapped: the review criticised opaque
+    ///      re-mapping, and an operator needs to know WHICH check fired.
+    function test_PolicyErrorsAreNotReWrapped() public {
+        tradePolicy.setRejectTrade(true);
+        bytes memory data = _buyData();
+        // Not ApproveAndTradeGyldBondHook's own error, the policy's.
+        vm.expectRevert(MockGyldTradePolicy.TRADE_REJECTED.selector);
+        hook.preExecute(address(0), account, data);
+    }
 }

@@ -28,7 +28,14 @@
 #     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
 #   That ships the registry, oracle and guard, which are inert until an instrument is registered.
 #   The two trade instances additionally need gyldSettlements[chainId] set to Gyld's venue address,
-#   which does not exist yet. Follow a Gyld deploy with script/TransferGyldBondRegistryRoles.s.sol
+#   which does not exist yet.
+#
+#   REQUIRED POST-DEPLOY, or every trade reverts (GyldTradePolicy fails closed by design):
+#     1. script/ConfigureGyldBondRegistry.s.sol --sig 'runPolicyDefaults(uint256,uint64)'
+#          sets maxPpsAge; the policy reverts PPS_AGE_NOT_CONFIGURED while it is zero
+#     2. ... --sig 'runTradeFloors(uint256,uint64,address,uint16,uint16)' per instrument
+#          sets the realised-price tolerances; the policy reverts TRADE_FLOORS_NOT_SET at zero
+#     3. register each instrument, then script/TransferGyldBondRegistryRoles.s.sol
 #   before registering any instrument, and register the oracle in SuperLedgerConfiguration with
 #   feePercent = 0 (never against FlatFeeLedger).
 #   Note: a targeted family run executes on every configured network; families with chain
@@ -255,6 +262,7 @@ echo -e "${BLUE}Checking Gyld bond contract bytecode availability...${NC}"
 GYLD_CONTRACTS=(
     "GyldBondRegistry"
     "GyldBondYieldSourceOracle"
+    "GyldTradePolicy"
     "GyldTradeGuardHook"
     "ApproveAndTradeGyldBondHook"
 )
