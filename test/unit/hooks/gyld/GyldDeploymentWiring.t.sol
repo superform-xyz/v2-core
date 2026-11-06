@@ -549,9 +549,7 @@ contract GyldDeploymentWiringTest is Test {
         h.setAggregator(KATANA, aggregator);
 
         DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
-        assertEq(
-            address(GyldTradePolicy(a.gyldTradePolicy).AGGREGATOR()), aggregator, "aggregator wired through"
-        );
+        assertEq(address(GyldTradePolicy(a.gyldTradePolicy).AGGREGATOR()), aggregator, "aggregator wired through");
     }
 
     /// @dev An unset aggregator still deploys — a chain with no SuperVault is legitimate — but it must land

@@ -40,16 +40,7 @@ contract MockGyldTradePolicy is IGyldTradePolicy {
     }
 
     /// @dev `view` per the interface, so the call records are written by the harness rather than here.
-    function validateTrade(
-        address,
-        TradeSide,
-        address,
-        address,
-        bytes calldata
-    )
-        external
-        view
-    {
+    function validateTrade(address, TradeSide, address, address, bytes calldata) external view {
         if (rejectTrade) revert TRADE_REJECTED();
     }
 
@@ -59,5 +50,16 @@ contract MockGyldTradePolicy is IGyldTradePolicy {
 
     function previewTrade(address, TradeSide, address, address) external view returns (uint256) {
         return previewCode;
+    }
+
+    /// @notice Settable so a test can simulate the account state moving mid-leg.
+    bytes32 public commitment;
+
+    function setCommitment(bytes32 value) external {
+        commitment = value;
+    }
+
+    function accountStateCommitment(address) external view returns (bytes32) {
+        return commitment;
     }
 }

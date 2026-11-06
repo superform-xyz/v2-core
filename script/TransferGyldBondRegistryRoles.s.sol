@@ -19,11 +19,17 @@ import { console2 } from "forge-std/console2.sol";
 ///      several instant, single-key routes (`setStalenessBounds` loosening, `refreshScales`,
 ///      `setNavSuspended(false)`), and role ADMINISTRATION is not timelocked, so a compromised default admin
 ///      can mint itself a manager key. Transferring to governance is therefore necessary and not sufficient.
-/// @dev AND `GOVERNOR` IS AN EOA, not a multisig. Verified 2026-11-02: the address below has no code on
-///      Base, Arbitrum, BSC or Katana. So this handover moves a mark-moving role from one single key
-///      (DEPLOYER) to another single key. That is the shipped posture of all five Transfer*Roles scripts in
-///      this repo and is an open decision, not a Gyld-local defect. Do not read it as "secured by
-///      governance". See the open findings in .claude/sessions/context_session_gyld_bonds.md.
+/// @dev `SUPER_GOVERNOR_ADDRESS` IS NOW A LIVE MULTISIG ON KATANA, which an earlier version of this note
+///      denied. Re-verified on-chain 2026-11-06 on Katana (747474): the address holds 171 bytes of Safe
+///      proxy code, master copy `0x29fcb43b46531bca003ddc8fcb67ffe91900c762` (Safe 1.4.1), threshold 2 of
+///      3 owners. The stale note read "GOVERNOR IS AN EOA, not a multisig ... no code on Base, Arbitrum,
+///      BSC or Katana" and was written when that was true of this chain; acting on it would have meant
+///      treating a 2-of-3 handover as a single-key one.
+/// @dev Two separate addresses, and only one of them changed. `SUPER_GOVERNOR_ADDRESS` is the Safe above
+///      and is the role recipient. `GOVERNOR` is a DIFFERENT constant and is NOT re-verified here, so do
+///      not carry the finding above across to it. Check the deployment chain before assuming either: the
+///      `code.length > 0` require below is the only thing that actually enforces it, and it covers the
+///      recipient only.
 /// @dev A `DEPLOYER` COMPROMISE BEFORE THIS RUNS IS NOT DETECTABLE HERE. The registry is plain
 ///      `AccessControl`, not `AccessControlEnumerable`, so neither `run` nor `runCheck` can see a third
 ///      party that `DEPLOYER` granted a role to. Verify the holder set off-chain from `RoleGranted` /
@@ -59,8 +65,11 @@ contract TransferGyldBondRegistryRoles is DeployV2Base, ConstantsOtherHooks {
         // THE MERGE-BLOCKER CHECK. `GyldBondRegistry` is plain `AccessControl`: no owner, no recovery, and
         // no second admin. Granting DEFAULT_ADMIN_ROLE to an address with no code and then revoking it from
         // DEPLOYER freezes role administration FOREVER, and every closing `require` below would still pass
-        // because `hasRole` is true for a codeless address. Verified on-chain 2026-11-02:
-        // SUPER_GOVERNOR_ADDRESS returns empty code on Katana (747474), the only chain this family targets.
+        // because `hasRole` is true for a codeless address. Re-verified on-chain 2026-11-06: on Katana
+        // (747474), the only chain this family targets, SUPER_GOVERNOR_ADDRESS now returns 171 bytes of
+        // Safe 1.4.1 proxy code, so this passes there today. KEEP THE CHECK ANYWAY — it is cheap, the
+        // family will extend to other chains, and the Safe is deployed per chain at an address that is
+        // only CREATE2-identical while its deployment parameters are.
         require(superGovernor.code.length > 0, "SUPER_GOVERNOR_NOT_DEPLOYED_ON_THIS_CHAIN");
         // The registry address is a free parameter, so pin it to what the deploy would have produced. A
         // typo'd address otherwise makes the operator believe the handover landed on the real registry.

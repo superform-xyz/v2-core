@@ -11,17 +11,28 @@ import { console2 } from "forge-std/console2.sol";
 /// @notice Sets the two `GyldBondRegistry` tolerances that `GyldTradePolicy` refuses to trade without.
 /// @dev WHY THIS SCRIPT IS NOT OPTIONAL. Both tolerances FAIL CLOSED when unset, by design (F1): an unset
 ///      value is a value nobody chose, so the policy names the gap instead of applying a default.
-///        - `maxPpsAge == 0`                  -> every trade reverts `PPS_AGE_NOT_CONFIGURED`
-///        - a direction's floor bps `== 0`    -> fills in that direction revert `TRADE_FLOORS_NOT_SET`
+///        - `maxPpsAge == 0`, AND an aggregator is wired for the chain -> every trade reverts
+///          `PPS_AGE_NOT_CONFIGURED`. With no aggregator the strategy block is skipped entirely and this
+///          value is never read, so the cliff does not exist there.
+///        - a direction's floor bps `== 0` -> fills in that direction revert `TRADE_FLOORS_NOT_SET`,
+///          EXCEPT under a zero recovery mark, where `validateFill` returns before the floor is reached.
 ///      A Gyld deploy followed by instrument registration but NOT by this script is a configuration where
 ///      no trade can execute. That is the safe failure, but it is still a broken deployment.
-/// @dev ORDER. Run `runPolicyDefaults` once per chain, `runTradeFloors` once per instrument, then
-///      `TransferGyldBondRegistryRoles`. Both setters need `INSTRUMENT_MANAGER_ROLE`, so running them after
-///      the role handover means re-running them as GOVERNOR instead of DEPLOYER.
+/// @dev ORDER, and the earlier version of this note had it impossible. `runTradeFloors` requires the
+///      instrument to be REGISTERED, and `TransferGyldBondRegistryRoles` must run BEFORE any registration
+///      (its own NatSpec explains why). So the only achievable order is:
+///        1. `runPolicyDefaults`            as DEPLOYER  (still holds INSTRUMENT_MANAGER_ROLE)
+///        2. `TransferGyldBondRegistryRoles` as DEPLOYER
+///        3. `registerInstrument`           as GOVERNOR  (set both floors in the config here)
+///        4. `runTradeFloors`               as GOVERNOR  (only if step 3 left a floor at zero)
+///      The runbook in `script/run/deploy/deploy_v2_other_hooks_staging_prod.sh` encodes this; keep the two
+///      in step.
 /// @dev NEITHER SETTER IS TIMELOCKED, matching `setStalenessBounds`: these are risk tolerances, not
 ///      valuations. Widening is the fail-open direction — alert on `MaxPpsAgeUpdated` and
 ///      `TradeFloorsUpdated` and treat a widening as an event that needs a stated reason.
-/// @dev THE FLOOR VALUES ARE A JUDGEMENT CALL AND THE DEFAULTS HERE ARE NOT CALIBRATED. They must absorb
+/// @dev THE FLOOR VALUES ARE A JUDGEMENT CALL AND THIS SCRIPT HAS NO DEFAULTS — both bps are supplied by
+///      whoever types the command, with no reviewed value recorded anywhere in the repo (contrast
+///      `GYLD_MAX_PPS_AGE`, which is a constant with a rationale). They must absorb
 ///      Gyld's real bid/ask plus settlement fees, and Gyld's spread is unknown — the venue ABI itself is
 ///      still unconfirmed. Too tight and every honest trade reverts; too loose and the floor is theatre.
 ///      `GyldBondRegistry.MAX_TOLERANCE_BPS` caps either direction at 20% so a vacuous 100% is unsettable.
@@ -154,6 +165,15 @@ contract ConfigureGyldBondRegistry is DeployV2Base, ConstantsOtherHooks {
                 console2.log("  SELL floor UNSET -> sells revert TRADE_FLOORS_NOT_SET");
             } else {
                 console2.log("  SELL floor bps", cfg.maxExitDiscountBps);
+            }
+            // R4-3: an OPEN exit grace is a live relaxation of the sell floor, so it must be visible here
+            // rather than only in an event from whenever it was opened. Closed is the normal state.
+            if (cfg.emergencyExitMaxPublicationAge == 0) {
+                console2.log("  exit grace    CLOSED (strict: a stale NAV blocks sells)");
+            } else {
+                console2.log("  exit grace OPEN, window s", cfg.emergencyExitMaxPublicationAge);
+                console2.log("    graced SELL floor bps  ", cfg.emergencyExitDiscountBps);
+                console2.log("    ^ close it with setEmergencyExit(bond, 0, 0) once the incident is over");
             }
         }
         console2.log("====== End ======");

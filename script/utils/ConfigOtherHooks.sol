@@ -30,10 +30,16 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         // ahead of the venue, while the trade hooks pin a settlement address that does not exist yet.
         mapping(uint64 chainId => bool enabled) gyldOracleEnabled;
         mapping(uint64 chainId => address gyldSettlement) gyldSettlements;
-    /// @notice SuperVaultAggregator per chain, for `GyldTradePolicy`'s strategy pause / PPS checks.
-    /// @dev Zero means those checks are DISABLED and a paused strategy could still trade, so leave it
-    ///      unset only on a chain with no SuperVault aggregator. The deploy script warns when it is zero.
-    mapping(uint64 chainId => address aggregator) superVaultAggregators;
+        /// @notice SuperVaultAggregator per chain, for `GyldTradePolicy`'s strategy pause / PPS checks.
+        /// @dev Zero means those checks are DISABLED and a paused strategy could still trade, so leave it
+        ///      unset only on a chain with no SuperVault aggregator. The deploy script warns when it is zero.
+        mapping(uint64 chainId => address aggregator) superVaultAggregators;
+    /// @notice STAGING SuperVaultAggregator per chain, kept separate from the production table above.
+    /// @dev `_setOtherHooksConfiguration()` takes no `env`, so one shared table would mean a staging Gyld
+    ///      deploy pinned the PRODUCTION aggregator into the staging policy's immutable — and the
+    ///      `code.length > 0` guard would pass, because the prod aggregator has code. Two tables plus an
+    ///      env-selected read in `_deployGyldHooks` is the structural fix for that.
+    mapping(uint64 chainId => address aggregator) superVaultAggregatorsStaging;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxCashInputAmounts;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxBondInputAmounts;
     }
@@ -133,6 +139,19 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         // (0x8a525cdd) for a non-strategy, which is precisely the registration probe the policy relies on.
         // Source: v2-periphery script/output/prod/747474/Katana-latest.json.
         // Inert until gyldOracleEnabled[747474] is set, because the policy deploys with the oracle half.
+        //
+        // TWO HAZARDS BEFORE ENABLING ANY CHAIN.
+        // 1. THIS TABLE IS SHARED BY PROD AND STAGING. `_setOtherHooksConfiguration()` takes no `env` and
+        //    branches on none; only the CREATE2 salt namespace differs. v2-periphery has no
+        //    script/output/staging/747474, so a STAGING Gyld deploy on Katana would pin this PRODUCTION
+        //    aggregator into the staging policy's immutable — and the `code.length > 0` guard in
+        //    _deployGyldHooks PASSES, because the prod aggregator has code. Nothing catches it. Add an env
+        //    branch or a staging row before deploying Gyld to staging.
+        // 2. CHANGING THIS ADDRESS CHANGES THREE ADDRESSES. It is a constructor arg of GyldTradePolicy,
+        //    which is itself a constructor arg of both trade instances, so a new aggregator means a new
+        //    policy AND two new trade hook addresses — re-registration in SuperGovernor plus a Merkle root
+        //    re-sign. That is the deliberate cost of pinning it rather than resolving it dynamically; note
+        //    SuperVaultStrategy resolves its own aggregator through SUPER_GOVERNOR precisely so it can move.
         otherHooksConfiguration.superVaultAggregators[KATANA_CHAIN_ID] = 0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698;
         // VERIFICATION STATUS of the values these mappings would hold, checked 2026-11-02:
         //   gyldOracleEnabled        chain 747474 confirmed live (eth_chainId). Katana is NOT in

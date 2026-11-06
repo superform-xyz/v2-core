@@ -23,10 +23,14 @@ import {
 /// @notice NONACCOUNTING guard: reverts unless the named Gyld instrument is currently tradable — registered,
 ///         not suspended, priced by its approved feed, and fresh on BOTH the observation and publication clocks.
 ///         Moves no funds, grants no approvals, emits no executions of its own.
-/// @dev WHY THIS IS A SEPARATE HOOK AND NOT A CHECK INSIDE THE TRADE HOOK. Freshness is a property of the ROOT
-///      the curator signs, not of the venue call. Baking it into the trade hook would mean you could not SELL
-///      during a credit event, which is exactly when selling matters most. As a separate leaf it becomes a
-///      root-authoring choice: mandatory in buy roots, omitted or loosened in sell roots.
+/// @dev WHY THIS STILL EXISTS, NOW THAT THE TRADE HOOK CHECKS TRADABILITY ITSELF. It used to be separate
+///      because baking freshness into the trade hook would have blocked selling during a credit event.
+///      That argument is dead: `ApproveAndTradeGyldBondHook` now calls `GyldTradePolicy` from its own
+///      `preExecute`/`postExecute`, and the credit-event exit is handled by the policy's recovery-mark
+///      tier rather than by relaxing freshness. The guard's ONLY remaining job is letting a cautious root
+///      demand STRICTER freshness than the registry's own bounds, because its leaf commits the two ages
+///      while the policy reads them from governance configuration.
+
 /// @dev WHAT THIS HOOK DOES NOT DO, stated plainly because the leaf author relies on it. It checks ONLY the
 ///      instrument named in its OWN calldata: registration, the expected cash denomination, suspension and
 ///      the two freshness clocks. It does NOT check strategy pause or price-per-share staleness. An earlier

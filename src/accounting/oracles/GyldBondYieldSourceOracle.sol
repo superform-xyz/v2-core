@@ -187,6 +187,66 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         status.failureCode = uint8(failure);
     }
 
+    /// @notice R4-3: the feed value WITHOUT the usability verdict applied, for the bounded exit grace.
+    /// @dev NEVER USE THIS TO VALUE A HOLDING, and never treat a non-zero `nav` here as tradable.
+    ///      `previewNav` zeroes `nav` for every non-OK code precisely so a caller cannot accidentally
+    ///      price against an unusable number, and the whole policy depends on that. This exists because
+    ///      `GyldTradePolicy`'s exit grace needs the LAST GOOD value on a leg where staleness is
+    ///      conservative (the SELL floor rises with nav, so a stale reference blocks rather than
+    ///      underprices). Any caller must check `failureCode` and decide deliberately.
+    /// @dev Additive on purpose: changing `previewNav`'s zeroing would alter the meaning of every existing
+    ///      consumer, including the guard hook and the OMS pre-flight.
+    /// @param bondToken The instrument
+    /// @return nav Feed-derived NAV in cash units, NOT zeroed on failure
+    /// @return observedAt Observation time, 0 when the feed cannot express one
+    /// @return publishedAt Publication time
+    /// @return failureCode The verdict the caller MUST still apply
+    function previewNavRaw(address bondToken)
+        external
+        view
+        returns (uint256 nav, uint256 observedAt, uint256 publishedAt, uint8 failureCode)
+    {
+        if (!REGISTRY.isRegistered(bondToken)) return (0, 0, 0, uint8(NavFailure.NOT_REGISTERED));
+        GyldBondRegistry.InstrumentConfig memory cfg = REGISTRY.getInstrumentConfig(bondToken);
+        // Suspension is governance stating the number is unusable, so no feed value leaves here at all —
+        // the exit grace must not be able to reach around an explicit incident switch.
+        if (cfg.navSuspended) return (0, 0, 0, uint8(NavFailure.SUSPENDED));
+        if (cfg.recoveryNavSet) {
+            return (
+                cfg.recoveryNav,
+                block.timestamp,
+                block.timestamp,
+                cfg.recoveryNav == 0 ? uint8(NavFailure.ZERO_OR_NEGATIVE) : uint8(NavFailure.OK)
+            );
+        }
+        // Composed here rather than delegated to `_tryNav`, which zeroes `nav` on a freshness failure
+        // before returning and converts to cash units only AFTER that check — so it can never hand back a
+        // last-good value. The order below is deliberate and must not be rearranged:
+        NavFailure failure = _sequencerStatus(cfg);
+        // 1. A down or grace-period sequencer invalidates every feed beneath it. Never graced.
+        if (failure != NavFailure.OK) return (0, 0, 0, uint8(failure));
+
+        uint256 rawNav;
+        (rawNav, observedAt, publishedAt, failure) = _readNavFeed(cfg);
+        // 2. A feed that cannot be read at all has no last-good value to offer.
+        if (failure != NavFailure.OK) return (0, observedAt, publishedAt, uint8(failure));
+
+        // 3. Record the clock verdict but do NOT return on it — that verdict is the whole point of this
+        //    function, and the caller decides whether its grace covers it.
+        NavFailure freshness = _checkFreshness(cfg, observedAt, publishedAt);
+
+        // 4. Convert REGARDLESS of the clock. Note what this means and why it is right: the bond's LAST
+        //    PUBLISHED nav is expressed at TODAY's cash price. The stale thing is the instrument's
+        //    valuation, not the denomination, so re-denominating at the live cash rate is more accurate
+        //    than carrying a stale cash rate alongside it.
+        (nav, failure) = _toCashUnits(cfg, rawNav);
+        // 5. VALUE failures still outrank the clock: a dead cash feed means no usable number exists.
+        if (failure != NavFailure.OK) return (0, observedAt, publishedAt, uint8(failure));
+        if (nav == 0) return (0, observedAt, publishedAt, uint8(NavFailure.ZERO_OR_NEGATIVE));
+
+        failureCode = uint8(freshness);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           VALUE READS — REVERT ON STALE
     //////////////////////////////////////////////////////////////*/

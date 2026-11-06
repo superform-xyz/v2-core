@@ -62,8 +62,7 @@ contract MockHostileAggregator {
     enum Mode {
         REVERT_EVERYTHING,
         RETURNBOMB_ON_GETPPS,
-        EMPTY_RETURN,
-        OUT_OF_GAS_LOOP
+        OUT_OF_GAS_LOOP // exercised by test_Adversarial_GasBurningAggregatorIsNotContained
     }
 
     Mode public mode;

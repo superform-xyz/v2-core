@@ -1675,9 +1675,15 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     ///      oracle takes the registry and the guard takes the oracle. Each is deployed and its ACTUAL address
     ///      fed to the next, rather than derived with `__computeContractAddress` as the Aave V4 idle hooks
     ///      do, because they ship together here and a derived address would only add a way to drift.
-    /// @dev THE TWO TRADE INSTANCES TAKE ONLY THE VENUE AND THEIR CAP. They read no instrument
-    ///      configuration: tradability is enforced by `GyldTradeGuardHook`, which every Gyld leaf must
-    ///      include. So they are independent of the registry this function deploys.
+    /// @dev THE TWO TRADE INSTANCES TAKE THE VENUE, THEIR CAP, THE POLICY AND A SIDE. They still read no
+    ///      instrument configuration themselves — everything Gyld-specific sits behind `IGyldTradePolicy` —
+    ///      but tradability IS enforced on their own execution path, because each one calls
+    ///      `GyldTradePolicy` from its `preExecute` and `postExecute`. So they depend on the policy this
+    ///      function deploys, which in turn depends on the registry and oracle above it.
+    /// @dev The earlier text here said tradability was enforced by `GyldTradeGuardHook`, "which every Gyld
+    ///      leaf must include". That was review finding F1 and it was false: the strategy authorises each
+    ///      leaf independently, so a leaf could simply omit the guard. The guard is now an OPTIONAL
+    ///      per-leaf freshness tightener.
     /// @dev THE LEDGER CONFIGURATION ADDRESS IS DERIVED, the same way the Aave V4 idle hooks derive their
     ///      registry: `DeployV2Core` deployed it at a CREATE2 address that is identical on every chain
     ///      within an environment. Note the same deliberate asymmetry documented there —
@@ -1752,7 +1758,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // Both trade instances pin this in an immutable, so it must exist before them. The aggregator is
         // the SuperVault strategy-state source; zero disables the pause/PPS checks, which is why the deploy
         // refuses to ship that silently below.
-        address aggregator = otherHooksConfiguration.superVaultAggregators[chainId];
+        // Env-SELECTED, not shared. The config function takes no `env`, so reading one table for both
+        // environments would pin the production aggregator into a staging policy, and the code check below
+        // would pass because that address has code. Staging has no entry today, which is correct: there is
+        // no staging SuperVault deployment on Katana to point at, so a staging Gyld run deploys the policy
+        // with a zero aggregator and warns, rather than silently cross-wiring to prod.
+        address aggregator = env == 0
+            ? otherHooksConfiguration.superVaultAggregators[chainId]
+            : otherHooksConfiguration.superVaultAggregatorsStaging[chainId];
         // A CONFIGURED but codeless aggregator is worse than none: the policy's registration probe calls
         // `getPPS`, and a call to a codeless address returns empty data which Solidity cannot decode and
         // cannot catch, so every trade would revert with NO named reason. Zero is a valid choice; a typo
@@ -1766,9 +1779,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             __getSalt(GYLD_TRADE_POLICY_KEY),
             abi.encodePacked(
                 __getOtherHooksBytecode("GyldTradePolicy", env),
-                abi.encode(
-                    hookAddresses.gyldBondRegistry, hookAddresses.gyldBondYieldSourceOracle, aggregator
-                )
+                abi.encode(hookAddresses.gyldBondRegistry, hookAddresses.gyldBondYieldSourceOracle, aggregator)
             )
         );
         require(hookAddresses.gyldTradePolicy != address(0), "GyldTradePolicy not assigned");

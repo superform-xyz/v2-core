@@ -180,9 +180,14 @@ abstract contract ConstantsOtherHooks {
     ///      categorically forbidden: a bond's coupon accrual is not performance yield. See the oracle's
     ///      NatSpec. Registration is a separate governance step, not part of this deploy.
     string internal constant GYLD_BOND_YIELD_SOURCE_ORACLE_KEY = "GyldBondYieldSourceOracle";
-    /// @notice Refuses a trade unless the named instrument is registered, unsuspended and freshly priced.
-    /// @dev MANDATORY in every Gyld leaf, not optional hardening: `ApproveAndTradeGyldBondHook` gates only on
-    ///      the registry's approved pair, and `isApprovedPair` stays true while an instrument is suspended.
+    /// @notice OPTIONAL per-leaf freshness tightener and OMS diagnostic. Not the tradability gate.
+    /// @dev THIS WAS THE F1 FALSEHOOD. It used to read "MANDATORY in every Gyld leaf, not optional
+    ///      hardening", which was wrong in both halves: the strategy authorises each leaf independently and
+    ///      nothing recorded that a guard had run, so a leaf could omit it entirely or guard one bond while
+    ///      trading another. `ApproveAndTradeGyldBondHook` now reads NO registry at all and enforces
+    ///      tradability by calling `GyldTradePolicy` from its own `preExecute`/`postExecute`, which the
+    ///      executor always runs. The guard's only remaining job is letting a cautious root demand
+    ///      STRICTER freshness than the registry's own bounds.
     string internal constant GYLD_TRADE_GUARD_HOOK_KEY = "GyldTradeGuardHook";
     /// @notice F1: the tradability policy the two trade instances pin in an immutable
     string internal constant GYLD_TRADE_POLICY_KEY = "GyldTradePolicy";
@@ -211,7 +216,9 @@ abstract contract ConstantsOtherHooks {
     /// @dev THIS IS A LOSS BOUND, NOT A FAT-FINGER GUARD, and it is PROVISIONAL pending a position-size
     ///      sign-off. `outputMin` is caller-chosen and is NOT committed into the Merkle leaf, so a
     ///      compromised manager key can accept one wei of output for a full authorised input: the worst case
-    ///      is 100% of this number per transaction, repeatable, since the accumulator is transient and
+    ///      was 100% of this number per transaction before F1. With the realised-price floor it is now the
+    ///      configured entry premium applied to the cap — 16.7% of it at the 2000-bps ceiling — still
+    ///      repeatable, since the accumulator is transient and
     ///      resets at every transaction boundary.
     /// @dev DERIVATION, and why it is not larger. Measured on Katana mainnet 2026-11-02 at block 46,871,544:
     ///      vbUSDC total supply was 5,723,187.41. An earlier draft of this constant was 10,000,000 vbUSDC,
@@ -225,8 +232,17 @@ abstract contract ConstantsOtherHooks {
     ///      MockUSDC for cash, and the bond series tokens' decimals were not readable. If a bond token turns
     ///      out to be 6-decimal, this cap is 1e12 too large and bounds nothing. CONFIRM `decimals()` on the
     ///      real bond token before configuring this.
-    /// @dev Sized to the same 500,000 WHOLE units as the cash cap, so at a near-par NAV the two directions
-    ///      carry a comparable economic bound rather than two unrelated numbers.
+    /// @dev ALSO ASSUMES A NEAR-PAR BOND, WHICH IS LIKEWISE UNVERIFIED, AND THE TWO CAPS ARE THEREFORE NOT
+    ///      ECONOMICALLY COMPARABLE TODAY. An earlier version of this comment claimed they were. They are
+    ///      the same 500,000 WHOLE units, but a whole bond is worth `getPricePerShare(bond)` cash units, not
+    ///      one: this repository's own working assumption is 40-100 cash units per bond (see `NAV_IN_CASH`
+    ///      in `GyldTradePolicy.t.sol`), at which 500,000 bonds is 20M-50M of value against a 500,000 cash
+    ///      cap, i.e. 40-100x MORE exposure on the sell side, not a matching bound.
+    /// @dev SIZING RULE for whoever does the position-size sign-off: pick the cash cap first, then set this
+    ///      to `cashCap * bondScale / nav` using the real `decimals()` and the real NAV, rather than copying
+    ///      the cash figure across. Both numbers are PROVISIONAL until that happens. Note the asymmetry is
+    ///      not symmetric in risk: the sell side is where the strategy's bonds leave, so an oversized bond
+    ///      cap is the more expensive of the two mistakes.
     uint256 internal constant GYLD_MAX_BOND_INPUT_AMOUNT_KATANA = 500_000e18;
 
     address internal constant GYLD_CASH_TOKEN_KATANA = 0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36;

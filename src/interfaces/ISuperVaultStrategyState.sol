@@ -33,3 +33,16 @@ interface ISuperVaultStrategyState {
     /// @dev Returns false for an unregistered strategy — not an error. Check registration first.
     function isPPSStale(address strategy) external view returns (bool isStale);
 }
+
+/// @title ISuperVaultStrategyVault
+/// @author Superform Labs
+/// @notice The single read `GyldTradePolicy` needs from a SuperVault STRATEGY (not the aggregator): which
+///         vault it belongs to, so the vault's share supply can be committed across a trade leg.
+/// @dev SEPARATE INTERFACE because the subject is different. `ISuperVaultStrategyState` above is the
+///      AGGREGATOR's view of a strategy; this is the strategy's own view of itself, and the executing
+///      account IS the strategy on the SuperVault manager path.
+/// @dev VERIFIED: SuperVaultStrategy.getVaultInfo at SuperVaultStrategy.sol:576.
+interface ISuperVaultStrategyVault {
+    /// @notice The vault this strategy belongs to, its asset, and the vault's decimals
+    function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
+}

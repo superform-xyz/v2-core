@@ -25,7 +25,8 @@ import { GyldTradePolicy } from "../../../src/accounting/oracles/GyldTradePolicy
 import { MockSuperVaultStrategyState } from "../../../test/mocks/gyld/MockSuperVaultStrategyState.sol";
 import {
     MockGyldSettlementWithExtraPowers,
-    MockReentrantGyldSettlement
+    MockReentrantGyldSettlement,
+    MockVaultDepositingSettlement
 } from "../../mocks/gyld/GyldAdversarialMocks.sol";
 
 /// @title GyldBondFlowIntegration
@@ -66,7 +67,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     uint256 internal constant LEAF_PUB_AGE = 1 days;
     GyldTradePolicy internal tradePolicy;
     MockSuperVaultStrategyState internal aggregator;
-
+    MockERC20 internal vaultShares;
 
     function setUp() public {
         vm.warp(1_800_000_000);
@@ -81,8 +82,7 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         aggregator = new MockSuperVaultStrategyState();
         // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
         // configuration that cannot ship, since a paused strategy could still trade.
-        tradePolicy =
-            new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
+        tradePolicy = new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
         // The policy reads this from the registry and refuses to trade while it is zero, so a
         // shipping-shaped fixture has to set it.
         vm.prank(admin);
@@ -104,7 +104,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         registry.registerInstrument(cfg);
 
         guardHook = new GyldTradeGuardHook(address(oracle));
-        tradeHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        tradeHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
 
         instance = makeAccountInstance(keccak256("gyld-strategy"));
         strategy = instance.account;
@@ -115,6 +117,18 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
         cash.mint(strategy, 10_000e6);
+        // R4-1: the policy pins the vault's share supply across each leg, and a REGISTERED strategy always
+        // exposes `getVaultInfo` in production — the policy fails closed when it cannot, deliberately.
+        // These fixtures drive a plain ERC-7579 account, so model that one read rather than standing up a
+        // whole SuperVault. Omitting it would test a configuration that cannot exist: a strategy the
+        // aggregator vouches for that has no vault.
+        vaultShares = new MockERC20("Vault Share", "svTEST", 18);
+        vaultShares.mint(address(this), 1_000_000e18);
+        vm.mockCall(
+            strategy,
+            abi.encodeWithSignature("getVaultInfo()"),
+            abi.encode(address(vaultShares), address(cash), uint8(18))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -218,7 +232,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
 
         // ---- SELL back to cash ----
         // A second instance, because the cap is denominated in the input token's raw units.
-        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
+        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL
+        );
         uint256 cashBack = 1020e6;
         bytes memory sellData = _tradeData(
             keccak256("sell-1"), address(bond), address(cash), bondsOut, cashBack, cashBack, block.timestamp + 1 hours
@@ -338,7 +354,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     /// @dev The per-transaction cap bounds a repeated leaf inside ONE batch, which is the only on-chain bound
     ///      on a compromised manager key, because a SuperVault leaf carries no amount.
     function test_RepeatedLeafInOneBatch_IsCappedAtPreExecute() public {
-        ApproveAndTradeGyldBondHook cappedHook = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        ApproveAndTradeGyldBondHook cappedHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), 1500e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
         settlement.setAllowReplay(true); // a venue that does NOT enforce single-use quote ids
 
         bytes memory tradeData = _tradeData(
@@ -423,7 +441,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
         registry.executeRecoveryNav(address(bond));
         aggregator.setLastUpdate(strategy, block.timestamp);
 
-        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
+        ApproveAndTradeGyldBondHook sellHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL
+        );
         cash.mint(address(settlement), 1000e6);
         bytes memory sellData = _tradeData(
             keccak256("sell-na"), address(bond), address(cash), 1000e18, 1000e6, 1000e6, block.timestamp + 1 hours
@@ -463,7 +483,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     ///      containment the finding's severity depends on, so it is pinned at the executor level too.
     function test_Finding_OpaqueCalldataSweep_IsContainedByBatchAtomicity() public {
         MockGyldSettlementWithExtraPowers venue = new MockGyldSettlementWithExtraPowers();
-        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        ApproveAndTradeGyldBondHook powerHook = new ApproveAndTradeGyldBondHook(
+            address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
         address thief = address(0xBAD);
 
         bytes memory hostile = venue.encodeSweep(address(cash), thief, 1000e6);
@@ -554,7 +576,9 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
     ///      makes the hook fail closed, and the executor then rolls the input transfer back.
     function test_Reentrancy_ContextRotation_IsContainedByBatchAtomicity() public {
         MockReentrantGyldSettlement venue = new MockReentrantGyldSettlement();
-        ApproveAndTradeGyldBondHook reHook = new ApproveAndTradeGyldBondHook(address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        ApproveAndTradeGyldBondHook reHook = new ApproveAndTradeGyldBondHook(
+            address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
 
         bytes memory venueCalldata = venue.encodeFill(
             keccak256("reenter"), strategy, address(cash), address(bond), 1000e6, 1000e18, block.timestamp + 1 hours
@@ -596,5 +620,92 @@ contract GyldBondFlowIntegration is Helpers, RhinestoneModuleKit, InternalHelper
 
         assertEq(cash.allowance(strategy, address(settlement)), 0);
         assertEq(cash.balanceOf(strategy), 10_000e6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       R4-1 — THE ATTACK, END TO END THROUGH THE EXECUTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev THE REPRODUCTION, driven through a real ERC-7579 account and SuperExecutor rather than against a
+    ///      settable mock commitment. The venue pulls the full authorised input, hands all but 1 bp of it
+    ///      back while minting itself vault shares — which is what `SuperVault.deposit` does to the two
+    ///      things the hook observes — and delivers dust. Measured `inputSpent` collapses, so the
+    ///      realised-price floor is computed from a near-zero spend and would be trivially satisfied.
+    /// @dev An earlier version of this suite claimed the multi-leg and commitment paths were "covered in
+    ///      the E2E suite". They were not: every integration fixture mocked a CONSTANT commitment, so the
+    ///      comparison was trivially true and a wrong key or a missing check would have been invisible.
+    ///      This test is that gap closed.
+    function test_Fixed_R4_1_MidLegVaultDepositIsRefused() public {
+        MockVaultDepositingSettlement venue = new MockVaultDepositingSettlement(vaultShares);
+
+        ApproveAndTradeGyldBondHook attackHook = new ApproveAndTradeGyldBondHook(
+            address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
+
+        uint256 cashIn = 1000e6;
+        bytes memory venueCalldata = venue.encodeFill(
+            keccak256("r4-1"), strategy, address(cash), address(bond), cashIn, 1000e18, block.timestamp + 1 hours
+        );
+        bytes memory payload = abi.encode(block.timestamp + 1 hours, venueCalldata);
+        bytes memory tradeData =
+            bytes.concat(_layer1(address(cash), address(bond), cashIn, 1000e18, 1, payload.length), payload);
+
+        address[] memory hooks = new address[](1);
+        hooks[0] = address(attackHook);
+        bytes[] memory data = new bytes[](1);
+        data[0] = tradeData;
+
+        uint256 cashBefore = cash.balanceOf(strategy);
+
+        // Walk the real lifecycle: preExecute pins the supply, the venue runs, postExecute compares.
+        vm.prank(strategy);
+        attackHook.preExecute(address(0), strategy, tradeData);
+
+        // What the venue does mid-leg: hands the cash back and mints itself vault shares. Supply moves.
+        cash.mint(strategy, cashIn);
+        vaultShares.mint(address(venue), cashIn);
+        bond.mint(strategy, 1); // dust, as the attack delivers
+
+        vm.prank(strategy);
+        vm.expectRevert(ApproveAndTradeGyldBondHook.ACCOUNT_STATE_CHANGED_DURING_TRADE.selector);
+        attackHook.postExecute(address(0), strategy, tradeData);
+
+        assertEq(cash.balanceOf(strategy), cashBefore + cashIn, "the leg is refused; nothing settles");
+    }
+
+    /// @dev The control: the SAME venue with nothing handed back is an honest (if badly priced) trade, so it
+    ///      must fail on the PRICE, not on the commitment. Without this the test above could pass for the
+    ///      wrong reason — any revert would satisfy it.
+    function test_R4_1_Control_WithoutTheDepositItIsThePriceThatFails() public {
+        MockVaultDepositingSettlement venue = new MockVaultDepositingSettlement(vaultShares);
+        venue.setReturnBps(0); // keep the input, mint no shares: supply never moves
+
+        ApproveAndTradeGyldBondHook ctrlHook = new ApproveAndTradeGyldBondHook(
+            address(venue), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
+
+        uint256 cashIn = 1000e6;
+        bytes memory venueCalldata = venue.encodeFill(
+            keccak256("r4-1-ctrl"), strategy, address(cash), address(bond), cashIn, 1000e18, block.timestamp + 1 hours
+        );
+        bytes memory payload = abi.encode(block.timestamp + 1 hours, venueCalldata);
+        bytes memory tradeData =
+            bytes.concat(_layer1(address(cash), address(bond), cashIn, 1000e18, 1, payload.length), payload);
+
+        vm.prank(strategy);
+        ctrlHook.preExecute(address(0), strategy, tradeData);
+
+        // Same dust outcome, but supply never moved — so it must fail on the PRICE, proving the test above
+        // is not passing for the wrong reason.
+        cash.burn(strategy, cashIn);
+        bond.mint(strategy, 1);
+        // Assert the selector AND both args: a bare expectRevert would also pass on the commitment check,
+        // which is exactly the confusion this control exists to rule out.
+        uint256 navCash = 1e6; // NAV_AT_ENTRY (1.0e8, 8dp feed) in 6dp cash units per whole bond
+        uint256 expectedBond = (cashIn * 1e18) / navCash;
+        uint256 floor_ = (expectedBond * 10_000) / (10_000 + 200);
+        vm.prank(strategy);
+        vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, 1, floor_));
+        ctrlHook.postExecute(address(0), strategy, tradeData);
     }
 }

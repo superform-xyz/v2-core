@@ -41,7 +41,7 @@ contract GyldBondRegistry is AccessControl {
     error INVALID_BOUNDS();
     /// @notice F4: clearing an override and recording a total loss are different actions
     error RECOVERY_NOT_SET();
-    /// @notice F1: a trade-floor tolerance above 100%
+    /// @notice F1: a trade-floor tolerance above `MAX_TOLERANCE_BPS` (20%), not above 100%
     error INVALID_BPS();
 
     /*//////////////////////////////////////////////////////////////
@@ -60,7 +60,7 @@ contract GyldBondRegistry is AccessControl {
     ///      widening past it has to be a deliberate contract change rather than one ops transaction.
     ///      Note 0 is NOT rejected here: it stores as "unconfigured", which `GyldTradePolicy` reports as a
     ///      named `TRADE_FLOORS_NOT_SET` failure rather than silently applying a default nobody chose.
-    uint16 public constant MAX_TOLERANCE_BPS = 2_000;
+    uint16 public constant MAX_TOLERANCE_BPS = 2000;
 
     /// @notice Upper bound on any configurable age, so a mis-signed configuration cannot authorise a year-old NAV
     uint256 public constant MAX_AGE_CEILING = 30 days;
@@ -97,6 +97,20 @@ contract GyldBondRegistry is AccessControl {
         address sequencerUptimeFeed;
         uint256 gracePeriod;
         bool navSuspended;
+        /// @notice Terminal valuation override, in CASH-TOKEN UNITS per one whole bond token.
+        /// @dev NOT feed units. The oracle returns this verbatim where the converted feed value would sit,
+        ///      so a 6-decimal cash token means 40.00 is `40e6`, NOT `40e8`. Entering feed units overstates
+        ///      the mark by `navFeedScale / cashScale` — 100x for 6-decimal cash against an 8-decimal feed.
+        /// @dev AND UNDERSTATING IS THE DANGEROUS DIRECTION. Overstating fails CLOSED: the SELL floor rises
+        ///      and exits revert. Understating lowers the floor proportionally — entering `40e4` for a
+        ///      40-cash-unit mark drops it 100x and lets the whole position exit at 1% of its mark. There is
+        ///      no on-chain check in either direction. A cheap one exists if wanted: require
+        ///      `recoveryNav <= navMaxAnswer * cashScale / navFeedScale` whenever `navMaxAnswer != 0` —
+        ///      noting that form is only right for a NON-USD instrument; a `navIsUsdDenominated` one also
+        ///      divides by the cash/USD price.
+        ///      Nothing on-chain catches it: `navMinAnswer`/`navMaxAnswer` are in FEED units and are applied
+        ///      only inside the feed read, so a recovery mark bypasses the circuit breaker entirely. The
+        ///      2-day timelock plus human review is the only guard.
         uint256 recoveryNav;
         /// @notice F4: whether `recoveryNav` is in force. Separate from the value, so a recovery of ZERO
         ///         (a total loss) is expressible. Previously `recoveryNav != 0` was the enable flag, which
@@ -108,12 +122,37 @@ contract GyldBondRegistry is AccessControl {
         ///         binds regardless of the `outputMin` the caller put in the header.
         /// @dev Lives here rather than in the policy's initcode so a tolerance can be recalibrated with one
         ///      role-gated transaction instead of two fresh CREATE2 hook addresses and a Merkle root re-sign.
-        ///      10_000 makes the floor vacuous; it is permitted but never a default (see `_validateFloors`).
+        ///      Capped at `MAX_TOLERANCE_BPS` (20%). Note 10_000 is NOT symmetric between the legs after
+        ///      R4-2: on the EXIT leg it would disable the floor entirely, while on the ENTRY leg it means
+        ///      `expected / 2`, i.e. a 100% premium cap. Neither is settable. Zero stores as
+        ///      "unconfigured" and the policy fails closed on it.
         uint16 maxEntryPremiumBps;
         /// @notice F1: how far the REALISED exit price may sit below NAV, in bps. The SELL counterpart of
         ///         `maxEntryPremiumBps`, applied against the live NAV or, during a credit event, the
         ///         timelocked `recoveryNav`.
         uint16 maxExitDiscountBps;
+        /// @notice R4-3: how stale the NAV publication may be and still authorise a SELL, in seconds.
+        /// @dev THE BOUNDED EXIT GRACE. Without it the policy refuses a SELL the moment the feed goes
+        ///      stale, so the only exit is a `recoveryNav` behind a 2-day timelock — i.e. the vault is
+        ///      locked in for two days during exactly the incident it would want out of. That contradicted
+        ///      the stated "sell mode allows emergency unwinding under relaxed freshness rules".
+        /// @dev WHY A STALE REFERENCE IS SAFE ON THIS LEG, AND ONLY THIS LEG. The SELL floor is
+        ///      `inputSpent * nav / bondScale * (1 - discount)`, so it RISES with `nav`. A stale, too-high
+        ///      NAV therefore makes the vault demand MORE cash and the trade fail — it cannot underprice
+        ///      the exit. The knob that can actually authorise a bad exit is the DISCOUNT below, which is
+        ///      why that one is governance-set in advance and hard-capped, while this one only widens a
+        ///      time window. Never mirror this onto the BUY leg: there the same staleness is dangerous.
+        /// @dev Zero means the grace is OFF and the policy keeps failing closed. Capped at
+        ///      `MAX_AGE_CEILING`. Deliberately NOT accepted at registration, like `navSuspended` and
+        ///      `recoveryNav`: an incident control must be a separate, visible, role-gated act.
+        uint32 emergencyExitMaxPublicationAge;
+        /// @notice R4-3: the wider exit discount that applies ONLY while trading inside the grace window.
+        /// @dev Separate from `maxExitDiscountBps` on purpose. Reusing the normal discount would mean the
+        ///      degraded exit is priced as tightly as a healthy one and would mostly fail to fill, which is
+        ///      the same lock-in by another route. Capped at `MAX_TOLERANCE_BPS` like the others, and it
+        ///      must be at least `maxExitDiscountBps` — a grace NARROWER than normal is incoherent.
+        /// @dev Zero means OFF. Both fields are set together or not at all.
+        uint16 emergencyExitDiscountBps;
         bool registered;
     }
 
@@ -174,6 +213,8 @@ contract GyldBondRegistry is AccessControl {
     event TradeFloorsUpdated(address indexed bondToken, uint16 maxEntryPremiumBps, uint16 maxExitDiscountBps);
     /// @notice F1: registry-wide PPS freshness tolerance changed
     event MaxPpsAgeUpdated(uint256 maxPpsAge);
+    /// @notice R4-3: the bounded exit grace was opened, retuned or closed for one instrument
+    event EmergencyExitUpdated(address indexed bondToken, uint32 maxPublicationAge, uint16 discountBps);
 
     constructor(address admin) {
         if (admin == address(0)) revert ZERO_ADDRESS();
@@ -213,10 +254,14 @@ contract GyldBondRegistry is AccessControl {
         stored.maxEntryPremiumBps = cfg.maxEntryPremiumBps;
         stored.maxExitDiscountBps = cfg.maxExitDiscountBps;
         stored.registered = true;
-        // Deliberately NOT copied from the caller: an instrument is never born suspended or with a recovery NAV.
+        // Deliberately NOT copied from the caller: an instrument is never born suspended, with a recovery
+        // NAV, or with an exit grace already open. All three are incident controls and each has to be a
+        // separate role-gated act so it shows up in the event log on its own.
         stored.navSuspended = false;
         stored.recoveryNav = 0;
         stored.recoveryNavSet = false;
+        stored.emergencyExitMaxPublicationAge = 0;
+        stored.emergencyExitDiscountBps = 0;
 
         _precomputeScales(bondToken);
 
@@ -288,8 +333,8 @@ contract GyldBondRegistry is AccessControl {
     ///      left as a single role-gated transaction so an incident can be responded to at incident speed —
     ///      alert on `TradeFloorsUpdated` and treat a widening as an event needing a reason.
     /// @param bondToken The registered instrument
-    /// @param maxEntryPremiumBps BUY tolerance; 10_000 disables the floor entirely
-    /// @param maxExitDiscountBps SELL tolerance; 10_000 disables the floor entirely
+    /// @param maxEntryPremiumBps BUY tolerance, 1..MAX_TOLERANCE_BPS; 0 stores as unconfigured
+    /// @param maxExitDiscountBps SELL tolerance, 1..MAX_TOLERANCE_BPS; 0 stores as unconfigured
     function setTradeFloors(
         address bondToken,
         uint16 maxEntryPremiumBps,
@@ -299,10 +344,52 @@ contract GyldBondRegistry is AccessControl {
         onlyRole(INSTRUMENT_MANAGER_ROLE)
     {
         _requireRegistered(bondToken);
+        // D7: the DESIGNATED setter must not be able to write "unconfigured". Zero is accepted at
+        // registration (an instrument may legitimately be onboarded before its tolerances are agreed, and
+        // the policy fails closed until they are), but a deliberate call here with zero could only ever
+        // brick that direction, so it is refused rather than stored.
+        if (maxEntryPremiumBps == 0 || maxExitDiscountBps == 0) revert INVALID_BPS();
         _validateFloors(maxEntryPremiumBps, maxExitDiscountBps);
+        // R4-3: raising the NORMAL discount above an OPEN grace discount would invert them, leaving the
+        // degraded exit tighter than the healthy one. Refuse rather than silently re-order; close or
+        // retune the grace first.
+        uint16 graceBps = _instruments[bondToken].emergencyExitDiscountBps;
+        if (graceBps != 0 && maxExitDiscountBps > graceBps) revert INVALID_BPS();
         _instruments[bondToken].maxEntryPremiumBps = maxEntryPremiumBps;
         _instruments[bondToken].maxExitDiscountBps = maxExitDiscountBps;
         emit TradeFloorsUpdated(bondToken, maxEntryPremiumBps, maxExitDiscountBps);
+    }
+
+    /// @notice R4-3: open, retune or close the bounded exit grace for one instrument.
+    /// @dev Pass (0, 0) to CLOSE it. That is the one zero this setter accepts, because closing an incident
+    ///      control must stay possible — unlike `setTradeFloors`, where zero could only ever brick a leg.
+    /// @dev Only widens a TIME window, never lowers the price reference. See the field NatSpec for why a
+    ///      stale NAV cannot underprice this leg; the governed risk is `discountBps`, capped as elsewhere.
+    /// @param bondToken The instrument
+    /// @param maxPublicationAge Seconds of publication staleness a SELL may still price against; 0 = off
+    /// @param discountBps The wider exit discount applying inside the window; 0 = off
+    function setEmergencyExit(
+        address bondToken,
+        uint32 maxPublicationAge,
+        uint16 discountBps
+    )
+        external
+        onlyRole(INSTRUMENT_MANAGER_ROLE)
+    {
+        _requireRegistered(bondToken);
+        // Both or neither. One without the other is a half-configured incident control: a window with no
+        // discount still fails the normal floor, and a discount with no window never applies.
+        if ((maxPublicationAge == 0) != (discountBps == 0)) revert INVALID_BPS();
+        if (maxPublicationAge != 0) {
+            if (maxPublicationAge > MAX_AGE_CEILING) revert INVALID_STALENESS();
+            if (discountBps > MAX_TOLERANCE_BPS) revert INVALID_BPS();
+            // A grace narrower than the normal discount is incoherent — it would make the degraded exit
+            // HARDER to fill than the healthy one.
+            if (discountBps < _instruments[bondToken].maxExitDiscountBps) revert INVALID_BPS();
+        }
+        _instruments[bondToken].emergencyExitMaxPublicationAge = maxPublicationAge;
+        _instruments[bondToken].emergencyExitDiscountBps = discountBps;
+        emit EmergencyExitUpdated(bondToken, maxPublicationAge, discountBps);
     }
 
     /// @dev Rejected rather than clamped, so a mis-set value is visible instead of silently narrowed.

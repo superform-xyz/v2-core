@@ -70,7 +70,33 @@ interface IGyldTradePolicy {
     ///      and it is the only sound place to check the declared side against actual token flow.
     function validateFill(FillArgs calldata args) external view;
 
-    /// @notice Non-reverting pre-flight for the off-chain order manager. Zero means `validateTrade` passes.
+    /// @notice A commitment to the account's vault share supply, for pinning across one trade leg.
+    /// @dev R4-1. `validateFill` compares MEASURED balance deltas, and those can be faked: a mid-leg
+    ///      `SuperVault.deposit` sends the asset straight to the strategy and pays the depositor in shares,
+    ///      so a venue can hand back the cash it just pulled and collapse the measured `inputSpent` to
+    ///      ~zero, or satisfy `received` with its own cash and take it back as shares. The strategy's
+    ///      `nonReentrant` is on `executeHooks`; the vault's is on the vault, so it does not block this.
+    /// @dev Deposits and mints are the only paths that put asset into the strategy AND PAY THE SENDER, and
+    ///      both move share supply. The "and pay the sender" half is load-bearing: `SuperVault.withdraw`
+    ///      and `redeem` accept an arbitrary receiver, so a controller CAN push asset into the strategy
+    ///      without moving supply — but that spends their own `maxWithdraw`, making it an uncompensated
+    ///      donation, and a donation cannot beat the floor (it is arithmetically identical to trading
+    ///      less). Do not relax this invariant to "any inflow"; it is specifically compensated inflow. Burns cannot
+    /// happen mid-leg: `SuperVault.burnShares` is strategy-only and is reached through the `nonReentrant`
+    /// `fulfillRedeemRequests`. So supply is a sound
+    ///      per-leg invariant.
+    /// @return A value that MUST be identical before and after the leg, or `bytes32(0)` when the account
+    ///         has no vault to commit (a plain smart account rather than a SuperVault strategy).
+    function accountStateCommitment(address account) external view returns (bytes32);
+
+    /// @notice Pre-flight for the off-chain order manager. Zero means `validateTrade` would pass.
+    /// @dev NOT UNCONDITIONALLY NON-REVERTING, despite what this said before. An implementation is expected
+    ///      to absorb an unregistered instrument and an unregistered strategy, and this one does. It may
+    ///      still revert when a DEPENDENCY reverts: a NAV, cash or sequencer feed that throws rather than
+    ///      returning a bad value, an aggregator that reverts on the pause/staleness reads, or an
+    ///      aggregator address that has become codeless (a call there succeeds with empty returndata, which
+    ///      Solidity can neither decode nor catch). Callers must tolerate a revert; treat one as "unknown",
+    ///      not as "eligible".
     /// @dev Precedent: `GyldTradeGuardHook.previewTradable`, `MorphoHealthCheckHook.previewHealthFactor`.
     /// @return reasonCode 0 when eligible, otherwise the first failing condition's code
     function previewTrade(

@@ -66,7 +66,10 @@ import {
 ///      are caller-supplied and are NOT committed into the Merkle leaf, so `MIN_OUT_NOT_MET` guards an
 ///      honest manager's mistake. A compromised key is bounded by `MAX_INPUT_AMOUNT` AND, since F1, by
 ///      `TRADE_POLICY.validateFill`: a NAV-derived floor on the REALISED amounts, so setting
-///      `outputMin = 1` no longer lets a manager donate the strategy's holdings.
+///      `outputMin = 1` no longer lets a manager donate the strategy's holdings — with ONE exception that
+///      must not be glossed: under a zero recovery mark (`recoveryNavSet && recoveryNav == 0`) the policy
+///      applies no floor at all by design, and only `outputMin != 0` remains. A governance mark of zero is
+///      therefore still a full-value exit channel on the SELL leg.
 /// @dev TWO DELIBERATE DEVIATIONS FROM THE MAJORITY OF THE SWAP FAMILY, both relevant to whoever builds the
 ///      calldata off-chain. Pinned by `GyldSwapEncodingConformance.t.sol`.
 ///      1. `outputQuote` IS CONSTRAINED. Most swappers treat it as informational and never read it beyond
@@ -121,6 +124,9 @@ contract ApproveAndTradeGyldBondHook is
     bytes32 private constant TX_SPENT_KEY = keccak256("ApproveAndTradeGyldBondHook.txSpent");
     bytes32 private constant SNAPSHOT_KEY = keccak256("ApproveAndTradeGyldBondHook.snapshot");
     bytes32 private constant IN_BALANCE_KEY = keccak256("ApproveAndTradeGyldBondHook.inBalance");
+    /// @dev R4-1: pins the account's vault share supply across the leg, so a mid-leg deposit cannot fake
+    ///      the balance deltas the realised-price floor is computed from.
+    bytes32 private constant ACCOUNT_STATE_KEY = keccak256("ApproveAndTradeGyldBondHook.accountState");
 
     address private constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -150,6 +156,12 @@ contract ApproveAndTradeGyldBondHook is
     /// @notice F1: the input balance GREW across the leg, so the over-spend comparison is meaningless.
     ///         Previously this silently skipped the check instead of failing.
     error INPUT_BALANCE_INCREASED();
+    /// @notice R4-1: the account's vault share supply moved during the leg, so someone deposited or minted
+    ///         mid-trade and the measured balance deltas no longer describe only this trade.
+    /// @dev This is the control that makes the realised-price floor trustworthy. Without it a venue could
+    ///      return the cash it had just pulled via `SuperVault.deposit` — crediting the strategy and paying
+    ///      itself in shares — collapsing the measured `inputSpent` to dust and making the floor vacuous.
+    error ACCOUNT_STATE_CHANGED_DURING_TRADE();
 
     constructor(
         address gyldSettlement_,
@@ -397,6 +409,10 @@ contract ApproveAndTradeGyldBondHook is
         // omitted. First, so a non-tradable instrument burns the least gas and never touches transient state.
         TRADE_POLICY.validateTrade(account, SIDE, inputToken, outputToken, data);
 
+        // R4-1: pin the account's vault share supply BEFORE any allowance exists, so the comparison in
+        // `_postExecute` brackets the whole venue interaction.
+        _setAccountState(account, TRADE_POLICY.accountStateCommitment(account));
+
         // Per-transaction cap on the running sum, checked before any approval is granted.
         uint256 spent = _getTxSpent(account) + BytesLib.toUint256(data, SwapCalldataLayout.INPUT_AMOUNT_OFFSET);
         if (spent > MAX_INPUT_AMOUNT) revert INPUT_EXCEEDS_CAP();
@@ -413,6 +429,8 @@ contract ApproveAndTradeGyldBondHook is
         // Refuse to compare against a context that never took a snapshot.
         if (!_getSnapshotTaken(account)) revert SNAPSHOT_NOT_TAKEN();
         _setSnapshotTaken(account, false);
+
+        _requireAccountStateUnchanged(account);
 
         address inputToken = BytesLib.toAddress(data, SwapCalldataLayout.INPUT_TOKEN_OFFSET);
         address outputToken = BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET);
@@ -523,6 +541,36 @@ contract ApproveAndTradeGyldBondHook is
 
     function _setSnapshotTaken(address account, bool value) private {
         bytes32 key = _snapshotKey(account);
+        assembly ("memory-safe") {
+            tstore(key, value)
+        }
+    }
+
+    /// @dev R4-1. Called FIRST in `_postExecute`, before any measured delta is trusted: a mid-leg deposit
+    ///      or mint moves the vault's share supply, and those are the only paths that put asset into the
+    ///      strategy while paying the sender, so a changed supply means the balances describe more than
+    ///      this trade. Split into its own function only to stay under the complexity limit.
+    function _requireAccountStateUnchanged(address account) private {
+        if (TRADE_POLICY.accountStateCommitment(account) != _getAccountState(account)) {
+            revert ACCOUNT_STATE_CHANGED_DURING_TRADE();
+        }
+        _setAccountState(account, bytes32(0));
+    }
+
+    /// @dev Keyed by `executionNonce` like the snapshot keys, so one leg can never read another's pin.
+    function _accountStateKey(address account) private view returns (bytes32) {
+        return keccak256(abi.encode(ACCOUNT_STATE_KEY, account, executionNonce));
+    }
+
+    function _getAccountState(address account) private view returns (bytes32 value) {
+        bytes32 key = _accountStateKey(account);
+        assembly ("memory-safe") {
+            value := tload(key)
+        }
+    }
+
+    function _setAccountState(address account, bytes32 value) private {
+        bytes32 key = _accountStateKey(account);
         assembly ("memory-safe") {
             tstore(key, value)
         }

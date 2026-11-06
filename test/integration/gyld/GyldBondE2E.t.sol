@@ -75,7 +75,7 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
     receive() external payable { }
     GyldTradePolicy internal tradePolicy;
     MockSuperVaultStrategyState internal aggregator;
-
+    MockERC20 internal vaultShares;
 
     function setUp() public virtual {
         vm.warp(1_800_000_000);
@@ -90,8 +90,7 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
         aggregator = new MockSuperVaultStrategyState();
         // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
         // configuration that cannot ship, since a paused strategy could still trade.
-        tradePolicy =
-            new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
+        tradePolicy = new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
         // The policy reads this from the registry and refuses to trade while it is zero, so a
         // shipping-shaped fixture has to set it.
         vm.prank(admin);
@@ -112,8 +111,12 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
         registry.registerInstrument(cfg);
 
         guard = new GyldTradeGuardHook(address(oracle));
-        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
-        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
+        buyHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
+        sellHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL
+        );
 
         instance = makeAccountInstance(keccak256("gyld-e2e-strategy"));
         strategy = instance.account;
@@ -124,6 +127,18 @@ abstract contract GyldBondE2EBase is Helpers, RhinestoneModuleKit, InternalHelpe
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
         cash.mint(strategy, 10_000e6);
+        // R4-1: the policy pins the vault's share supply across each leg, and a REGISTERED strategy always
+        // exposes `getVaultInfo` in production — the policy fails closed when it cannot, deliberately.
+        // These fixtures drive a plain ERC-7579 account, so model that one read rather than standing up a
+        // whole SuperVault. Omitting it would test a configuration that cannot exist: a strategy the
+        // aggregator vouches for that has no vault.
+        vaultShares = new MockERC20("Vault Share", "svTEST", 18);
+        vaultShares.mint(address(this), 1_000_000e18);
+        vm.mockCall(
+            strategy,
+            abi.encodeWithSignature("getVaultInfo()"),
+            abi.encode(address(vaultShares), address(cash), uint8(18))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -407,7 +422,9 @@ contract GyldBondE2E is GyldBondE2EBase {
     /// @dev Two buy legs in ONE batch against a cap that fits only one. The second must be refused at its
     ///      own `preExecute`, before any approval, and atomicity must undo the first.
     function test_E2E_CapAccumulatesWithinOneBatch() public {
-        ApproveAndTradeGyldBondHook capped = new ApproveAndTradeGyldBondHook(address(settlement), 1500e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        ApproveAndTradeGyldBondHook capped = new ApproveAndTradeGyldBondHook(
+            address(settlement), 1500e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
         settlement.setAllowReplay(true); // a venue that does not enforce single-use ids
 
         bytes memory leaf = _tradeLeaf(keccak256("rep"), address(cash), address(bond), 1000e6, 1000e18);
@@ -441,7 +458,9 @@ contract GyldBondCapResetE2E is GyldBondE2EBase {
         super.setUp();
         // A cap that fits exactly one leg, and a venue that will honour a replayed quote id, so only the cap
         // can stop the second attempt.
-        capped = new ApproveAndTradeGyldBondHook(address(settlement), 1000e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        capped = new ApproveAndTradeGyldBondHook(
+            address(settlement), 1000e6, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
         settlement.setAllowReplay(true);
 
         // TRANSACTION ONE: consume the entire cap.

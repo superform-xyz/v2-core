@@ -78,7 +78,6 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
     bytes32 internal constant QUOTE_ID = keccak256("quote-1");
     MockGyldTradePolicy internal tradePolicy;
 
-
     function setUp() public {
         tradePolicy = new MockGyldTradePolicy();
         account = address(this);
@@ -92,7 +91,9 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
 
         registry = new GyldBondRegistry(admin);
         settlement = new MockGyldSettlement();
-        hook = new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
+        hook = new ApproveAndTradeGyldBondHook(
+            address(settlement), MAX_INPUT, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(cash));
 
         _registerBond(address(bond));
@@ -812,9 +813,7 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
     ///      author to the deployer. There is deliberately no no-op policy implementation either.
     function test_Constructor_RevertIf_PolicyIsZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndTradeGyldBondHook(
-            address(settlement), MAX_INPUT, address(0), IGyldTradePolicy.TradeSide.BUY
-        );
+        new ApproveAndTradeGyldBondHook(address(settlement), MAX_INPUT, address(0), IGyldTradePolicy.TradeSide.BUY);
     }
 
     function test_Constructor_StoresPolicyAndSide() public {
@@ -888,4 +887,73 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
         vm.expectRevert(MockGyldTradePolicy.TRADE_REJECTED.selector);
         hook.preExecute(address(0), account, data);
     }
+
+    /*//////////////////////////////////////////////////////////////
+      R4-1 — THE LEG IS PINNED TO THE ACCOUNT'S VAULT SHARE SUPPLY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev THE REPRODUCTION, at hook level. The realised-price floor compares MEASURED balance deltas, and
+    ///      a mid-leg `SuperVault.deposit` can fake them: it sends the asset straight to the strategy and
+    ///      pays the depositor in shares, so a venue can hand back the cash it just pulled and collapse the
+    ///      measured `inputSpent` to dust. The strategy's `nonReentrant` is on `executeHooks`; the vault's
+    ///      is on the vault, so it does not block this.
+    /// @dev The hook now pins the vault's share supply across the leg. Any deposit or mint moves it, and
+    ///      those are the only paths that put asset in while paying the sender.
+    function test_PostExecute_RevertIf_AccountStateChangedMidLeg() public {
+        bytes memory data = _buyData();
+        tradePolicy.setCommitment(keccak256("supply-before"));
+        hook.preExecute(address(0), account, data);
+
+        bond.mint(account, BOND_QUOTE);
+        cash.burn(account, CASH_IN);
+
+        // Someone deposited or minted during the venue call: supply moved.
+        tradePolicy.setCommitment(keccak256("supply-after"));
+        vm.expectRevert(ApproveAndTradeGyldBondHook.ACCOUNT_STATE_CHANGED_DURING_TRADE.selector);
+        hook.postExecute(address(0), account, data);
+    }
+
+    /// @dev And an unchanged supply passes, so the check does not break honest trades.
+    function test_PostExecute_UnchangedAccountStatePasses() public {
+        bytes memory data = _buyData();
+        tradePolicy.setCommitment(keccak256("supply-stable"));
+        hook.preExecute(address(0), account, data);
+        bond.mint(account, BOND_QUOTE);
+        cash.burn(account, CASH_IN);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), BOND_QUOTE);
+    }
+
+    /// @dev A zero commitment (a plain smart account with no vault) must also round-trip, or the 4337 path
+    ///      would be broken by this check.
+    function test_PostExecute_ZeroCommitmentRoundTrips() public {
+        bytes memory data = _buyData();
+        tradePolicy.setCommitment(bytes32(0));
+        hook.preExecute(address(0), account, data);
+        bond.mint(account, BOND_QUOTE);
+        cash.burn(account, CASH_IN);
+        hook.postExecute(address(0), account, data);
+        assertEq(hook.getOutAmount(account), BOND_QUOTE);
+    }
+
+    /// @dev The check must come BEFORE the measured deltas are trusted — otherwise a faked delta could
+    ///      satisfy the floor and only then be rejected, which is the same outcome but hides which control
+    ///      fired. Proven by making BOTH wrong: a changed commitment AND a zero-spend leg. The commitment
+    ///      error must win.
+    function test_PostExecute_AccountStateCheckPrecedesTheDeltaChecks() public {
+        bytes memory data = _buyData();
+        tradePolicy.setCommitment(keccak256("before"));
+        hook.preExecute(address(0), account, data);
+        bond.mint(account, BOND_QUOTE); // no input spent at all -> would be NO_INPUT_SPENT
+        tradePolicy.setCommitment(keccak256("after"));
+
+        vm.expectRevert(ApproveAndTradeGyldBondHook.ACCOUNT_STATE_CHANGED_DURING_TRADE.selector);
+        hook.postExecute(address(0), account, data);
+    }
+
+    /// @dev NOTE ON PER-LEG KEYING, not asserted here. `_accountStateKey` mixes in `executionNonce`
+    ///      exactly like `_snapshotKey` and `_inBalanceKey`, so a second leg cannot read the first's pin.
+    ///      It is not unit-testable: `preExecute` twice without the executor's `resetExecutionState` hits
+    ///      `PRE_EXECUTE_ALREADY_CALLED`. The multi-leg path is covered in the E2E suite, which drives real
+    ///      batches through the executor. Stated rather than silently omitted.
 }

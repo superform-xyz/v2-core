@@ -17,6 +17,71 @@ import {
     MockHostileAggregator
 } from "../../../mocks/gyld/MockSuperVaultStrategyState.sol";
 
+/// @dev A sequencer uptime feed. Index 1 is the answer (0 = up, 1 = down) and index 2 is `startedAt`, the
+///      word this repo's oracles read.
+contract MockSequencerFeed {
+    int256 private _answer;
+    uint256 private _startedAt;
+
+    constructor(int256 answer_, uint256 startedAt_) {
+        _answer = answer_;
+        _startedAt = startedAt_;
+    }
+
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
+        return (1, _answer, _startedAt, _startedAt, 1);
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 8;
+    }
+}
+
+/// @dev A feed that throws rather than returning a bad value — the case that makes `previewTrade` revert.
+contract MockRevertingFeed {
+    error FEED_IS_DOWN();
+
+    function latestRoundData() external pure returns (uint80, int256, uint256, uint256, uint80) {
+        revert FEED_IS_DOWN();
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 8;
+    }
+}
+
+/// @dev Has code, but throws on `getVaultInfo` — the actual `catch` arm, which a codeless address cannot
+///      reach (a call there succeeds with empty data and the decode failure is uncatchable).
+contract MockStrategyRevertingVaultInfo {
+    error NO_VAULT_FOR_YOU();
+
+    function getVaultInfo() external pure returns (address, address, uint8) {
+        revert NO_VAULT_FOR_YOU();
+    }
+}
+
+/// @dev A strategy that answers but names no vault.
+contract MockStrategyWithNoVault {
+    function getVaultInfo() external pure returns (address, address, uint8) {
+        return (address(0), address(0), 18);
+    }
+}
+
+/// @dev Stands in for a SuperVault strategy: the one read the commitment needs, plus a vault token whose
+///      supply a test can move the way a mid-leg deposit would.
+contract MockStrategyWithVault {
+    MockERC20 public vaultToken;
+
+    constructor() {
+        vaultToken = new MockERC20("Vault Share", "svUSDC", 18);
+        vaultToken.mint(address(this), 1_000_000e18);
+    }
+
+    function getVaultInfo() external view returns (address, address, uint8) {
+        return (address(vaultToken), address(0), 18);
+    }
+}
+
 /// @title GyldTradePolicyTest
 /// @notice The F1 closure suite: every decision `GyldTradePolicy` makes, asserted directly.
 /// @dev WHY THIS FILE EXISTS SEPARATELY. The hook suites use a permissive `MockGyldTradePolicy` so their
@@ -190,9 +255,7 @@ contract GyldTradePolicyTest is Test {
     }
 
     function test_PreviewTrade_ZeroWhenEligible() public view {
-        assertEq(
-            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond)), 0, "buy"
-        );
+        assertEq(policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond)), 0, "buy");
         assertEq(
             policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(bond), address(cash)), 0, "sell"
         );
@@ -310,6 +373,195 @@ contract GyldTradePolicyTest is Test {
         _sell();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                    R4-3 — THE BOUNDED EXIT GRACE
+    //////////////////////////////////////////////////////////////*/
+
+    uint32 internal constant GRACE_WINDOW = 12 hours;
+    uint16 internal constant GRACE_BPS = 500; // 5%, wider than EXIT_BPS (2%)
+
+    function _openGrace() internal {
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), GRACE_WINDOW, GRACE_BPS);
+    }
+
+    /// @dev Puts the publication clock past `MAX_PUB_AGE` but inside `GRACE_WINDOW`, and keeps the
+    ///      aggregator PPS fresh so the only degraded thing is the NAV publication.
+    function _stalePublicationInsideGrace() internal {
+        vm.warp(block.timestamp + MAX_PUB_AGE + 1 hours);
+        aggregator.setLastUpdate(strategy, block.timestamp);
+    }
+
+    /// @dev THE POINT OF R4-3. Without the grace this reverts NAV_PUBLICATION_STALE and the only exit is a
+    ///      2-day timelocked recovery mark.
+    function test_R4_3_GracedSellIsAuthorisedOnAStalePublication() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        _sell();
+    }
+
+    /// @dev The grace must NEVER be mirrored onto the buy leg: there a stale reference lowers the bar.
+    function test_R4_3_GraceNeverAppliesToBuy() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        vm.expectRevert(GyldTradePolicy.NAV_PUBLICATION_STALE.selector);
+        _buy();
+    }
+
+    function test_R4_3_RevertIf_OutsideTheGraceWindow() public {
+        _openGrace();
+        vm.warp(block.timestamp + MAX_PUB_AGE + GRACE_WINDOW + 1);
+        aggregator.setLastUpdate(strategy, block.timestamp);
+        vm.expectRevert(GyldTradePolicy.NAV_PUBLICATION_STALE.selector);
+        _sell();
+    }
+
+    /// @dev Unconfigured means the old behaviour, unchanged, with the real feed error rather than a
+    ///      grace-specific one.
+    function test_R4_3_RevertIf_GraceNotConfigured() public {
+        _stalePublicationInsideGrace();
+        vm.expectRevert(GyldTradePolicy.NAV_PUBLICATION_STALE.selector);
+        _sell();
+    }
+
+    /// @dev Suspension is governance saying "do not trust this number". The grace must not reach around it,
+    ///      and the error must stay the one that tells the operator to publish a mark.
+    function test_R4_3_GraceCannotReachAroundSuspension() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        vm.prank(admin);
+        registry.setNavSuspended(address(bond), true);
+        vm.expectRevert(GyldTradePolicy.NO_EXIT_MARK.selector);
+        _sell();
+    }
+
+    /// @dev VALUE failures are never graced: a dead cash feed means we cannot denominate in cash at all,
+    ///      so no amount of time tolerance makes the number usable.
+    function test_R4_3_ValueFailuresAreNotGraced() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        navFeed.setLatestAnswer(0);
+        vm.expectRevert(GyldTradePolicy.INVALID_PRICE.selector);
+        _sell();
+    }
+
+    /// @dev A healthy feed must keep using the TIGHT discount even while a grace is open — the grace is an
+    ///      incident control, not a standing loosening of the floor.
+    function test_R4_3_HealthyFeedStillUsesTheNormalDiscount() public {
+        _openGrace();
+        // 1 bond at NAV_IN_CASH, floored at the NORMAL 2%: 98e6 passes, a 5%-graced 95e6 must not.
+        _fillSell(1e18, (NAV_IN_CASH * (10_000 - EXIT_BPS)) / 10_000);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector,
+                (NAV_IN_CASH * (10_000 - GRACE_BPS)) / 10_000,
+                (NAV_IN_CASH * (10_000 - EXIT_BPS)) / 10_000
+            )
+        );
+        _fillSell(1e18, (NAV_IN_CASH * (10_000 - GRACE_BPS)) / 10_000);
+    }
+
+    /// @dev Inside the window the floor uses the GRACED discount — otherwise the exit the grace authorises
+    ///      would still fail to fill, which is the same lock-in by another route.
+    function test_R4_3_GracedFillUsesTheGracedDiscount() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        uint256 graced = (NAV_IN_CASH * (10_000 - GRACE_BPS)) / 10_000;
+        _fillSell(1e18, graced);
+        // But the graced discount is still a FLOOR, not an absence of one.
+        vm.expectRevert(
+            abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, graced - 1, graced)
+        );
+        _fillSell(1e18, graced - 1);
+    }
+
+    /// @dev The stale reference is the LAST GOOD value, so the graced floor is still anchored to NAV.
+    function test_R4_3_GracedFloorIsAnchoredToTheLastGoodNav() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        uint256 floor_ = (NAV_IN_CASH * (10_000 - GRACE_BPS)) / 10_000;
+        assertEq(floor_, 95e6, "5% below a 100-cash mark");
+        vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, 1, floor_));
+        _fillSell(1e18, 1);
+    }
+
+    /// @dev `previewTrade` must agree with the strict path, or the OMS skips a leg the policy would allow.
+    function test_R4_3_PreviewAgreesWithTheGracedStrictPath() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(bond), address(cash)),
+            0,
+            "graced sell previews as eligible"
+        );
+        assertTrue(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond)) != 0,
+            "buy still previews as ineligible"
+        );
+    }
+
+    /// @dev Closing the grace restores the strict behaviour immediately.
+    function test_R4_3_ClosingTheGraceRestoresStrictness() public {
+        _openGrace();
+        _stalePublicationInsideGrace();
+        _sell();
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), 0, 0);
+        vm.expectRevert(GyldTradePolicy.NAV_PUBLICATION_STALE.selector);
+        _sell();
+    }
+
+    /// @dev `requiresObservationTime` means BOTH clocks must sit inside the window, or the grace would
+    ///      accept a freshly republished quote of an ancient observation — which is precisely the thing
+    ///      the observation clock exists to catch.
+    function test_R4_3_GraceRequiresBothClocksWhenObservationIsRequired() public {
+        MockERC20 b2 = new MockERC20("Native Bond", "NB", 18);
+        MockGyldNavFeed feed = new MockGyldNavFeed(8);
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(feed);
+        cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
+        cfg.requiresObservationTime = true;
+        _register(cfg);
+        // This instrument needs a window WIDER than MAX_OBS_AGE, or no observation can be both stale and
+        // inside the grace, and the test would assert nothing.
+        uint32 wideWindow = uint32(MAX_OBS_AGE + 1 days);
+        vm.prank(admin);
+        registry.setEmergencyExit(address(b2), wideWindow, GRACE_BPS);
+
+        // Published a moment ago, OBSERVED long before the grace window opens.
+        feed.setNav(address(b2), NAV, block.timestamp - wideWindow - 1, block.timestamp);
+        vm.expectRevert(GyldTradePolicy.NAV_OBSERVATION_STALE.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(b2), address(cash), "");
+
+        // Observation stale against the NORMAL bound but inside the grace: now it is authorised.
+        feed.setNav(address(b2), NAV, block.timestamp - MAX_OBS_AGE - 1, block.timestamp);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(b2), address(cash), "");
+    }
+
+    /// @dev Zero or future is WRONG, not merely old, and must not be graced into acceptance.
+    function test_R4_3_GraceRejectsZeroAndFutureClocks() public {
+        MockERC20 b2 = new MockERC20("Native Bond", "NB", 18);
+        MockGyldNavFeed feed = new MockGyldNavFeed(8);
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(feed);
+        cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
+        _register(cfg);
+        vm.prank(admin);
+        registry.setEmergencyExit(address(b2), GRACE_WINDOW, GRACE_BPS);
+
+        // publishedAt == 0 is rejected by the oracle itself as INVALID_TIMESTAMP, which is not a clock
+        // STALENESS code, so the grace never even considers it.
+        feed.setNav(address(b2), NAV, block.timestamp, 0);
+        vm.expectRevert(GyldTradePolicy.INVALID_TIMESTAMP.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(b2), address(cash), "");
+
+        feed.setNav(address(b2), NAV, block.timestamp, block.timestamp + 1);
+        vm.expectRevert(GyldTradePolicy.INVALID_TIMESTAMP.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(b2), address(cash), "");
+    }
+
     function test_ValidateTrade_RevertIf_NavIsZero() public {
         navFeed.setLatestAnswer(0);
         vm.expectRevert(GyldTradePolicy.INVALID_PRICE.selector);
@@ -332,6 +584,10 @@ contract GyldTradePolicyTest is Test {
 
         vm.expectRevert(GyldTradePolicy.CIRCUIT_BREAKER.selector);
         policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2)),
+            uint256(GyldBondYieldSourceOracle.NavFailure.CIRCUIT_BREAKER)
+        );
     }
 
     /// @dev Preview must surface the oracle's own code for a feed failure, unchanged.
@@ -526,25 +782,26 @@ contract GyldTradePolicyTest is Test {
     function test_ValidateFill_SellFloorBoundaryIsExact() public {
         uint256 floor_ = (NAV_IN_CASH * (10_000 - uint256(EXIT_BPS))) / 10_000;
         _fillSell(1e18, floor_);
-        vm.expectRevert(
-            abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, floor_ - 1, floor_)
-        );
+        vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, floor_ - 1, floor_));
         _fillSell(1e18, floor_ - 1);
     }
 
     function test_ValidateFill_BuyFloorBoundaryIsExact() public {
-        uint256 floor_ = (uint256(1e18) * (10_000 - uint256(ENTRY_BPS))) / 10_000;
+        // R4-2: a PREMIUM of p means paying at most nav*(1+p), i.e. receiving at least expected/(1+p).
+        // The old `expected*(1-p)` allowed a 25% premium at a 20% setting.
+        uint256 floor_ = (uint256(1e18) * 10_000) / (10_000 + uint256(ENTRY_BPS));
         _fillBuy(NAV_IN_CASH, floor_);
-        vm.expectRevert(
-            abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, floor_ - 1, floor_)
-        );
+        vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, floor_ - 1, floor_));
         _fillBuy(NAV_IN_CASH, floor_ - 1);
     }
 
     /// @dev C1: this is what stops a compromised manager key setting `outputMin = 1` and donating the
     ///      strategy's bonds. The floor binds on measured amounts regardless of the header.
     function test_ValidateFill_RevertIf_SellIsADonation() public {
-        vm.expectRevert();
+        // This is the designated C1 closure test, so it asserts the selector AND both args: a bare
+        // expectRevert would also pass on TRADE_FLOORS_NOT_SET or INSTRUMENT_NOT_REGISTERED.
+        uint256 floor_ = (NAV_IN_CASH * (10_000 - uint256(EXIT_BPS))) / 10_000;
+        vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, 1, floor_));
         _fillSell(1e18, 1);
     }
 
@@ -568,6 +825,16 @@ contract GyldTradePolicyTest is Test {
     function test_ValidateFill_TotalLossMarkHasNoFloor() public {
         _setRecoveryNav(0);
         _fillSell(1e18, 1);
+    }
+
+    /// @dev But a zero from the FEED is NOT a total loss — `previewNav` zeroes `nav` for every non-OK code,
+    ///      so returning early there would silently drop the floor for that fill. `validateTrade` normally
+    ///      catches it first; this closes the window where the feed degrades between `preExecute` and
+    ///      `postExecute`, which a venue call sits inside.
+    function test_ValidateFill_RevertIf_FeedNavIsZeroWithNoMark() public {
+        navFeed.setLatestAnswer(0); // no recovery mark set
+        vm.expectRevert(GyldTradePolicy.INVALID_PRICE.selector);
+        _fillSell(1e18, NAV_IN_CASH);
     }
 
     /// @dev Unset tolerance fails CLOSED with a NAMED error, per direction, rather than computing a floor
@@ -637,20 +904,24 @@ contract GyldTradePolicyTest is Test {
     ///      invariant rather than leaving it to inspection: for a matrix of states, `previewTrade`
     ///      returning zero must mean `validateTrade` does not revert, and vice versa.
     function test_PreviewAndStrictAgreeAcrossStates() public {
-        for (uint256 i; i < 7; ++i) {
+        for (uint256 i; i < 9; ++i) {
             uint256 snap = vm.snapshotState();
             _applyState(i);
 
             for (uint256 s; s < 2; ++s) {
                 IGyldTradePolicy.TradeSide side =
                     s == 0 ? IGyldTradePolicy.TradeSide.BUY : IGyldTradePolicy.TradeSide.SELL;
-                (address inTok, address outTok) = s == 0
-                    ? (address(cash), address(bond))
-                    : (address(bond), address(cash));
+                (address inTok, address outTok) =
+                    s == 0 ? (address(cash), address(bond)) : (address(bond), address(cash));
 
                 uint256 code = policy.previewTrade(strategy, side, inTok, outTok);
-                bool strictPassed = _strictPasses(side, inTok, outTok);
-                assertEq(code == 0, strictPassed, "preview and strict disagree");
+                (bool strictPassed, bytes memory err) = _strictResult(side, inTok, outTok);
+                assertEq(code == 0, strictPassed, "preview and strict disagree on pass/fail");
+                if (!strictPassed) {
+                    // Order is only observable when two conditions are broken together: the reported code
+                    // and the thrown error must name the SAME condition, not merely both be failures.
+                    assertTrue(_codeMatchesError(code, err), "preview reported a different condition");
+                }
             }
             vm.revertToState(snap);
         }
@@ -672,23 +943,54 @@ contract GyldTradePolicyTest is Test {
             aggregator.setPPSStale(strategy, true);
         } else if (i == 6) {
             aggregator.setLastUpdate(strategy, block.timestamp - MAX_PPS_AGE - 1);
+        } else if (i == 7) {
+            // TWO conditions at once, which is what actually pins the ORDER. Valuation must be reported
+            // before strategy state: with only one condition broken per state, swapping the two blocks in
+            // `previewTrade` left every test green.
+            vm.prank(admin);
+            registry.setNavSuspended(address(bond), true);
+            aggregator.setPaused(strategy, true);
+        } else if (i == 8) {
+            // And the mirror, so neither order can satisfy the matrix by accident.
+            vm.warp(block.timestamp + MAX_PUB_AGE + 1);
+            aggregator.setLastUpdate(strategy, block.timestamp - MAX_PPS_AGE - 1);
         }
     }
 
-    function _strictPasses(
+    function _strictResult(
         IGyldTradePolicy.TradeSide side,
         address inTok,
         address outTok
     )
         internal
         view
-        returns (bool)
+        returns (bool passed, bytes memory err)
     {
         try policy.validateTrade(strategy, side, inTok, outTok, "") {
-            return true;
-        } catch {
-            return false;
+            return (true, "");
+        } catch (bytes memory reason) {
+            return (false, reason);
         }
+    }
+
+    /// @dev Maps a `previewTrade` code onto the selector `validateTrade` throws for the same condition.
+    ///      Only the conditions the matrix can reach are listed; an unmapped pairing fails the assertion
+    ///      rather than passing silently.
+    function _codeMatchesError(uint256 code, bytes memory err) internal view returns (bool) {
+        bytes4 sel = bytes4(err);
+        uint256 base = policy.POLICY_CODE_BASE();
+        if (code == uint256(GyldBondYieldSourceOracle.NavFailure.SUSPENDED)) {
+            return sel == GyldTradePolicy.NAV_SUSPENDED.selector;
+        }
+        if (code == uint256(GyldBondYieldSourceOracle.NavFailure.PUBLICATION_STALE)) {
+            return sel == GyldTradePolicy.NAV_PUBLICATION_STALE.selector;
+        }
+        if (code == base + 3) return sel == GyldTradePolicy.RECOVERY_MARK_SET.selector;
+        if (code == base + 4) return sel == GyldTradePolicy.NO_EXIT_MARK.selector;
+        if (code == base + 10) return sel == GyldTradePolicy.STRATEGY_PAUSED.selector;
+        if (code == base + 11) return sel == GyldTradePolicy.STALE_PPS.selector;
+        if (code == base + 12) return sel == GyldTradePolicy.PPS_EXPIRED.selector;
+        return false;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -700,23 +1002,33 @@ contract GyldTradePolicyTest is Test {
     ///      on the 1/64 of gas the caller retains per EIP-150 and run out. This is the returnbomb class this
     ///      codebase has already been bitten by in the Stargate adapter.
     function test_Adversarial_ReturnbombOnGetPPSIsContained() public {
-        MockHostileAggregator hostile =
-            new MockHostileAggregator(MockHostileAggregator.Mode.RETURNBOMB_ON_GETPPS);
+        MockHostileAggregator hostile = new MockHostileAggregator(MockHostileAggregator.Mode.RETURNBOMB_ON_GETPPS);
         GyldTradePolicy p = new GyldTradePolicy(address(registry), address(oracle), address(hostile));
 
         // Fails CLOSED with the policy's OWN named error, not an out-of-gas, and with a bounded gas budget
         // so the bomb cannot be the thing that kills it.
         vm.expectRevert(GyldTradePolicy.NOT_A_REGISTERED_STRATEGY.selector);
-        p.validateTrade{ gas: 2_000_000 }(
-            strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond), ""
-        );
+        p.validateTrade{ gas: 2_000_000 }(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond), "");
+    }
+
+    /// @dev HONEST LIMIT OF THE BARE CATCH. It saves the REVERT path — no revert data is copied — but it
+    ///      cannot save the gas path: an aggregator that burns the forwarded gas in `getPPS` takes the leg
+    ///      down regardless. Asserted so the containment story is not overstated: `OUT_OF_GAS_LOOP` was
+    ///      declared in the mock and exercised by nothing, which is how the returnbomb test came to read as
+    ///      broader protection than it is. Fail-closed, and only reachable with a hostile
+    ///      governance-set aggregator.
+    function test_Adversarial_GasBurningAggregatorIsNotContained() public {
+        MockHostileAggregator hostile = new MockHostileAggregator(MockHostileAggregator.Mode.OUT_OF_GAS_LOOP);
+        GyldTradePolicy p = new GyldTradePolicy(address(registry), address(oracle), address(hostile));
+
+        vm.expectRevert(); // out of gas, NOT a named policy error
+        p.validateTrade{ gas: 500_000 }(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond), "");
     }
 
     /// @dev An aggregator that reverts everything is indistinguishable from "not a strategy", which is the
     ///      correct read: if we cannot establish the account is a live strategy, we do not trade.
     function test_Adversarial_FullyRevertingAggregatorFailsClosed() public {
-        MockHostileAggregator hostile =
-            new MockHostileAggregator(MockHostileAggregator.Mode.REVERT_EVERYTHING);
+        MockHostileAggregator hostile = new MockHostileAggregator(MockHostileAggregator.Mode.REVERT_EVERYTHING);
         GyldTradePolicy p = new GyldTradePolicy(address(registry), address(oracle), address(hostile));
 
         vm.expectRevert(GyldTradePolicy.NOT_A_REGISTERED_STRATEGY.selector);
@@ -725,8 +1037,7 @@ contract GyldTradePolicyTest is Test {
 
     /// @dev And the preview must not revert on it either — the OMS relies on preview being non-reverting.
     function test_Adversarial_PreviewSurvivesAHostileAggregator() public {
-        MockHostileAggregator hostile =
-            new MockHostileAggregator(MockHostileAggregator.Mode.REVERT_EVERYTHING);
+        MockHostileAggregator hostile = new MockHostileAggregator(MockHostileAggregator.Mode.REVERT_EVERYTHING);
         GyldTradePolicy p = new GyldTradePolicy(address(registry), address(oracle), address(hostile));
 
         uint256 code = p.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond));
@@ -774,21 +1085,43 @@ contract GyldTradePolicyTest is Test {
         _fillSell(1e18, 99e6);
     }
 
-    /// @dev A dust fill must not round its way past the floor. 1 wei of bonds against a 100e6 NAV floors
-    ///      the expectation to zero, and a zero floor would make any output acceptable.
-    function test_Adversarial_DustSellCannotRoundPastTheFloor() public view {
-        // expectedCash = 1 * 100e6 / 1e18 = 0, so the floor is 0 and 1 wei of cash passes. Documented
-        // rather than asserted as safe: the hook's MAX_INPUT_AMOUNT and outputMin are what bound dust, and
-        // a dust sell loses the seller dust.
+    /// @dev A dust SELL used to round past the floor. It no longer does: the guard moved from
+    ///      `expectedBond == 0` to `floor_ == 0`, which catches both legs AND the one-unit-short case
+    ///      (an expectation of exactly 1 also truncates to a zero floor). The true zero-floor region was
+    ///      `fair < 2` raw cash units, not `< 1` as an earlier comment here claimed.
+    /// @dev Kept as a regression test with its original history intact. It was previously named
+    ///      "CannotRoundPastTheFloor" with no assertion at all, which claimed the opposite of what its own
+    ///      body demonstrated — the exact false-confidence shape this suite is supposed to avoid.
+    /// @dev The asymmetry is GONE. Both legs now reject a zero computed floor, so neither can round past
+    ///      it. The only surviving no-floor path is a deliberate zero recovery mark, which
+    ///      `test_ValidateFill_TotalLossMarkHasNoFloor` covers and which returns before the floor is
+    ///      computed at all.
+    function test_Fixed_DustSellNoLongerRoundsPastTheFloor() public {
+        // expectedCash = mulDiv(1, 100e6, 1e18) = 0 -> floor_ = 0 -> now REFUSED rather than waved through.
+        vm.expectRevert(GyldTradePolicy.INVALID_PRICE.selector);
         _fillSell(1, 1);
+
+        // And the one-unit-short case the old `== 0` guard missed: an expectation of exactly 1 truncates
+        // to a zero floor too, so the region really was `fair < 2`, not `fair < 1`.
+        uint256 oneCashUnitOfBond = 1e18 / NAV_IN_CASH; // fair value == 1 raw cash unit
+        vm.expectRevert(GyldTradePolicy.INVALID_PRICE.selector);
+        _fillSell(oneCashUnitOfBond, 1);
+    }
+
+    /// @dev The BUY mirror of the same one-unit-short hole.
+    function test_Fixed_DustBuyWithAnExpectationOfOneIsRefused() public {
+        // expectedBond == 1 gives floor_ = 1 * 10_000 / 10_200 == 0 under the fixture's 2% tolerance.
+        _setRecoveryNav(1e18); // a mark that makes one cash unit buy exactly 1 bond wei
+        vm.expectRevert(GyldTradePolicy.INVALID_PRICE.selector);
+        _fillBuy(1, 1);
     }
 
     /// @dev A dust BUY is refused by the floor, not by rounding: one cash unit should buy ~1e10 bond wei,
-    ///      so receiving 1 is nine orders of magnitude short. Note the floor BINDS here rather than going
-    ///      vacuous, which is the asymmetry that matters — this is the leg where the vault PAYS.
+    ///      so receiving 1 is nine orders of magnitude short. The floor BINDS here rather than going
+    ///      vacuous — this is the leg where the vault PAYS.
     function test_Adversarial_DustBuyIsRefusedByTheFloor() public {
         uint256 expectedBond = (uint256(1) * 1e18) / NAV_IN_CASH;
-        uint256 floor_ = (expectedBond * (10_000 - uint256(ENTRY_BPS))) / 10_000;
+        uint256 floor_ = (expectedBond * 10_000) / (10_000 + uint256(ENTRY_BPS));
         vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, 1, floor_));
         _fillBuy(1, 1);
     }
@@ -806,11 +1139,16 @@ contract GyldTradePolicyTest is Test {
         _fillBuy(1, 1); // expectedBond = 1 * 1e18 / 2e18 = 0
     }
 
-    /// @dev A huge fill must not overflow the floor arithmetic into a pass. `Math.mulDiv` carries the
-    ///      intermediate product at 512 bits, so this is a real assertion rather than a hope.
+    /// @dev A large fill must be floored correctly rather than wrapping into a pass.
     function test_Adversarial_LargeFillDoesNotOverflowTheFloor() public {
         uint256 huge = 1e30;
-        vm.expectRevert(); // far below the floor for that input
+        // Assert the SELECTOR and both args, so this cannot pass on an arithmetic panic. Note it does NOT
+        // exercise mulDiv's 512-bit path: 1e30 * 100e6 = 1e38 fits in uint256 with ~39 orders of magnitude
+        // spare. Reaching that path needs inputSpent ~1e70, and the expectation would have to be computed
+        // with mulDiv too. This asserts a large NON-overflowing fill is floored correctly.
+        uint256 expectedCash = (huge * NAV_IN_CASH) / 1e18;
+        uint256 floor_ = (expectedCash * (10_000 - uint256(EXIT_BPS))) / 10_000;
+        vm.expectRevert(abi.encodeWithSelector(GyldTradePolicy.PRICE_OUTSIDE_POLICY.selector, 1, floor_));
         _fillSell(huge, 1);
     }
 
@@ -845,9 +1183,334 @@ contract GyldTradePolicyTest is Test {
         _fillSell(bondsIn, floor_ - 1); // one below never does
     }
 
-    /// @dev Whatever the state, preview never reverts. The OMS depends on that.
-    function testFuzz_PreviewNeverReverts(address account, bool side, address a, address b) public view {
-        IGyldTradePolicy.TradeSide s = side ? IGyldTradePolicy.TradeSide.SELL : IGyldTradePolicy.TradeSide.BUY;
-        policy.previewTrade(account, s, a, b);
+    /// @dev Preview ABSORBS the two failures it promises to absorb, across pairs that actually REACH the
+    ///      later branches. Drawing fully random tokens made every draw resolve to an unregistered bond, so
+    ///      the valuation and strategy blocks were never entered and four fuzzed parameters exercised one
+    ///      branch. Tokens are now drawn from a set that includes the registered pair.
+    function testFuzz_PreviewAbsorbsUnknownPairs(uint8 inSel, uint8 outSel, uint8 acctSel) public view {
+        address[4] memory toks = [address(cash), address(bond), address(0xBEEF), address(0)];
+        address[3] memory accts = [strategy, stranger, address(0xC0FFEE)];
+        address inTok = toks[inSel % 4];
+        address outTok = toks[outSel % 4];
+        address acct = accts[acctSel % 3];
+
+        uint256 buy = policy.previewTrade(acct, IGyldTradePolicy.TradeSide.BUY, inTok, outTok);
+        uint256 sell = policy.previewTrade(acct, IGyldTradePolicy.TradeSide.SELL, inTok, outTok);
+
+        // Zero is only legitimate for the registered pair on the matching side with a known strategy.
+        if (buy == 0) {
+            assertEq(outTok, address(bond), "a passing BUY must be buying the registered bond");
+            assertEq(inTok, address(cash), "...against its own cash");
+            assertEq(acct, strategy, "...for a registered strategy");
+        }
+        if (sell == 0) {
+            assertEq(inTok, address(bond), "a passing SELL must be selling the registered bond");
+            assertEq(outTok, address(cash), "...for its own cash");
+            assertEq(acct, strategy, "...for a registered strategy");
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       R4-2 — THE ENTRY FLOOR IS THE RIGHT INVERSE OF A PREMIUM
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The bug: `expected * (1 - p)` is the inverse of a DISCOUNT, not a PREMIUM. Receiving
+    ///      `expected * (1 - p)` means paying `nav / (1 - p)`, so a 20% setting permitted a 25% overpay.
+    ///      Now `expected / (1 + p)`, so a 20% setting permits exactly 20%.
+    function test_Fixed_R4_2_EntryPremiumCeilingIsTheConfiguredValue() public {
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), 2000, EXIT_BPS); // 20% entry tolerance
+
+        // Paying exactly 1.20x NAV per bond must pass: spend 1.2 * NAV of cash, receive one bond.
+        uint256 cashFor120pct = (NAV_IN_CASH * 12_000) / 10_000;
+        _fillBuy(cashFor120pct, 1e18);
+
+        // Paying 1.25x NAV — what the OLD formula allowed — must now fail.
+        uint256 cashFor125pct = (NAV_IN_CASH * 12_500) / 10_000;
+        vm.expectRevert();
+        _fillBuy(cashFor125pct, 1e18);
+    }
+
+    /// @dev And the SELL side is NOT symmetric: `fair * (1 - p)` genuinely IS a discount of p, so it was
+    ///      already correct and must not be "fixed" to match the buy side.
+    function test_R4_2_ExitDiscountFloorWasAlreadyCorrect() public {
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), ENTRY_BPS, 2000); // 20% exit tolerance
+
+        uint256 at80pct = (NAV_IN_CASH * 8000) / 10_000;
+        _fillSell(1e18, at80pct); // exactly 20% below fair passes
+        vm.expectRevert();
+        _fillSell(1e18, at80pct - 1); // a hair worse does not
+    }
+
+    /*//////////////////////////////////////////////////////////////
+      R4-1 — THE LEG-SCOPED SHARE-SUPPLY COMMITMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev A plain smart account has no vault, so the commitment is zero and the 4337 path keeps working.
+    ///      Only reachable with no aggregator configured, since otherwise `validateTrade` has already
+    ///      established the account is a registered strategy.
+    function test_R4_1_CommitmentIsZeroForANonStrategyAccount() public {
+        GyldTradePolicy p = new GyldTradePolicy(address(registry), address(oracle), address(0));
+        assertEq(p.accountStateCommitment(address(0xE0A)), bytes32(0), "nothing to commit");
+    }
+
+    /// @dev But with an aggregator wired, an account whose vault cannot be read is a contradiction —
+    ///      `validateTrade` already proved it is a registered strategy — so it fails CLOSED rather than
+    ///      silently returning zero and disabling the check.
+    function test_R4_1_RevertIf_AccountHasNoCode() public {
+        // `strategy` is a plain address in this suite, so this is the `code.length == 0` branch — NOT the
+        // catch. The catch needs an account that HAS code and reverts, covered below.
+        vm.expectRevert(GyldTradePolicy.ACCOUNT_VAULT_UNREADABLE.selector);
+        policy.accountStateCommitment(strategy);
+    }
+
+    /// @dev The actual catch arm: a contract that exists but throws on `getVaultInfo`. With an aggregator
+    ///      wired this must fail closed rather than return a vacuous zero commitment.
+    function test_R4_1_RevertIf_GetVaultInfoReverts() public {
+        MockStrategyRevertingVaultInfo strat = new MockStrategyRevertingVaultInfo();
+        vm.expectRevert(GyldTradePolicy.ACCOUNT_VAULT_UNREADABLE.selector);
+        policy.accountStateCommitment(address(strat));
+    }
+
+    /// @dev And with NO aggregator the same account is simply "not a strategy", so zero is correct.
+    function test_R4_1_GetVaultInfoRevertingIsZeroWithoutAnAggregator() public {
+        MockStrategyRevertingVaultInfo strat = new MockStrategyRevertingVaultInfo();
+        GyldTradePolicy p = new GyldTradePolicy(address(registry), address(oracle), address(0));
+        assertEq(p.accountStateCommitment(address(strat)), bytes32(0));
+    }
+
+    /// @dev A strategy with no vault wired must also fail closed when an aggregator is configured — the one
+    ///      branch that previously returned zero unconditionally.
+    function test_R4_1_RevertIf_StrategyHasNoVault() public {
+        MockStrategyWithNoVault strat = new MockStrategyWithNoVault();
+        vm.expectRevert(GyldTradePolicy.ACCOUNT_VAULT_UNREADABLE.selector);
+        policy.accountStateCommitment(address(strat));
+    }
+
+    /// @dev The commitment must actually track supply: same supply -> same value, moved supply -> different.
+    ///      This is the whole mechanism, so it is asserted directly rather than inferred.
+    function test_R4_1_CommitmentTracksVaultShareSupply() public {
+        MockStrategyWithVault strat = new MockStrategyWithVault();
+
+        // The SHIPPING policy, with its aggregator wired. An earlier version built a zero-aggregator
+        // policy here for no reason, which is the configuration the deploy script refuses.
+        bytes32 before = policy.accountStateCommitment(address(strat));
+        assertEq(policy.accountStateCommitment(address(strat)), before, "stable while supply is unchanged");
+
+        strat.vaultToken().mint(address(this), 1);
+        assertTrue(policy.accountStateCommitment(address(strat)) != before, "moves when supply moves");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+       COVERAGE — THE FEED-FAILURE NAMES, ALL REACHABLE IN PRODUCTION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev These five errors had NO assertion anywhere in the repo, which is how a mis-mapped failure code
+    ///      would reach an operator as the wrong name. Every one is live config: Katana is an L2, so the
+    ///      sequencer paths apply, and a USD-denominated instrument needs the cash feed.
+    function _registerWithSequencer(address bondToken, address seq, uint256 grace) internal {
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = bondToken;
+        cfg.sequencerUptimeFeed = seq;
+        cfg.gracePeriod = grace;
+        _register(cfg);
+    }
+
+    function test_Coverage_SequencerDownIsNamed() public {
+        MockERC20 b2 = new MockERC20("L2 Bond", "L2B", 18);
+        MockSequencerFeed seq = new MockSequencerFeed(1, block.timestamp - 1 hours); // 1 == down
+        _registerWithSequencer(address(b2), address(seq), 1 hours);
+
+        vm.expectRevert(GyldTradePolicy.SEQUENCER_DOWN.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+        // And preview must pass the oracle's own code straight through, not a policy code.
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2)),
+            uint256(GyldBondYieldSourceOracle.NavFailure.SEQUENCER_DOWN_CODE)
+        );
+    }
+
+    function test_Coverage_GracePeriodNotOverIsNamed() public {
+        MockERC20 b2 = new MockERC20("L2 Bond", "L2B", 18);
+        // Up (0), but it only just came back, so we are inside the grace window.
+        MockSequencerFeed seq = new MockSequencerFeed(0, block.timestamp - 10 minutes);
+        _registerWithSequencer(address(b2), address(seq), 1 hours);
+
+        vm.expectRevert(GyldTradePolicy.GRACE_PERIOD_NOT_OVER.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2)),
+            uint256(GyldBondYieldSourceOracle.NavFailure.GRACE_PERIOD)
+        );
+    }
+
+    /// @dev And the grace window ending must let the trade through, or the check is a permanent block.
+    function test_Coverage_GracePeriodElapsedPasses() public {
+        MockERC20 b2 = new MockERC20("L2 Bond", "L2B", 18);
+        MockSequencerFeed seq = new MockSequencerFeed(0, block.timestamp - 2 hours);
+        _registerWithSequencer(address(b2), address(seq), 1 hours);
+
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+    }
+
+    /// @dev A Gyld-native feed carries an observation clock, so staleness there is a distinct failure from
+    ///      publication staleness. Only reachable on FEED_KIND_GYLD_NATIVE.
+    function test_Coverage_ObservationStaleIsNamed() public {
+        MockERC20 b2 = new MockERC20("Native Bond", "NB", 18);
+        MockGyldNavFeed feed = new MockGyldNavFeed(8);
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(feed);
+        cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
+        cfg.requiresObservationTime = true;
+        _register(cfg);
+
+        // Fresh publication, stale OBSERVATION.
+        feed.setNav(address(b2), NAV, block.timestamp - MAX_OBS_AGE - 1, block.timestamp);
+        vm.expectRevert(GyldTradePolicy.NAV_OBSERVATION_STALE.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2)),
+            uint256(GyldBondYieldSourceOracle.NavFailure.OBSERVATION_STALE)
+        );
+    }
+
+    /// @dev `requiresObservationTime` with a feed that reports none must be named, not silently accepted.
+    function test_Coverage_ObservationTimeUnavailableIsNamed() public {
+        MockERC20 b2 = new MockERC20("Native Bond", "NB", 18);
+        MockGyldNavFeed feed = new MockGyldNavFeed(8);
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(feed);
+        cfg.navFeedKind = registry.FEED_KIND_GYLD_NATIVE();
+        cfg.requiresObservationTime = true;
+        _register(cfg);
+
+        feed.setNav(address(b2), NAV, 0, block.timestamp); // observedAt == 0
+        vm.expectRevert(GyldTradePolicy.OBSERVATION_TIME_UNAVAILABLE.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+    }
+
+    /// @dev A USD-denominated NAV needs the cash/USD feed; a failure there must be its own name rather than
+    ///      a generic price error, because the fix is different.
+    function test_Coverage_CashFeedFailedIsNamed() public {
+        MockERC20 b2 = new MockERC20("USD Bond", "UB", 18);
+        MockAggregator cashFeed = new MockAggregator(8);
+        cashFeed.setLatestAnswer(1e8);
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = address(b2);
+        cfg.navIsUsdDenominated = true;
+        cfg.cashFeed = address(cashFeed);
+        _register(cfg);
+
+        cashFeed.setLatestAnswer(0); // the cash leg is unusable
+        vm.expectRevert(GyldTradePolicy.CASH_FEED_FAILED.selector);
+        policy.validateTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2), "");
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2)),
+            uint256(GyldBondYieldSourceOracle.NavFailure.CASH_FEED_FAILED)
+        );
+    }
+
+    /// @dev The preview counterpart of the branch the whole T2 design turns on: a mark outranking an active
+    ///      suspension. This was the one state with a strict test and no preview test.
+    function test_Coverage_PreviewOfMarkOutrankingSuspension() public {
+        _setRecoveryNav(40e6);
+        vm.prank(admin);
+        registry.setNavSuspended(address(bond), true);
+
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.SELL, address(bond), address(cash)),
+            0,
+            "SELL against the mark previews as eligible even while suspended"
+        );
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond)),
+            policy.POLICY_CODE_BASE() + 3,
+            "BUY still previews as refused"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+          PREVIEW IS NOT UNCONDITIONALLY NON-REVERTING — PINNED
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The interface used to claim preview never reverts. It does, when a DEPENDENCY reverts, and the
+    ///      NatSpec now says so. Pinned both ways so the claim and the behaviour cannot drift apart again.
+    function test_Preview_RevertsWhenTheNavFeedItselfReverts() public {
+        MockERC20 b2 = new MockERC20("Broken Feed Bond", "BFB", 18);
+        MockRevertingFeed broken = new MockRevertingFeed();
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(broken);
+        _register(cfg);
+
+        vm.expectRevert();
+        policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(b2));
+    }
+
+    /// @dev But it must still ABSORB the two failures it does promise to absorb.
+    function test_Preview_AbsorbsUnregisteredInstrumentAndStrategy() public view {
+        assertEq(
+            policy.previewTrade(strategy, IGyldTradePolicy.TradeSide.BUY, address(cash), address(0xDEAD)),
+            uint256(GyldBondYieldSourceOracle.NavFailure.NOT_REGISTERED),
+            "unregistered bond is reported, not thrown"
+        );
+        assertEq(
+            policy.previewTrade(stranger, IGyldTradePolicy.TradeSide.BUY, address(cash), address(bond)),
+            policy.POLICY_CODE_BASE() + 13,
+            "unregistered strategy is reported, not thrown"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            FUZZ — WIDER INPUTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev A higher mark must never lower the SELL bar. Asserted against the CONTRACT: a fill that the
+    ///      lower mark accepts must still be accepted at the higher one, and the higher mark's own floor
+    ///      must bite above it.
+    /// @dev The earlier version of this test computed both floors in the test and compared them to each
+    ///      other. It never called the policy and would have passed with `GyldTradePolicy` deleted.
+    function testFuzz_SellFloorIsMonotonicInNav(uint64 navLow, uint64 navHigh) public {
+        navLow = uint64(bound(navLow, 1e6, 1e11));
+        navHigh = uint64(bound(navHigh, 1e6, 1e11));
+        if (navLow > navHigh) (navLow, navHigh) = (navHigh, navLow);
+
+        uint256 bondsIn = 1e18;
+        uint256 floorAtLow = ((bondsIn * navLow / 1e18) * (10_000 - uint256(EXIT_BPS))) / 10_000;
+        vm.assume(floorAtLow > 0);
+
+        _setRecoveryNav(navLow);
+        _fillSell(bondsIn, floorAtLow); // the low mark accepts exactly its own floor
+
+        _setRecoveryNav(navHigh);
+        // A higher mark must never LOWER the bar. Branch on the floor, not on the nav: floor division
+        // means two different navs can round to the same floor, so "higher nav => strictly higher floor"
+        // is false and an earlier version of this test asserted it.
+        uint256 floorAtHigh = ((bondsIn * navHigh / 1e18) * (10_000 - uint256(EXIT_BPS))) / 10_000;
+        assertGe(floorAtHigh, floorAtLow, "a higher mark never lowers the floor");
+        if (floorAtHigh > floorAtLow) {
+            vm.expectRevert(); // the old floor no longer clears the new one
+            _fillSell(bondsIn, floorAtLow);
+        } else {
+            _fillSell(bondsIn, floorAtLow); // tied floors: still accepted
+        }
+    }
+
+    /// @dev And the entry ceiling must never exceed the configured premium, for any tolerance in range.
+    function testFuzz_EntryPremiumNeverExceedsTheConfiguredCeiling(uint16 entryBps) public {
+        entryBps = uint16(bound(entryBps, 1, registry.MAX_TOLERANCE_BPS()));
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), entryBps, EXIT_BPS);
+
+        // Paying exactly the permitted premium passes; a hair more does not.
+        uint256 atCeiling = (NAV_IN_CASH * (10_000 + uint256(entryBps))) / 10_000;
+        _fillBuy(atCeiling, 1e18);
+
+        uint256 overCeiling = atCeiling + (NAV_IN_CASH / 100);
+        vm.expectRevert();
+        _fillBuy(overCeiling, 1e18);
     }
 }

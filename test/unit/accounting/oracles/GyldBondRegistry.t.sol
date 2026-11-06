@@ -791,6 +791,121 @@ contract GyldBondRegistryTest is Test {
         assertEq(stored.maxExitDiscountBps, 0);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                R4-3 — setEmergencyExit, THE BOUNDED EXIT GRACE
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SetEmergencyExit_StoresBothFields() public {
+        _register(_cfg());
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), 12 hours, 500);
+
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.emergencyExitMaxPublicationAge, 12 hours);
+        assertEq(stored.emergencyExitDiscountBps, 500);
+    }
+
+    function test_SetEmergencyExit_EmitsTheAlertableEvent() public {
+        _register(_cfg());
+        vm.expectEmit(true, false, false, true);
+        emit GyldBondRegistry.EmergencyExitUpdated(address(bond), 12 hours, 500);
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), 12 hours, 500);
+    }
+
+    /// @dev (0,0) is the ONE zero this setter accepts: closing an incident control must stay possible.
+    function test_SetEmergencyExit_ZeroPairClosesTheGrace() public {
+        _register(_cfg());
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), 12 hours, 500);
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), 0, 0);
+
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.emergencyExitMaxPublicationAge, 0);
+        assertEq(stored.emergencyExitDiscountBps, 0);
+    }
+
+    /// @dev A window with no discount still fails the normal floor; a discount with no window never
+    ///      applies. Either half alone is a half-configured incident control.
+    function test_SetEmergencyExit_RevertIf_OnlyOneHalfIsSet() public {
+        _register(_cfg());
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setEmergencyExit(address(bond), 12 hours, 0);
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setEmergencyExit(address(bond), 0, 500);
+    }
+
+    function test_SetEmergencyExit_RevertIf_WindowExceedsTheAgeCeiling() public {
+        _register(_cfg());
+        // Read BEFORE arming: an argument's view call would otherwise consume the `expectRevert`.
+        uint32 tooOld = uint32(registry.MAX_AGE_CEILING() + 1);
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_STALENESS.selector);
+        registry.setEmergencyExit(address(bond), tooOld, 500);
+    }
+
+    function test_SetEmergencyExit_RevertIf_DiscountExceedsTheToleranceCeiling() public {
+        _register(_cfg());
+        uint16 tooWide = registry.MAX_TOLERANCE_BPS() + 1;
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setEmergencyExit(address(bond), 12 hours, tooWide);
+    }
+
+    /// @dev A grace NARROWER than the normal discount would make the degraded exit harder to fill than the
+    ///      healthy one — the opposite of the point.
+    function test_SetEmergencyExit_RevertIf_GraceIsNarrowerThanNormal() public {
+        _register(_cfg());
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), 300, 600);
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setEmergencyExit(address(bond), 12 hours, 599);
+    }
+
+    /// @dev The inverse direction of the same invariant: raising the NORMAL discount past an OPEN grace
+    ///      must be refused rather than silently inverting the two.
+    function test_SetTradeFloors_RevertIf_NormalDiscountWouldExceedAnOpenGrace() public {
+        _register(_cfg());
+        vm.prank(admin);
+        registry.setEmergencyExit(address(bond), 12 hours, 500);
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);
+        registry.setTradeFloors(address(bond), 300, 501);
+        // At the grace value itself it is coherent, so it is allowed.
+        vm.prank(admin);
+        registry.setTradeFloors(address(bond), 300, 500);
+    }
+
+    function test_SetEmergencyExit_RevertIf_CallerLacksTheRole() public {
+        _register(_cfg());
+        vm.prank(address(0xBADBAD));
+        vm.expectRevert();
+        registry.setEmergencyExit(address(bond), 12 hours, 500);
+    }
+
+    function test_SetEmergencyExit_RevertIf_InstrumentIsNotRegistered() public {
+        vm.prank(admin);
+        vm.expectRevert(GyldBondRegistry.INSTRUMENT_NOT_REGISTERED.selector);
+        registry.setEmergencyExit(address(bond), 12 hours, 500);
+    }
+
+    /// @dev An instrument is never BORN with an exit grace open, exactly as it is never born suspended or
+    ///      marked. Registration must drop whatever the caller put in those fields.
+    function test_RegisterInstrument_NeverInheritsAnExitGrace() public {
+        GyldBondRegistry.InstrumentConfig memory cfg = _cfg();
+        cfg.emergencyExitMaxPublicationAge = 12 hours;
+        cfg.emergencyExitDiscountBps = 500;
+        _register(cfg);
+
+        GyldBondRegistry.InstrumentConfig memory stored = registry.getInstrumentConfig(address(bond));
+        assertEq(stored.emergencyExitMaxPublicationAge, 0, "window not inherited");
+        assertEq(stored.emergencyExitDiscountBps, 0, "discount not inherited");
+    }
+
     function test_SetTradeFloors_UpdatesBothDirections() public {
         _register(_cfg());
         vm.prank(admin);
@@ -876,10 +991,13 @@ contract GyldBondRegistryTest is Test {
         assertEq(stored.maxExitDiscountBps, 0, "exit did not carry over");
     }
 
-    function testFuzz_SetTradeFloors_CeilingIsTheOnlyConstraint(uint16 entryBps, uint16 exitBps) public {
+    /// @dev The setter accepts 1..MAX_TOLERANCE_BPS. Zero is rejected HERE even though registration
+    ///      accepts it: an instrument may be onboarded before its tolerances are agreed, but a deliberate
+    ///      call to the designated setter with zero could only ever brick that direction.
+    function testFuzz_SetTradeFloors_AcceptsOneToCeilingOnly(uint16 entryBps, uint16 exitBps) public {
         _register(_cfg());
         uint16 ceiling = registry.MAX_TOLERANCE_BPS();
-        bool valid = entryBps <= ceiling && exitBps <= ceiling;
+        bool valid = entryBps != 0 && exitBps != 0 && entryBps <= ceiling && exitBps <= ceiling;
 
         vm.prank(admin);
         if (!valid) vm.expectRevert(GyldBondRegistry.INVALID_BPS.selector);

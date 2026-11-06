@@ -104,7 +104,7 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
     receive() external payable { }
     GyldTradePolicy internal tradePolicy;
     MockSuperVaultStrategyState internal aggregator;
-
+    MockERC20 internal vaultShares;
 
     function setUp() public {
         string memory rpc = envOr("KATANA_RPC_URL", "https://rpc.katana.network");
@@ -125,8 +125,7 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         aggregator = new MockSuperVaultStrategyState();
         // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
         // configuration that cannot ship, since a paused strategy could still trade.
-        tradePolicy =
-            new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
+        tradePolicy = new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
         // The policy reads this from the registry and refuses to trade while it is zero, so a
         // shipping-shaped fixture has to set it.
         vm.prank(admin);
@@ -151,8 +150,12 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         registry.registerInstrument(cfg);
 
         guardHook = new GyldTradeGuardHook(address(oracle));
-        buyHook = new ApproveAndTradeGyldBondHook(address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY);
-        sellHook = new ApproveAndTradeGyldBondHook(address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL);
+        buyHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), CASH_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.BUY
+        );
+        sellHook = new ApproveAndTradeGyldBondHook(
+            address(settlement), BOND_CAP, address(tradePolicy), IGyldTradePolicy.TradeSide.SELL
+        );
 
         instance = makeAccountInstance(keccak256("gyld-katana-strategy"));
         strategy = instance.account;
@@ -163,6 +166,16 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
         deal(VB_USDC, strategy, 10_000e6);
+        // R4-1: the policy pins the vault's share supply across each leg, and a REGISTERED strategy always
+        // exposes `getVaultInfo` in production — the policy fails closed when it cannot, deliberately.
+        // These fixtures drive a plain ERC-7579 account, so model that one read rather than standing up a
+        // whole SuperVault. Omitting it would test a configuration that cannot exist: a strategy the
+        // aggregator vouches for that has no vault.
+        vaultShares = new MockERC20("Vault Share", "svTEST", 18);
+        vaultShares.mint(address(this), 1_000_000e18);
+        vm.mockCall(
+            strategy, abi.encodeWithSignature("getVaultInfo()"), abi.encode(address(vaultShares), VB_USDC, uint8(18))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -360,6 +373,12 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         // publication falls outside `maxPublicationAge` the conversion fails closed, exactly as it should.
         // A long hold would therefore be testing the fork's frozen feed, not the instrument.
         vm.warp(block.timestamp + 2 days);
+        // The STRATEGY's PPS publication ages across the warp too, and `maxPpsAge` above is 1 day, so
+        // without this the sell leg reverts `PPS_EXPIRED` — correctly. A live aggregator republishes on
+        // its own cadence; the mock does not, so the fixture has to stand in for that. Do NOT "fix" this
+        // by widening `maxPpsAge` past the hold: that would delete the freshness gate from the only
+        // end-to-end test that crosses a time boundary. `GyldTradePolicy.t.sol` covers the expiry itself.
+        aggregator.setLastUpdate(strategy, block.timestamp);
         navFeed.setFreshNav(address(bond), NAV_USD_AFTER_COUPON);
         (, uint256 cashUpdatedAt) = _liveCashPrice();
         assertLt(block.timestamp - cashUpdatedAt, 7 days, "the live cash feed is still inside the bound");

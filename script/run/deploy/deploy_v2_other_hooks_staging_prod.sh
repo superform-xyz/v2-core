@@ -30,14 +30,58 @@
 #   The two trade instances additionally need gyldSettlements[chainId] set to Gyld's venue address,
 #   which does not exist yet.
 #
-#   REQUIRED POST-DEPLOY, or every trade reverts (GyldTradePolicy fails closed by design):
-#     1. script/ConfigureGyldBondRegistry.s.sol --sig 'runPolicyDefaults(uint256,uint64)'
-#          sets maxPpsAge; the policy reverts PPS_AGE_NOT_CONFIGURED while it is zero
-#     2. ... --sig 'runTradeFloors(uint256,uint64,address,uint16,uint16)' per instrument
-#          sets the realised-price tolerances; the policy reverts TRADE_FLOORS_NOT_SET at zero
-#     3. register each instrument, then script/TransferGyldBondRegistryRoles.s.sol
-#   before registering any instrument, and register the oracle in SuperLedgerConfiguration with
-#   feePercent = 0 (never against FlatFeeLedger).
+#   REQUIRED POST-DEPLOY, IN THIS ORDER. GyldTradePolicy fails closed by design, so skipping a step
+#   does not degrade gracefully: it makes every affected trade revert. Signatures below are exact —
+#   an earlier version of this block omitted the registry address from both and produced
+#   unresolvable selectors.
+#
+#     1. register the oracle in SuperLedgerConfiguration, feePercent = 0, never FlatFeeLedger. TWO
+#        commands, not one — the wrapper does NOT build its own work list, it reads a file:
+#          sh script/run/tooling/extract_configurable_oracles.sh <env> v2-deployer
+#          ./script/run/config/add_to_super_ledger_staging_prod.sh <env> <mode> <account>
+#        Run the extract step even if `script/output/<env>/new_oracles_to_add` already exists. A file
+#        left over from an earlier family's deploy makes the wrapper succeed loudly while registering
+#        that OTHER family's oracles and never mentioning GyldBondYieldSourceOracle — the one failure
+#        here that produces no error at all. Confirm the oracle is named in the file before signing.
+#
+#     2. set the registry-wide PPS tolerance, AS DEPLOYER (still holds INSTRUMENT_MANAGER_ROLE):
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runPolicyDefaults(uint256,uint64,address)' <env> <chainId> <registry>
+#        Skipped and an aggregator is wired -> every trade reverts PPS_AGE_NOT_CONFIGURED.
+#
+#     3. hand the roles to governance:
+#          forge script script/TransferGyldBondRegistryRoles.s.sol:TransferGyldBondRegistryRoles \
+#            --sig 'run(uint256,uint64,address)' <env> <chainId> <registry>
+#        Its own NatSpec explains why this precedes instrument registration.
+#
+#     4. register each instrument, AS GOVERNOR. There is no script for this yet. Set
+#        maxEntryPremiumBps / maxExitDiscountBps IN THE InstrumentConfig here — registration accepts
+#        zero for both, and zero is what the policy reports as unconfigured.
+#
+#     5. only if step 4 left either tolerance at zero, or to recalibrate later, AS GOVERNOR:
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runTradeFloors(uint256,uint64,address,address,uint16,uint16)' \
+#            <env> <chainId> <registry> <bondToken> <entryBps> <exitBps>
+#        Requires the instrument to be registered already, which is why it follows step 4.
+#        Left at zero -> every fill in that direction reverts TRADE_FLOORS_NOT_SET.
+#
+#     5b. OPTIONAL, and only as a deliberate incident decision, AS GOVERNOR (R4-3):
+#          registry.setEmergencyExit(bondToken, maxPublicationAge, discountBps)
+#        Opens the bounded exit grace so a SELL can still price against a recently stale NAV
+#        publication instead of waiting out a 2-day recovery mark. Both arguments together or
+#        neither; (0, 0) closes it. The discount must be >= maxExitDiscountBps and <=
+#        MAX_TOLERANCE_BPS, the window <= MAX_AGE_CEILING. NOT set at registration by design, and
+#        NOT a default: leave it closed until an incident calls for it, and close it afterwards.
+#        Never widened for a BUY — the policy ignores it on that leg.
+#
+#     6. verify before believing any of it. Read-only, safe against prod at any time:
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runCheck(uint64,address,address,address[])' <chainId> <registry> <policy> '[]'
+#        It prints UNSET for maxPpsAge and for each direction's floor. A registry that looks healthy
+#        and trades nothing is the failure mode this exists to surface.
+#
+#     7. register the guard and both trade instances in the periphery SuperGovernor, then add the
+#        leaves to the strategy's Merkle root. Both are periphery-side and outside this repo.
 #   Note: a targeted family run executes on every configured network; families with chain
 #   requirements revert (and are reported) on unsupported chains.
 #
