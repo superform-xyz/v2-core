@@ -37,6 +37,10 @@
 #   ./script/run/config/transfer_univ3_clp_registry_roles.sh prod simulate v2 --check-only
 ###################################################################################
 
+
+# forge checks the sender covers (foundry.toml gas_limit / 1e8) * 1.2 * basefee before a
+# broadcast; u64::MAX makes that ~11 ETH on Katana. 1e9 is ample for any script here.
+SCRIPT_GAS_LIMIT="${SCRIPT_GAS_LIMIT:-1000000000}"
 set -eo pipefail
 
 # Colors
@@ -351,7 +355,7 @@ for network_def in "${NETWORKS[@]}"; do
             $GAS_PRICE_FLAG"
     fi
 
-    FORGE_CMD="$FORGE_CMD --timeout 300 -vv"
+    FORGE_CMD="$FORGE_CMD --gas-limit $SCRIPT_GAS_LIMIT --timeout 300 -vv"
 
     echo -e "${YELLOW}   Executing forge script...${NC}"
 

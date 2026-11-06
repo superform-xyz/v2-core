@@ -24,6 +24,7 @@ NETWORKS=(
     "988:Stable:STABLE_MAINNET"
     "4663:RH:RH_MAINNET"
     "5042:Arc:ARC_MAINNET"
+    "747474:Katana:KATANA_MAINNET"
 )
 
 # Network name mapping function
@@ -83,6 +84,9 @@ get_network_name() {
             ;;
         5042)
             echo "Arc"
+            ;;
+        747474)
+            echo "Katana"
             ;;
         *)
             echo "ERROR: Unknown production network ID: $network_id" >&2
@@ -149,6 +153,9 @@ get_rpc_var() {
         5042)
             echo "ARC_MAINNET"
             ;;
+        747474)
+            echo "KATANA_MAINNET"
+            ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
             return 1
@@ -213,6 +220,9 @@ get_rpc_url() {
             ;;
         5042)
             echo "$ARC_MAINNET"
+            ;;
+        747474)
+            echo "$KATANA_MAINNET"
             ;;
         *)
             echo "ERROR: Unknown production network ID for RPC: $network_id" >&2
@@ -392,6 +402,13 @@ load_rpc_urls_ci() {
         failed_rpcs+=("ARC_RPC_URL")
     fi
 
+    echo "  • Loading Katana RPC..."
+    if [[ -n "${KATANA_RPC_URL:-}" ]]; then
+        export KATANA_MAINNET="$KATANA_RPC_URL"
+    else
+        failed_rpcs+=("KATANA_RPC_URL")
+    fi
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from environment:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -482,6 +499,10 @@ load_rpc_urls() {
     export ARC_MAINNET="$(op_read_rpc ARC_RPC_URL)"
         [[ -z "${ARC_MAINNET}" ]] && failed_rpcs+=("ARC_RPC_URL")
 
+    echo "  • Loading Katana RPC..."
+    export KATANA_MAINNET="${KATANA_RPC_URL:-https://rpc.katana.network}"
+        [[ -z "${KATANA_MAINNET}" ]] && failed_rpcs+=("KATANA_RPC_URL")
+
     if [[ ${#failed_rpcs[@]} -gt 0 ]]; then
         echo "❌ Failed to load the following RPC URLs from 1Password:"
         for failed_rpc in "${failed_rpcs[@]}"; do
@@ -497,11 +518,17 @@ load_rpc_urls() {
 # Load Etherscan V2 API key for verification
 load_etherscan_api_key() {
     echo "Loading Etherscan V2 API key for production verification..."
-    if ! export ETHERSCANV2_API_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY/credential 2>/dev/null); then
+    # `export VAR=$(...)` always exits 0, so a failed op read printed "loaded" with an
+    # empty value. Assign first, check, then export.
+    local _key
+    _key=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHERSCANV2_API_KEY/credential 2>/dev/null) || true
+    if [[ -z "$_key" ]]; then
         echo "❌ Failed to load ETHERSCANV2_API_KEY from 1Password"
+        echo "   Is the 1Password session live? Check: op whoami"
         echo "   Contract verification will not work without this credential"
         return 1
     fi
+    export ETHERSCANV2_API_KEY="$_key"
     echo "✅ Etherscan V2 API key loaded for production"
 }
 

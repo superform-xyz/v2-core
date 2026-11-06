@@ -338,6 +338,18 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
+        "747474") # Katana (OP Stack L2, ETH gas) — mirrors ConfigCore Katana entries
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="" # 1inch not on Katana
+            odos_router="" # Odos v2 not on Katana
+            # Cleared deliberately: the default above is the all-chain CREATE2 address, but it has
+            # no code on Katana and ConfigCore sets odosRouterV3s[KATANA] = address(0). The table
+            # has to mirror ConfigCore or the encoded args will not match the deployed bytecode.
+            odos_router_v3=""
+            across_spoke_pool_v3="" # Across not on Katana
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+            ;;
     esac
 
     # Generate constructor arguments based on contract type

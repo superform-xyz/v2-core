@@ -46,6 +46,19 @@
 
 set -eo pipefail
 
+# Gas limit for forge SCRIPT EXECUTION, not the per-transaction limit — forge still
+# estimates each broadcast transaction on its own.
+#
+# foundry.toml sets gas_limit = u64::MAX for tests. Before a broadcast, forge checks the
+# sender covers (gas_limit / 1e8) * 1.2 * basefee, which at u64::MAX is 1.84e11 gas and
+# scales purely off the chain's basefee — independent of what the script actually does:
+#   Katana (basefee 0.05 gwei, pinned) -> 11.07 ETH required to deploy one paymaster
+# The run aborts with "transaction validation error: lack of funds ... for max fee".
+# Chains already holding the paymaster never hit it, because nothing is broadcast there.
+#
+# Mirrors SCRIPT_GAS_LIMIT in script/run/utils/lib_deploy.sh.
+SCRIPT_GAS_LIMIT="${SCRIPT_GAS_LIMIT:-1000000000}"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -392,10 +405,16 @@ for network_def in "${NETWORKS[@]}"; do
             echo -e "${CYAN}   Verification: ${WHITE}Blockscout${NC}"
             ;;
         *)
-            if [[ -n "$VERIFY_FLAG" ]]; then
-                local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
+            # An empty key used to collapse this to `--etherscan-api-key --verifier ...`,
+            # which forge rejects outright ("a value is required"). Deploy unverified
+            # instead: the contract lands, and verify.sh can run against it after.
+            if [[ -n "$VERIFY_FLAG" && -z "${ETHERSCANV2_API_KEY:-}" ]]; then
+                local_verify_flag=""
+                echo -e "${YELLOW}   Verification: ${WHITE}Skipped (ETHERSCANV2_API_KEY empty)${NC}"
+            elif [[ -n "$VERIFY_FLAG" ]]; then
+                local_etherscan_flags="--etherscan-api-key ${ETHERSCANV2_API_KEY} --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
+                echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
             fi
-            echo -e "${CYAN}   Verification: ${WHITE}Etherscan V2${NC}"
             ;;
     esac
 
@@ -404,6 +423,7 @@ for network_def in "${NETWORKS[@]}"; do
     if forge script "$SCRIPT" \
         --sig "run(uint256,uint64,string)" \
         "$FORGE_ENV" "$network_id" "" \
+        --gas-limit "$SCRIPT_GAS_LIMIT" \
         --account "$ACCOUNT" \
         --password "$KEYSTORE_PASSWORD" \
         --rpc-url "${!rpc_var}" \

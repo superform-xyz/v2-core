@@ -444,8 +444,14 @@ for network_def in "${NETWORKS[@]}"; do
             fi
             ;;
         *)
-            if [[ -n "$VERIFY_FLAG" ]]; then
-                local_etherscan_flags="--etherscan-api-key $ETHERSCANV2_API_KEY --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
+            # An empty key used to collapse this to `--etherscan-api-key --verifier ...`,
+            # which forge rejects outright ("a value is required"). Deploy unverified
+            # instead: the contracts land, and verify.sh can run against them after.
+            if [[ -n "$VERIFY_FLAG" && -z "${ETHERSCANV2_API_KEY:-}" ]]; then
+                local_verify_flag=""
+                echo -e "${YELLOW}   Verification: Skipped (ETHERSCANV2_API_KEY empty)${NC}"
+            elif [[ -n "$VERIFY_FLAG" ]]; then
+                local_etherscan_flags="--etherscan-api-key ${ETHERSCANV2_API_KEY} --verifier etherscan --verifier-url https://api.etherscan.io/v2/api?chainid=$network_id"
             fi
             ;;
     esac
@@ -487,6 +493,7 @@ for network_def in "${NETWORKS[@]}"; do
     set +e
     forge script "$FORGE_SCRIPT" \
         --sig "${sig_name}(uint256,uint64)" $FORGE_ENV $network_id \
+        --gas-limit "$SCRIPT_GAS_LIMIT" \
         --account "$ACCOUNT" \
         $KEYSTORE_PASSWORD_FLAG \
         --rpc-url ${!rpc_var} \
