@@ -141,12 +141,15 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
         _runHook(DEALLOCATE_AMOUNT);
         uint256 liquidAfter = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
 
-        // The amount that lands is `assets` MINUS the penalty, not `assets` — one more reason the hook
-        // must not publish `assets` as an output. Penalty is 0.1 bps here, so allow for it.
-        assertGt(liquidAfter, liquidBefore, "underlying moved into the vault");
-        uint256 landed = liquidAfter - liquidBefore;
-        assertLe(landed, DEALLOCATE_AMOUNT, "never more than requested");
-        assertGe(landed, DEALLOCATE_AMOUNT - (DEALLOCATE_AMOUNT / 100), "within 1% of requested");
+        // The FULL `assets` lands in the vault. `deallocateInternal` transfers all of it from the
+        // adapter; the penalty is a SEPARATE share burn that reduces `totalAssets` without reducing
+        // the WETH that moved. Asserted EXACTLY, because a tolerance passes either model -- an earlier
+        // revision allowed 1% and claimed "assets minus the penalty", which was wrong. That came from
+        // using `totalAssets() - adapter.realAssets()` as the idle proxy, which subtracts the
+        // penalty's effect on totalAssets. The vault's own WETH balance is the real measure.
+        assertEq(
+            liquidAfter - liquidBefore, DEALLOCATE_AMOUNT, "the full requested amount lands in the vault"
+        );
 
         assertTrue(_tryWithdraw(1 ether), "the withdraw that reverted before now succeeds");
     }
@@ -173,18 +176,25 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
 
         _runHook(DEALLOCATE_AMOUNT);
 
-        assertLt(
-            IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).balanceOf(SUPER_WETH_STRATEGY),
-            sharesBefore,
-            "penalty shares burned from the executing account"
-        );
+        uint256 penaltyWad = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
+        assertGt(penaltyWad, 0, "precondition: a NON-ZERO rate, so a burn is expected at all");
+        assertLe(penaltyWad, 0.02e18, "and Morpho caps it at 2%");
+
+        // Three distinct quantities, asserted separately rather than conflated into one claim:
+        // 1. the account is paid nothing
         assertEq(
             IERC20(WETH).balanceOf(SUPER_WETH_STRATEGY), wethBefore, "the account received NO underlying"
         );
-
-        uint256 penaltyWad = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
-        assertGt(penaltyWad, 0, "this adapter charges a penalty");
-        assertLe(penaltyWad, 0.02e18, "Morpho caps it at 2%");
+        // 2. its shares fall -- true only BECAUSE the rate above is non-zero; a free adapter burns none
+        uint256 burned = sharesBefore - IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).balanceOf(SUPER_WETH_STRATEGY);
+        assertGt(burned, 0, "penalty shares burned from the executing account");
+        // 3. and the burn equals rate x amount, computed independently of the return value
+        assertApproxEqRel(
+            IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).convertToAssets(burned),
+            _penaltyAssets(DEALLOCATE_AMOUNT),
+            0.01e18,
+            "the burn matches the rate applied to the amount"
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -461,8 +471,9 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     }
 
     /// @notice The vault's total assets are unchanged by a deallocation; only their LOCATION moves.
-    /// @dev The clearest statement of what forceDeallocate is: an internal relocation from adapter to
-    ///      idle, minus the penalty. It is not a withdrawal and it is not a yield event.
+    /// @dev The clearest statement of what forceDeallocate is: an internal relocation of the FULL
+    ///      requested amount from adapter to idle, plus a SEPARATE penalty share burn. Not a
+    ///      withdrawal, not a yield event.
     function test_VaultTotalAssets_BarelyMove_OnlyTheirLocation() public {
         uint256 totalBefore = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).totalAssets();
         uint256 adapterBefore = IAdapterRead(GAUNTLET_ADAPTER).realAssets();
@@ -472,12 +483,10 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
         uint256 totalAfter = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).totalAssets();
         uint256 adapterAfter = IAdapterRead(GAUNTLET_ADAPTER).realAssets();
 
-        assertLt(adapterAfter, adapterBefore, "the adapter gave up underlying");
-        assertApproxEqRel(
-            adapterBefore - adapterAfter, DEALLOCATE_AMOUNT, 0.01e18, "roughly the requested amount left it"
-        );
-        // Total assets move only by the penalty, which is a share burn rather than an asset outflow.
-        assertApproxEqRel(totalAfter, totalBefore, 0.001e18, "total assets are essentially unchanged");
+        assertEq(adapterBefore - adapterAfter, DEALLOCATE_AMOUNT, "exactly the requested amount left it");
+        // totalAssets falls ONLY by the penalty, and only because shares were burned -- no asset left
+        // the vault. Asserted against the independently computed penalty rather than a tolerance.
+        assertEq(totalBefore - totalAfter, _penaltyAssets(DEALLOCATE_AMOUNT), "only the penalty");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -516,6 +525,13 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
         assertTrue(okPre, "preExecute");
         (okCall,) = ex[1].target.call(ex[1].callData);
         vm.stopPrank();
+    }
+
+    /// @dev The penalty in ASSET terms: the live rate (WAD) applied to the deallocated amount. Read
+    ///      from the vault rather than hardcoded, so it tracks a curator change.
+    function _penaltyAssets(uint256 assets) internal view returns (uint256) {
+        return (assets * IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER))
+            / 1e18;
     }
 
     function _strategyShares() internal view returns (uint256) {

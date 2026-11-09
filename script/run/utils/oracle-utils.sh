@@ -55,6 +55,13 @@ get_oracle_salt() {
             # 32 chars — matches Solidity FIRELIGHT_YIELD_SOURCE_ORACLE_SALT
             salt="FirelightYieldSourceOracle_v1.0"
             ;;
+        "GyldBondYieldSourceOracle")
+            # 32 chars — EXACTLY at the limit, which is why it is pinned here rather than left to the
+            # default below. The fallback would produce this same string, but it sits one character from
+            # `validate_salt_length`'s hard `exit 1`, so any later rename or version bump of this oracle
+            # must shorten the salt rather than extend it.
+            salt="GyldBondYieldSourceOracle_v1.0.1"
+            ;;
         *)
             # Default: use oracle name + version
             salt="${oracle_name}_v1.0.1"

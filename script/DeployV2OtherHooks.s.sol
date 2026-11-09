@@ -98,6 +98,15 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address hyperCorePerpPositionOracle;
     }
 
+    struct GyldHookAddresses {
+        address gyldBondRegistry;
+        address gyldBondYieldSourceOracle;
+        address gyldTradeGuardHook;
+        address gyldTradePolicy;
+        address approveAndTradeGyldBondCashInHook;
+        address approveAndTradeGyldBondBondInHook;
+    }
+
     struct DETHHookAddresses {
         address requestRedeemDETHHook;
         address approveAndRequestRedeemDETHHook;
@@ -189,6 +198,17 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         console2.log("Deploying Algebra Integral Hooks on chainId: ", chainId);
 
         _deployAlgebraIntegralHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    /// @notice Targeted Gyld deploy. Use `TARGET_FAMILY=Gyld` with the shell wrapper.
+    /// @dev STILL GATED on `gyldOracleEnabled[chainId]`, exactly like the generic `run` path. A targeted
+    ///      family run executes on EVERY configured network, so an ungated entrypoint here would ship the
+    ///      registry, oracle and guard to every chain in the networks file the moment anyone targeted the
+    ///      family. The gate lives inside `_deployGyldHooks` so both callers get it.
+    function runGyld(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        _deployGyldHooks(chainId, env, true);
         _writeExportedContracts(chainId);
     }
 
@@ -384,6 +404,22 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         if (otherHooksConfiguration.coreWriters[chainId] != address(0)) {
             console2.log("Deploying HyperCore Hooks on chainId: ", chainId);
             _deployHyperCoreHooks(chainId, env);
+        }
+
+        // Gyld bond contracts — gated inside `_deployGyldHooks` on `gyldOracleEnabled`, so the generic path
+        // and `runGyld` cannot diverge. Both config tables are empty today, so this is skipped on every
+        // chain; see the rationale in ConfigOtherHooks.
+        // THE LEDGER-CONFIG CHECK IS GATED HERE, NOT LEFT TO REVERT, for the same reason the Aave V4 idle
+        // family gates its registry check at the call site: in the deploy-everything path a revert inside
+        // the family would lose every LATER hook family on the chain too, which is the wrong trade for a
+        // new-chain bring-up. `runGyld` keeps the hard revert, where failing loudly is correct.
+        if (
+            otherHooksConfiguration.gyldOracleEnabled[chainId]
+                && __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "", env).code.length == 0
+        ) {
+            console2.log("SKIPPED Gyld Bond contracts: SuperLedgerConfiguration not deployed on chainId", chainId);
+        } else {
+            _deployGyldHooks(chainId, env, false);
         }
 
         // Aave V3 hooks — only on chains where Aave V3 is deployed
@@ -1633,6 +1669,206 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.hyperCorePerpPositionOracle != address(0), "HyperCorePerpPositionOracle not assigned");
 
         console2.log("All HyperCore hooks deployed and validated successfully.");
+
+        return hookAddresses;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              GYLD BONDS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Deploys the Gyld tokenized-bond contracts in dependency order.
+    /// @dev A CHAIN OF DEPENDENCIES, which is why this family is not a flat hook list like the others: the
+    ///      oracle takes the registry and the guard takes the oracle. Each is deployed and its ACTUAL address
+    ///      fed to the next, rather than derived with `__computeContractAddress` as the Aave V4 idle hooks
+    ///      do, because they ship together here and a derived address would only add a way to drift.
+    /// @dev THE TWO TRADE INSTANCES TAKE THE VENUE, THEIR CAP, THE POLICY AND A SIDE. They still read no
+    ///      instrument configuration themselves — everything Gyld-specific sits behind `IGyldTradePolicy` —
+    ///      but tradability IS enforced on their own execution path, because each one calls
+    ///      `GyldTradePolicy` from its `preExecute` and `postExecute`. So they depend on the policy this
+    ///      function deploys, which in turn depends on the registry and oracle above it.
+    /// @dev The earlier text here said tradability was enforced by `GyldTradeGuardHook`, "which every Gyld
+    ///      leaf must include". That was review finding F1 and it was false: the strategy authorises each
+    ///      leaf independently, so a leaf could simply omit the guard. The guard is now an OPTIONAL
+    ///      per-leaf freshness tightener.
+    /// @dev THE LEDGER CONFIGURATION ADDRESS IS DERIVED, the same way the Aave V4 idle hooks derive their
+    ///      registry: `DeployV2Core` deployed it at a CREATE2 address that is identical on every chain
+    ///      within an environment. Note the same deliberate asymmetry documented there —
+    ///      `__getOtherHooksBytecode` reads `locked-bytecode/` for every env while
+    ///      `__computeContractAddress(..., env)` reads the env-specific directory, which is correct because
+    ///      the ledger configuration was deployed from the env-specific artifact.
+    /// @dev THE ORACLE IS NOT REGISTERED IN `SuperLedgerConfiguration` BY THIS SCRIPT. It must be registered
+    ///      with `feePercent = 0` and never against `FlatFeeLedger`, because a bond's coupon accrual is not
+    ///      performance yield. That is a governance action with a value this script must not choose; see
+    ///      `AddToSuperLedgerConfiguration`.
+    /// @dev THE REGISTRY IS BORN WITH `DEPLOYER` AS ITS ADMIN and holds no instruments, so it is inert until
+    ///      governance registers one. Hand it over with `TransferGyldBondRegistryRoles` before registering.
+    /// @param chainId The chain being deployed to
+    /// @param env The deployment environment, which selects the bytecode artifact directory
+    /// @param verbose When true (`runGyld`), log the three valuation addresses and say explicitly that the
+    ///        trade instances were skipped, so a targeted run of the valuation half reads as a deliberate
+    ///        outcome rather than a silent partial deploy. The skip rule itself is the same either way:
+    ///        the trade instances ship only when a settlement address is configured.
+    function _deployGyldHooks(
+        uint64 chainId,
+        uint256 env,
+        bool verbose
+    )
+        internal
+        returns (GyldHookAddresses memory hookAddresses)
+    {
+        // The per-chain enable, checked here so the generic path and the targeted entrypoint behave
+        // identically. Empty table today, so this returns on every chain.
+        if (!otherHooksConfiguration.gyldOracleEnabled[chainId]) {
+            console2.log("SKIPPED Gyld Bond contracts: family not enabled on chainId", chainId);
+            return hookAddresses;
+        }
+        console2.log("Deploying Gyld Bond contracts on chainId: ", chainId);
+
+        address ledgerConfig = __computeContractAddress(SUPER_LEDGER_CONFIGURATION_KEY, "", env);
+        // Fail loudly rather than ship an oracle pinned to a codeless ledger configuration.
+        require(ledgerConfig.code.length > 0, "SUPER_LEDGER_CONFIGURATION_NOT_DEPLOYED: run DeployV2Core first");
+
+        // ---- 1. The approved-instrument list, admin = DEPLOYER until the role transfer ----
+        hookAddresses.gyldBondRegistry = __deployContract(
+            GYLD_BOND_REGISTRY_KEY,
+            chainId,
+            __getSalt(GYLD_BOND_REGISTRY_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("GyldBondRegistry", env), abi.encode(DEPLOYER))
+        );
+        require(hookAddresses.gyldBondRegistry != address(0), "GyldBondRegistry not assigned");
+
+        // ---- 2. The oracle, over that registry ----
+        hookAddresses.gyldBondYieldSourceOracle = __deployContract(
+            GYLD_BOND_YIELD_SOURCE_ORACLE_KEY,
+            chainId,
+            __getSalt(GYLD_BOND_YIELD_SOURCE_ORACLE_KEY),
+            abi.encodePacked(
+                __getOtherHooksBytecode("GyldBondYieldSourceOracle", env),
+                abi.encode(ledgerConfig, hookAddresses.gyldBondRegistry)
+            )
+        );
+        require(hookAddresses.gyldBondYieldSourceOracle != address(0), "GyldBondYieldSourceOracle not assigned");
+
+        // ---- 3. The guard, over that oracle ----
+        hookAddresses.gyldTradeGuardHook = __deployContract(
+            GYLD_TRADE_GUARD_HOOK_KEY,
+            chainId,
+            __getSalt(GYLD_TRADE_GUARD_HOOK_KEY),
+            abi.encodePacked(
+                __getOtherHooksBytecode("GyldTradeGuardHook", env), abi.encode(hookAddresses.gyldBondYieldSourceOracle)
+            )
+        );
+        require(hookAddresses.gyldTradeGuardHook != address(0), "GyldTradeGuardHook not assigned");
+
+        // ---- 3b. The trade policy, over that registry and oracle (F1) ----
+        // Both trade instances pin this in an immutable, so it must exist before them. The aggregator is
+        // the SuperVault strategy-state source; zero disables the pause/PPS checks, which is why the deploy
+        // refuses to ship that silently below.
+        // Env-SELECTED, not shared. The config function takes no `env`, so reading one table for both
+        // environments would pin the production aggregator into a staging policy, and the code check below
+        // would pass because that address has code. Staging has no entry today, which is correct: there is
+        // no staging SuperVault deployment on Katana to point at, so a staging Gyld run deploys the policy
+        // with a zero aggregator and warns, rather than silently cross-wiring to prod.
+        address aggregator = env == 0
+            ? otherHooksConfiguration.superVaultAggregators[chainId]
+            : otherHooksConfiguration.superVaultAggregatorsStaging[chainId];
+        // A CONFIGURED but codeless aggregator is worse than none: the policy's registration probe calls
+        // `getPPS`, and a call to a codeless address returns empty data which Solidity cannot decode and
+        // cannot catch, so every trade would revert with NO named reason. Zero is a valid choice; a typo
+        // is not.
+        if (aggregator != address(0)) {
+            require(aggregator.code.length > 0, "GYLD_AGGREGATOR_NOT_DEPLOYED");
+        }
+        hookAddresses.gyldTradePolicy = __deployContract(
+            GYLD_TRADE_POLICY_KEY,
+            chainId,
+            __getSalt(GYLD_TRADE_POLICY_KEY),
+            abi.encodePacked(
+                __getOtherHooksBytecode("GyldTradePolicy", env),
+                abi.encode(hookAddresses.gyldBondRegistry, hookAddresses.gyldBondYieldSourceOracle, aggregator)
+            )
+        );
+        require(hookAddresses.gyldTradePolicy != address(0), "GyldTradePolicy not assigned");
+        // F1: with a zero aggregator a PAUSED strategy can still trade. Permitted only when the chain has
+        // no SuperVault aggregator at all, and announced loudly either way.
+        if (aggregator == address(0) && verbose) {
+            console2.log("  WARNING: Gyld policy has NO aggregator; strategy pause and PPS are UNCHECKED");
+        } else if (verbose) {
+            // The policy reads this from the registry and REFUSES to trade while it is zero, so it is a
+            // required post-deploy step rather than a nicety.
+            console2.log("  TODO post-deploy: registry.setMaxPpsAge(GYLD_MAX_PPS_AGE) =", GYLD_MAX_PPS_AGE);
+        }
+
+        // ---- 4. The two trade instances, one per direction ----
+        address settlement = otherHooksConfiguration.gyldSettlements[chainId];
+        if (settlement != address(0)) {
+            // Matches `_deployBinanceHooks`' router check. Both trade instances pin this address in an
+            // immutable, so a typo or a testnet address costs a redeploy at two new CREATE2 addresses plus
+            // re-registration. The only published Gyld settlement addresses are on Bokuto testnet and two
+            // sources disagree on them, so this is the field most likely to be pasted wrong.
+            require(settlement.code.length > 0, "GYLD_SETTLEMENT_NOT_DEPLOYED");
+        }
+        if (settlement == address(0)) {
+            if (verbose) {
+                console2.log("Gyld registry:", hookAddresses.gyldBondRegistry);
+                console2.log("Gyld oracle:  ", hookAddresses.gyldBondYieldSourceOracle);
+                console2.log("Gyld guard:   ", hookAddresses.gyldTradeGuardHook);
+                console2.log("SKIPPED Gyld trade hooks: no settlement address configured for chainId", chainId);
+            }
+            return hookAddresses;
+        }
+
+        uint256 cashCap = otherHooksConfiguration.gyldMaxCashInputAmounts[chainId];
+        uint256 bondCap = otherHooksConfiguration.gyldMaxBondInputAmounts[chainId];
+        // A zero cap reverts in the hook's constructor anyway; this names the configuration mistake.
+        require(cashCap != 0, "GYLD_CASH_CAP_NOT_CONFIGURED");
+        require(bondCap != 0, "GYLD_BOND_CAP_NOT_CONFIGURED");
+        // The two caps are denominated in tokens whose decimals differ, so an equal pair is almost certainly
+        // one value copied twice, which would make one of the two directions unusable or its cap vacuous.
+        require(cashCap != bondCap, "GYLD_CAPS_IDENTICAL: each direction's cap is in ITS OWN input token");
+        // The bond leg is denominated in a higher-decimal token than the cash leg, so its raw cap must be
+        // the larger number. If it is not, the two config entries have been swapped: `!=` above passes,
+        // both hooks deploy, and the cash leg ends up with a cap orders of magnitude above the cash token's
+        // entire supply while the bond leg is capped below one whole bond.
+        require(bondCap > cashCap, "GYLD_CAPS_LOOK_SWAPPED: the bond cap must exceed the cash cap");
+
+        hookAddresses.approveAndTradeGyldBondCashInHook = __deployContract(
+            APPROVE_AND_TRADE_GYLD_BOND_CASH_IN_HOOK_KEY,
+            chainId,
+            __getSalt(APPROVE_AND_TRADE_GYLD_BOND_CASH_IN_HOOK_KEY),
+            // The key names the instance; the bytecode lookup names the contract. They differ because one
+            // contract ships twice, once per direction, each with its own cap.
+            abi.encodePacked(
+                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env),
+                abi.encode(settlement, cashCap, hookAddresses.gyldTradePolicy, uint8(0))
+            )
+        );
+        hookAddresses.approveAndTradeGyldBondBondInHook = __deployContract(
+            APPROVE_AND_TRADE_GYLD_BOND_BOND_IN_HOOK_KEY,
+            chainId,
+            __getSalt(APPROVE_AND_TRADE_GYLD_BOND_BOND_IN_HOOK_KEY),
+            abi.encodePacked(
+                __getOtherHooksBytecode("ApproveAndTradeGyldBondHook", env),
+                abi.encode(settlement, bondCap, hookAddresses.gyldTradePolicy, uint8(1))
+            )
+        );
+        require(
+            hookAddresses.approveAndTradeGyldBondCashInHook != address(0),
+            "ApproveAndTradeGyldBondCashInHook not assigned"
+        );
+        require(
+            hookAddresses.approveAndTradeGyldBondBondInHook != address(0),
+            "ApproveAndTradeGyldBondBondInHook not assigned"
+        );
+        // Two instances of one contract must not collide, or the second direction silently reuses the
+        // first's cap. Distinct keys give distinct salts, and this asserts the result rather than the intent.
+        require(
+            hookAddresses.approveAndTradeGyldBondCashInHook != hookAddresses.approveAndTradeGyldBondBondInHook,
+            "GYLD_TRADE_HOOKS_COLLIDED: one address for both directions"
+        );
+
+        console2.log("All Gyld Bond contracts deployed and validated successfully.");
 
         return hookAddresses;
     }

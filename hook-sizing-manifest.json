@@ -298,6 +298,16 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "APPROVE_AND_TRADE_GYLD_BOND_BOND_IN_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "APPROVE_AND_TRADE_GYLD_BOND_CASH_IN_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_ERC20_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "passthrough",
@@ -522,6 +532,11 @@
     "hookKey": "GEARBOX_UNSTAKE_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
+  },
+  {
+    "hookKey": "GYLD_TRADE_GUARD_HOOK_KEY",
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
   },
   {
     "hookKey": "HYPERCORE_ADD_API_WALLET_HOOK_KEY",

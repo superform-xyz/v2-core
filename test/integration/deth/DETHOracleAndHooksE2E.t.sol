@@ -197,7 +197,22 @@ contract DETHOracleAndHooksE2E is Test {
         uint256 machineAssetsBack = IMachine(MACHINE).convertToAssets(shares);
         assertEq(assetsBack, machineAssetsBack, "getAssetOutput must match Machine.convertToAssets");
 
-        assertApproxEqAbs(assetsBack, oneETH, 1, "Round-trip should preserve value within 1 wei");
+        // NOT a fixed wei tolerance. This file forks at LATEST (no pinned block), so the round-trip loss
+        // tracks the live exchange rate: `convertToShares` floors, `convertToAssets` floors again, and the
+        // combined loss is bounded by the assets-per-share rate, not by a constant. The previous
+        // `assertApproxEqAbs(assetsBack, oneETH, 1)` passed only while that rate kept the loss at 1 wei and
+        // began failing at 2 once it drifted (999999999999999998 against a tolerance of 1). Bumping the
+        // constant to 2 would just move the goalposts until the next drift.
+        //
+        // Two assertions replace it, neither rate-dependent:
+        // 1. The property that actually matters — a round trip must never CREATE value. Repo idiom, cf.
+        //    `UniV2LPYieldSourceOracle.test_shareAssetRoundTrip_noValueCreation`.
+        assertLe(assetsBack, oneETH, "round trip must not create value");
+        // 2. A bound that still catches a real conversion regression. With `shares = floor(oneETH / r)` and
+        //    `assetsBack = floor(shares * r)`, the loss is strictly below `r + 1` where `r` is assets per
+        //    share. Derived from the live rate so it scales with it instead of assuming r is about 1.
+        uint256 assetsPerShare = Math.ceilDiv(IMachine(MACHINE).convertToAssets(1 ether), 1 ether);
+        assertGe(assetsBack, oneETH - (assetsPerShare + 1), "round trip lost more than double-flooring can");
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -338,7 +338,7 @@ generate_constructor_args() {
             merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             native_token="0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
             ;;
-        "747474") # Katana (OP Stack L2, ETH gas) — mirrors ConfigCore Katana entries
+        "747474") # Katana (Polygon CDK L2, ETH gas) — mirrors ConfigCore Katana entries
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router="" # 1inch not on Katana
             odos_router="" # Odos v2 not on Katana
@@ -570,6 +570,59 @@ generate_constructor_args() {
         # of the CREATE2 address, so a mismatch here means verifying against the wrong initcode.
         "ForceDeallocateMorphoHook")
             echo "$(cast abi-encode "constructor(uint256)" "2500000000000000")"
+            ;;
+        # ===== Gyld bonds (chain 747474 only today) =====
+        # The registry's admin is the DEPLOYER at construction and stays so in the INITCODE even after
+        # `TransferGyldBondRegistryRoles` hands the roles to SUPER_GOVERNOR: constructor args are fixed at
+        # deploy. Reading the live admin here would produce args that do not match the deployed bytecode.
+        "GyldBondRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$deployer")"
+            ;;
+        "GyldBondYieldSourceOracle")
+            local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$gyld_registry")"
+            ;;
+        "GyldTradeGuardHook")
+            local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address)" "$gyld_oracle")"
+            ;;
+        "GyldTradePolicy")
+            local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
+            local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")
+            # NOT in the deployment JSON: the aggregator is a v2-periphery address. Must match
+            # `ConfigOtherHooks.superVaultAggregators` / `superVaultAggregatorsStaging` for this chain, and
+            # a zero aggregator is a legitimate deployed configuration, so an empty entry is NOT an error.
+            local gyld_aggregator="0x0000000000000000000000000000000000000000"
+            case $chain_id in
+                "747474") gyld_aggregator="0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698" ;;
+            esac
+            echo "$(cast abi-encode "constructor(address,address,address)" "$gyld_registry" "$gyld_oracle" "$gyld_aggregator")"
+            ;;
+        "ApproveAndTradeGyldBondCashInHook"|"ApproveAndTradeGyldBondBondInHook")
+            local gyld_policy=$(get_contract_address "$chain_id" "GyldTradePolicy")
+            # Settlement venue and the per-direction cap, both from `ConfigOtherHooks`/`ConstantsOtherHooks`.
+            # The caps are per-direction and denominated in THAT direction's input token, so they are not
+            # interchangeable: swapping them yields two addresses that do not match what was deployed.
+            local gyld_settlement=""
+            local gyld_cap=""
+            case $chain_id in
+                "747474")
+                    gyld_settlement="" # TODO: fill from ConfigOtherHooks.gyldSettlements once the venue is known
+                    if [ "$contract_name" = "ApproveAndTradeGyldBondCashInHook" ]; then
+                        gyld_cap="500000000000"            # GYLD_MAX_CASH_INPUT_AMOUNT_KATANA, 500_000e6
+                    else
+                        gyld_cap="500000000000000000000000" # GYLD_MAX_BOND_INPUT_AMOUNT_KATANA, 500_000e18
+                    fi
+                    ;;
+            esac
+            if [ -z "$gyld_settlement" ]; then
+                # Guessing here would submit wrong args and mark the contract as failed verification for a
+                # reason that looks like a compiler mismatch. Fail with the actual cause instead.
+                echo "GYLD_SETTLEMENT_UNKNOWN_FOR_CHAIN_$chain_id" >&2
+                echo ""
+                return 0
+            fi
+            echo "$(cast abi-encode "constructor(address,uint256,address,uint8)" "$gyld_settlement" "$gyld_cap" "$gyld_policy" "$([ "$contract_name" = "ApproveAndTradeGyldBondCashInHook" ] && echo 0 || echo 1)")"
             ;;
         "DETHYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$deth_foundation")"
@@ -829,8 +882,29 @@ get_contract_source() {
         "AaveV4ReserveRegistryV2") echo "src/accounting/oracles/AaveV4ReserveRegistryV2.sol" ;;
         "AaveV4ReserveOracle") echo "src/accounting/oracles/AaveV4ReserveOracle.sol" ;;
         "HyperCorePerpPositionOracle") echo "src/accounting/oracles/HyperCorePerpPositionOracle.sol" ;;
+        "GyldBondRegistry") echo "src/accounting/oracles/GyldBondRegistry.sol" ;;
+        "GyldBondYieldSourceOracle") echo "src/accounting/oracles/GyldBondYieldSourceOracle.sol" ;;
+        "GyldTradePolicy") echo "src/accounting/oracles/GyldTradePolicy.sol" ;;
+        "GyldTradeGuardHook") echo "src/hooks/swappers/gyld/GyldTradeGuardHook.sol" ;;
+        # Both trade directions are the SAME source file and the same contract; they differ only in
+        # constructor args, so `get_artifact_contract_name` maps both keys onto the contract name.
+        "ApproveAndTradeGyldBondCashInHook"|"ApproveAndTradeGyldBondBondInHook")
+            echo "src/hooks/swappers/gyld/ApproveAndTradeGyldBondHook.sol" ;;
 
         *) echo "src/core/unknown/$contract_name.sol" ;;
+    esac
+}
+
+# Map a deployment KEY to the Solidity CONTRACT name `forge verify-contract` needs after the `:`.
+# Almost every key equals its contract, but a few families deploy one contract at several keys with
+# different constructor args (the two Gyld trade directions), and for those the key is NOT a contract
+# name — passing it through unchanged makes forge fail with "contract not found in project".
+get_artifact_contract_name() {
+    local contract_name=$1
+    case $contract_name in
+        "ApproveAndTradeGyldBondCashInHook"|"ApproveAndTradeGyldBondBondInHook")
+            echo "ApproveAndTradeGyldBondHook" ;;
+        *) echo "$contract_name" ;;
     esac
 }
 
@@ -845,6 +919,9 @@ verify_contract() {
     local constructor_args=$4
     local source_file=$5
     local rpc_url=$6
+
+    # The deployment key, which is what the JSON and our logs use, vs the contract forge compiles.
+    local artifact_name=$(get_artifact_contract_name "$contract_name")
 
     echo -e "${YELLOW}   Verifying $contract_name...${NC}"
     echo -e "${CYAN}      Address: $contract_address${NC}"
@@ -863,7 +940,7 @@ verify_contract() {
     case $chain_id in
         "14")
             # Flare uses Blockscout explorer
-            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            forge verify-contract "$contract_address" "$source_file:$artifact_name" \
                 --constructor-args "$constructor_args" \
                 --verifier blockscout \
                 --verifier-url "https://flare-explorer.flare.network/api/" \
@@ -876,7 +953,7 @@ verify_contract() {
             # (free from https://dev.blockscout.com) to raise the limit.
             local rh_key_flag=""
             [ -n "${BLOCKSCOUT_API_KEY:-}" ] && rh_key_flag="--etherscan-api-key ${BLOCKSCOUT_API_KEY}"
-            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            forge verify-contract "$contract_address" "$source_file:$artifact_name" \
                 --constructor-args "$constructor_args" \
                 --verifier blockscout \
                 --verifier-url "https://robinhoodchain.blockscout.com/api/" \
@@ -884,9 +961,9 @@ verify_contract() {
                 --skip-is-verified-check
             verify_exit_code=$?
             ;;
-        "988"|"999"|"80094")
+        "988"|"999"|"80094"|"747474")
             # Chains not in forge's internal registry: use Etherscan V2 API with chainid
-            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            forge verify-contract "$contract_address" "$source_file:$artifact_name" \
                 --constructor-args "$constructor_args" \
                 --etherscan-api-key "$ETHERSCANV2_API_KEY" \
                 --verifier etherscan \
@@ -898,7 +975,7 @@ verify_contract() {
             # Etherscan-compatible /api endpoint (Blockscout v2 REST is absent). Best-effort —
             # confirm the explorer accepts contract-verification submissions; if not, verify
             # manually. Set ARC_VERIFIER_URL to override the endpoint.
-            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            forge verify-contract "$contract_address" "$source_file:$artifact_name" \
                 --constructor-args "$constructor_args" \
                 --verifier etherscan \
                 --verifier-url "${ARC_VERIFIER_URL:-https://arc.exploreme.pro/api}" \
@@ -906,7 +983,7 @@ verify_contract() {
             verify_exit_code=$?
             ;;
         *)
-            forge verify-contract "$contract_address" "$source_file:$contract_name" \
+            forge verify-contract "$contract_address" "$source_file:$artifact_name" \
                 --constructor-args "$constructor_args" \
                 --rpc-url "$rpc_url" \
                 --chain "$chain_id" \

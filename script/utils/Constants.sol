@@ -75,7 +75,7 @@ abstract contract Constants {
     uint64 internal constant STABLE_CHAIN_ID = 988;
     uint64 internal constant ROBINHOOD_CHAIN_ID = 4663; // Robinhood Chain (Arbitrum Orbit L2)
     uint64 internal constant ARC_CHAIN_ID = 5042; // Circle Arc L1 (USDC-native gas); testnet is 5_042_002
-    uint64 internal constant KATANA_CHAIN_ID = 747_474; // Katana mainnet (OP Stack L2, ETH gas)
+    uint64 internal constant KATANA_CHAIN_ID = 747_474; // Katana (Polygon CDK L2, ETH gas, 2**24 per-tx gas cap)
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant PLATABERGET_CHAIN_ID = 7_091_047_534; // Glamsterdam devnet-class testnet
