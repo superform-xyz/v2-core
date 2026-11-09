@@ -208,6 +208,8 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   // Binance: spend amount is committed inside the opaque router calldata and there is no scaler;
   // header inputAmount is only the allowance bound. amountRoles() returns [] on-chain (S2).
   ApproveAndSwapBinanceHook: { mode: "sizeless" },
+  // The independent signed fee reserve must not be resized, despite its AMOUNT_POSITION constant.
+  HyperCoreGasTopUpHook: { mode: "sizeless" },
 
   // == external hooks (amount exists but not at a static byte offset) ==
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.

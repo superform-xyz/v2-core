@@ -536,10 +536,8 @@
   },
   {
     "hookKey": "HYPERCORE_GAS_TOP_UP_HOOK_KEY",
-    "mode": "offset",
-    "pipeMode": "passthrough",
-    "amountPosition": 52,
-    "track": "deprecate->replaceCalldata"
+    "mode": "sizeless",
+    "pipeMode": "passthrough"
   },
   {
     "hookKey": "HYPERCORE_SEND_ASSET_HOOK_KEY",
