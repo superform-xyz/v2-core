@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-09T06:29:49Z",
+  "generatedAt": "2026-11-09T13:29:39Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -2028,7 +2028,6 @@
           "7091047534": "0x3a0022c4C27ddC502Ba2b0EDC7B832a5C4685427"
         },
         "prod": {
-          "1": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "10": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "14": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "56": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
@@ -2044,7 +2043,6 @@
           "8453": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "42161": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "43114": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
-          "59144": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "80094": "0xcd22923e8f7887Faa553c346466Ce904EE198035",
           "747474": "0xcd22923e8f7887Faa553c346466Ce904EE198035"
         }
@@ -2063,7 +2061,6 @@
           "7091047534"
         ],
         "prod": [
-          "1",
           "10",
           "14",
           "56",
@@ -2079,7 +2076,6 @@
           "8453",
           "42161",
           "43114",
-          "59144",
           "80094",
           "747474"
         ]
@@ -2172,7 +2168,6 @@
           "7091047534": "0x6a8b9495278Af714d5287A8Aa0779Cd6f91cf5f5"
         },
         "prod": {
-          "1": "0xb58519C59563D90a826292E72831e64A96Ca6309",
           "10": "0xb58519C59563D90a826292E72831e64A96Ca6309",
           "14": "0xb58519C59563D90a826292E72831e64A96Ca6309",
           "56": "0xb58519C59563D90a826292E72831e64A96Ca6309",
@@ -2188,7 +2183,6 @@
           "8453": "0xb58519C59563D90a826292E72831e64A96Ca6309",
           "42161": "0xb58519C59563D90a826292E72831e64A96Ca6309",
           "43114": "0xb58519C59563D90a826292E72831e64A96Ca6309",
-          "59144": "0x06fD9C9272a343aab5919fA3041D0a763E3cB4cC",
           "80094": "0xb58519C59563D90a826292E72831e64A96Ca6309",
           "747474": "0xb58519C59563D90a826292E72831e64A96Ca6309"
         }
@@ -2207,7 +2201,6 @@
           "7091047534"
         ],
         "prod": [
-          "1",
           "10",
           "14",
           "56",
@@ -2223,7 +2216,6 @@
           "8453",
           "42161",
           "43114",
-          "59144",
           "80094",
           "747474"
         ]
@@ -2274,7 +2266,6 @@
           "7091047534": "0xb2330446e0E822BA344e402c4396e506C6B1a13E"
         },
         "prod": {
-          "1": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "10": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "14": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "56": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
@@ -2290,7 +2281,6 @@
           "8453": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "42161": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "43114": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
-          "59144": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "80094": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
           "747474": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889"
         }
@@ -2309,7 +2299,6 @@
           "7091047534"
         ],
         "prod": [
-          "1",
           "10",
           "14",
           "56",
@@ -2325,7 +2314,6 @@
           "8453",
           "42161",
           "43114",
-          "59144",
           "80094",
           "747474"
         ]
@@ -4716,6 +4704,106 @@
       "asyncLifecycle": null,
       "compatibleProtocols": [
         "binance"
+      ]
+    },
+    "ApproveAndTradeGyldBondCashInHook": {
+      "name": "Approve and Trade Gyld Bond",
+      "description": "Approves and buys or sells a registered Gyld tokenized bond against its approved cash token",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "contract": "ApproveAndTradeGyldBondHook",
+      "tag": "cash-in",
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
+      ]
+    },
+    "ApproveAndTradeGyldBondBondInHook": {
+      "name": "Approve and Trade Gyld Bond",
+      "description": "Approves and buys or sells a registered Gyld tokenized bond against its approved cash token",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "contract": "ApproveAndTradeGyldBondHook",
+      "tag": "bond-in",
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
+      ]
+    },
+    "GyldTradeGuardHook": {
+      "name": "Gyld Trade Guard",
+      "description": "Reverts unless the named Gyld bond is registered, unsuspended and freshly priced",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
       ]
     },
     "SwapSparkPSMExactInHook": {
@@ -8116,7 +8204,6 @@
           "7091047534": "0xeb1a79E3a43A13833A3A3D42Cb567E07763D9478"
         },
         "prod": {
-          "1": "0x354c65273D036AF8370f6d420254cF364A14E985",
           "10": "0x354c65273D036AF8370f6d420254cF364A14E985",
           "14": "0x354c65273D036AF8370f6d420254cF364A14E985",
           "56": "0x354c65273D036AF8370f6d420254cF364A14E985",
@@ -8132,7 +8219,6 @@
           "8453": "0x354c65273D036AF8370f6d420254cF364A14E985",
           "42161": "0x354c65273D036AF8370f6d420254cF364A14E985",
           "43114": "0x354c65273D036AF8370f6d420254cF364A14E985",
-          "59144": "0xD39deF3542B33d5b309A8D4e69D7a8075e736Fd5",
           "80094": "0x354c65273D036AF8370f6d420254cF364A14E985",
           "747474": "0x354c65273D036AF8370f6d420254cF364A14E985"
         }
@@ -8151,7 +8237,6 @@
           "7091047534"
         ],
         "prod": [
-          "1",
           "10",
           "14",
           "56",
@@ -8167,7 +8252,6 @@
           "8453",
           "42161",
           "43114",
-          "59144",
           "80094",
           "747474"
         ]

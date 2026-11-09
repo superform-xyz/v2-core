@@ -321,6 +321,17 @@ hooks:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: []  # sizeless — spend amount committed inside router calldata; header inputAmount is the allowance bound only
 
+  # Gyld tokenized bonds. The trade hook ships TWICE, once per direction, from one artifact. Classification
+  # keys on the CONTRACT name (lint completeness keys on that), but the MANIFEST keys on the two deploy keys
+  # via the `instances` table in hook-enrichment.yaml, because addresses resolve by what is registered.
+  ApproveAndTradeGyldBondHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: []  # sizeless — the spend is committed inside a venue-signed quote; the header inputAmount is the allowance bound only
+
+  GyldTradeGuardHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — guard, moves nothing
+
   # Spark PSM
   SwapSparkPSMExactInHook:
     actionTypes: [{intent: swap, stage: instant}]

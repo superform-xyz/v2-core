@@ -169,5 +169,84 @@ abstract contract ConstantsOtherHooks {
 
     string internal constant APPROVE_AND_SWAP_BINANCE_HOOK_KEY = "ApproveAndSwapBinanceHook";
 
+    // ── Gyld tokenized bonds (Katana)
+    // ─────────────────────────────────
+    /// @notice The approved-instrument list. Keyed by bond token; one configuration per instrument.
+    /// @dev Deployed with DEPLOYER as admin, then handed to governance by
+    ///      `TransferGyldBondRegistryRoles`. Nothing values a Gyld bond until an instrument is registered
+    ///      in it, so deploying it is safe and inert.
+    string internal constant GYLD_BOND_REGISTRY_KEY = "GyldBondRegistry";
+    /// @notice Values a registered bond at complete NAV, in the instrument's cash denomination.
+    /// @dev MUST be registered in `SuperLedgerConfiguration` with `feePercent = 0`, and `FlatFeeLedger` is
+    ///      categorically forbidden: a bond's coupon accrual is not performance yield. See the oracle's
+    ///      NatSpec. Registration is a separate governance step, not part of this deploy.
+    string internal constant GYLD_BOND_YIELD_SOURCE_ORACLE_KEY = "GyldBondYieldSourceOracle";
+    /// @notice OPTIONAL per-leaf freshness tightener and OMS diagnostic. Not the tradability gate.
+    /// @dev THIS WAS THE F1 FALSEHOOD. It used to read "MANDATORY in every Gyld leaf, not optional
+    ///      hardening", which was wrong in both halves: the strategy authorises each leaf independently and
+    ///      nothing recorded that a guard had run, so a leaf could omit it entirely or guard one bond while
+    ///      trading another. `ApproveAndTradeGyldBondHook` now reads NO registry at all and enforces
+    ///      tradability by calling `GyldTradePolicy` from its own `preExecute`/`postExecute`, which the
+    ///      executor always runs. The guard's only remaining job is letting a cautious root demand
+    ///      STRICTER freshness than the registry's own bounds.
+    string internal constant GYLD_TRADE_GUARD_HOOK_KEY = "GyldTradeGuardHook";
+    /// @notice F1: the tradability policy the two trade instances pin in an immutable
+    string internal constant GYLD_TRADE_POLICY_KEY = "GyldTradePolicy";
+    /// @notice Max age of the aggregator's price-per-share observation the policy will accept.
+    /// @dev Deliberately NOT the strategy's own `ppsExpiration`, which the manager sets. 1 day is a
+    ///      starting value: tighten once the real PPS publication cadence is known.
+    /// @dev SEEDED POST-DEPLOY via `GyldBondRegistry.setMaxPpsAge`, not a constructor argument — the policy
+    ///      reads it live so retuning it costs one role-gated transaction instead of a hook redeploy. The
+    ///      policy REFUSES to trade while the registry still holds zero.
+    uint256 internal constant GYLD_MAX_PPS_AGE = 1 days;
+
+    // TWO trade instances per pair, one per direction, and that is MANDATORY rather than preferable.
+    // `MAX_INPUT_AMOUNT` is a single immutable in RAW input-token units and applies to whichever token is
+    // the input. A cap sized for a 6-decimal stablecoin caps an 18-decimal bond leg at 1e-8 bonds; a cap
+    // sized for the bond leg makes the cash leg's cap vacuous by a factor of 1e12. One instance cannot
+    // serve both directions of a pair whose decimals differ, so each direction gets its own key (and
+    // therefore its own CREATE2 salt and address) with its cap denominated in that direction's input token.
+    // Same key-names-the-instance, bytecode-names-the-contract split as the HyperCore deposit hook above.
+    /// @notice BUY leg: cash in, bond out. Cap denominated in the cash token.
+    string internal constant APPROVE_AND_TRADE_GYLD_BOND_CASH_IN_HOOK_KEY = "ApproveAndTradeGyldBondCashInHook";
+    /// @notice SELL leg: bond in, cash out. Cap denominated in the bond token.
+    string internal constant APPROVE_AND_TRADE_GYLD_BOND_BOND_IN_HOOK_KEY = "ApproveAndTradeGyldBondBondInHook";
+
+    /// @notice Per-transaction cash-side ceiling, RAW units of the cash token (vbUSDC, 6 decimals), so this
+    ///         is 500,000 vbUSDC per transaction.
+    /// @dev THIS IS A LOSS BOUND, NOT A FAT-FINGER GUARD, and it is PROVISIONAL pending a position-size
+    ///      sign-off. `outputMin` is caller-chosen and is NOT committed into the Merkle leaf, so a
+    ///      compromised manager key can accept one wei of output for a full authorised input: the worst case
+    ///      was 100% of this number per transaction before F1. With the realised-price floor it is now the
+    ///      configured entry premium applied to the cap — 16.7% of it at the 2000-bps ceiling — still
+    ///      repeatable, since the accumulator is transient and
+    ///      resets at every transaction boundary.
+    /// @dev DERIVATION, and why it is not larger. Measured on Katana mainnet 2026-11-02 at block 46,871,544:
+    ///      vbUSDC total supply was 5,723,187.41. An earlier draft of this constant was 10,000,000 vbUSDC,
+    ///      i.e. 1.75x the ENTIRE supply of the token on that chain, which bounds nothing at all. 500,000 is
+    ///      about 8.7% of that supply. It must be re-derived from the intended Gyld allocation before any
+    ///      mainnet use; `GyldBondKatanaFork` asserts it stays below the live supply.
+    uint256 internal constant GYLD_MAX_CASH_INPUT_AMOUNT_KATANA = 500_000e6;
+    /// @notice Per-transaction bond-side ceiling, RAW units of the bond token.
+    /// @dev ASSUMES AN 18-DECIMAL BOND TOKEN, WHICH IS UNVERIFIED. Gyld's bond tokens are not deployed on
+    ///      Katana mainnet, so their decimals are unknown: their Bokuto testnet stack uses a 6-decimal
+    ///      MockUSDC for cash, and the bond series tokens' decimals were not readable. If a bond token turns
+    ///      out to be 6-decimal, this cap is 1e12 too large and bounds nothing. CONFIRM `decimals()` on the
+    ///      real bond token before configuring this.
+    /// @dev ALSO ASSUMES A NEAR-PAR BOND, WHICH IS LIKEWISE UNVERIFIED, AND THE TWO CAPS ARE THEREFORE NOT
+    ///      ECONOMICALLY COMPARABLE TODAY. An earlier version of this comment claimed they were. They are
+    ///      the same 500,000 WHOLE units, but a whole bond is worth `getPricePerShare(bond)` cash units, not
+    ///      one: this repository's own working assumption is 40-100 cash units per bond (see `NAV_IN_CASH`
+    ///      in `GyldTradePolicy.t.sol`), at which 500,000 bonds is 20M-50M of value against a 500,000 cash
+    ///      cap, i.e. 40-100x MORE exposure on the sell side, not a matching bound.
+    /// @dev SIZING RULE for whoever does the position-size sign-off: pick the cash cap first, then set this
+    ///      to `cashCap * bondScale / nav` using the real `decimals()` and the real NAV, rather than copying
+    ///      the cash figure across. Both numbers are PROVISIONAL until that happens. Note the asymmetry is
+    ///      not symmetric in risk: the sell side is where the strategy's bonds leave, so an oversized bond
+    ///      cap is the more expensive of the two mistakes.
+    uint256 internal constant GYLD_MAX_BOND_INPUT_AMOUNT_KATANA = 500_000e18;
+
+    address internal constant GYLD_CASH_TOKEN_KATANA = 0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36;
+
     // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }
