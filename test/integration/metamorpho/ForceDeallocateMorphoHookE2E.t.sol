@@ -13,6 +13,7 @@ import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
 import { IMorphoVaultV2 } from "../../../src/vendor/morpho/IMorphoVaultV2.sol";
 import { ForceDeallocateMorphoHook } from
     "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol";
+import { Deposit4626VaultHook } from "../../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Constants } from "../../utils/Constants.sol";
 
 /// @notice Minimal interface for reading Morpho Vault V2 state
@@ -649,6 +650,196 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(executions.length, 3);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SUP-21780: LAYOUT EDGE CASES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A spliced payload must still BUILD, not merely decode. `replaceCalldataAmounts` is what
+    ///         OMS uses to write the exit size, so its output has to survive the whole build path.
+    function test_SplicedPayload_StillBuilds() public {
+        address account = makeAddr("smartAccount");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, hex"beef");
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 7e6;
+        bytes memory spliced = hook.replaceCalldataAmounts(data, amounts);
+
+        Execution[] memory executions = hook.build(address(0), account, spliced);
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, hex"beef", 7e6, account)),
+            "the spliced amount reaches forceDeallocate and the tail is untouched"
+        );
+    }
+
+    /// @notice A one-byte tail is valid: 105 header + 1 = 106 bytes.
+    function test_OneByteAdapterData_IsCarried() public {
+        address account = makeAddr("smartAccount");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, hex"7f");
+        assertEq(data.length, 106, "105 + 1");
+
+        Execution[] memory executions = hook.build(address(0), account, data);
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, hex"7f", 1e6, account)),
+            "a single tail byte is forwarded, not dropped"
+        );
+    }
+
+    /// @notice Exactly MIN_DATA_LENGTH means an EMPTY tail, not a one-byte tail.
+    /// @dev `ADAPTER_DATA_OFFSET == MIN_DATA_LENGTH`, so the branch is `data.length > 105`. This pins the
+    ///      boundary from the other side: 105 bytes must produce `0x`, not a stray byte.
+    function test_ExactMinLength_YieldsAnEmptyTail() public {
+        address account = makeAddr("smartAccount");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, "");
+        assertEq(data.length, 105);
+
+        Execution[] memory executions = hook.build(address(0), account, data);
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", 1e6, account)),
+            "105 bytes means an empty adapterData"
+        );
+    }
+
+    /// @notice WHAT A LEGACY 169-BYTE PAYLOAD DOES, pinned rather than left to discovery.
+    /// @dev The migration hazard: the new layout accepts an old-format blob because 169 > 105. The flag
+    ///      is read from byte 104 (the top byte of the old `deadline`, normally 0x00 -> false) and the
+    ///      remaining 64 bytes become `adapterData`. It does NOT revert. This is why the old address must
+    ///      be deregistered rather than left live alongside the new one, and why the OMS encoder cutover
+    ///      has to land with the deployment. If this ever starts reverting, the layout gained a length
+    ///      check and this test should be updated deliberately.
+    function test_LegacyPayload_IsAcceptedAndReinterpreted() public {
+        bytes memory legacy = _legacyPayload(1e6);
+        assertEq(legacy.length, 169, "the superseded layout");
+        assertFalse(hook.decodeUsePrevHookAmount(legacy), "byte 104 is the old deadline's top byte: 0x00");
+        _assertLegacyTailBecomesAdapterData(legacy);
+    }
+
+    /// @dev Split into its own frame purely to stay under the stack limit in this large test contract.
+    function _assertLegacyTailBecomesAdapterData(bytes memory legacy) internal {
+        address account = makeAddr("smartAccount");
+        Execution[] memory executions = hook.build(address(0), account, legacy);
+        // 169 - 105 = 64 bytes: the old deadline's lower word, maxPenaltyBps, and the old flag byte.
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(
+                IMorphoVaultV2.forceDeallocate,
+                (ZERO_PENALTY_ADAPTER, BytesLib.slice(legacy, 105, 64), 1e6, account)
+            ),
+            "the old trailing words are handed to the adapter as adapterData"
+        );
+    }
+
+    /// @notice usePrevHookAmount genuinely CONSUMES a predecessor's non-zero amount.
+    /// @dev The mirror of the two-leg tests below: this hook can be a consumer, it just cannot be a
+    ///      producer. Both halves need pinning or a regression could break sizing in either direction.
+    function test_UsePrevHookAmount_ConsumesAPredecessorsAmount() public {
+        address account = makeAddr("smartAccount");
+        address prev = makeAddr("prevHook");
+        vm.mockCall(
+            prev, abi.encodeWithSelector(bytes4(keccak256("getOutAmount(address)")), account), abi.encode(3e6)
+        );
+
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, true, "");
+        Execution[] memory executions = hook.build(prev, account, data);
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", 3e6, account)),
+            "the predecessor's 3e6 wins over the header's 1e6"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+          SUP-21780: THE TWO-LEG CONTRACT IS ENFORCED, NOT DOCUMENTED
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A SIZED SUCCESSOR CANNOT INHERIT THIS HOOK'S OUTPUT. This is the invariant that forces the
+    ///         force-deallocate then redeem sequence to be two explicit legs rather than a chain.
+    /// @dev Without this test the rule lives only in NatSpec and in the spec document. `outAmount = 0` is
+    ///      what enforces it: every sized consumer guards `amount == 0`. Precedent for pinning it this way
+    ///      is `913b93f8`, added alongside PR #1029 to prove the HyperCore chain fails downstream rather
+    ///      than proceeding on a stale amount.
+    /// @dev The POSITIVE CONTROL at the end is load-bearing: it proves the revert comes from the inherited
+    ///      zero and not from a malformed successor payload, which is how a test like this would otherwise
+    ///      pass for the wrong reason.
+    function test_SUP21780_SizedSuccessor_CannotChainOffThisHook() public {
+        address account = makeAddr("smartAccount");
+        _publishOutputs(account, 1e6);
+        assertEq(hook.getOutAmount(account), 0, "precondition: this hook published zero");
+
+        Deposit4626VaultHook successor = new Deposit4626VaultHook();
+
+        // usePrevHookAmount = true -> inherits 0 -> the successor's own guard trips.
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        successor.build(address(hook), account, _depositData(0, true));
+
+        // Positive control: the same successor with an EXPLICIT amount builds fine, so the revert above
+        // is attributable to the inherited zero.
+        Execution[] memory ok = successor.build(address(hook), account, _depositData(1e6, false));
+        assertGt(ok.length, 0, "the successor is well-formed when it carries its own amount");
+    }
+
+    /// @notice Same invariant via self-chaining, which needs no second hook type at all.
+    function test_SUP21780_ChainingThisHookOffItself_FailsClosed() public {
+        address account = makeAddr("smartAccount");
+        _publishOutputs(account, 1e6);
+
+        bytes memory chained = _encodeBaseDataFromParams(
+            BaseDataParams({
+                oracleId: TEST_ORACLE_ID,
+                vault: ZERO_PENALTY_VAULT,
+                adapter: ZERO_PENALTY_ADAPTER,
+                assets: 0,
+                usePrevHookAmount: true,
+                adapterData: ""
+            })
+        );
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        hook.build(address(hook), account, chained);
+    }
+
+    /// @dev Runs the hook end to end against a mocked vault so outAmount/outToken are published.
+    function _publishOutputs(address account, uint256 assets) internal {
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, assets, false, "");
+        Execution[] memory executions = hook.build(address(0), account, data);
+        vm.mockCall(
+            ZERO_PENALTY_VAULT,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", assets, account)),
+            abi.encode(uint256(0))
+        );
+        _executeAll(executions, account);
+    }
+
+    /// @dev The superseded 169-byte layout: header(104) + deadline(32) + maxPenaltyBps(32) + flag(1).
+    ///      Built here so the test that consumes it stays within the stack limit.
+    function _legacyPayload(uint256 assets) internal pure returns (bytes memory) {
+        // Built in two steps: a single 7-argument `bytes.concat` pushes this large test contract over
+        // the stack limit.
+        bytes memory head = bytes.concat(
+            abi.encodePacked(bytes32(0)), // old placeholder0, zero-filled by the registry
+            abi.encodePacked(ZERO_PENALTY_VAULT),
+            abi.encodePacked(ZERO_PENALTY_ADAPTER),
+            abi.encode(assets) // same offset in both layouts
+        );
+        return bytes.concat(
+            head,
+            abi.encode(uint256(0)), // old deadline
+            abi.encode(uint256(200)), // old maxPenaltyBps
+            abi.encodePacked(uint8(0)) // old flag
+        );
+    }
+
+    /// @dev Deposit4626VaultHook layout: oracle id at 0, yieldSource at 32, amount at 52, flag at 84.
+    function _depositData(uint256 amount, bool usePrev) internal pure returns (bytes memory) {
+        return bytes.concat(
+            abi.encodePacked(TEST_ORACLE_ID),
+            abi.encodePacked(ZERO_PENALTY_VAULT),
+            abi.encode(amount),
+            abi.encodePacked(usePrev ? uint8(1) : uint8(0))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

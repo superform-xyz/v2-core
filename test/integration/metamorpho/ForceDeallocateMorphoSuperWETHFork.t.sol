@@ -83,6 +83,11 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     address public constant MARKET_IRM = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
     uint256 public constant MARKET_LLTV = 965_000_000_000_000_000;
 
+    /// @dev The SECOND market the same adapter supplies into, at 94.5% LLTV. Its existence is the reason
+    ///      pinning MarketParams into Merkle leaves was rejected: the curator's market set churns, and a
+    ///      3-day root timelock would block exits through a newly added market for three days.
+    uint256 public constant MARKET_LLTV_ALT = 945_000_000_000_000_000;
+
     uint256 public constant FORK_BLOCK = 26_376_760;
 
     /// @dev Deliberately small relative to the ~2,661 WETH of free liquidity in the Morpho market at the
@@ -224,8 +229,177 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    MARKET SELECTION VIA THE TAIL
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The SECOND market on the same adapter also works, so market choice is genuinely driven by
+    ///         the `adapterData` tail rather than hardcoded anywhere.
+    function test_SecondMarketOnTheSameAdapter_AlsoWorks() public {
+        MarketParams memory alt = _market();
+        alt.lltv = MARKET_LLTV_ALT;
+        assertTrue(_tryHook(DEALLOCATE_AMOUNT, abi.encode(alt)), "the 94.5% LLTV market works too");
+    }
+
+    /// @notice Both markets move underlying into the SAME destination: the vault's idle balance.
+    /// @dev Reinforces why unpinned market selection is low-risk: a session key choosing a different
+    ///      market on this adapter moves the vault's own assets between its own buckets, it cannot
+    ///      redirect them anywhere.
+    function test_EitherMarket_LandsInTheSameVaultBalance() public {
+        uint256 before = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        MarketParams memory alt = _market();
+        alt.lltv = MARKET_LLTV_ALT;
+        _runHookWith(DEALLOCATE_AMOUNT, abi.encode(alt));
+        assertGt(IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME), before, "alt market also funds the vault");
+        assertEq(IERC20(WETH).balanceOf(SUPER_WETH_STRATEGY), _strategyWeth(), "and still pays nobody");
+    }
+
+    /// @notice A wrong loanToken in the tail is rejected, not silently coerced.
+    function test_WrongLoanTokenInAdapterData_IsRejected() public {
+        MarketParams memory bad = _market();
+        bad.loanToken = WSTETH; // real token, wrong market
+        assertFalse(_tryHook(DEALLOCATE_AMOUNT, abi.encode(bad)), "wrong loanToken must be rejected");
+    }
+
+    /// @notice A truncated tail (valid prefix, short of a full MarketParams) is rejected.
+    function test_TruncatedAdapterData_IsRejected() public {
+        bytes memory full = abi.encode(_market());
+        bytes memory truncated = new bytes(full.length - 32);
+        for (uint256 i; i < truncated.length; ++i) {
+            truncated[i] = full[i];
+        }
+        assertFalse(_tryHook(DEALLOCATE_AMOUNT, truncated), "a short MarketParams must be rejected");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        AMOUNTS AND PENALTY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A materially larger deallocation also works, well inside the market's free liquidity.
+    function test_LargerAmount_Works() public {
+        uint256 before = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        _runHook(100 ether);
+        uint256 landed = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME) - before;
+        assertGe(landed, 99 ether, "roughly 100 WETH landed");
+        assertLe(landed, 100 ether, "never more than requested");
+    }
+
+    /// @notice The penalty scales with the amount: 2x the deallocation burns ~2x the shares.
+    /// @dev Pins that the cost is proportional, which is what makes a caller-side ceiling meaningful.
+    function test_PenaltySharesScaleWithTheAmount() public {
+        uint256 s0 = _strategyShares();
+        _runHook(DEALLOCATE_AMOUNT);
+        uint256 burn1 = s0 - _strategyShares();
+
+        uint256 s1 = _strategyShares();
+        _runHook(DEALLOCATE_AMOUNT * 2);
+        uint256 burn2 = s1 - _strategyShares();
+
+        assertGt(burn1, 0, "a penalty was charged");
+        assertApproxEqRel(burn2, burn1 * 2, 0.02e18, "doubling the amount roughly doubles the burn");
+    }
+
+    /// @notice Two sequential deallocations accumulate in the vault rather than overwriting.
+    function test_SequentialDeallocations_Accumulate() public {
+        uint256 before = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        _runHook(DEALLOCATE_AMOUNT);
+        uint256 mid = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        _runHook(DEALLOCATE_AMOUNT);
+        uint256 end = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+
+        assertGt(mid, before, "first leg funded the vault");
+        assertGt(end, mid, "second leg added to it");
+        assertApproxEqRel(end - before, DEALLOCATE_AMOUNT * 2, 0.01e18, "both legs landed");
+    }
+
+    /// @notice `outAmount` stays zero no matter the size, so nothing can ever chain off it.
+    function test_OutAmountIsZero_RegardlessOfAmount() public {
+        _runHook(1 ether);
+        assertEq(ISuperHookResult(address(hook)).getOutAmount(SUPER_WETH_STRATEGY), 0, "1 WETH");
+        _runHook(100 ether);
+        assertEq(ISuperHookResult(address(hook)).getOutAmount(SUPER_WETH_STRATEGY), 0, "100 WETH");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ACCESS AND SHAPE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice `preExecute` is callable only by the account itself, on a live position.
+    function test_PreExecute_RejectsAForeignCaller() public {
+        Execution[] memory executions =
+            hook.build(address(0), SUPER_WETH_STRATEGY, _hookData(DEALLOCATE_AMOUNT, abi.encode(_market())));
+
+        vm.prank(makeAddr("stranger"));
+        (bool ok,) = executions[0].target.call(executions[0].callData);
+        assertFalse(ok, "preExecute must reject msg.sender != account");
+    }
+
+    /// @notice Build-time validation still applies against real addresses.
+    function test_BuildValidation_OnTheLivePosition() public {
+        bytes memory good = _hookData(DEALLOCATE_AMOUNT, abi.encode(_market()));
+
+        // zero assets
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        hook.build(address(0), SUPER_WETH_STRATEGY, _hookData(0, abi.encode(_market())));
+
+        // one byte short of the header
+        bytes memory short = new bytes(104);
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        hook.build(address(0), SUPER_WETH_STRATEGY, short);
+
+        // and the good payload builds the expected shape
+        Execution[] memory ex = hook.build(address(0), SUPER_WETH_STRATEGY, good);
+        assertEq(ex.length, 3, "preExecute + vault call + postExecute");
+        assertEq(ex[1].target, GAUNTLET_WETH_PRIME, "target is the vault");
+        assertEq(ex[1].value, 0, "no value is sent");
+    }
+
+    /// @notice The vault call is encoded with `onBehalf` pinned to the executing account.
+    /// @dev The account cannot be redirected by calldata, which is what keeps the penalty on the executor.
+    function test_OnBehalfIsAlwaysTheExecutingAccount() public view {
+        bytes memory tail = abi.encode(_market());
+        Execution[] memory ex = hook.build(address(0), SUPER_WETH_STRATEGY, _hookData(DEALLOCATE_AMOUNT, tail));
+        assertEq(
+            ex[1].callData,
+            abi.encodeCall(
+                IMorphoVaultV2.forceDeallocate, (GAUNTLET_ADAPTER, tail, DEALLOCATE_AMOUNT, SUPER_WETH_STRATEGY)
+            ),
+            "onBehalf is the account, and the tail is forwarded verbatim"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev Mirrors `SuperExecutorBase._processHook`: set the context, build, run every execution, then
+    ///      reset. All four steps matter — `setExecutionContext` is what makes the account `lastCaller`,
+    ///      which `resetExecutionState`'s `onlyLastCaller` requires, and the reset is what clears the
+    ///      one-shot pre/post mutexes so a test can invoke the hook more than once.
+    function _runHookWith(uint256 assets, bytes memory tail) internal {
+        vm.startPrank(SUPER_WETH_STRATEGY);
+        hook.setExecutionContext(SUPER_WETH_STRATEGY);
+        Execution[] memory executions = hook.build(address(0), SUPER_WETH_STRATEGY, _hookData(assets, tail));
+        assertEq(executions.length, 3, "preExecute + vault call + postExecute");
+        assertEq(executions[1].target, GAUNTLET_WETH_PRIME, "the vault is the call target");
+        for (uint256 i; i < executions.length; ++i) {
+            (bool ok,) = executions[i].target.call(executions[i].callData);
+            assertTrue(ok, string.concat("execution ", vm.toString(i), " failed"));
+        }
+        hook.resetExecutionState(SUPER_WETH_STRATEGY);
+        vm.stopPrank();
+    }
+
+    function _runHook(uint256 assets) internal {
+        _runHookWith(assets, abi.encode(_market()));
+    }
+
+    function _strategyShares() internal view returns (uint256) {
+        return IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).balanceOf(SUPER_WETH_STRATEGY);
+    }
+
+    function _strategyWeth() internal view returns (uint256) {
+        return IERC20(WETH).balanceOf(SUPER_WETH_STRATEGY);
+    }
 
     function _position() internal view returns (uint256) {
         return IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).convertToAssets(
@@ -277,17 +451,4 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
         );
     }
 
-    function _runHook(uint256 assets) internal {
-        bytes memory data = _hookData(assets, abi.encode(_market()));
-        Execution[] memory executions = hook.build(address(0), SUPER_WETH_STRATEGY, data);
-        assertEq(executions.length, 3, "preExecute + vault call + postExecute");
-        assertEq(executions[1].target, GAUNTLET_WETH_PRIME, "the vault is the call target");
-
-        vm.startPrank(SUPER_WETH_STRATEGY);
-        for (uint256 i; i < executions.length; ++i) {
-            (bool ok,) = executions[i].target.call(executions[i].callData);
-            assertTrue(ok, string.concat("execution ", vm.toString(i), " failed"));
-        }
-        vm.stopPrank();
-    }
 }
