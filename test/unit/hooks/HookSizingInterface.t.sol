@@ -4441,6 +4441,38 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(forceDeallocateMorpho.decodeAmounts(replaced)[0], 5e18, "only the assets slot moved");
     }
 
+    /// @dev The sizing view must read the slot, not the flag or the tail. A fuzz over the amount with a
+    ///      non-zero flag and a non-zero tail catches an off-by-one in either direction.
+    function testFuzz_ForceDeallocateMorpho_DecodeAmounts_ReadsOnlyTheSlot(uint256 amount) public view {
+        bytes memory data = abi.encodePacked(
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), amount, true, hex"ffffffff"
+        );
+        assertEq(forceDeallocateMorpho.decodeAmounts(data)[0], amount, "offset 72 holds the amount");
+        assertTrue(forceDeallocateMorpho.decodeUsePrevHookAmount(data), "and 104 still holds the flag");
+    }
+
+    /// @dev `amountRoles` is constant: one IN/TOKEN leg regardless of input, including empty bytes.
+    ///      TOKEN rather than ASSETS is deliberate - see the hook's NatSpec - and a change here would
+    ///      need an amountMeta override in hook-enrichment.yaml, so it is worth pinning.
+    function testFuzz_ForceDeallocateMorpho_AmountRoles_AreInvariant(bytes memory anyData) public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = forceDeallocateMorpho.amountRoles(anyData);
+        assertEq(meta.length, 1);
+        assertEq(uint8(meta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    /// @dev The cap is exposed as a public immutable so an off-chain consumer can read the bound that
+    ///      this hook's address commits to.
+    function test_ForceDeallocateMorpho_CapIsPubliclyReadable() public view {
+        assertEq(forceDeallocateMorpho.MAX_PENALTY_WAD(), 0.02e18, "the fixture's cap");
+        assertEq(forceDeallocateMorpho.MORPHO_MAX_PENALTY_WAD(), 0.02e18, "and Morpho's own ceiling");
+        assertLe(
+            forceDeallocateMorpho.MAX_PENALTY_WAD(),
+            forceDeallocateMorpho.MORPHO_MAX_PENALTY_WAD(),
+            "the cap can never exceed the protocol ceiling"
+        );
+    }
+
     /// @dev ForceDeallocateMorphoHook: replaceCalldataAmounts reverts on wrong length
     function test_ForceDeallocateMorpho_ReplaceCalldataAmounts_RevertsWrongLength() public {
         bytes memory data = abi.encodePacked(

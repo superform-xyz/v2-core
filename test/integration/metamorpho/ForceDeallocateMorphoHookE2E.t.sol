@@ -657,6 +657,191 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    LAYOUT INVARIANTS (FUZZ)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice For ANY header values and ANY tail, build produces exactly the expected forceDeallocate
+    ///         calldata. The single strongest statement that the 105-byte layout decodes correctly.
+    /// @dev vault/adapter are fixed to the zero-penalty pair so Inv2 never interferes; the fields under
+    ///      test are the oracle id (which must be carried but never read), the amount, and the tail.
+    function testFuzz_HeaderRoundTrip_ProducesExactCalldata(bytes32 oracleId, uint96 assets, bytes memory tail)
+        public
+    {
+        vm.assume(assets > 0);
+        bytes memory data = _encodeBaseDataFromParams(
+            BaseDataParams({
+                oracleId: oracleId,
+                vault: ZERO_PENALTY_VAULT,
+                adapter: ZERO_PENALTY_ADAPTER,
+                assets: assets,
+                usePrevHookAmount: false,
+                adapterData: tail
+            })
+        );
+        _assertBuildMatches(data, tail, assets);
+    }
+
+    /// @dev Separate frame to keep this large test contract under the stack limit.
+    function _assertBuildMatches(bytes memory data, bytes memory tail, uint256 assets) internal {
+        address account = makeAddr("smartAccount");
+        Execution[] memory ex = hook.build(address(0), account, data);
+        assertEq(
+            ex[1].callData,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, tail, assets, account)),
+            "every header field decodes to the expected forceDeallocate argument"
+        );
+    }
+
+    /// @notice A splice rewrites ONLY bytes 72..103. Everything else - oracle id, yieldSource, adapter,
+    ///         the flag at 104 and the whole tail - is byte-identical.
+    /// @dev Mirrors the repo's own pattern (AaveV4StandaloneLoanHooksV2's PreservesEveryOtherByte) and is
+    ///      what proves the sized slot did not move when the layout shrank.
+    function testFuzz_Replace_PreservesEveryOtherByte(
+        bytes32 oracleId,
+        uint96 original,
+        uint96 replacement,
+        bool usePrev
+    )
+        public
+        view
+    {
+        bytes memory data = _encodeBaseDataFromParams(
+            BaseDataParams({
+                oracleId: oracleId,
+                vault: ZERO_PENALTY_VAULT,
+                adapter: ZERO_PENALTY_ADAPTER,
+                assets: original,
+                usePrevHookAmount: usePrev,
+                adapterData: hex"a1b2c3"
+            })
+        );
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = replacement;
+        bytes memory out = hook.replaceCalldataAmounts(data, amounts);
+
+        assertEq(out.length, data.length, "length preserved");
+        for (uint256 i; i < data.length; ++i) {
+            if (i >= 72 && i < 104) continue; // the assets slot is the only thing that may change
+            assertEq(uint8(out[i]), uint8(data[i]), "a byte outside the assets slot changed");
+        }
+        assertEq(hook.decodeAmounts(out)[0], replacement, "and the slot itself took the new value");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    Inv2 BOUNDARY (FUZZ)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice For ANY cap, build succeeds exactly when the cap is at least the adapter's live rate.
+    function testFuzz_Inv2_CapBoundary(uint256 capWad) public {
+        capWad = bound(capWad, 1, 0.02e18);
+        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
+        ForceDeallocateMorphoHook h = new ForceDeallocateMorphoHook(capWad);
+        bytes memory data = _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
+
+        if (capWad >= live) {
+            assertEq(h.build(address(0), makeAddr("a"), data).length, 3, "cap >= live rate must pass");
+        } else {
+            vm.expectRevert(
+                abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, capWad)
+            );
+            h.build(address(0), makeAddr("a"), data);
+        }
+    }
+
+    /// @notice The constructor accepts a cap exactly when it is in (0, MORPHO_MAX_PENALTY_WAD].
+    function testFuzz_Inv2_ConstructorValidation(uint256 capWad) public {
+        if (capWad != 0 && capWad <= 0.02e18) {
+            assertEq(new ForceDeallocateMorphoHook(capWad).MAX_PENALTY_WAD(), capWad, "accepted");
+        } else {
+            vm.expectRevert(ForceDeallocateMorphoHook.INVALID_PENALTY_CAP.selector);
+            new ForceDeallocateMorphoHook(capWad);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        HOOK LIFECYCLE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice build emits preExecute FIRST and postExecute LAST, with the vault call between.
+    /// @dev This is the BaseHook invariant that makes the hook's own checks unskippable: a build cannot
+    ///      omit them, and resetExecutionState reverts INCOMPLETE_HOOK_EXECUTION unless both ran.
+    function test_Build_PreExecuteFirst_PostExecuteLast() public {
+        address account = makeAddr("smartAccount");
+        Execution[] memory ex =
+            hook.build(address(0), account, _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, ""));
+
+        assertEq(ex.length, 3, "pre + call + post");
+        assertEq(ex[0].target, address(hook), "slot 0 is the hook itself (preExecute)");
+        assertEq(ex[2].target, address(hook), "slot 2 is the hook itself (postExecute)");
+        assertEq(ex[1].target, ZERO_PENALTY_VAULT, "the vault call sits between them");
+        assertEq(bytes4(ex[0].callData), ISuperHook.preExecute.selector, "slot 0 is preExecute");
+        assertEq(bytes4(ex[2].callData), ISuperHook.postExecute.selector, "slot 2 is postExecute");
+    }
+
+    /// @notice preExecute is one-shot within an execution context.
+    function test_PreExecute_IsOneShot() public {
+        address account = makeAddr("smartAccount");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, "");
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        hook.preExecute(address(0), account, data);
+        vm.expectRevert(BaseHook.PRE_EXECUTE_ALREADY_CALLED.selector);
+        hook.preExecute(address(0), account, data);
+        vm.stopPrank();
+    }
+
+    /// @notice resetExecutionState refuses while either mutex is unset.
+    /// @dev The mechanism that makes a partial execution unrepresentable.
+    function test_Reset_RequiresBothMutexes() public {
+        address account = makeAddr("smartAccount");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, "");
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        hook.preExecute(address(0), account, data);
+        vm.expectRevert(BaseHook.INCOMPLETE_HOOK_EXECUTION.selector);
+        hook.resetExecutionState(account);
+        vm.stopPrank();
+    }
+
+    /// @notice A predecessor whose getOutAmount reverts fails the build rather than defaulting.
+    function test_UsePrevHookAmount_RevertingPredecessor_Fails() public {
+        address account = makeAddr("smartAccount");
+        address prev = makeAddr("badPrevHook");
+        vm.mockCallRevert(
+            prev, abi.encodeWithSelector(bytes4(keccak256("getOutAmount(address)")), account), "boom"
+        );
+
+        vm.expectRevert();
+        hook.build(prev, account, _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, true, ""));
+    }
+
+    /// @notice A predecessor publishing type(uint256).max is carried through, NOT silently clamped.
+    /// @dev Pinned as documentation of current behaviour: unlike BaseLoanHookV2, this hook has no
+    ///      sentinel guard, so an absurd inherited amount reaches Morpho and fails there. If a guard is
+    ///      ever added, this test should change deliberately rather than silently.
+    function test_UsePrevHookAmount_MaxSentinel_IsNotClamped() public {
+        address account = makeAddr("smartAccount");
+        address prev = makeAddr("prevHook");
+        vm.mockCall(
+            prev,
+            abi.encodeWithSelector(bytes4(keccak256("getOutAmount(address)")), account),
+            abi.encode(type(uint256).max)
+        );
+
+        Execution[] memory ex =
+            hook.build(prev, account, _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, true, ""));
+        assertEq(
+            ex[1].callData,
+            abi.encodeCall(
+                IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", type(uint256).max, account)
+            ),
+            "the sentinel is forwarded verbatim; the venue rejects it, not the hook"
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
                     SUP-21780 Inv2: PENALTY CEILING
     //////////////////////////////////////////////////////////////*/
 

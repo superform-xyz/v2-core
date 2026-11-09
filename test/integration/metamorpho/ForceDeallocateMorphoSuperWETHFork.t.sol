@@ -404,6 +404,83 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                    SELF-LIMITING PROPERTIES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice AN ACCOUNT WITH NO POSITION CANNOT FORCE-DEALLOCATE. The penalty is burned from
+    ///         `onBehalf`, so a would-be griefer with no shares underflows and reverts.
+    /// @dev This is the property that bounds the blast radius of the whole operation: the hook pins
+    ///      `onBehalf` to the executing account, and Morpho makes that account pay. Nobody can move
+    ///      another vault's liquidity around at no cost to themselves. Measured, not assumed.
+    function test_AccountWithNoShares_CannotForceDeallocate() public {
+        address stranger = makeAddr("strangerWithNoPosition");
+        assertEq(
+            IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).balanceOf(stranger), 0, "precondition: holds nothing"
+        );
+
+        Execution[] memory ex =
+            hook.build(address(0), stranger, _hookData(DEALLOCATE_AMOUNT, abi.encode(_market())));
+        vm.startPrank(stranger);
+        (bool okPre,) = ex[0].target.call(ex[0].callData);
+        assertTrue(okPre, "preExecute is layout-only and succeeds");
+        (bool okCall,) = ex[1].target.call(ex[1].callData);
+        vm.stopPrank();
+
+        assertFalse(okCall, "the penalty burn has nothing to burn, so the call fails");
+    }
+
+    /// @notice An amount beyond the Morpho market's free liquidity is refused by the market.
+    /// @dev Bounds the operation from the other side: the hook does not cap the amount, the venue does.
+    ///      Free liquidity at the pinned block is ~2,661 WETH (32,758 supplied - 30,097 borrowed).
+    function test_AmountBeyondMarketLiquidity_IsRefused() public {
+        assertFalse(_tryHook(1_000_000 ether, abi.encode(_market())), "far beyond the market's capacity");
+    }
+
+    /// @notice Deallocating the strategy's whole position-equivalent still respects the same bounds.
+    /// @dev Not asserted to succeed or fail: the point is that whichever way it resolves, the account is
+    ///      never paid and `outAmount` stays zero. A test that assumed success would be pinning the
+    ///      market's liquidity at a block rather than the hook's behaviour.
+    function test_FullPositionSizedDeallocation_NeverPaysTheAccount() public {
+        uint256 wethBefore = _strategyWeth();
+        uint256 position = _position();
+
+        if (_tryHook(position, abi.encode(_market()))) {
+            assertEq(_strategyWeth(), wethBefore, "even a full-size deallocation pays the account nothing");
+        }
+        // Whether or not the market could serve it, nothing was paid out.
+        assertEq(_strategyWeth(), wethBefore, "no underlying reached the account either way");
+    }
+
+    /// @notice The hook never sends value, on any path.
+    function test_NoNativeValueIsEverSent() public view {
+        Execution[] memory ex =
+            hook.build(address(0), SUPER_WETH_STRATEGY, _hookData(DEALLOCATE_AMOUNT, abi.encode(_market())));
+        for (uint256 i; i < ex.length; ++i) {
+            assertEq(ex[i].value, 0, "no execution carries native value");
+        }
+    }
+
+    /// @notice The vault's total assets are unchanged by a deallocation; only their LOCATION moves.
+    /// @dev The clearest statement of what forceDeallocate is: an internal relocation from adapter to
+    ///      idle, minus the penalty. It is not a withdrawal and it is not a yield event.
+    function test_VaultTotalAssets_BarelyMove_OnlyTheirLocation() public {
+        uint256 totalBefore = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).totalAssets();
+        uint256 adapterBefore = IAdapterRead(GAUNTLET_ADAPTER).realAssets();
+
+        _runHook(DEALLOCATE_AMOUNT);
+
+        uint256 totalAfter = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).totalAssets();
+        uint256 adapterAfter = IAdapterRead(GAUNTLET_ADAPTER).realAssets();
+
+        assertLt(adapterAfter, adapterBefore, "the adapter gave up underlying");
+        assertApproxEqRel(
+            adapterBefore - adapterAfter, DEALLOCATE_AMOUNT, 0.01e18, "roughly the requested amount left it"
+        );
+        // Total assets move only by the penalty, which is a share burn rather than an asset outflow.
+        assertApproxEqRel(totalAfter, totalBefore, 0.001e18, "total assets are essentially unchanged");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
