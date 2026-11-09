@@ -192,6 +192,7 @@ compatibleProtocols:
   OfframpTokensHook: [offramp]
   # Sponsorship
   FetchNativeFeeHook: [superform-sponsorship]
+  HyperCoreGasTopUpHook: [hypercore, superform-sponsorship]
   # Superform
   MarkRootAsUsedHook: [superform]
   MintSuperPositionsHook: [superform]
@@ -363,6 +364,7 @@ amountMeta:
   HyperCoreUsdClassTransferHook: []
   HyperCoreSendAssetHook: []
   HyperCoreApproveBuilderFeeHook: []
+  HyperCoreGasTopUpHook: []
   # Compound (dual amount)
   MorphoSupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
   AaveV4SupplyAndBorrowHook: [{direction: IN, denomination: TOKEN}, {direction: OUT, denomination: TOKEN}]
@@ -468,6 +470,7 @@ sizelessHooks:
   - HyperCoreUsdClassTransferHook
   - HyperCoreSendAssetHook
   - HyperCoreApproveBuilderFeeHook
+  - HyperCoreGasTopUpHook
 
 # ── Per-instance deployments ───────────────────────────────────────────────────
 # A few contracts deploy once per instance rather than once per chain, so their

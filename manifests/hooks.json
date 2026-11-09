@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-06T08:08:31Z",
+  "generatedAt": "2026-11-09T06:29:49Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -10535,6 +10535,39 @@
       "approveVariant": null,
       "asyncLifecycle": null,
       "compatibleProtocols": [
+        "superform-sponsorship"
+      ]
+    },
+    "HyperCoreGasTopUpHook": {
+      "name": "HyperCore Gas Top-Up",
+      "description": "Funds the account's HyperCore HYPE gas reserve",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "hypercore",
         "superform-sponsorship"
       ]
     },
