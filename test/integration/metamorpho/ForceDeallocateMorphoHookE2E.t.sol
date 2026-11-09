@@ -71,7 +71,11 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
-        hook = new ForceDeallocateMorphoHook();
+        // Constructed at MORPHO'S OWN CEILING (2%), not the deploy-script value. These fixtures include
+        // MAX_PENALTY_VAULT at exactly 200 bps, so a tighter cap would make the pre-existing max-penalty
+        // cases revert on Inv2 rather than exercising what they were written for. The cap's own
+        // behaviour is covered by the dedicated Inv2 tests below.
+        hook = new ForceDeallocateMorphoHook(0.02e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -650,6 +654,98 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(executions.length, 3);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    SUP-21780 Inv2: PENALTY CEILING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A hook capped BELOW the adapter's live rate refuses to build or to pre-execute.
+    /// @dev The adapter here charges 10 bps; the hook is capped at 5. Both the view path (`build`, what
+    ///      the OMS pre-flight sees) and the authoritative on-chain path (`_preExecute`) must refuse,
+    ///      because a penalty raised between simulation and execution has to be caught by the latter.
+    function test_Inv2_PenaltyAboveCap_IsRefusedOnBothPaths() public {
+        ForceDeallocateMorphoHook capped = new ForceDeallocateMorphoHook(0.0005e18); // 5 bps
+        address account = makeAddr("smartAccount");
+        bytes memory data = _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
+
+        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
+        assertGt(live, 0.0005e18, "precondition: this adapter charges more than the cap");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, 0.0005e18)
+        );
+        capped.build(address(0), account, data);
+
+        // And directly on the on-chain path, bypassing build entirely.
+        vm.startPrank(account);
+        capped.setExecutionContext(account);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, 0.0005e18)
+        );
+        capped.preExecute(address(0), account, data);
+        vm.stopPrank();
+    }
+
+    /// @notice A cap AT the adapter's live rate passes - the comparison is `>`, not `>=`.
+    function test_Inv2_PenaltyExactlyAtCap_IsAllowed() public {
+        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
+        ForceDeallocateMorphoHook exact = new ForceDeallocateMorphoHook(live);
+        address account = makeAddr("smartAccount");
+
+        Execution[] memory ex =
+            exact.build(address(0), account, _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, ""));
+        assertEq(ex.length, 3, "a cap equal to the live rate must not bind");
+    }
+
+    /// @notice A zero-penalty adapter passes under any cap.
+    function test_Inv2_ZeroPenaltyAdapter_PassesUnderTheTightestCap() public {
+        ForceDeallocateMorphoHook tight = new ForceDeallocateMorphoHook(1); // 1 wei of WAD
+        address account = makeAddr("smartAccount");
+        assertEq(
+            IMorphoVaultV2(ZERO_PENALTY_VAULT).forceDeallocatePenalty(ZERO_PENALTY_ADAPTER),
+            0,
+            "precondition: this adapter is free"
+        );
+        Execution[] memory ex =
+            tight.build(address(0), account, _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, ""));
+        assertEq(ex.length, 3, "a free adapter is never blocked by the ceiling");
+    }
+
+    /// @notice The constructor rejects caps that could never bind or would disable the check.
+    function test_Inv2_Constructor_RejectsMeaninglessCaps() public {
+        vm.expectRevert(ForceDeallocateMorphoHook.INVALID_PENALTY_CAP.selector);
+        new ForceDeallocateMorphoHook(0);
+
+        vm.expectRevert(ForceDeallocateMorphoHook.INVALID_PENALTY_CAP.selector);
+        new ForceDeallocateMorphoHook(0.02e18 + 1); // above Morpho's own ceiling
+
+        // The boundary itself is valid.
+        ForceDeallocateMorphoHook atCeiling = new ForceDeallocateMorphoHook(0.02e18);
+        assertEq(atCeiling.MAX_PENALTY_WAD(), 0.02e18, "Morpho's ceiling is an acceptable cap");
+        assertEq(atCeiling.MORPHO_MAX_PENALTY_WAD(), 0.02e18, "and is exposed for callers");
+    }
+
+    /// @notice The cap is an immutable, so it is part of the CREATE2 address.
+    /// @dev This is the property that makes a Merkle leaf authorising the hook also commit to its cap,
+    ///      with no extra machinery: two different caps are two different addresses.
+    function test_Inv2_DifferentCaps_AreDifferentAddresses() public {
+        ForceDeallocateMorphoHook a = new ForceDeallocateMorphoHook(0.001e18);
+        ForceDeallocateMorphoHook b = new ForceDeallocateMorphoHook(0.002e18);
+        assertTrue(address(a) != address(b), "the cap changes the deployed bytecode");
+        assertEq(a.MAX_PENALTY_WAD(), 0.001e18);
+        assertEq(b.MAX_PENALTY_WAD(), 0.002e18);
+    }
+
+    /// @notice Inv2 restores a probe the deleted guard provided: `build` now calls the yieldSource, so a
+    ///         non-contract address fails at build rather than only later at execution.
+    function test_Inv2_NonContractYieldSource_FailsAtBuild() public {
+        address account = makeAddr("smartAccount");
+        address notAVault = makeAddr("notAVault");
+        bytes memory data = _encodeBaseData(notAVault, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
+
+        vm.expectRevert();
+        hook.build(address(0), account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

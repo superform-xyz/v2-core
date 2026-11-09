@@ -563,6 +563,14 @@ generate_constructor_args() {
         "StargateAdapter"|"StargateAdapterV2")
             generate_stargate_adapter_constructor_args "$contract_name" "$chain_id"
             ;;
+        # SUP-21780 Inv2: this hook took no constructor args until the penalty ceiling became an
+        # immutable. Without a case here it falls through to the `constructor()` default below, which
+        # would submit empty args and fail verification for what looks like a compiler mismatch.
+        # MUST track FORCE_DEALLOCATE_MAX_PENALTY_WAD in script/utils/Constants.sol — the value is part
+        # of the CREATE2 address, so a mismatch here means verifying against the wrong initcode.
+        "ForceDeallocateMorphoHook")
+            echo "$(cast abi-encode "constructor(uint256)" "2500000000000000")"
+            ;;
         "DETHYieldSourceOracle")
             echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$deth_foundation")"
             ;;

@@ -54,8 +54,22 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The adapter's live penalty rate exceeds this hook's immutable ceiling
+    error PENALTY_ABOVE_CAP(uint256 penaltyWad, uint256 capWad);
+    /// @notice A cap of zero, or one above Morpho's own 2% ceiling, would be meaningless
+    error INVALID_PENALTY_CAP();
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Morpho Vault V2's own hard ceiling on `forceDeallocatePenalty`, in WAD (2%).
+    /// @dev A compile-time constant in Morpho's non-upgradeable bytecode, so it cannot be raised. A cap
+    ///      above it would never bind and is rejected in the constructor as a configuration error.
+    uint256 public constant MORPHO_MAX_PENALTY_WAD = 0.02e18;
 
     uint256 private constant ADAPTER_OFFSET = 52;
     /// @notice The single sized leg. DELIBERATELY STILL 72: the two deleted words sat AFTER it, so
@@ -71,7 +85,38 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
                              CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) { }
+    /*//////////////////////////////////////////////////////////////
+                              IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Inv2: the highest `forceDeallocatePenalty` this hook will execute against, in WAD.
+    /// @dev AN IMMUTABLE RATHER THAN A CALLDATA FIELD, deliberately. Three reasons:
+    ///      1. The 105-byte layout and the registry build path SUP-21780 just established stay untouched
+    ///         — no new parameter, no OMS encoder change, no Merkle root re-derivation.
+    ///      2. Immutables live in the initcode, so the cap is part of this hook's CREATE2 address. Every
+    ///         Merkle leaf that authorises this hook therefore already commits to the cap, with no extra
+    ///         machinery. Changing the policy means a deliberate redeploy, which is the right friction
+    ///         for a safety bound.
+    ///      3. A per-call field could be set to a vacuous value by whoever builds the calldata, which is
+    ///         exactly the compromised-session-key case the bound exists for. An immutable cannot.
+    /// @dev WHY THE BOUND IS NEEDED AT ALL, given Morpho caps the penalty at 2%: that ceiling is a
+    ///      protocol maximum, not the user's tolerance. The per-adapter rate below it is CURATOR-SETTABLE
+    ///      and read at execution time, and Superform signs intents that execute later — with
+    ///      `validUntil == 0` meaning infinite validity (`SuperValidatorBase`, SECURITY.md item 10). So a
+    ///      signed exit can land at whatever the curator has since set, up to 200 bps. Every other
+    ///      value-extracting hook in this repo carries a caller-side cost bound; this restores that.
+    uint256 public immutable MAX_PENALTY_WAD;
+
+    /*//////////////////////////////////////////////////////////////
+                             CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @param maxPenaltyWad_ Inv2 ceiling in WAD. Must be non-zero and at most
+    ///        `MORPHO_MAX_PENALTY_WAD`; a cap above Morpho's own ceiling could never bind.
+    constructor(uint256 maxPenaltyWad_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) {
+        if (maxPenaltyWad_ == 0 || maxPenaltyWad_ > MORPHO_MAX_PENALTY_WAD) revert INVALID_PENALTY_CAP();
+        MAX_PENALTY_WAD = maxPenaltyWad_;
+    }
 
     /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
@@ -116,6 +161,9 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
         }
 
         if (assets == 0) revert AMOUNT_NOT_VALID();
+
+        // Inv2, checked here so the OMS pre-flight sees the same verdict the chain will.
+        _requirePenaltyWithinCap(vault, adapter);
 
         // Extract adapter data (raw tail, no length prefix). Empty is valid: an adapter that needs no
         // data is encoded as exactly MIN_DATA_LENGTH bytes with nothing after the flag.
@@ -252,8 +300,24 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
         // `usePrevHookAmount` path must still validate (a zero resolved amount is a configuration error
         // worth surfacing here rather than at the venue).
         if (assets == 0) revert AMOUNT_NOT_VALID();
+
+        // Inv2 again, and THIS is the binding one. `build` is a view reachable off-chain; `_preExecute`
+        // runs inside the transaction, so a penalty raised between simulation and execution is caught
+        // here. The duplication is the same pattern the deleted `maxPenaltyBps` check used, and it is
+        // deliberate rather than redundant.
+        _requirePenaltyWithinCap(vault, data.toAddress(ADAPTER_OFFSET));
+
         _setOutAmount(0, account);
         _setOutToken(IERC4626(vault).asset(), account);
+    }
+
+    /// @dev Inv2. Reads the adapter's live rate and refuses anything above this hook's immutable cap.
+    /// @dev Also restores a side effect the deleted guard provided: `build` makes at least one call to
+    ///      the caller-supplied `yieldSource`, so a non-contract address fails during build rather than
+    ///      only later at execution.
+    function _requirePenaltyWithinCap(address vault, address adapter) private view {
+        uint256 penaltyWad = IMorphoVaultV2(vault).forceDeallocatePenalty(adapter);
+        if (penaltyWad > MAX_PENALTY_WAD) revert PENALTY_ABOVE_CAP(penaltyWad, MAX_PENALTY_WAD);
     }
 
     /// @inheritdoc ISuperHookInspector

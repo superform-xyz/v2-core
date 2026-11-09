@@ -106,7 +106,7 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
-        hook = new ForceDeallocateMorphoHook();
+        hook = new ForceDeallocateMorphoHook(0.02e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -368,6 +368,42 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+            Inv2 AGAINST THE LIVE CURATOR-SETTABLE PENALTY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The cap binds against the real adapter rate, and the deploy-script value admits it.
+    /// @dev This is the scenario Inv2 exists for, measured rather than mocked: the live rate is 0.1 bps,
+    ///      Morpho's ceiling is 200 bps, and the provisional deploy cap is 25 bps. So today's rate passes
+    ///      with ~250x headroom while a curator raising toward the protocol maximum would be refused.
+    function test_Inv2_DeployCap_AdmitsTheLiveRate_AndWouldRefuseACuratorRaise() public {
+        uint256 live = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
+        assertGt(live, 0, "this adapter does charge a penalty");
+        assertLt(live, 0.0025e18, "the live rate is comfortably under the provisional 25 bps cap");
+        assertLe(live, 0.02e18, "and under Morpho's own ceiling");
+
+        // At the deploy cap, the live position executes.
+        ForceDeallocateMorphoHook atDeployCap = new ForceDeallocateMorphoHook(0.0025e18);
+        assertTrue(_tryHookWithHook(atDeployCap, DEALLOCATE_AMOUNT), "25 bps admits a 0.1 bps adapter");
+
+        // Capped just below the live rate, it refuses - proving the bound is live-rate driven.
+        ForceDeallocateMorphoHook tooTight = new ForceDeallocateMorphoHook(live - 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, live - 1)
+        );
+        tooTight.build(address(0), SUPER_WETH_STRATEGY, _hookData(DEALLOCATE_AMOUNT, abi.encode(_market())));
+    }
+
+    /// @notice Inv2 is enforced per ADAPTER, not per vault: the rate is read for the adapter in calldata.
+    function test_Inv2_RateIsReadForTheAdapterInCalldata() public {
+        uint256 live = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
+        // An unregistered adapter reads zero, which is why the cap cannot be the only adapter check -
+        // containment still rests on Morpho's own isAdapter gate inside forceDeallocate.
+        uint256 unknown = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(makeAddr("nobody"));
+        assertEq(unknown, 0, "an unregistered adapter reads 0, so Inv2 alone does not prove registration");
+        assertGt(live, unknown, "the registered adapter has a real rate");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -391,6 +427,18 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
 
     function _runHook(uint256 assets) internal {
         _runHookWith(assets, abi.encode(_market()));
+    }
+
+    /// @dev Runs an arbitrary hook instance through the executor sequence, for cap comparisons.
+    function _tryHookWithHook(ForceDeallocateMorphoHook h, uint256 assets) internal returns (bool okCall) {
+        vm.startPrank(SUPER_WETH_STRATEGY);
+        h.setExecutionContext(SUPER_WETH_STRATEGY);
+        Execution[] memory ex =
+            h.build(address(0), SUPER_WETH_STRATEGY, _hookData(assets, abi.encode(_market())));
+        (bool okPre,) = ex[0].target.call(ex[0].callData);
+        assertTrue(okPre, "preExecute");
+        (okCall,) = ex[1].target.call(ex[1].callData);
+        vm.stopPrank();
     }
 
     function _strategyShares() internal view returns (uint256) {

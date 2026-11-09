@@ -519,7 +519,7 @@ contract HookSizingInterfaceTest is Helpers {
         aaveRepayAndWithdraw = new AaveV4RepayAndWithdrawHook();
 
         // ── Newly-S1 hooks ──
-        forceDeallocateMorpho = new ForceDeallocateMorphoHook();
+        forceDeallocateMorpho = new ForceDeallocateMorphoHook(0.02e18);
 
         // ── Newly-S2 hooks ──
         pendleUnified = new PendleUnifiedHook(DUMMY_ROUTER);

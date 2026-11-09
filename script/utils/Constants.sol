@@ -297,6 +297,17 @@ abstract contract Constants {
     string internal constant MORPHO_LEND_HOOK_KEY = "MorphoLendHook";
     string internal constant META_MORPHO_REALLOCATE_HOOK_KEY = "MetaMorphoReallocateHook";
     string internal constant FORCE_DEALLOCATE_MORPHO_HOOK_KEY = "ForceDeallocateMorphoHook";
+    /// @notice SUP-21780 Inv2: the highest Morpho `forceDeallocatePenalty` the force-deallocate hook will
+    ///         execute against, in WAD. 25 bps.
+    /// @dev PROVISIONAL, NEEDS A RISK SIGN-OFF BEFORE MAINNET USE. A starting point, not a derived
+    ///      number: Morpho's own ceiling is 200 bps (2%) and the one live adapter measured on Ethereum
+    ///      (Gauntlet WETH Prime's, 2026-11-09) charges 0.1 bps. So 25 bps leaves ~250x headroom over
+    ///      today's observed rate while still binding 8x below the protocol maximum a curator could
+    ///      raise to.
+    /// @dev This is a CONSTRUCTOR IMMUTABLE of the hook, so the value is baked into its CREATE2 address.
+    ///      Changing it is a redeploy plus a Merkle root update, not an ops transaction — which is the
+    ///      intended friction for a safety bound. Set it from the risk budget, not from the current rate.
+    uint256 internal constant FORCE_DEALLOCATE_MAX_PENALTY_WAD = 0.0025e18;
 
     // Aave V4 Hook Keys
     string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";
