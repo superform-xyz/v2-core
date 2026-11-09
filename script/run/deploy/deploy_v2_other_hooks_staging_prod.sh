@@ -6,7 +6,7 @@
 # Description:
 #   Deploys all other-hook families (Morpho, Aave V3/V4, HyperCore, Firelight, Algebra
 #   Integral, DETH, Sponsorship, rFLR, WrappedNative, Euler, Spectra, Odos V3,
-#   FeeSplitting, ...) via DeployV2OtherHooks.s.sol across configured networks.
+#   FeeSplitting, Gyld, ...) via DeployV2OtherHooks.s.sol across configured networks.
 #
 #   SINGLE-DISPATCH: one forge invocation per network, calling the generic run() entrypoint.
 #   Per-family chain gating lives in Solidity (_deployAllHooks) — the single source of truth.
@@ -19,8 +19,69 @@
 #   ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <environment> <mode> <account> [--slow] [--resume] [--legacy]
 #
 #   Targeted single-family redeploy (uses the explicit run<Family>() entrypoints kept in
-#   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting):
+#   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting/runGyld):
 #     TARGET_FAMILY=HyperCore ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
+#
+#   Gyld tokenized bonds are ONLY deployable this way, because both config tables in
+#   ConfigOtherHooks are deliberately empty and the generic `run` path therefore skips the family
+#   on every chain:
+#     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
+#   That ships the registry, oracle and guard, which are inert until an instrument is registered.
+#   The two trade instances additionally need gyldSettlements[chainId] set to Gyld's venue address,
+#   which does not exist yet.
+#
+#   REQUIRED POST-DEPLOY, IN THIS ORDER. GyldTradePolicy fails closed by design, so skipping a step
+#   does not degrade gracefully: it makes every affected trade revert. Signatures below are exact —
+#   an earlier version of this block omitted the registry address from both and produced
+#   unresolvable selectors.
+#
+#     1. register the oracle in SuperLedgerConfiguration, feePercent = 0, never FlatFeeLedger. TWO
+#        commands, not one — the wrapper does NOT build its own work list, it reads a file:
+#          sh script/run/tooling/extract_configurable_oracles.sh <env> v2-deployer
+#          ./script/run/config/add_to_super_ledger_staging_prod.sh <env> <mode> <account>
+#        Run the extract step even if `script/output/<env>/new_oracles_to_add` already exists. A file
+#        left over from an earlier family's deploy makes the wrapper succeed loudly while registering
+#        that OTHER family's oracles and never mentioning GyldBondYieldSourceOracle — the one failure
+#        here that produces no error at all. Confirm the oracle is named in the file before signing.
+#
+#     2. set the registry-wide PPS tolerance, AS DEPLOYER (still holds INSTRUMENT_MANAGER_ROLE):
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runPolicyDefaults(uint256,uint64,address)' <env> <chainId> <registry>
+#        Skipped and an aggregator is wired -> every trade reverts PPS_AGE_NOT_CONFIGURED.
+#
+#     3. hand the roles to governance:
+#          forge script script/TransferGyldBondRegistryRoles.s.sol:TransferGyldBondRegistryRoles \
+#            --sig 'run(uint256,uint64,address)' <env> <chainId> <registry>
+#        Its own NatSpec explains why this precedes instrument registration.
+#
+#     4. register each instrument, AS GOVERNOR. There is no script for this yet. Set
+#        maxEntryPremiumBps / maxExitDiscountBps IN THE InstrumentConfig here — registration accepts
+#        zero for both, and zero is what the policy reports as unconfigured.
+#
+#     5. only if step 4 left either tolerance at zero, or to recalibrate later, AS GOVERNOR:
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runTradeFloors(uint256,uint64,address,address,uint16,uint16)' \
+#            <env> <chainId> <registry> <bondToken> <entryBps> <exitBps>
+#        Requires the instrument to be registered already, which is why it follows step 4.
+#        Left at zero -> every fill in that direction reverts TRADE_FLOORS_NOT_SET.
+#
+#     5b. OPTIONAL, and only as a deliberate incident decision, AS GOVERNOR (R4-3):
+#          registry.setEmergencyExit(bondToken, maxPublicationAge, discountBps)
+#        Opens the bounded exit grace so a SELL can still price against a recently stale NAV
+#        publication instead of waiting out a 2-day recovery mark. Both arguments together or
+#        neither; (0, 0) closes it. The discount must be >= maxExitDiscountBps and <=
+#        MAX_TOLERANCE_BPS, the window <= MAX_AGE_CEILING. NOT set at registration by design, and
+#        NOT a default: leave it closed until an incident calls for it, and close it afterwards.
+#        Never widened for a BUY — the policy ignores it on that leg.
+#
+#     6. verify before believing any of it. Read-only, safe against prod at any time:
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runCheck(uint64,address,address,address[])' <chainId> <registry> <policy> '[]'
+#        It prints UNSET for maxPpsAge and for each direction's floor. A registry that looks healthy
+#        and trades nothing is the failure mode this exists to surface.
+#
+#     7. register the guard and both trade instances in the periphery SuperGovernor, then add the
+#        leaves to the strategy's Merkle root. Both are periphery-side and outside this repo.
 #   Note: a targeted family run executes on every configured network; families with chain
 #   requirements revert (and are reported) on unsupported chains.
 #
@@ -234,6 +295,40 @@ if [ $missing_hypercore -gt 0 ]; then
     echo -e "${YELLOW}${missing_hypercore} HyperCore hook(s) missing bytecode. They will be skipped during deployment.${NC}"
     echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
 fi
+
+echo ""
+
+echo -e "${BLUE}Checking Gyld bond contract bytecode availability...${NC}"
+
+# ApproveAndTradeGyldBondHook ships TWICE, once per direction, from this ONE artifact: the two deploy
+# keys differ (and therefore the CREATE2 salts and addresses), the bytecode does not. So four artifacts
+# back five deploy entries.
+GYLD_CONTRACTS=(
+    "GyldBondRegistry"
+    "GyldBondYieldSourceOracle"
+    "GyldTradePolicy"
+    "GyldTradeGuardHook"
+    "ApproveAndTradeGyldBondHook"
+)
+
+missing_gyld=0
+for contract in "${GYLD_CONTRACTS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${contract}.json" ]; then
+        echo -e "${GREEN}   ${contract}${NC}"
+    else
+        echo -e "${YELLOW}   ${contract} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_gyld=$((missing_gyld + 1))
+    fi
+done
+
+if [ $missing_gyld -gt 0 ]; then
+    echo -e "${YELLOW}${missing_gyld} Gyld contract(s) missing bytecode. They will be skipped during deployment.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh to generate missing bytecode.${NC}"
+fi
+
+echo -e "${YELLOW}   NOTE: the Gyld family is NOT deployed by a routine run. Both config tables in${NC}"
+echo -e "${YELLOW}   ConfigOtherHooks are deliberately empty, so it is skipped on every chain unless you${NC}"
+echo -e "${YELLOW}   target it explicitly with TARGET_FAMILY=Gyld.${NC}"
 
 echo ""
 
