@@ -221,7 +221,12 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   BatchTransferFromHook: { mode: "external", reason: "amounts in variable-length array" },
   MerklClaimRewardHook: { mode: "external", reason: "variable-length claim data" },
   MetaMorphoReallocateHook: { mode: "external", reason: "amounts in MarketAllocation[]" },
-  ForceDeallocateMorphoHook: { mode: "external", reason: "amounts in allocations array" },
+  // SUP-21780: ForceDeallocateMorphoHook removed from OVERRIDES — implements replaceCalldataAmounts
+  // with `assets` at a static offset (72), so it is auto-detected. The old entry claimed
+  // "amounts in allocations array", which was copied verbatim from MetaMorphoReallocateHook above and
+  // was never true of `forceDeallocate` — it takes a single uint256. Left in place it asserted "OMS
+  // must not splice this hook", the exact opposite of what SUP-21780 reshaped the calldata to allow,
+  // and it contradicted hook-classification.yaml's `legSizing: [sized]` for the same hook.
   DeBridgeSendOrderAndExecuteOnDstHook: { mode: "external", reason: "complex variable layout" },
 
   // == offset hooks with inherited AMOUNT_POSITION from base classes ==

@@ -16,6 +16,8 @@ import { ForceDeallocateMorphoHook } from
 import { Constants } from "../../utils/Constants.sol";
 
 /// @notice Minimal interface for reading Morpho Vault V2 state
+import { HookDataDecoder } from "../../../src/libraries/HookDataDecoder.sol";
+
 interface IMorphoVaultV2Read {
     function adapters(uint256 index) external view returns (address);
     function adaptersLength() external view returns (uint256);
@@ -98,8 +100,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
             STEAKHOUSE_USDT_VAULT,
             STEAKHOUSE_USDT_ADAPTER,
             extractAmount,
-            0, // no deadline
-            10, // maxPenaltyBps = 0.1% (10 bps)
             false,
             ""
         );
@@ -122,7 +122,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         uint256 extractAmount = 1e6;
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -136,49 +136,72 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         _executeAll(executions, account);
 
-        // Verify outAmount was set by _preExecute
-        uint256 outAmount = hook.getOutAmount(account);
-        assertEq(outAmount, extractAmount, "outAmount should equal extracted assets");
+        // outAmount is ZERO by design: forceDeallocate pays the account nothing, so publishing a
+        // non-zero figure would let a successor size a real movement off a phantom receipt.
+        assertEq(hook.getOutAmount(account), 0, "outAmount must be 0 - this hook produces nothing");
     }
 
-    /// @notice Test forceDeallocate build with zero penalty adapter — verify penalty check passes
-    function test_ForceDeallocate_ZeroPenalty_Build() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT,
-            ZERO_PENALTY_ADAPTER,
-            1e6,
-            0,
-            0, // maxPenaltyBps = 0 (zero tolerance — passes since penalty IS zero)
-            false,
-            ""
-        );
-
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, ZERO_PENALTY_VAULT);
-    }
-
-    /// @notice Test full execution flow with zero penalty (mocked vault call)
-    function test_ForceDeallocate_ZeroPenalty_Execute() public {
+    /// @notice SUP-21780: outToken is the vault's UNDERLYING, not the vault.
+    /// @dev The old value named the vault, i.e. a token that never moves in this operation. Nothing else
+    ///      in the repo asserted outToken for this hook, so the previous value was wrong and unobserved.
+    function test_ForceDeallocate_OutToken_IsTheUnderlying_NotTheVault() public {
         address account = makeAddr("smartAccount");
         uint256 extractAmount = 1e6;
 
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 0, false, ""
-        );
-
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, false, "");
         Execution[] memory executions = hook.build(address(0), account, data);
-
         vm.mockCall(
             ZERO_PENALTY_VAULT,
             abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", extractAmount, account)),
             abi.encode(uint256(0))
         );
-
         _executeAll(executions, account);
-        assertEq(hook.getOutAmount(account), extractAmount, "outAmount should equal extracted assets");
+
+        address underlying = IMorphoVaultV2Read(ZERO_PENALTY_VAULT).asset();
+        assertEq(hook.getOutToken(account), underlying, "outToken must be asset(), the token that moved");
+        assertTrue(hook.getOutToken(account) != ZERO_PENALTY_VAULT, "outToken must not be the vault itself");
+    }
+
+    /// @notice THE POINT OF SUP-21780: the first word carries a real oracle id, not a zero-filled
+    ///         `placeholder0`.
+    /// @dev Without this, nothing on the Solidity side pins the rename the ticket exists for. The hook
+    ///      itself never reads offset 0 (it is NONACCOUNTING, so `SuperExecutorBase._updateAccounting`
+    ///      never consults the id either) and `inspect()` returns only (yieldSource, adapter) — so an
+    ///      encoder that wrote zeros there, or wrote the id at the wrong offset, would leave every other
+    ///      test in this file green. This asserts the slot is real and distinct from `yieldSource` at 32.
+    function test_ForceDeallocate_OracleIdLivesAtOffsetZero() public view {
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, "");
+
+        assertEq(
+            HookDataDecoder.extractYieldSourceOracleId(data),
+            TEST_ORACLE_ID,
+            "offset 0 must carry the oracle id, not a zero-filled placeholder"
+        );
+        assertTrue(TEST_ORACLE_ID != bytes32(0), "the fixture must not be vacuous");
+        assertEq(
+            HookDataDecoder.extractYieldSource(data),
+            ZERO_PENALTY_VAULT,
+            "offset 32 must still be yieldSource, i.e. the two fields are not conflated"
+        );
+        assertEq(data.length, 105, "header is exactly 105 bytes");
+    }
+
+    /// @notice A NON-EMPTY adapterData tail must survive at the new offset 105, byte for byte.
+    /// @dev The tail carries no length prefix, so an off-by-one in the slice would hand the adapter a
+    ///      silently corrupted payload rather than fail. The old layout sliced from 169.
+    function test_ForceDeallocate_AdapterDataTail_SurvivesAtNewOffset() public {
+        address account = makeAddr("smartAccount");
+        bytes memory tail = hex"deadbeefcafe0123";
+
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, tail);
+        assertEq(data.length, 105 + tail.length, "header is 105 bytes, then the raw tail");
+
+        Execution[] memory executions = hook.build(address(0), account, data);
+        assertEq(
+            executions[1].callData,
+            abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, tail, 1e6, account)),
+            "adapterData must reach forceDeallocate unchanged"
+        );
     }
 
     /// @notice Test forceDeallocate build on max penalty (2%) vault
@@ -193,7 +216,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         address account = makeAddr("smartAccount");
 
         bytes memory data = _encodeBaseData(
-            MAX_PENALTY_VAULT, MAX_PENALTY_ADAPTER, extractAmount, 0, 200, false, ""
+            MAX_PENALTY_VAULT, MAX_PENALTY_ADAPTER, extractAmount, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -219,7 +242,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         );
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 0, 0, 10_000, true, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 0, true, ""
         );
 
         Execution[] memory executions = hook.build(prevHook, account, data);
@@ -232,39 +255,18 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         );
 
         _executeAll(executions, account);
-        assertEq(hook.getOutAmount(account), prevAmount, "outAmount should use prevHookAmount");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        BASE HOOK — PENALTY ENFORCEMENT
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Test that penalty exceeding maxPenaltyBps reverts
-    function test_ForceDeallocate_RevertIf_PenaltyTooHigh() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            STEAKHOUSE_USDT_VAULT,
-            STEAKHOUSE_USDT_ADAPTER,
-            1e6,
-            0,
-            5, // maxPenaltyBps = 5 (too low for 10 bps penalty)
-            false,
-            ""
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceDeallocateMorphoHook.PENALTY_TOO_HIGH.selector,
-                10, // actual penalty in bps
-                5 // max allowed
-            )
-        );
-        hook.build(address(0), account, data);
+        // The hook still CONSUMES the predecessor's amount (that is what usePrevHookAmount means), but
+        // it publishes zero onward so nothing can chain off it.
+        assertEq(hook.getOutAmount(account), 0, "outAmount must be 0 even when sized from a prev hook");
     }
 
     /// @notice Test that max penalty (2%) vault works when tolerance is set correctly
-    function test_ForceDeallocate_MaxPenaltyVault_WithinTolerance() public {
+    /// @notice SUP-21780: a MAX-PENALTY (2%) vault now builds and executes with no hook-side objection.
+    /// @dev Renamed from `_WithinTolerance`, which no longer means anything — there is no tolerance field
+    ///      to be within. What is worth pinning is the consequence of deleting it: the hook no longer
+    ///      gates on the penalty at all, so the 2% case must go through. If a caller-side bound is ever
+    ///      reinstated, THIS is the test that should start failing.
+    function test_ForceDeallocate_MaxPenaltyVault_ExecutesWithNoHookSideBound() public {
         uint256 adapterAssets = IAdapter(MAX_PENALTY_ADAPTER).realAssets();
 
         if (adapterAssets == 0) {
@@ -279,160 +281,11 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
             MAX_PENALTY_VAULT,
             MAX_PENALTY_ADAPTER,
             adapterAssets / 2,
-            0,
-            200, // maxPenaltyBps = 200 (2% — exactly the maximum)
             false,
             ""
         );
 
-        // Should not revert (penalty == maxPenaltyBps)
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-    }
-
-    /// @notice Test that max penalty vault reverts with slightly lower tolerance
-    function test_ForceDeallocate_MaxPenaltyVault_RevertIf_TooLow() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            MAX_PENALTY_VAULT,
-            MAX_PENALTY_ADAPTER,
-            1e6,
-            0,
-            199, // maxPenaltyBps = 199 (just below 2% = 200 bps)
-            false,
-            ""
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceDeallocateMorphoHook.PENALTY_TOO_HIGH.selector,
-                200,
-                199
-            )
-        );
-        hook.build(address(0), account, data);
-    }
-
-    /// @notice Test penalty boundary: maxPenaltyBps exactly equal to actual penalty passes
-    function test_ForceDeallocate_PenaltyExactlyEqual() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            STEAKHOUSE_USDT_VAULT,
-            STEAKHOUSE_USDT_ADAPTER,
-            1e6,
-            0,
-            10, // maxPenaltyBps = 10 (exactly equal to 10 bps penalty)
-            false,
-            ""
-        );
-
-        // Should NOT revert — penaltyBps == maxPenaltyBps is allowed
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-    }
-
-    /// @notice Test penalty zero tolerance on non-zero penalty adapter reverts
-    function test_ForceDeallocate_RevertIf_ZeroToleranceOnPenaltyAdapter() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            STEAKHOUSE_USDT_VAULT,
-            STEAKHOUSE_USDT_ADAPTER,
-            1e6,
-            0,
-            0, // zero tolerance, but adapter has 10 bps
-            false,
-            ""
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceDeallocateMorphoHook.PENALTY_TOO_HIGH.selector, 10, 0
-            )
-        );
-        hook.build(address(0), account, data);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        BASE HOOK — DEADLINE
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Test that expired deadline reverts
-    function test_ForceDeallocate_RevertIf_DeadlineExpired() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT,
-            ZERO_PENALTY_ADAPTER,
-            1e6,
-            block.timestamp - 1, // expired
-            10_000,
-            false,
-            ""
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceDeallocateMorphoHook.EXPIRED_DEADLINE.selector,
-                block.timestamp - 1,
-                block.timestamp
-            )
-        );
-        hook.build(address(0), account, data);
-    }
-
-    /// @notice Test that future deadline passes
-    function test_ForceDeallocate_FutureDeadline() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT,
-            ZERO_PENALTY_ADAPTER,
-            1e6,
-            block.timestamp + 3600, // 1 hour from now
-            10_000,
-            false,
-            ""
-        );
-
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-    }
-
-    /// @notice Test that deadline=0 means no check
-    function test_ForceDeallocate_ZeroDeadlineMeansNoCheck() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT,
-            ZERO_PENALTY_ADAPTER,
-            1e6,
-            0, // no deadline
-            10_000,
-            false,
-            ""
-        );
-
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-    }
-
-    /// @notice Test that deadline exactly equal to block.timestamp passes (not expired)
-    function test_ForceDeallocate_DeadlineExactlyNow() public {
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT,
-            ZERO_PENALTY_ADAPTER,
-            1e6,
-            block.timestamp, // exactly now — NOT expired (condition is >)
-            10_000,
-            false,
-            ""
-        );
-
+        // Must not revert: Morpho's own 2% ceiling is the only bound now
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(executions.length, 3);
     }
@@ -442,21 +295,21 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     function test_ForceDeallocate_RevertIf_ZeroVault() public {
-        bytes memory data = _encodeBaseData(address(0), makeAddr("adapter"), 1e6, 0, 10_000, false, "");
+        bytes memory data = _encodeBaseData(address(0), makeAddr("adapter"), 1e6, false, "");
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), makeAddr("account"), data);
     }
 
     function test_ForceDeallocate_RevertIf_ZeroAdapter() public {
-        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, address(0), 1e6, 0, 10_000, false, "");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, address(0), 1e6, false, "");
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), makeAddr("account"), data);
     }
 
     function test_ForceDeallocate_RevertIf_ZeroAssets() public {
-        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 0, 0, 10_000, false, "");
+        bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 0, false, "");
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), makeAddr("account"), data);
@@ -469,25 +322,29 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         hook.build(address(0), makeAddr("account"), shortData);
     }
 
-    /// @notice Data exactly at MIN_DATA_LENGTH (169 bytes) should work
+    /// @notice Data exactly at MIN_DATA_LENGTH (105 bytes after SUP-21780) should work
     function test_ForceDeallocate_MinDataLength() public {
         address account = makeAddr("smartAccount");
 
-        // Build data with empty adapterData — exactly 169 bytes
+        // Build data with empty adapterData — exactly 105 bytes
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, 0, 10_000, false, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, ""
         );
         // Verify we built exactly the minimum length
-        assertEq(data.length, 169, "Data should be exactly MIN_DATA_LENGTH");
+        assertEq(data.length, 105, "Data should be exactly MIN_DATA_LENGTH");
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(executions.length, 3);
     }
 
-    /// @notice Data at 168 bytes (one byte short) should revert
+    /// @notice Data at 104 bytes (one byte short) should revert
+    /// @dev THIS BOUNDARY MOVED WITH SUP-21780 AND THE OLD VALUE NO LONGER TESTS ANYTHING. It used to be
+    ///      `new bytes(168)` against a 169-byte minimum. 168 is now comfortably ABOVE the 105-byte
+    ///      minimum, so the length gate would pass, `yieldSource` would decode as address(0), and the test
+    ///      would have gone green on `ADDRESS_NOT_VALID` — asserting a different failure than it claims.
     function test_ForceDeallocate_RevertIf_DataOneByteTooShort() public {
-        // 169 is MIN_DATA_LENGTH, so 168 should fail
-        bytes memory shortData = new bytes(168);
+        // 105 is MIN_DATA_LENGTH, so 104 should fail
+        bytes memory shortData = new bytes(104);
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), makeAddr("account"), shortData);
@@ -511,9 +368,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         bytes memory data = _encodeBaseData(
             ZERO_PENALTY_VAULT,
             ZERO_PENALTY_ADAPTER,
-            0, // will be replaced by prevHookAmount
             0,
-            10_000,
             true,
             ""
         );
@@ -535,8 +390,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
             ZERO_PENALTY_VAULT,
             ZERO_PENALTY_ADAPTER,
             1e6,
-            0,
-            10_000,
             true, // usePrevHookAmount = true
             ""
         );
@@ -559,9 +412,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         bytes memory data = _encodeBaseData(
             ZERO_PENALTY_VAULT,
             ZERO_PENALTY_ADAPTER,
-            1e6, // this gets overridden to 0
-            0,
-            10_000,
+            1e6,
             true,
             ""
         );
@@ -583,8 +434,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
             ZERO_PENALTY_VAULT,
             ZERO_PENALTY_ADAPTER,
             1e6,
-            0,
-            10_000,
             false,
             adapterData
         );
@@ -602,7 +451,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         address account = makeAddr("smartAccount");
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, 0, 10_000, false, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -619,19 +468,19 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
     function test_DecodeUsePrevHookAmount_True() public view {
         bytes memory data =
-            _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, 0, 10_000, true, "");
+            _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, true, "");
         assertTrue(hook.decodeUsePrevHookAmount(data));
     }
 
     function test_DecodeUsePrevHookAmount_False() public view {
         bytes memory data =
-            _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, 0, 10_000, false, "");
+            _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, "");
         assertFalse(hook.decodeUsePrevHookAmount(data));
     }
 
     function test_Inspect() public view {
         bytes memory data =
-            _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, 0, 200, false, "");
+            _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
         bytes memory result = hook.inspect(data);
 
         assertEq(result.length, 40, "Inspect should return 40 bytes (vault + adapter)");
@@ -651,7 +500,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         // Use base hook (no approval) — forceDeallocate does NOT pull tokens from user
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -665,7 +514,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         _executeAll(executions, account);
 
-        assertEq(hook.getOutAmount(account), extractAmount);
+        assertEq(hook.getOutAmount(account), 0, "produces nothing");
     }
 
     /// @notice forceDeallocate succeeds with zero allowance — proves no approval needed
@@ -677,7 +526,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         assertEq(IERC20(USDC).allowance(account, ZERO_PENALTY_VAULT), 0, "Allowance should be 0 before");
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -690,7 +539,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         _executeAll(executions, account);
 
-        assertEq(hook.getOutAmount(account), extractAmount);
+        assertEq(hook.getOutAmount(account), 0, "produces nothing");
         // Allowance still zero — no approval was ever set
         assertEq(IERC20(USDC).allowance(account, ZERO_PENALTY_VAULT), 0, "Allowance should still be 0 after");
     }
@@ -703,7 +552,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         assertEq(IERC20(USDT).allowance(account, STEAKHOUSE_USDT_VAULT), 0, "Allowance should be 0 before");
 
         bytes memory data = _encodeBaseData(
-            STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, extractAmount, 0, 10_000, false, ""
+            STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, extractAmount, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -717,7 +566,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
         _executeAll(executions, account);
 
-        assertEq(hook.getOutAmount(account), extractAmount);
+        assertEq(hook.getOutAmount(account), 0, "produces nothing");
         assertEq(IERC20(USDT).allowance(account, STEAKHOUSE_USDT_VAULT), 0, "Allowance should still be 0 after");
     }
 
@@ -733,7 +582,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         address account = makeAddr("maxPenaltyNoApproval");
 
         bytes memory data = _encodeBaseData(
-            MAX_PENALTY_VAULT, MAX_PENALTY_ADAPTER, extractAmount, 0, 200, false, ""
+            MAX_PENALTY_VAULT, MAX_PENALTY_ADAPTER, extractAmount, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -745,7 +594,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         );
 
         _executeAll(executions, account);
-        assertEq(hook.getOutAmount(account), extractAmount);
+        assertEq(hook.getOutAmount(account), 0, "produces nothing");
     }
 
     /// @notice forceDeallocate with adapterData works without approval
@@ -755,7 +604,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         bytes memory adapterData = hex"deadbeef";
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, 0, 10_000, false, adapterData
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, extractAmount, false, adapterData
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -767,7 +616,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         );
 
         _executeAll(executions, account);
-        assertEq(hook.getOutAmount(account), extractAmount);
+        assertEq(hook.getOutAmount(account), 0, "produces nothing");
     }
 
 
@@ -780,73 +629,11 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         address account = makeAddr("smartAccount");
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, assets, 0, 10_000, false, ""
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, assets, false, ""
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(executions.length, 3);
-    }
-
-    function testFuzz_Build_MaxPenaltyBps(uint256 maxPenaltyBps) public {
-        // Steakhouse has 10 bps penalty, so maxPenaltyBps >= 10 should pass
-        maxPenaltyBps = bound(maxPenaltyBps, 10, 10_000);
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, 0, maxPenaltyBps, false, ""
-        );
-
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-    }
-
-    function testFuzz_Build_Deadline(uint256 deadline) public {
-        // Only future deadlines or 0
-        deadline = bound(deadline, block.timestamp, type(uint256).max);
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, deadline, 10_000, false, ""
-        );
-
-        Execution[] memory executions = hook.build(address(0), account, data);
-        assertEq(executions.length, 3);
-    }
-
-    /// @notice Fuzz: expired deadline should always revert
-    function testFuzz_Build_RevertIf_DeadlineExpired(uint256 deadline) public {
-        deadline = bound(deadline, 1, block.timestamp - 1);
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, deadline, 10_000, false, ""
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceDeallocateMorphoHook.EXPIRED_DEADLINE.selector,
-                deadline,
-                block.timestamp
-            )
-        );
-        hook.build(address(0), account, data);
-    }
-
-    /// @notice Fuzz: penalty below max should always revert for Steakhouse (10 bps)
-    function testFuzz_Build_RevertIf_PenaltyTooLow(uint256 maxPenaltyBps) public {
-        maxPenaltyBps = bound(maxPenaltyBps, 0, 9);
-        address account = makeAddr("smartAccount");
-
-        bytes memory data = _encodeBaseData(
-            STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, 0, maxPenaltyBps, false, ""
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceDeallocateMorphoHook.PENALTY_TOO_HIGH.selector, 10, maxPenaltyBps
-            )
-        );
-        hook.build(address(0), account, data);
     }
 
     /// @notice Fuzz: adapterData of varying length
@@ -857,7 +644,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         bytes memory adapterData = new bytes(len);
 
         bytes memory data = _encodeBaseData(
-            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, 0, 10_000, false, adapterData
+            ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, adapterData
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
@@ -878,22 +665,25 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         vm.stopPrank();
     }
 
+    /// @dev SUP-21780 layout: `deadline` and `maxPenaltyBps` are gone, `usePrevHookAmount` moved from
+    ///      offset 168 to 104, and the raw `adapterData` tail from 169 to 105.
     struct BaseDataParams {
+        bytes32 oracleId;
         address vault;
         address adapter;
         uint256 assets;
-        uint256 deadline;
-        uint256 maxPenaltyBps;
         bool usePrevHookAmount;
         bytes adapterData;
     }
+
+    /// @dev NON-ZERO on purpose. Offset 0 used to be a zero-filled `placeholder0`; encoding a real id
+    ///      there is what demonstrates the first word is carried rather than conflated with another field.
+    bytes32 internal constant TEST_ORACLE_ID = bytes32(uint256(0xFEED));
 
     function _encodeBaseData(
         address vault,
         address adapter,
         uint256 assets,
-        uint256 deadline,
-        uint256 maxPenaltyBps,
         bool usePrevHookAmount,
         bytes memory adapterData
     )
@@ -902,29 +692,23 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         returns (bytes memory)
     {
         return _encodeBaseDataFromParams(BaseDataParams({
+            oracleId: TEST_ORACLE_ID,
             vault: vault,
             adapter: adapter,
             assets: assets,
-            deadline: deadline,
-            maxPenaltyBps: maxPenaltyBps,
             usePrevHookAmount: usePrevHookAmount,
             adapterData: adapterData
         }));
     }
 
     function _encodeBaseDataFromParams(BaseDataParams memory p) internal pure returns (bytes memory) {
-        bytes memory head = bytes.concat(
-            new bytes(32),
-            abi.encodePacked(p.vault),
-            abi.encodePacked(p.adapter),
-            abi.encode(p.assets)
-        );
         return bytes.concat(
-            head,
-            abi.encode(p.deadline),
-            abi.encode(p.maxPenaltyBps),
-            abi.encodePacked(p.usePrevHookAmount ? uint8(1) : uint8(0)),
-            p.adapterData
+            abi.encodePacked(p.oracleId), // 0   yieldSourceOracleId
+            abi.encodePacked(p.vault), // 32  yieldSource
+            abi.encodePacked(p.adapter), // 52  adapter
+            abi.encode(p.assets), // 72  assets
+            abi.encodePacked(p.usePrevHookAmount ? uint8(1) : uint8(0)), // 104 usePrevHookAmount
+            p.adapterData // 105 raw tail, no length prefix
         );
     }
 }

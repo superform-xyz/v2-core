@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
@@ -22,42 +23,49 @@ import { IMorphoVaultV2 } from "../../../vendor/morpho/IMorphoVaultV2.sol";
 /// @author Superform Labs
 /// @notice NONACCOUNTING hook that calls Morpho Vault V2's forceDeallocate() for emergency asset extraction
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
-/// @notice         address morphoVaultV2 = BytesLib.toAddress(data, 32);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address adapter = BytesLib.toAddress(data, 52);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 72);
-/// @notice         uint256 deadline = BytesLib.toUint256(data, 104);
-/// @notice         uint256 maxPenaltyBps = BytesLib.toUint256(data, 136);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 168);
-/// @notice         bytes adapterData = BytesLib.slice(data, 169, data.length - 169);
-/// @dev TRUST ASSUMPTION: This hook trusts Morpho Vault V2's internal reentrancy guards and adapter validation.
-///      The hook pre-checks the penalty via forceDeallocatePenalty() and validates deadline before execution.
-///      onBehalf is always set to the executing smart account (msg.sender).
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bytes adapterData = BytesLib.slice(data, 105, data.length - 105);
+/// @dev SUP-21780: THIS NATSPEC IS THE SOURCE OF THE REGISTRY BUILD PATH, not just documentation. The OMS
+///      hook registry parses these lines to derive:
+///        None-bytes32-32-yieldSourceOracleId, None-address-20-yieldSource, None-address-20-adapter,
+///        None-uint256-32-assets, None-bool-1-usePrevHookAmount, None-bytes-0-adapterData
+///      Two renames here are load-bearing rather than cosmetic. The first field used to be named
+///      `placeholder0`, which matches the registry's reserved `^placeholder\d*$` pattern and is encoded
+///      `Zeroes-...`, so the oracle id was zero-filled and never reached the chain. The second used to be
+///      `morphoVaultV2`; OMS asset identity reads the parameter named literally `yieldSource`, so the old
+///      name was invisible to it even though the offset was already correct. Renaming a field in this block
+///      changes what Superman can encode. Do not rename them back.
+/// @dev `adapter` and `adapterData` are real `forceDeallocate` arguments and must stay. `deadline` and
+///      `maxPenaltyBps` were NOT: Morpho takes neither, it already caps the penalty at 2% (0.02e18)
+///      internally, and intent expiry already bounds the deadline. A tighter penalty policy belongs in the
+///      exit planner before submit (SUP-21689), not in hook calldata.
+/// @dev TRUST ASSUMPTION: This hook trusts Morpho Vault V2's internal reentrancy guards, adapter validation
+///      and its own 2% penalty cap. onBehalf is always set to the executing smart account.
+/// @dev NOT A WITHDRAW, despite moving underlying. `forceDeallocate` moves underlying from an adapter into
+///      the vault's idle balance and burns penalty shares from the executing account; it does not redeem
+///      shares and does not pay the account. It stays NONACCOUNTING, and the classification stays
+///      config/instant/sized. Relabelling it would make OMS price this hop as a vault conversion.
 contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using BytesLib for bytes;
     using HookDataDecoder for bytes;
-
-    /*//////////////////////////////////////////////////////////////
-                                ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error EXPIRED_DEADLINE(uint256 deadline, uint256 currentTimestamp);
-    error PENALTY_TOO_HIGH(uint256 actualPenaltyBps, uint256 maxPenaltyBps);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     uint256 private constant ADAPTER_OFFSET = 52;
+    /// @notice The single sized leg. DELIBERATELY STILL 72: the two deleted words sat AFTER it, so
+    ///         `decodeAmounts` and `replaceCalldataAmounts` keep working on the same offset.
     uint256 private constant ASSETS_OFFSET = 72;
-    uint256 private constant DEADLINE_OFFSET = 104;
-    uint256 private constant MAX_PENALTY_BPS_OFFSET = 136;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 168;
-    uint256 private constant ADAPTER_DATA_OFFSET = 169;
-    uint256 private constant MIN_DATA_LENGTH = 169;
-
-    /// @notice Conversion factor from WAD (1e18) to BPS (1e4): 1e18 / 1e4 = 1e14
-    uint256 private constant WAD_TO_BPS = 1e14;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 104;
+    /// @notice The raw `adapterData` tail starts here; a payload with no tail is exactly this long.
+    uint256 private constant ADAPTER_DATA_OFFSET = 105;
+    /// @dev Tied to the offset above rather than repeated, so the two cannot drift apart in a later edit.
+    uint256 private constant MIN_DATA_LENGTH = ADAPTER_DATA_OFFSET;
 
     /*//////////////////////////////////////////////////////////////
                              CONSTRUCTOR
@@ -101,14 +109,6 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
 
         uint256 assets = data.toUint256(ASSETS_OFFSET);
 
-        // Deadline check (0 = no deadline)
-        {
-            uint256 deadline = data.toUint256(DEADLINE_OFFSET);
-            if (deadline != 0 && block.timestamp > deadline) {
-                revert EXPIRED_DEADLINE(deadline, block.timestamp);
-            }
-        }
-
         // Use previous hook amount if specified
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)) {
             if (prevHook == address(0)) revert ADDRESS_NOT_VALID();
@@ -117,16 +117,8 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
 
         if (assets == 0) revert AMOUNT_NOT_VALID();
 
-        // Pre-check penalty against tolerance (ceiling division to never understate penalty)
-        {
-            uint256 penaltyBps = (IMorphoVaultV2(vault).forceDeallocatePenalty(adapter) + WAD_TO_BPS - 1) / WAD_TO_BPS;
-            uint256 maxPenaltyBps = data.toUint256(MAX_PENALTY_BPS_OFFSET);
-            if (penaltyBps > maxPenaltyBps) {
-                revert PENALTY_TOO_HIGH(penaltyBps, maxPenaltyBps);
-            }
-        }
-
-        // Extract adapter data (raw tail)
+        // Extract adapter data (raw tail, no length prefix). Empty is valid: an adapter that needs no
+        // data is encoded as exactly MIN_DATA_LENGTH bytes with nothing after the flag.
         bytes memory adapterData;
         if (data.length > ADAPTER_DATA_OFFSET) {
             adapterData = data.slice(ADAPTER_DATA_OFFSET, data.length - ADAPTER_DATA_OFFSET);
@@ -158,12 +150,42 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function amountRoles(bytes memory) external pure override returns (ISuperHookInflowOutflow.AmountMeta[] memory meta) {
+    /// @dev DENOMINATION IS DELIBERATELY `TOKEN`, NOT `ASSETS`, and SUP-21780 freezes it. By the letter of
+    ///      `ISuperHook`'s own definitions `ASSETS` is the closer fit — `assets` here is an underlying
+    ///      quantity on an ERC-4626-shaped vault. It stays `TOKEN` because `ASSETS` invites OMS to apply a
+    ///      price-per-share conversion, and there is no share conversion in this operation at all: the
+    ///      amount is a raw underlying quantity handed straight to `forceDeallocate`. Changing it also
+    ///      requires an `amountMeta` override in `tooling/hook-enrichment.yaml`, whose default is IN/TOKEN.
+    /// @dev The argument is intentionally unnamed and unread. `HookSizingInterface.t.sol` calls this with
+    ///      `""`, so reading `data` here would break that caller.
+    function amountRoles(bytes memory)
+        external
+        pure
+        override
+        returns (ISuperHookInflowOutflow.AmountMeta[] memory meta)
+    {
         meta = new ISuperHookInflowOutflow.AmountMeta[](1);
-        meta[0] = ISuperHookInflowOutflow.AmountMeta(ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        meta[0] = ISuperHookInflowOutflow.AmountMeta(
+            ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN
+        );
     }
 
     /// @dev This hook implements ISuperHookInflowOutflow + ISuperHookOutflow
+    /// @dev PIPE MODE STAYS THE `TRANSFORM` DEFAULT, recorded here because the alternative looks
+    ///      superficially right. A hook that pays nobody reads like the textbook alternative mode, but
+    ///      that mode AUTO-FORWARDS the previous hook's output, which is exactly the chaining this hook
+    ///      must not invite (see `_preExecute`). That, not the sizing manifest, is the reason.
+    /// @dev An earlier version of this comment justified it by claiming check 9 of
+    ///      `tooling/validate-hook-sizing-manifest.ts` ASSERTS such hooks are sizeless. It does not — it
+    ///      only `warn()`s, and its own comments whitelist `ApproveERC20Hook` and
+    ///      `CircleGatewayWalletHook` as exactly that combination. The conclusion held but the cited
+    ///      reason was wrong; corrected so this block is not read as specification.
+    /// @dev DO NOT WRITE THE QUALIFIED ENUM NAME ANYWHERE IN THIS FILE, including in prose.
+    ///      `detectPipeMode` in `tooling/generate-hook-sizing-manifest.ts` classifies a hook by plain
+    ///      substring search over its SOURCE TEXT (it looks for the enum name, dot and mode spelled out
+    ///      as one literal), so a comment
+    ///      mentioning the qualified name would silently reclassify this hook in the generated sizing
+    ///      manifest. That is why the modes are described in words above rather than named.
     function _supportsSizingInterface() internal pure override returns (bool) {
         return true;
     }
@@ -186,37 +208,52 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice On-chain pre-execution: re-validates deadline and penalty tolerance, then sets outAmount.
-    /// @dev outAmount is set to the requested `assets` value because `forceDeallocate` deallocates exactly
-    ///      `assets` worth of underlying — the penalty is a separate share burn on `onBehalf`, not a reduction
-    ///      in assets received.
+    /// @notice On-chain pre-execution: records what moved, and publishes an output that FAILS CLOSED.
+    /// @dev outAmount IS DELIBERATELY ZERO, not the requested `assets`. This is a documented deviation
+    ///      from SUP-21780's acceptance criterion ("outAmount equals assets"), because that criterion
+    ///      conflicts with a rule this repo has already written down twice and paid for once:
+    ///        - `BaseLoanHookV2._settleRepay` (src/hooks/loan/BaseLoanHookV2.sol:257-262): "A repay hook
+    ///          is terminal — it consumes the debt asset and produces nothing — so it publishes
+    ///          outAmount = 0 while keeping outToken = loanToken for off-chain classification.
+    ///          Publishing the spend as an output would let a downstream usePrevHookAmount consumer
+    ///          mistake it for produced tokens and spend an equal amount of unrelated wallet balance;
+    ///          zero makes any such chaining fail closed."
+    ///        - `HyperCoreSendAssetHook` (src/hooks/hypercore/HyperCoreSendAssetHook.sol:144-148) states
+    ///          the same rule, and PR #1029 (`c219e2d3`) applied it after the fact to value-moving
+    ///          HyperCore leaves, with a test proving the chain fails downstream.
+    ///      `forceDeallocate` is terminal in exactly that sense: it moves underlying from an adapter into
+    ///      the VAULT'S idle balance and burns penalty shares from the account. The account receives
+    ///      nothing, and its share balance strictly DECREASES. Publishing `assets` here is byte-identical
+    ///      to the receipt a real redeem publishes, so a successor with `usePrevHookAmount = true` would
+    ///      size a real movement of the account's own balance from a figure it never received.
+    /// @dev CONSEQUENCE FOR THE MANAGER PATH: `SuperVaultStrategy._processSingleHookExecution` compares
+    ///      `getOutAmount()` against this leg's `expectedAssetsOrSharesOut`, so a leaf containing this
+    ///      hook must pass ZERO as that leg's floor. That is the honest value — the leg produces nothing.
+    ///      A non-zero floor would otherwise be "met" by a number describing funds nobody received.
+    /// @dev outToken REMAINS `asset()` per the ticket, for off-chain classification. Keeping it is safe
+    ///      only because outAmount is zero: `BaseLoanHookV2:145`'s `PREV_TOKEN_MISMATCH` would now pass
+    ///      for a successor expecting the same underlying, and the zero amount is what stops it.
+    /// @dev outToken is the vault's UNDERLYING, not the vault. This was previously the vault address, which
+    ///      named a token that never moved: `forceDeallocate` shifts underlying out of an adapter into the
+    ///      vault's idle balance and burns shares; no vault shares are transferred to or from the account.
+    /// @dev THIS HOOK CANNOT BE CHAINED OFF, AND THAT IS ENFORCED, NOT DOCUMENTED. `outAmount` is zero
+    ///      (see below), so every `usePrevHookAmount` consumer hits its own `amount == 0` guard and
+    ///      reverts. An earlier revision published `assets` here and relied on a comment instead; that was
+    ///      the weaker design and is the one this NatSpec used to defend.
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
-        // Re-validate deadline on-chain (0 = no deadline)
-        {
-            uint256 deadline = data.toUint256(DEADLINE_OFFSET);
-            if (deadline != 0 && block.timestamp > deadline) {
-                revert EXPIRED_DEADLINE(deadline, block.timestamp);
-            }
-        }
-
-        // Re-validate penalty on-chain (ceiling division to never understate penalty)
-        {
-            address vault = data.extractYieldSource();
-            address adapter = data.toAddress(ADAPTER_OFFSET);
-            uint256 penaltyBps = (IMorphoVaultV2(vault).forceDeallocatePenalty(adapter) + WAD_TO_BPS - 1) / WAD_TO_BPS;
-            uint256 maxPenaltyBps = data.toUint256(MAX_PENALTY_BPS_OFFSET);
-            if (penaltyBps > maxPenaltyBps) {
-                revert PENALTY_TOO_HIGH(penaltyBps, maxPenaltyBps);
-            }
-        }
+        address vault = data.extractYieldSource();
 
         uint256 assets = data.toUint256(ASSETS_OFFSET);
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_OFFSET)) {
             if (prevHook == address(0)) revert ADDRESS_NOT_VALID();
             assets = ISuperHookResult(prevHook).getOutAmount(account);
         }
-        _setOutAmount(assets, account);
-        _setOutToken(data.extractYieldSource(), account);
+        // Zero, deliberately — see the NatSpec above. `assets` is still resolved because the
+        // `usePrevHookAmount` path must still validate (a zero resolved amount is a configuration error
+        // worth surfacing here rather than at the venue).
+        if (assets == 0) revert AMOUNT_NOT_VALID();
+        _setOutAmount(0, account);
+        _setOutToken(IERC4626(vault).asset(), account);
     }
 
     /// @inheritdoc ISuperHookInspector

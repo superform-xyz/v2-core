@@ -498,9 +498,8 @@
   },
   {
     "hookKey": "FORCE_DEALLOCATE_MORPHO_HOOK_KEY",
-    "mode": "external",
-    "pipeMode": "transform",
-    "reason": "amounts in allocations array"
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "GEARBOX_APPROVE_AND_STAKE_HOOK_KEY",
