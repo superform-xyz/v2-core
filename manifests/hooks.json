@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-09T13:29:39Z",
+  "generatedAt": "2026-11-10T11:49:40Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -10635,12 +10635,20 @@
       ],
       "legSizing": [],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "999": "0xc06f8F1622f500d54Da86B4baE19270Ecd0939c1"
+        },
+        "prod": {
+          "999": "0xc089fbEc2d959C99ac309702e50fdCbEAd43bB14"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "999"
+        ],
+        "prod": [
+          "999"
+        ]
       },
       "amountMeta": [],
       "sized": false,
