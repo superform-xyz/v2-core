@@ -1,6 +1,6 @@
 # Hook Names & Descriptions
 
-Total: **120 hooks**
+Total: **122 hooks**
 
 | Contract | Name | Description |
 |----------|------|-------------|

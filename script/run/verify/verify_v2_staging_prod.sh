@@ -142,22 +142,33 @@ generate_stargate_adapter_constructor_args() {
     fi
 }
 
-# Reads FORCE_DEALLOCATE_MAX_PENALTY_WAD out of script/utils/Constants.sol and prints it in wei.
-# Single source of truth: the deploy script uses the Solidity constant directly, so verification must
-# Morpho Blue singleton per chain. ONE TABLE, deliberately: two hooks now need it, and the comment on
-# `_force_deallocate_cap_wei` explains why a second literal copy drifts silently and then fails
-# verification looking like a compiler mismatch. Empty output means "not known for this chain".
+# Morpho Blue singleton for a chain, DERIVED from the Solidity config rather than transcribed.
+# A hardcoded table here already went stale once: it omitted chain 4663 (Robinhood) even though
+# `ConfigOtherHooks._setOtherHooksConfiguration` sets `morphos[ROBINHOOD_CHAIN_ID]` — and that mapping is
+# the very gate that deploys the Morpho hook set — so the hook deploys there and then fails verification
+# as an opaque bytecode mismatch. Reading the mapping means adding a chain in Solidity is enough.
+# Resolution: morphos[<NAME>_CHAIN_ID] = MORPHO_<X> in ConfigOtherHooks.sol, <NAME>_CHAIN_ID in
+# Constants.sol, MORPHO_<X> in ConstantsOtherHooks.sol. Empty output means "no Morpho on this chain".
 _morpho_for_chain() {
-    case "$1" in
-        "1") echo "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
-        "8453") echo "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
-        "10") echo "0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;
-        "42161") echo "0x6c247b1F6182318877311737BaC0844bAa518F5e" ;;
-        "56") echo "0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;
-        *) echo "" ;;
-    esac
+    python3 - "$PROJECT_ROOT" "$1" <<'PYEOF'
+import re, sys, os
+root, want = sys.argv[1], sys.argv[2].strip()
+def read(rel):
+    with open(os.path.join(root, rel)) as fh: return fh.read()
+chain_ids = dict(re.findall(r'uint64\s+internal\s+constant\s+(\w+_CHAIN_ID)\s*=\s*([0-9_]+)',
+                            read('script/utils/Constants.sol')))
+morpho_addrs = dict(re.findall(r'address\s+internal\s+constant\s+(MORPHO_\w+)\s*=\s*(0x[0-9a-fA-F]{40})',
+                               read('script/utils/ConstantsOtherHooks.sol')))
+for cid_name, addr_name in re.findall(r'morphos\[(\w+)\]\s*=\s*(\w+)\s*;', read('script/utils/ConfigOtherHooks.sol')):
+    num = chain_ids.get(cid_name, '').replace('_', '')
+    if num == want:
+        print(morpho_addrs.get(addr_name, ''))
+        break
+PYEOF
 }
 
+# Reads FORCE_DEALLOCATE_MAX_PENALTY_WAD out of script/utils/Constants.sol and prints it in wei.
+# Single source of truth: the deploy script uses the Solidity constant directly, so verification must
 # resolve the same value rather than keep its own copy. Handles the `0.0025e18` scientific form.
 _force_deallocate_cap_wei() {
     python3 - "$PROJECT_ROOT/script/utils/Constants.sol" <<'PYEOF'
@@ -537,10 +548,21 @@ generate_constructor_args() {
             # the penalty ceiling. Both are part of the CREATE2 address, so verification must reproduce the
             # exact pair the deploy appended. Unlike the one-market sibling, this hook's address therefore
             # DIFFERS PER CHAIN, because Morpho Blue is not deployed at one address everywhere.
+            # NOT `|| die`: `die` is not defined in this script and there is no `set -e`, so that
+            # form printed "command not found" and then CONTINUED into `cast abi-encode` with an empty
+            # address word — the silent-wrong-args failure this block exists to prevent. The caller
+            # checks our exit status (`if ! constructor_args=$(generate_constructor_args ...)`), so
+            # returning non-zero fails closed.
             local fdv_morpho fdv_cap
             fdv_morpho=$(_morpho_for_chain "$chain_id")
-            [ -n "$fdv_morpho" ] || die "no Morpho Blue address known for chain $chain_id"
-            fdv_cap=$(_force_deallocate_cap_wei) || die "could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD"
+            if [ -z "$fdv_morpho" ]; then
+                echo "No Morpho Blue address configured for chain $chain_id" >&2
+                return 1
+            fi
+            if ! fdv_cap=$(_force_deallocate_cap_wei); then
+                echo "Could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD from Constants.sol" >&2
+                return 1
+            fi
             echo "$(cast abi-encode "constructor(address,uint256)" "$fdv_morpho" "$fdv_cap")"
             ;;
         "SuperSponsorshipPaymaster")
@@ -608,8 +630,13 @@ generate_constructor_args() {
             # DERIVED from script/utils/Constants.sol, not hardcoded. The value is part of this hook's
             # CREATE2 address, so verification must use the exact word the deploy appended; a second
             # literal here would drift silently and fail verification looking like a compiler mismatch.
+            # See the note in the vault-hook case below: `die` is undefined here and there is no
+            # `set -e`, so `|| die` would have continued with an empty cap word.
             local fd_cap
-            fd_cap=$(_force_deallocate_cap_wei) || die "could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD"
+            if ! fd_cap=$(_force_deallocate_cap_wei); then
+                echo "Could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD from Constants.sol" >&2
+                return 1
+            fi
             echo "$(cast abi-encode "constructor(uint256)" "$fd_cap")"
             ;;
         # ===== Gyld bonds (chain 747474 only today) =====

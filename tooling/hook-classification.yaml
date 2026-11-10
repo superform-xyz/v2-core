@@ -685,7 +685,7 @@ hooks:
     legSizing: []  # sizeless — wei is a HyperCore-unit uint64, S2 decode-only (not bundler-resizable)
 
   # ============================================================
-  # CONFIG (12 hooks) — all instant
+  # CONFIG (15 hooks) — all instant
   # ============================================================
 
   MetaMorphoReallocateHook:
