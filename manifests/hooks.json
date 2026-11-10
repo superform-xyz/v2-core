@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-10T11:59:47Z",
+  "generatedAt": "2026-11-10T13:20:13Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -10427,6 +10427,46 @@
           "8453",
           "42161"
         ]
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho-metamorpho"
+      ]
+    },
+    "ForceDeallocateMorphoVaultHook": {
+      "name": "Force Deallocate Morpho Vault",
+      "description": "Fills a Morpho Vault V2's idle balance across its listed markets",
+      "hookType": "NONACCOUNTING",
+      "subtype": "MISC",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
       },
       "amountMeta": [
         {

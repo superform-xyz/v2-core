@@ -1,6 +1,6 @@
 # Hook Names & Descriptions
 
-Total: **120 hooks**
+Total: **122 hooks**
 
 | Contract | Name | Description |
 |----------|------|-------------|
@@ -66,6 +66,7 @@ Total: **120 hooks**
 | FluidStakeHook | Fluid Stake | Stakes tokens in Fluid protocol |
 | FluidUnstakeHook | Fluid Unstake | Unstakes tokens from Fluid protocol |
 | ForceDeallocateMorphoHook | Force Deallocate Morpho | Force deallocates liquidity from a Morpho market |
+| ForceDeallocateMorphoVaultHook | Force Deallocate Morpho Vault | Fills a Morpho Vault V2's idle balance across its listed markets |
 | GearboxClaimRewardHook | Gearbox Claim Reward | Claims reward tokens from Gearbox protocol |
 | GearboxStakeHook | Gearbox Stake | Stakes tokens in Gearbox protocol |
 | GearboxUnstakeHook | Gearbox Unstake | Unstakes tokens from Gearbox protocol |

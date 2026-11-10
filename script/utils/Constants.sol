@@ -297,6 +297,8 @@ abstract contract Constants {
     string internal constant MORPHO_LEND_HOOK_KEY = "MorphoLendHook";
     string internal constant META_MORPHO_REALLOCATE_HOOK_KEY = "MetaMorphoReallocateHook";
     string internal constant FORCE_DEALLOCATE_MORPHO_HOOK_KEY = "ForceDeallocateMorphoHook";
+    /// @notice SUP-21799. The vault-level sibling; both are deployed and registered simultaneously.
+    string internal constant FORCE_DEALLOCATE_MORPHO_VAULT_HOOK_KEY = "ForceDeallocateMorphoVaultHook";
     /// @notice SUP-21780 Inv2: the highest Morpho `forceDeallocatePenalty` the force-deallocate hook will
     ///         execute against, in WAD. 25 bps.
     /// @dev PROVISIONAL, NEEDS A RISK SIGN-OFF BEFORE MAINNET USE. A starting point, not a derived

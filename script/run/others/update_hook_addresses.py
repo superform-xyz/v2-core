@@ -48,6 +48,14 @@ MORPHO_CONSTRUCTOR_HOOKS = [
 ]
 
 # Hooks without constructor args
+#
+# DO NOT ADD THE FORCE-DEALLOCATE HOOKS HERE. `ForceDeallocateMorphoVaultHook` takes two constructor
+# words, (morpho, cap), and `ForceDeallocateMorphoHook` takes one (cap) — it is listed below only as
+# pre-existing breakage, not as a statement that it has none. This script also predates salt
+# namespaces (it derives `SuperformV2{name}v2.0`, with no PROD1.0.0), so the addresses it computes for
+# either hook do not match what `DeployV2OtherHooks` actually deploys. Running it would corrupt
+# script/output/prod/* rather than squat a reachable address, since an argument-less deploy reverts.
+# Use the deploy script's own output instead.
 MORPHO_NO_CONSTRUCTOR_HOOKS = [
     "MetaMorphoReallocateHook",
     "ForceDeallocateMorphoHook",

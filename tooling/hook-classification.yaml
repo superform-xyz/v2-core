@@ -685,7 +685,7 @@ hooks:
     legSizing: []  # sizeless — wei is a HyperCore-unit uint64, S2 decode-only (not bundler-resizable)
 
   # ============================================================
-  # CONFIG (11 hooks) — all instant
+  # CONFIG (15 hooks) — all instant
   # ============================================================
 
   MetaMorphoReallocateHook:
@@ -695,6 +695,10 @@ hooks:
   ForceDeallocateMorphoHook:
     actionTypes: [{intent: config, stage: instant}]
     legSizing: [sized]
+
+  ForceDeallocateMorphoVaultHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: [sized]  # one IN/TOKEN leg on `assets`, rewritten at offset 52
 
   MarkRootAsUsedHook:
     actionTypes: [{intent: config, stage: instant}]

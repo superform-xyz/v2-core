@@ -78,6 +78,7 @@
   "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
   "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
   "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+  "ForceDeallocateMorphoVaultHook": "0x9ce963B703CedCd9C8345b433F916490f2F44b88",
   "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
   "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
   "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
