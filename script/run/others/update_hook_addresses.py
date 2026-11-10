@@ -51,6 +51,7 @@ MORPHO_CONSTRUCTOR_HOOKS = [
 MORPHO_NO_CONSTRUCTOR_HOOKS = [
     "MetaMorphoReallocateHook",
     "ForceDeallocateMorphoHook",
+    "ForceDeallocateMorphoVaultHook",
 ]
 
 # OdosV3 hooks (constructor: address routerV3)

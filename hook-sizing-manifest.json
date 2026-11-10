@@ -512,6 +512,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "FORCE_DEALLOCATE_MORPHO_VAULT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "GEARBOX_APPROVE_AND_STAKE_HOOK_KEY",
     "mode": "offset",
     "pipeMode": "transform",

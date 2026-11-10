@@ -50,6 +50,7 @@ compatibleProtocols:
   MorphoHealthCheckHook: [morpho]
   MetaMorphoReallocateHook: [morpho-metamorpho]
   ForceDeallocateMorphoHook: [morpho-metamorpho]
+  ForceDeallocateMorphoVaultHook: [morpho-metamorpho]
   # Aave V4
   AaveV4SupplyHook: [aave-v4]
   AaveV4WithdrawHook: [aave-v4]

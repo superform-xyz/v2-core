@@ -39,6 +39,8 @@ import { ClaimAssetsDETHHook } from "../../../src/hooks/vaults/deth/ClaimAssetsD
 import { EthenaCooldownSharesHook } from "../../../src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "../../../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 import { ForceDeallocateMorphoHook } from "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol";
+import { ForceDeallocateMorphoVaultHook } from
+    "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoVaultHook.sol";
 import { MetaMorphoReallocateHook } from "../../../src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol";
 import { CancelDepositRequest7540Hook } from "../../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
 import {
@@ -370,6 +372,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     // ──────── Newly-S1 hooks ────────
     ForceDeallocateMorphoHook forceDeallocateMorpho;
+    ForceDeallocateMorphoVaultHook forceDeallocateMorphoVault;
 
     // ──────── Newly-S2 hooks (opaque-blob + sizeless) ────────
     PendleUnifiedHook pendleUnified;
@@ -528,6 +531,7 @@ contract HookSizingInterfaceTest is Helpers {
 
         // ── Newly-S1 hooks ──
         forceDeallocateMorpho = new ForceDeallocateMorphoHook(0.02e18);
+        forceDeallocateMorphoVault = new ForceDeallocateMorphoVaultHook(address(0xB10E), 0.02e18);
 
         // ── Newly-S2 hooks ──
         pendleUnified = new PendleUnifiedHook(DUMMY_ROUTER);
@@ -4365,6 +4369,62 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+       NEWLY-S1: ForceDeallocateMorphoVaultHook sizing tests
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The vault-level hook advertises the same S1 pair as its one-market sibling.
+    function test_ForceDeallocateMorphoVault_SupportsInterface() public view {
+        assertTrue(forceDeallocateMorphoVault.supportsInterface(type(ISuperHookInflowOutflow).interfaceId));
+        assertTrue(forceDeallocateMorphoVault.supportsInterface(type(ISuperHookOutflow).interfaceId));
+    }
+
+    /// @dev SUP-21799 layout: the sized leg is at 52, NOT 72. There is no `adapter` word in this hook, so
+    ///      `assets` moves up by one address-width relative to the sibling. A fixture copied across from
+    ///      the sibling would read the wrong offset and still "pass" against a lenient decoder, which is
+    ///      why the exact 85-byte length is asserted here too.
+    function test_ForceDeallocateMorphoVault_DecodeAmounts() public view {
+        // Layout: bytes32 id(0-32) + address yieldSource(32-52) + uint256 assets(52-84)
+        //         + bool usePrevHookAmount(84). No adapter, no adapterData tail.
+        bytes memory data = abi.encodePacked(
+            bytes32(uint256(0xFEED)), // yieldSourceOracleId (32)
+            address(0xAA),            // yieldSource (20)
+            uint256(42e18),           // assets at offset 52 (32)
+            false                     // usePrevHookAmount at offset 84 (1)
+        );
+        assertEq(data.length, 85, "the vault-level layout is exactly 85 bytes");
+        uint256[] memory amounts = forceDeallocateMorphoVault.decodeAmounts(data);
+        assertEq(amounts.length, 1);
+        assertEq(amounts[0], 42e18);
+    }
+
+    /// @dev One IN/TOKEN leg. TOKEN rather than ASSETS on purpose: `ASSETS` invites OMS to apply a
+    ///      price-per-share conversion and this hop converts no shares.
+    function test_ForceDeallocateMorphoVault_AmountRoles() public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = forceDeallocateMorphoVault.amountRoles("");
+        assertEq(meta.length, 1);
+        assertEq(uint8(meta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    /// @dev THE FLAG AT 84 IS DIRECTLY ADJACENT TO THE AMOUNT AT 52..83, so an off-by-one in
+    ///      `_replaceCalldataAmount` would overwrite it. Both flag polarities are pinned: a rewrite must
+    ///      leave a TRUE flag true and a FALSE flag false.
+    function test_ForceDeallocateMorphoVault_Replace_PreservesTheAdjacentFlag() public view {
+        bytes memory withFlag =
+            abi.encodePacked(bytes32(uint256(0xFEED)), address(0xAA), uint256(100e18), true);
+        bytes memory replaced = forceDeallocateMorphoVault.replaceCalldataAmounts(withFlag, _singleAmount(7e18));
+        assertEq(forceDeallocateMorphoVault.decodeAmounts(replaced)[0], 7e18, "amount replaced");
+        assertEq(replaced.length, withFlag.length, "length unchanged");
+        assertTrue(forceDeallocateMorphoVault.decodeUsePrevHookAmount(replaced), "flag at 84 stayed true");
+
+        bytes memory noFlag =
+            abi.encodePacked(bytes32(uint256(0xFEED)), address(0xAA), uint256(100e18), false);
+        bytes memory replaced2 = forceDeallocateMorphoVault.replaceCalldataAmounts(noFlag, _singleAmount(9e18));
+        assertEq(forceDeallocateMorphoVault.decodeAmounts(replaced2)[0], 9e18, "amount replaced");
+        assertFalse(forceDeallocateMorphoVault.decodeUsePrevHookAmount(replaced2), "flag at 84 stayed false");
+    }
+
+    /*//////////////////////////////////////////////////////////////
          NEWLY-S1: ForceDeallocateMorphoHook sizing tests
     //////////////////////////////////////////////////////////////*/
 
@@ -4665,7 +4725,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @notice Returns every hook instantiated in this test contract.
     function _allHooks() internal view returns (ISuperHook[] memory hooks) {
-        hooks = new ISuperHook[](128);
+        hooks = new ISuperHook[](129);
         uint256 i;
         // ── Token (7) ──
         hooks[i++] = ISuperHook(address(transferERC20));
@@ -4764,8 +4824,9 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(aaveRepay));
         hooks[i++] = ISuperHook(address(aaveSupplyAndBorrow));
         hooks[i++] = ISuperHook(address(aaveRepayAndWithdraw));
-        // ── Newly-S1 (1) ──
+        // ── Newly-S1 (2) ──
         hooks[i++] = ISuperHook(address(forceDeallocateMorpho));
+        hooks[i++] = ISuperHook(address(forceDeallocateMorphoVault));
         // ── Newly-S2 (30) ──
         hooks[i++] = ISuperHook(address(pendleUnified));
         hooks[i++] = ISuperHook(address(pendleRouterSwap));
@@ -4809,7 +4870,7 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(approveAndTradeGyldBond));
         hooks[i++] = ISuperHook(address(gyldTradeGuard));
 
-        assertEq(i, 128, "allHooks count mismatch - add new hooks here");
+        assertEq(i, 129, "allHooks count mismatch - add new hooks here");
     }
 
     /// @dev CI guardrail: every INFLOW or OUTFLOW hook MUST support both sizing interfaces.

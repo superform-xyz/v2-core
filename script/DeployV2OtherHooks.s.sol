@@ -18,6 +18,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address morphoLendHook;
         address metaMorphoReallocateHook;
         address forceDeallocateMorphoHook;
+        address forceDeallocateMorphoVaultHook;
     }
 
     struct AaveV4HookAddresses {
@@ -517,7 +518,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         private
         returns (MorphoHookAddresses memory hookAddresses)
     {
-        uint256 len = 9;
+        uint256 len = 10;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -573,6 +574,20 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             )
         );
 
+        // SUP-21799 vault-level sibling. Deliberately deployed with the SAME cap constant as hooks[8]:
+        // the two hooks are the same policy applied at two granularities, so a divergence here would be a
+        // silent policy split rather than a deliberate one.
+        hooks[9] = HookDeployment(
+            FORCE_DEALLOCATE_MORPHO_VAULT_HOOK_KEY,
+            "",
+            abi.encodePacked(
+                __getOtherHooksBytecode("ForceDeallocateMorphoVaultHook", env),
+                // Morpho is pinned as an immutable so a curator-registered adapter cannot redirect this
+                // hook's market reads. `morphos[chainId]` is the same mapping that gates this whole set.
+                abi.encode(otherHooksConfiguration.morphos[chainId], FORCE_DEALLOCATE_MAX_PENALTY_WAD)
+            )
+        );
+
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
             string memory saltName = bytes(hook.saltOverride).length > 0 ? hook.saltOverride : hook.name;
@@ -596,6 +611,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             Strings.equal(hooks[7].name, META_MORPHO_REALLOCATE_HOOK_KEY) ? addresses[7] : address(0);
         hookAddresses.forceDeallocateMorphoHook =
             Strings.equal(hooks[8].name, FORCE_DEALLOCATE_MORPHO_HOOK_KEY) ? addresses[8] : address(0);
+        hookAddresses.forceDeallocateMorphoVaultHook =
+            Strings.equal(hooks[9].name, FORCE_DEALLOCATE_MORPHO_VAULT_HOOK_KEY) ? addresses[9] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.morphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
@@ -607,6 +624,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(hookAddresses.morphoLendHook != address(0), "MorphoLendHook not assigned");
         require(hookAddresses.metaMorphoReallocateHook != address(0), "MetaMorphoReallocateHook not assigned");
         require(hookAddresses.forceDeallocateMorphoHook != address(0), "ForceDeallocateMorphoHook not assigned");
+        require(
+            hookAddresses.forceDeallocateMorphoVaultHook != address(0), "ForceDeallocateMorphoVaultHook not assigned"
+        );
 
         console2.log("All Morpho hooks deployed and validated successfully.");
 

@@ -144,6 +144,20 @@ generate_stargate_adapter_constructor_args() {
 
 # Reads FORCE_DEALLOCATE_MAX_PENALTY_WAD out of script/utils/Constants.sol and prints it in wei.
 # Single source of truth: the deploy script uses the Solidity constant directly, so verification must
+# Morpho Blue singleton per chain. ONE TABLE, deliberately: two hooks now need it, and the comment on
+# `_force_deallocate_cap_wei` explains why a second literal copy drifts silently and then fails
+# verification looking like a compiler mismatch. Empty output means "not known for this chain".
+_morpho_for_chain() {
+    case "$1" in
+        "1") echo "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
+        "8453") echo "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
+        "10") echo "0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;
+        "42161") echo "0x6c247b1F6182318877311737BaC0844bAa518F5e" ;;
+        "56") echo "0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;
+        *) echo "" ;;
+    esac
+}
+
 # resolve the same value rather than keep its own copy. Handles the `0.0025e18` scientific form.
 _force_deallocate_cap_wei() {
     python3 - "$PROJECT_ROOT/script/utils/Constants.sol" <<'PYEOF'
@@ -509,19 +523,25 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
         "MorphoSupplyAndBorrowHook"|"MorphoBorrowHook"|"MorphoRepayHook"|"MorphoRepayAndWithdrawHook"|"MorphoSupplyHook"|"MorphoWithdrawHook"|"MorphoLendHook"|"MorphoHealthCheckHook")
-            local morpho_address=""
-            case $chain_id in
-                "1") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
-                "8453") morpho_address="0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb" ;;
-                "10") morpho_address="0xce95AfbB8EA029495c66020883F87aaE8864AF92" ;;
-                "42161") morpho_address="0x6c247b1F6182318877311737BaC0844bAa518F5e" ;;
-                "56") morpho_address="0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a" ;;
-            esac
+            local morpho_address
+            morpho_address=$(_morpho_for_chain "$chain_id")
             if [ -n "$morpho_address" ]; then
                 echo "$(cast abi-encode "constructor(address)" "$morpho_address")"
             else
                 echo "$(cast abi-encode "constructor()")"
             fi
+            ;;
+        "ForceDeallocateMorphoVaultHook")
+            # SUP-21799. TWO constructor words, in this order: the per-chain Morpho Blue singleton (pinned
+            # as an immutable so a curator-registered adapter cannot redirect the hook's market reads) and
+            # the penalty ceiling. Both are part of the CREATE2 address, so verification must reproduce the
+            # exact pair the deploy appended. Unlike the one-market sibling, this hook's address therefore
+            # DIFFERS PER CHAIN, because Morpho Blue is not deployed at one address everywhere.
+            local fdv_morpho fdv_cap
+            fdv_morpho=$(_morpho_for_chain "$chain_id")
+            [ -n "$fdv_morpho" ] || die "no Morpho Blue address known for chain $chain_id"
+            fdv_cap=$(_force_deallocate_cap_wei) || die "could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD"
+            echo "$(cast abi-encode "constructor(address,uint256)" "$fdv_morpho" "$fdv_cap")"
             ;;
         "SuperSponsorshipPaymaster")
             local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
@@ -866,6 +886,8 @@ get_contract_source() {
         "MorphoLendHook") echo "src/hooks/loan/morpho/MorphoLendHook.sol" ;;
         "MetaMorphoReallocateHook") echo "src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol" ;;
         "ForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol" ;;
+        "ForceDeallocateMorphoVaultHook")
+            echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoVaultHook.sol" ;;
         "MorphoHealthCheckHook") echo "src/hooks/loan/morpho/MorphoHealthCheckHook.sol" ;;
 
         # Sponsorship
