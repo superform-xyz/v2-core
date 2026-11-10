@@ -57,6 +57,7 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         (bool ok,) = GAUNTLET_WETH_PRIME.call(abi.encodeWithSignature("deposit(uint256,address)", 5 ether, account));
         require(ok, "deposit failed");
         vm.stopPrank();
+        require(IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account) > 0, "deposit minted no shares");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -233,6 +234,53 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         assertEq(hook.inspect(_hookData(1 ether)), abi.encodePacked(GAUNTLET_WETH_PRIME));
     }
 
+    /// @dev PINS WHAT `forceDeallocate` ACTUALLY RETURNS, because the vendored interface's return-value
+    ///      NAME is documentation that no code checks. Morpho pays the penalty with
+    ///      `withdraw(penaltyAssets, address(this), onBehalf)` and returns that call's result, and ERC-4626
+    ///      `withdraw` returns SHARES — so the returned number is the shares burned, not the
+    ///      asset-denominated penalty. This hook ignores the return value entirely, which is exactly why
+    ///      only a test can keep the interface's name honest.
+    /// @dev Driven through the hook rather than by a direct vault call: `forceDeallocate` on this vault
+    ///      reverts when invoked outside the hook's planning (the penalty leg has its own preconditions),
+    ///      and the point here is the return value, not a second way to call it.
+    function test_ForceDeallocateReturnsSharesBurnedNotPenaltyAssets() public {
+        uint256 assets = _largestPullable(_capacities()) / 2;
+
+        uint256 penaltyWad = IMorphoVaultV2(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(
+            IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0)
+        );
+        uint256 penaltyAssets = (assets * penaltyWad + 1e18 - 1) / 1e18;
+        assertGt(penaltyAssets, 0, "the fixture must charge a non-zero penalty");
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        Execution[] memory all = hook.build(address(0), account, _hookData(assets));
+        assertEq(all.length, 3, "one pull, so one return value to inspect");
+
+        (bool okPre,) = all[0].target.call(all[0].callData);
+        assertTrue(okPre, "preExecute");
+
+        uint256 sharesBefore = IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account);
+        (bool okPull, bytes memory ret) = all[1].target.call(all[1].callData);
+        assertTrue(okPull, "the pull itself");
+        uint256 sharesBurned = sharesBefore - IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account);
+
+        (bool okPost,) = all[2].target.call(all[2].callData);
+        assertTrue(okPost, "postExecute");
+        hook.resetExecutionState(account);
+        vm.stopPrank();
+
+        assertEq(ret.length, 32, "forceDeallocate returns one word");
+        uint256 returned = abi.decode(ret, (uint256));
+
+        emit log_named_uint("returned     ", returned);
+        emit log_named_uint("sharesBurned ", sharesBurned);
+        emit log_named_uint("penaltyAssets", penaltyAssets);
+
+        assertGt(sharesBurned, 0, "the penalty really was burned from the account");
+        assertEq(returned, sharesBurned, "the return value is the SHARES burned, not the penalty assets");
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -300,6 +348,11 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
             if (keccak256(abi.encode(p)) == marketId) return amount;
         }
         return 0;
+    }
+
+    function _paramsOf(bytes32 marketId) internal view returns (MarketParams memory p) {
+        (p.loanToken, p.collateralToken, p.oracle, p.irm, p.lltv) =
+            IMorphoStaticTyping(MORPHO_BLUE_ETHEREUM).idToMarketParams(Id.wrap(marketId));
     }
 
     function _fundedCount(Capacity[] memory caps) internal pure returns (uint256 n) {

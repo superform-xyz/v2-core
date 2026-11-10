@@ -10,14 +10,22 @@ interface IMorphoVaultV2 {
     /// @param data Protocol-specific encoded data for the adapter's deallocate function.
     /// @param assets The amount of underlying assets to deallocate.
     /// @param onBehalf The address whose shares will be burned as penalty.
-    /// @return penaltyAssets The asset-denominated penalty withdrawn from onBehalf (shares are burned to
-    ///         cover it). Named `penaltyShares` in earlier revisions of this file; Morpho returns assets.
+    /// @return penaltyShares The number of vault shares burned from `onBehalf` to pay the penalty.
+    /// @dev SHARES, NOT ASSETS. An earlier revision of this file renamed this to `penaltyAssets` on the
+    ///      reasoning that Morpho computes the penalty as an asset amount — which it does, but it then
+    ///      pays it with `withdraw(penaltyAssets, address(this), onBehalf)` and RETURNS THAT CALL'S RESULT,
+    ///      and ERC-4626 `withdraw` returns shares. Measured on Ethereum against Gauntlet WETH Prime: the
+    ///      returned word equalled the account's share-balance delta exactly (20175036235279288) and
+    ///      differed from the asset-denominated penalty (20604299106291257). Pinned by
+    ///      `ForceDeallocateMorphoVaultForkE2E.test_ForceDeallocateReturnsSharesBurnedNotPenaltyAssets`,
+    ///      because every caller in this repo discards the return value and so nothing else would catch
+    ///      the name drifting again.
     function forceDeallocate(
         address adapter,
         bytes memory data,
         uint256 assets,
         address onBehalf
-    ) external returns (uint256 penaltyAssets);
+    ) external returns (uint256 penaltyShares);
 
     /// @notice Returns the penalty rate (in WAD, i.e. 1e18 = 100%) for forceDeallocate on a given adapter.
     /// @dev Maximum is 0.02e18 (2%).
