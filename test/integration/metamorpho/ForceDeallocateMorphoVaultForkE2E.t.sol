@@ -50,11 +50,18 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         hook = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM, CAP);
         account = makeAddr("forceDeallocateVaultAccount");
 
-        // Mint shares so the penalty burn has something to consume, and leave the deposit in idle.
-        deal(WETH, account, 10 ether);
+        // Mint a claim PROPORTIONATE TO WHAT THESE TESTS ASK FOR, not merely enough to pay a penalty.
+        // `_requireSolvent` bounds the whole exit — `previewWithdraw(assets + penalty)` — because a leaf
+        // pins only the vault and `assets` is resizable, so an account may not force out more than its own
+        // claim. A 5 WETH fixture asking for thousands was exercising the weaker bound that review finding
+        // F1 removed; sizing the deposit to the vault's reachable capacity is what makes these tests
+        // represent a real exit rather than the hole.
+        uint256 reachable = _totalPullable(_capacities());
+        uint256 claim = reachable + reachable / 10;
+        deal(WETH, account, claim);
         vm.startPrank(account);
         IERC20(WETH).approve(GAUNTLET_WETH_PRIME, type(uint256).max);
-        (bool ok,) = GAUNTLET_WETH_PRIME.call(abi.encodeWithSignature("deposit(uint256,address)", 5 ether, account));
+        (bool ok,) = GAUNTLET_WETH_PRIME.call(abi.encodeWithSignature("deposit(uint256,address)", claim, account));
         require(ok, "deposit failed");
         vm.stopPrank();
         require(IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account) > 0, "deposit minted no shares");
@@ -279,6 +286,41 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
 
         assertGt(sharesBurned, 0, "the penalty really was burned from the account");
         assertEq(returned, sharesBurned, "the return value is the SHARES burned, not the penalty assets");
+    }
+
+    /// @dev GUARDS THE STIPEND FROM THE OTHER SIDE. `PROBE_GAS` is tuned down so an all-hostile adapter
+    ///      set cannot push `build` past the 2^24 per-transaction gas cap — but too LOW a stipend is its
+    ///      own bug: an honest-but-heavier adapter gets skipped silently and the operator sees `SHORTFALL`,
+    ///      which looks like illiquidity rather than a tuning error. This measures the real probes against
+    ///      the live `MorphoMarketV1AdapterV2` so a heavier adapter shows up as a failing test instead.
+    /// @dev At block 26,384,300 the heaviest was `expectedSupplyAssets` at ~22.6k cold — it previews
+    ///      accrual through `IIrm.borrowRateView` and pays cold access for both Morpho and the IRM. Every
+    ///      other probe was under 1.4k.
+    function test_ProbeStipendKeepsHeadroomOverTheRealAdapter() public {
+        uint256 probeGas = 70_000; // must track PROBE_GAS in the hook; it is private
+        address a = IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0);
+        bytes32 id = IMorphoMarketV1Adapter(a).marketIds(0);
+
+        bytes[] memory calls = new bytes[](6);
+        calls[0] = abi.encodeCall(IMorphoMarketV1Adapter.parentVault, ());
+        calls[1] = abi.encodeCall(IMorphoMarketV1Adapter.morpho, ());
+        calls[2] = abi.encodeCall(IMorphoMarketV1Adapter.marketIdsLength, ());
+        calls[3] = abi.encodeCall(IMorphoMarketV1Adapter.adaptiveCurveIrm, ());
+        calls[4] = abi.encodeCall(IMorphoMarketV1Adapter.marketIds, (uint256(0)));
+        calls[5] = abi.encodeCall(IMorphoMarketV1Adapter.expectedSupplyAssets, (id));
+
+        uint256 heaviest;
+        for (uint256 i; i < calls.length; ++i) {
+            uint256 before = gasleft();
+            (bool ok,) = a.staticcall(calls[i]);
+            uint256 used = before - gasleft();
+            assertTrue(ok, "every probe must succeed against the real adapter");
+            if (used > heaviest) heaviest = used;
+        }
+
+        emit log_named_uint("heaviest real probe", heaviest);
+        assertLt(heaviest, probeGas, "the stipend must cover the real adapter at all");
+        assertLe(heaviest * 3, probeGas, "and keep ~3x headroom, so a heavier adapter is not silently skipped");
     }
 
     /*//////////////////////////////////////////////////////////////

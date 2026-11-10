@@ -135,7 +135,21 @@ contract ForceDeallocateMorphoVaultHook is
     ///      forwarded by default. A hostile adapter in the list could therefore burn the UserOp's gas from
     ///      inside a read that this hook was going to discard anyway. The Morpho Blue reads are to a known
     ///      singleton and are left unstipended.
-    uint256 private constant PROBE_GAS = 100_000;
+    /// @dev MEASURED, NOT GUESSED, AND THE SUM IS WHAT MATTERS. The stipend bounds each probe, not the
+    ///      total, and the worst case is `MAX_ADAPTERS * 4 + MAX_MARKETS * 2 == 192` probes. At a 100_000
+    ///      stipend that is 19.2M gas of probing alone, ABOVE the 16,777,216 (2^24) per-transaction gas cap
+    ///      EIP-7825 introduced on Ethereum in Fusaka — so an all-hostile adapter set could put this exit
+    ///      beyond any transaction, on the one path that exists to escape an illiquid vault. Katana carries
+    ///      the same cap.
+    /// @dev The figure below is ~3x the heaviest HONEST probe, measured on Ethereum at block 26,384,300
+    ///      against the live `MorphoMarketV1AdapterV2` of Gauntlet WETH Prime: `expectedSupplyAssets` cost
+    ///      22,621 gas cold (it previews accrual through `IIrm.borrowRateView`, and pays cold-access for
+    ///      both Morpho and the IRM); every other probe cost under 1,400. Headroom matters in BOTH
+    ///      directions — too low and an honest-but-heavier adapter is silently skipped, which surfaces to
+    ///      the operator as `SHORTFALL` and looks like illiquidity rather than a tuning error. Both bounds
+    ///      are pinned by tests: the worst-case total against 2^24, and this constant against a live
+    ///      re-measurement, so a heavier adapter shows up as a failing test rather than a skipped market.
+    uint256 private constant PROBE_GAS = 70_000;
 
     /*//////////////////////////////////////////////////////////////
                               IMMUTABLES
@@ -269,7 +283,7 @@ contract ForceDeallocateMorphoVaultHook is
         Candidate[] memory candidates = _collectCandidates(vault, infos);
         Plan memory plan = _fill(candidates, _sortOrder(candidates), assets, infos);
 
-        _requireSolvent(vault, account, plan);
+        _requireSolvent(vault, account, assets, plan);
 
         return _emit(vault, account, plan.pulls);
     }
@@ -598,21 +612,46 @@ contract ForceDeallocateMorphoVaultHook is
         revert SHORTFALL(available, assets);
     }
 
-    /// @notice Refuse the plan unless the account holds the shares the penalty burns will consume
-    /// @dev A CONSERVATIVE PRE-FLIGHT, NOT A TIGHT BOUND, and the comment says so on purpose. Morpho charges
-    ///      the penalty by calling `withdraw(penaltyAssets, vault, onBehalf)`, which burns
-    ///      `previewWithdraw(penaltyAssets)` shares, ROUNDED UP, once per call. Summing per call can
-    ///      therefore exceed `previewWithdraw` of the total by at most one share per call after the first,
-    ///      which is what the `n - 1` slack covers. Separately, each leg moves the vault's
-    ///      `totalAssets`/`totalSupply`, so `previewWithdraw` is not constant across legs; at penalty
-    ///      magnitudes of at most 2% of the pulls that drift is immaterial, but a future reader should not
-    ///      believe this is exact.
+    /// @notice Refuse the plan unless the account's claim covers the WHOLE exit: the assets it is freeing
+    ///         plus the penalty those pulls will burn
+    /// @dev BOUNDING THE PENALTY ALONE WAS NOT ENOUGH, and this is the control that makes the cap mean
+    ///      something. `inspect` pins the vault and nothing else, and `assets` is a resizable sized leg, so
+    ///      whoever builds the calldata chooses how much to force out. Checking only
+    ///      `previewWithdraw(totalPenaltyAssets)` meant a leaf authorised "burn up to MAX_PENALTY_WAD of
+    ///      the vault's ENTIRE reachable liquidity", not "of this account's exit" — the cap bounded the
+    ///      RATE while the base was unbounded. Any position smaller than `MAX_PENALTY_WAD` of the vault's
+    ///      reachable liquidity could therefore be burned to nothing in one call, with the burned value
+    ///      accruing to the vault's other holders. That is precisely the compromised-session-key case the
+    ///      cap's own NatSpec invokes, and the vault-level hook widens the reach from one market to every
+    ///      eligible market of the vault under a single leaf. A mis-sized amount from OMS lands on the same
+    ///      path, because SUP-21689 sizes the force and redeem legs independently.
+    /// @dev IT REJECTS NOTHING A REAL EXIT NEEDS. The next hop withdraws exactly `assets` for the account,
+    ///      which costs `previewWithdraw(assets)` shares AFTER this leg has burned the penalty — so a plan
+    ///      that fails this check would fail at its own withdraw step anyway. Checking it here converts a
+    ///      late, partial failure (shares already burned, idle created for somebody else to claim) into an
+    ///      early one that costs nothing.
+    /// @dev STILL A CONSERVATIVE PRE-FLIGHT, NOT A TIGHT BOUND. Morpho burns
+    ///      `previewWithdraw(penaltyAssets)` shares ROUNDED UP once per call, so summing per call can
+    ///      exceed `previewWithdraw` of the total by at most one share per call after the first — the
+    ///      `n - 1` slack. Each leg also moves the vault's `totalAssets`/`totalSupply`, so
+    ///      `previewWithdraw` is not constant across legs; the drift is in the account's favour, since
+    ///      the penalty withdraw leaves assets in the vault while burning shares.
     /// @dev `previewWithdraw` is share math only and does NOT require the vault to hold idle, which is what
     ///      makes it callable while the vault is still illiquid — the only state this hook ever runs in.
-    function _requireSolvent(address vault, address account, Plan memory plan) private view {
+    /// @dev THE ZERO-PENALTY EARLY RETURN STAYS. With no burn the account loses nothing here, so there is
+    ///      no value at risk for this check to protect; an oversized request simply fails at the withdraw.
+    function _requireSolvent(
+        address vault,
+        address account,
+        uint256 assets,
+        Plan memory plan
+    )
+        private
+        view
+    {
         if (plan.totalPenaltyAssets == 0) return;
 
-        uint256 required = IMorphoVaultV2(vault).previewWithdraw(plan.totalPenaltyAssets);
+        uint256 required = IMorphoVaultV2(vault).previewWithdraw(assets + plan.totalPenaltyAssets);
         if (plan.penalisedCount > 1) required += plan.penalisedCount - 1;
 
         uint256 held = IMorphoVaultV2(vault).balanceOf(account);

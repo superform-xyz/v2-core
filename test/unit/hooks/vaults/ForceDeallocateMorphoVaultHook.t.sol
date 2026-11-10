@@ -467,7 +467,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         vault.setPreviewRate(2e18); // one asset costs two shares
 
         uint256 penalty = _ceilPenalty(1000 ether, 1e13);
-        uint256 required = 2 * penalty; // single leg, so no n-1 slack
+        uint256 required = 2 * (1000 ether + penalty); // single leg, so no n-1 slack
 
         vault.setShares(account, required - 1);
         vm.expectRevert(
@@ -573,8 +573,9 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         _listMarket(ID_A, 1000 ether, 1000 ether, 0);
         vault.setShares(account, 1);
 
-        // One leg, so no `n - 1` slack: required is exactly previewWithdraw of the single penalty.
-        uint256 required = _ceilPenalty(1000 ether, 1e13);
+        // One leg, so no `n - 1` slack. The bound covers the WHOLE exit: the assets being freed plus the
+        // penalty those pulls burn, because the follow-on withdraw of `assets` costs shares too.
+        uint256 required = 1000 ether + _ceilPenalty(1000 ether, 1e13);
         vm.expectRevert(
             abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.INSUFFICIENT_SHARES.selector, 1, required)
         );
@@ -587,7 +588,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         _listMarket(ID_B, 100 ether, 100 ether, 0);
 
         uint256 totalPenalty = _ceilPenalty(100 ether, 1e13) + _ceilPenalty(50 ether, 1e13);
-        uint256 required = IMorphoVaultV2(address(vault)).previewWithdraw(totalPenalty) + 1;
+        uint256 required = IMorphoVaultV2(address(vault)).previewWithdraw(150 ether + totalPenalty) + 1;
 
         vault.setShares(account, required - 1);
         vm.expectRevert(
@@ -678,6 +679,91 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         ForceDeallocateMorphoVaultHook successor = new ForceDeallocateMorphoVaultHook(address(morpho), CAP);
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         successor.build(address(hook), account, _data(1 ether, true));
+    }
+
+    /// @dev THE BOUND THAT MAKES THE PENALTY CAP MEAN SOMETHING (review finding F1 on PR #1046).
+    ///      `inspect` pins the vault alone and `assets` is a resizable sized leg, so whoever builds the
+    ///      calldata chooses how much to force out. Bounding only the penalty meant a leaf authorised
+    ///      "burn up to MAX_PENALTY_WAD of the vault's ENTIRE reachable liquidity" rather than "of this
+    ///      account's exit": the cap bounded the rate while the base was unbounded.
+    ///      Limit case, at the deployed 25 bps cap: a 100-unit claim against a vault with 40,000 units
+    ///      reachable. 40_000 * 0.0025 == 100, so one call burned the account's ENTIRE position, with the
+    ///      value accruing to the vault's other holders — and the old pre-flight passed EXACTLY at full
+    ///      loss, because it only ever asked whether the penalty itself was payable.
+    function test_OversizedRequestCannotBurnTheWholeClaim() public {
+        // Penalty at the cap, and far more reachable liquidity than the account could ever claim.
+        MockMorphoVaultV2 big = new MockMorphoVaultV2(asset);
+        MockMorphoMarketAdapter rich = new MockMorphoMarketAdapter(address(big), address(morpho));
+        big.addAdapter(address(rich), CAP);
+        morpho.setMarket(ID_A, _params(asset), 100_000 ether, 0);
+        rich.addMarket(ID_A, 100_000 ether);
+
+        uint256 claim = 100 ether;
+        big.setShares(account, claim);
+
+        uint256 oversized = 40_000 ether;
+        assertEq(_ceilPenalty(oversized, CAP), claim, "fixture: the penalty alone equals the whole claim");
+
+        bytes memory data = abi.encodePacked(ORACLE_ID, address(big), oversized, false);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ForceDeallocateMorphoVaultHook.INSUFFICIENT_SHARES.selector, claim, oversized + claim
+            )
+        );
+        hook.build(address(0), account, data);
+    }
+
+    /// @dev The same vault still serves a legitimately-sized exit, so the bound is not merely restrictive.
+    ///      An account claiming `claim` can free anything whose assets-plus-penalty fit inside that claim.
+    function test_ProportionateRequestStillBuilds() public {
+        MockMorphoVaultV2 big = new MockMorphoVaultV2(asset);
+        MockMorphoMarketAdapter rich = new MockMorphoMarketAdapter(address(big), address(morpho));
+        big.addAdapter(address(rich), CAP);
+        morpho.setMarket(ID_A, _params(asset), 100_000 ether, 0);
+        rich.addMarket(ID_A, 100_000 ether);
+
+        uint256 claim = 100 ether;
+        big.setShares(account, claim);
+
+        // Morpho's own full-exit size: claim / (1 + penalty), which is what SUP-21689 will size against.
+        uint256 sized = (claim * 1e18) / (1e18 + CAP);
+        bytes memory data = abi.encodePacked(ORACLE_ID, address(big), sized, false);
+
+        Execution[] memory all = hook.build(address(0), account, data);
+        assertEq(all.length, 3, "a correctly sized exit is unaffected by the bound");
+        (,, uint256 amount,) = _decodeCall(all[1]);
+        assertEq(amount, sized, "and it frees exactly what was asked");
+    }
+
+    /// @dev THE PER-PROBE STIPEND DOES NOT BOUND THE TRANSACTION; the SUM does (review finding F2 on PR
+    ///      #1046). The worst case is `MAX_ADAPTERS * 4 + MAX_MARKETS * 2 == 192` probes, each able to
+    ///      consume its full stipend from an adapter that answers correctly but expensively. `build` runs
+    ///      ON CHAIN inside the UserOp, so that total has to fit under the 16,777,216 (2^24)
+    ///      per-transaction gas cap EIP-7825 introduced on Ethereum in Fusaka. At the original 100_000
+    ///      stipend it did not, which would have put the exit beyond any transaction — on the one path
+    ///      that exists to escape an illiquid vault.
+    function test_AllHostileAdaptersStayUnderTheTransactionGasCap() public {
+        // setUp already registered one adapter, so fill to EXACTLY the ceiling — one more would revert
+        // TOO_MANY_ADAPTERS before any probing and measure nothing.
+        uint256 n = hook.MAX_ADAPTERS() - 1;
+        for (uint256 i; i < n; ++i) {
+            MockMorphoMarketAdapter greedy = new MockMorphoMarketAdapter(address(vault), address(morpho));
+            bytes32 id = keccak256(abi.encode("greedy", i));
+            morpho.setMarket(id, _params(asset), 1000 ether, 0);
+            greedy.addMarket(id, 1000 ether);
+            greedy.setBurnGas(true);
+            vault.addAdapter(address(greedy), 1e13);
+        }
+        _listMarket(ID_A, 1000 ether, 1000 ether, 0); // give setUp's adapter a market too
+        vault.setShares(account, type(uint128).max);
+
+        uint256 before = gasleft();
+        Execution[] memory all = hook.build(address(0), account, _data(1 ether, false));
+        uint256 used = before - gasleft();
+
+        assertEq(all.length, 3, "it must actually complete a build, not revert early");
+        emit log_named_uint("worst-case build gas", used);
+        assertLt(used, 2 ** 24, "build must fit under the EIP-7825 per-transaction gas cap");
     }
 
     /*//////////////////////////////////////////////////////////////
