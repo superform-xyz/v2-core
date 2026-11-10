@@ -7,7 +7,7 @@
 #
 # Unlike the per-chain scripts that hardcode addresses, this one reads them out of
 # the deployment output, so it can be run immediately after DeployV2OtherHooks
-# without transcribing five addresses by hand.
+# without transcribing hook addresses by hand.
 #
 # Usage: ./script/run/others/register_hypercore_hooks.sh [simulate|execute] [account]
 #   mode:    simulate (default) — dry-run only
@@ -29,8 +29,8 @@ DEPLOYMENT_JSON="script/output/prod/latest.json"
 MODE="${1:-simulate}"
 ACCOUNT="${2:-v2-supervaults}"
 
-# The HyperCore deploy family (DeployV2OtherHooks._deployHyperCoreHooks) ships SIX contracts; this list
-# deliberately holds only the FIVE hooks. The sixth, HyperCorePerpPositionOracle, is a read-only oracle,
+# The HyperCore deploy family (DeployV2OtherHooks._deployHyperCoreHooks) ships SEVEN contracts; this list
+# deliberately holds only the SIX hooks. HyperCorePerpPositionOracle is a read-only oracle,
 # not an ISuperHook, and must NEVER be registered in SuperGovernor: registerHook only checks for a
 # non-zero address, so adding it here would "succeed" (simulate and execute) and poison the hook set.
 HOOK_NAMES=(
@@ -39,6 +39,7 @@ HOOK_NAMES=(
     "HyperCoreSendAssetHook"
     "HyperCoreApproveBuilderFeeHook"
     "ApproveAndHyperCoreDepositUsdcPerpHook"
+    "HyperCoreGasTopUpHook"
 )
 
 # ── Validate mode ──────────────────────────────────────────────────────────────
@@ -88,7 +89,8 @@ fi
 # spot with any token); two separate tags would force the resolver into AND-match
 # semantics. The composite is a single opaque selection key.
 #
-# NOTE: only ApproveAndHyperCoreDeposit* keys carry a tag. If the plain
+# Deposit instances carry a derived tag; the gas funding hook carries its own
+# fixed backend selector. If the plain
 # ApproveAndHyperCoreDepositHook key (no token/dex) is ever added to HOOK_NAMES,
 # this parser aborts registration by design — rename to the instanced key instead.
 DEPOSIT_KEY_PREFIX="ApproveAndHyperCoreDeposit"
@@ -96,6 +98,9 @@ DEPOSIT_KEY_PREFIX="ApproveAndHyperCoreDeposit"
 declare -A HOOK_TAGS
 for name in "${HOOK_NAMES[@]}"; do
     case "$name" in
+        "HyperCoreGasTopUpHook")
+            HOOK_TAGS[$name]="hypercore_gas_topup"
+            ;;
         "$DEPOSIT_KEY_PREFIX"*)
             if ! tag=$(python3 - "$name" <<'PY'
 import sys
@@ -238,7 +243,7 @@ echo "============================================================"
 # ── Emit derived selection tags for the hooks-resolution config ────────────────
 if [ "${#HOOK_TAGS[@]}" -gt 0 ]; then
     echo ""
-    echo "Selection tags, derived from the keys — copy into the hooks-resolution config."
+    echo "Selection tags — copy into the hooks-resolution config."
     echo "These are not a naming suggestion: an instance whose config entry omits its tag"
     echo "is indistinguishable from any other deposit instance at selection time, and the"
     echo "wrong pick moves the wrong asset without reverting."
@@ -259,5 +264,11 @@ if [ "${#HOOK_TAGS[@]}" -gt 0 ]; then
     }
     echo ""
 fi
+
+echo "HyperCoreGasTopUpHook bundler registry metadata:"
+echo '  type: SPONSORSHIP; tags: [hypercore_gas_topup]'
+echo '  requiresNativeFeeSponsorship: {required: true, feeParamName: amountNative}'
+echo '  amountNative: uint256, backend_derived, get_native_fee_amount (offset 52; 84 bytes total)'
+echo '  Do not assign the Fetch-specific native_fee_sponsorship_hook tag.'
 
 [ "$failed" -eq 0 ]

@@ -97,6 +97,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address hyperCoreApproveBuilderFeeHook;
         address approveAndHyperCoreDepositUsdcPerpHook;
         address hyperCorePerpPositionOracle;
+        address hyperCoreGasTopUpHook;
     }
 
     struct GyldHookAddresses {
@@ -497,7 +498,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Get bytecode from environment-specific artifacts
-    function __getOtherHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
+    function __getOtherHooksBytecode(
+        string memory contractName,
+        uint256 env
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         string memory artifactPath =
             string(abi.encodePacked(__getOtherHooksBytecodeDirectory(env), contractName, ".json"));
         return vm.getCode(artifactPath);
@@ -1366,7 +1374,15 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     /// @notice Read a deployed core contract address from the environment output file
     /// @dev Only prod (0) and staging (2) have canonical output dirs; returns address(0) when the
     ///      file or key is absent so callers decide the fallback
-    function _readDeployedCoreAddress(uint64 chainId, uint256 env, string memory key) internal view returns (address) {
+    function _readDeployedCoreAddress(
+        uint64 chainId,
+        uint256 env,
+        string memory key
+    )
+        internal
+        view
+        returns (address)
+    {
         if (env != 0 && env != 2) return address(0);
         string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
         string memory outputPath = string(
@@ -1412,7 +1428,13 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploy NativeFeeSponsorship (no constructor args) and FetchNativeFeeHook (takes sponsorship address)
-    function _deploySponsorshipContracts(uint64 chainId, uint256 env) internal returns (SponsorshipAddresses memory) {
+    function _deploySponsorshipContracts(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (SponsorshipAddresses memory)
+    {
         // First deploy NativeFeeSponsorship (no constructor args)
         address sponsorship = __deployContract(
             NATIVE_FEE_SPONSORSHIP_KEY,
@@ -1583,7 +1605,13 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploy WrappedNativeHook with chain-specific wrapped native address
     /// @dev Ethereum → WETH, Flare → WFLR (same ABI for deposit/withdraw)
-    function _deployWrappedNativeHook(uint64 chainId, uint256 env) internal returns (WrappedNativeHookAddress memory) {
+    function _deployWrappedNativeHook(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (WrappedNativeHookAddress memory)
+    {
         address wrappedNativeToken = chainId == MAINNET_CHAIN_ID ? WETH_ETHEREUM : WFLR_FLARE;
         bytes memory wflrArg = abi.encode(wrappedNativeToken);
 
@@ -1607,8 +1635,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                         HYPERCORE HOOKS DEPLOYMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploys the Hyperliquid CoreWriter hook family, the HyperCore deposit hook and the read-only
-    ///         HyperCore perp position oracle
+    /// @notice Deploys the Hyperliquid CoreWriter hooks, deposit and gas funding hooks, and read-only perp oracle
     /// @dev Gated on CoreWriter being configured for the chain, so this is HyperEVM-only.
     ///      The four CoreWriter leaves share a single constructor arg; the deposit hook is not a
     ///      CoreWriter hook and pins its token, gateway and undocumented uint32 as immutables. The
@@ -1619,7 +1646,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     function _deployHyperCoreHooks(uint64 chainId, uint256 env) internal returns (HyperCoreHookAddresses memory) {
         HyperCoreHookAddresses memory hookAddresses;
 
-        uint256 len = 6;
+        uint256 len = 7;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1662,6 +1689,12 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             // No constructor args: the read precompile addresses are protocol constants on 999/998.
             __getOtherHooksBytecode("HyperCorePerpPositionOracle", env)
         );
+        hooks[6] = HookDeployment(
+            HYPERCORE_GAS_TOP_UP_HOOK_KEY,
+            "",
+            // Fixed protocol recipient; no caller-selected constructor dependency.
+            __getOtherHooksBytecode("HyperCoreGasTopUpHook", env)
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -1675,6 +1708,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.hyperCoreApproveBuilderFeeHook = addresses[3];
         hookAddresses.approveAndHyperCoreDepositUsdcPerpHook = addresses[4];
         hookAddresses.hyperCorePerpPositionOracle = addresses[5];
+        hookAddresses.hyperCoreGasTopUpHook = addresses[6];
 
         require(hookAddresses.hyperCoreAddApiWalletHook != address(0), "HyperCoreAddApiWalletHook not assigned");
         require(hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned");
@@ -1687,6 +1721,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             "ApproveAndHyperCoreDepositUsdcPerpHook not assigned"
         );
         require(hookAddresses.hyperCorePerpPositionOracle != address(0), "HyperCorePerpPositionOracle not assigned");
+        require(hookAddresses.hyperCoreGasTopUpHook != address(0), "HyperCoreGasTopUpHook not assigned");
 
         console2.log("All HyperCore hooks deployed and validated successfully.");
 
@@ -1922,7 +1957,15 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     /// @param token The ERC-20 the instance will deposit
     /// @param gateway That token's HyperCore deposit gateway
     /// @param dex HYPERCORE_DESTINATION_DEX_PERP (dex 0) or HYPERCORE_DESTINATION_DEX_SPOT
-    function _hyperCoreDepositArgs(address token, address gateway, uint32 dex) internal pure returns (bytes memory) {
+    function _hyperCoreDepositArgs(
+        address token,
+        address gateway,
+        uint32 dex
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         require(
             dex == HYPERCORE_DESTINATION_DEX_PERP || dex == HYPERCORE_DESTINATION_DEX_SPOT,
             "HyperCore deposit: unsupported destinationDex"

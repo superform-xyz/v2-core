@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { HyperCoreAddApiWalletHook } from "../../../../src/hooks/hypercore/HyperCoreAddApiWalletHook.sol";
+import { HyperCoreGasTopUpHook } from "../../../../src/hooks/hypercore/HyperCoreGasTopUpHook.sol";
 import { HyperCoreApproveBuilderFeeHook } from "../../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
 import { ApproveAndHyperCoreDepositHook } from "../../../../src/hooks/hypercore/ApproveAndHyperCoreDepositHook.sol";
 import { HyperCorePerpPositionOracle } from "../../../../src/accounting/oracles/HyperCorePerpPositionOracle.sol";
@@ -23,13 +24,14 @@ contract FeeCapHarness is DeployV2OtherHooks {
     }
 
     function hyperCoreHookKeys() external pure returns (string[] memory keys) {
-        keys = new string[](6);
+        keys = new string[](7);
         keys[0] = HYPERCORE_ADD_API_WALLET_HOOK_KEY;
         keys[1] = HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY;
         keys[2] = HYPERCORE_SEND_ASSET_HOOK_KEY;
         keys[3] = HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY;
         keys[4] = APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY;
         keys[5] = HYPERCORE_PERP_POSITION_ORACLE_KEY;
+        keys[6] = HYPERCORE_GAS_TOP_UP_HOOK_KEY;
     }
 }
 
@@ -52,6 +54,14 @@ contract HyperCoreDeploymentTest is Helpers {
             addr := create(0, add(creation, 0x20), mload(creation))
         }
         require(addr != address(0), "deploy failed");
+    }
+
+    function test_LockedBytecode_GasTopUpDeploysWithoutArgsAndMatchesSource() public {
+        bytes memory locked = vm.getCode("script/locked-bytecode/HyperCoreGasTopUpHook.json");
+        assertEq(locked, type(HyperCoreGasTopUpHook).creationCode, "top-up locked bytecode drifted from source");
+        HyperCoreGasTopUpHook topUp = HyperCoreGasTopUpHook(_deploy("HyperCoreGasTopUpHook", ""));
+        assertEq(topUp.HYPE_SYSTEM_ADDRESS(), 0x2222222222222222222222222222222222222222);
+        assertEq(topUp.inspect(""), abi.encodePacked(topUp.HYPE_SYSTEM_ADDRESS()));
     }
 
     /// @dev Single-arg leaves: the arg the deploy script encodes must land on CORE_WRITER.
@@ -127,8 +137,9 @@ contract HyperCoreDeploymentTest is Helpers {
     ///      instance-scoped key, and it is the sixth entry the deploy block assigns.
     function test_PerpOracleKeyNamesTheContract() public {
         string[] memory keys = new FeeCapHarness().hyperCoreHookKeys();
-        assertEq(keys.length, 6, "HyperCore family ships six contracts");
+        assertEq(keys.length, 7, "HyperCore family ships seven contracts");
         assertEq(keys[5], "HyperCorePerpPositionOracle", "oracle key is the contract name");
+        assertEq(keys[6], "HyperCoreGasTopUpHook", "funding hook is appended after existing contracts");
     }
 
     /// @dev Guards the single most confusable pair in this whole integration.
