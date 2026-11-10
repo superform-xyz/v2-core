@@ -83,6 +83,7 @@
         "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+        "ForceDeallocateMorphoVaultHook": "0x9ce963B703CedCd9C8345b433F916490f2F44b88",
         "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
         "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
         "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
@@ -502,6 +503,7 @@
         "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+        "ForceDeallocateMorphoVaultHook": "0x05BfBAF82dDD79A1E75c42Da70e83F537B6f9e3E",
         "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
         "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
         "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
@@ -673,6 +675,7 @@
         "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+        "ForceDeallocateMorphoVaultHook": "0x81fCC76adcE2180D43b375D6d065FE81bc15586e",
         "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
         "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
         "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
@@ -972,6 +975,7 @@
         "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+        "ForceDeallocateMorphoVaultHook": "0x81fCC76adcE2180D43b375D6d065FE81bc15586e",
         "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
         "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
         "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
@@ -1660,6 +1664,7 @@
         "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+        "ForceDeallocateMorphoVaultHook": "0x051e381a70b05206cD0E10389DA7200D5730A294",
         "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
         "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
         "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
@@ -1952,6 +1957,7 @@
         "FirelightYieldSourceOracle": "0x211E048350c5b61704245BDABfefe95a1239dfE7",
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "ForceDeallocateMorphoHook": "0x652Dd19A81A98392CA3930c02bA297530EA2E32d",
+        "ForceDeallocateMorphoVaultHook": "0x757f2f21a3F6D6780D28DA5c0aE5a8cB66Bd70aE",
         "MarkRootAsUsedHook": "0xBE9Ac12c097c7Fd5B654dBb5676edF84f44EcE2c",
         "MerklClaimRewardHook": "0x5977c7cA74067f3Bc899B3303ce00B47c815813A",
         "MetaMorphoReallocateHook": "0x71D621914fc19a81C9196A4538dB0fb43846691c",
@@ -2634,5 +2640,5 @@
       }
     }
   },
-  "updated_at": "2026-11-10T11:49:40Z"
+  "updated_at": "2026-11-10T18:15:15Z"
 }
