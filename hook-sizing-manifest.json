@@ -552,7 +552,7 @@
   {
     "hookKey": "HYPERCORE_GAS_TOP_UP_HOOK_KEY",
     "mode": "sizeless",
-    "pipeMode": "passthrough"
+    "pipeMode": "transform"
   },
   {
     "hookKey": "HYPERCORE_SEND_ASSET_HOOK_KEY",

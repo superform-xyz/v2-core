@@ -13,6 +13,7 @@ import { ISuperExecutor } from "../../../../src/interfaces/ISuperExecutor.sol";
 import { FetchNativeFeeHook } from "../../../../src/hooks/sponsorship/FetchNativeFeeHook.sol";
 import { HyperCoreGasTopUpHook } from "../../../../src/hooks/hypercore/HyperCoreGasTopUpHook.sol";
 import { NativeTransferHook } from "../../../../src/hooks/tokens/NativeTransferHook.sol";
+import { TransferHook } from "../../../../src/hooks/tokens/TransferHook.sol";
 import { TransferERC20Hook } from "../../../../src/hooks/tokens/erc20/TransferERC20Hook.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../../mocks/MockLedger.sol";
@@ -92,22 +93,22 @@ contract HyperCoreGasTopUpUserOpTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(bytes32(0), address(0), recipient, PRINCIPAL);
     }
 
-    function _assertSuccessfulFunding(address token) private view {
+    function _assertSuccessfulFunding() private view {
         assertEq(receiver.lastSender(), instance.account, "Core actor must be the executing account");
         assertEq(receiver.lastValue(), TOP_UP);
         assertEq(receiver.lastData().length, 0);
         assertEq(receiver.totalReceived(), TOP_UP);
         assertEq(sponsorship.sponsoredAmount(address(this), instance.account), 0);
         assertEq(address(topUp).balance, 0);
-        assertEq(topUp.getOutAmount(instance.account), PRINCIPAL);
-        assertEq(topUp.getOutToken(instance.account), token);
+        assertEq(topUp.getOutAmount(instance.account), 0);
+        assertEq(topUp.getOutToken(instance.account), address(0));
         assertEq(topUp.lastCaller(), address(executor));
     }
 
     function test_UserOpFetchAndTopUpPreserveNativePrincipal() public {
         vm.deal(instance.account, PRINCIPAL);
         _run(NATIVE_TOKEN, address(new NativeTransferHook()), _nativeConsumerData());
-        _assertSuccessfulFunding(NATIVE_TOKEN);
+        _assertSuccessfulFunding();
         assertEq(recipient.balance, PRINCIPAL, "signed principal must not fund the top-up");
     }
 
@@ -115,11 +116,23 @@ contract HyperCoreGasTopUpUserOpTest is Helpers, RhinestoneModuleKit {
         MockERC20 token = new MockERC20("Test principal", "TST", 18);
         token.mint(instance.account, PRINCIPAL);
         bytes memory consumerData =
-            abi.encodePacked(bytes32(0), address(0), address(token), recipient, uint256(0), true);
+            abi.encodePacked(bytes32(0), address(0), address(token), recipient, PRINCIPAL, false);
         _run(address(token), address(new TransferERC20Hook()), consumerData);
-        _assertSuccessfulFunding(address(token));
+        _assertSuccessfulFunding();
         assertEq(token.balanceOf(recipient), PRINCIPAL);
         assertEq(token.balanceOf(instance.account), 0);
+    }
+
+    function test_UserOpPreviousNativeAmountFailsDespiteAvailablePrincipal() public {
+        vm.deal(instance.account, PRINCIPAL);
+        bytes memory consumerData = abi.encodePacked(bytes32(0), address(0), NATIVE_TOKEN, recipient, uint256(0), true);
+        _run(NATIVE_TOKEN, address(new TransferHook(NATIVE_TOKEN)), consumerData);
+        assertEq(receiver.totalReceived(), 0, "the reverted top-up must roll back");
+        assertEq(recipient.balance, 0, "the consumer must not spend the upstream amount");
+        assertEq(instance.account.balance, PRINCIPAL, "original principal must remain in the account");
+        assertEq(sponsorship.sponsoredAmount(address(this), instance.account), TOP_UP);
+        sponsorship.withdrawSponsorDeposit(instance.account, payable(address(this)), TOP_UP);
+        assertEq(sponsorship.sponsoredAmount(address(this), instance.account), 0);
     }
 
     function test_CaughtUserOpFailureLeavesUnusedAdvanceReclaimable() public {

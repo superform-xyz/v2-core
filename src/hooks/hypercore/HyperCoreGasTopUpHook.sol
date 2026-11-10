@@ -94,8 +94,8 @@ contract HyperCoreGasTopUpHook is BaseHook, ISuperHookInflowOutflow {
             || interfaceId == type(ISuperHookResult).interfaceId || interfaceId == type(ISuperHookInspector).interfaceId;
     }
 
-    /// @dev Funding is reserved independently, so both original output fields remain valid.
+    /// @dev Spending native balance invalidates upstream output; downstream consumers must use explicit amounts.
     function _pipeMode() internal pure override returns (PipeMode) {
-        return PipeMode.PASSTHROUGH;
+        return PipeMode.TRANSFORM;
     }
 }

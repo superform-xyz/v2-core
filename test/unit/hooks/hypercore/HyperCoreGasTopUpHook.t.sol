@@ -5,6 +5,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { HyperCoreGasTopUpHook } from "../../../../src/hooks/hypercore/HyperCoreGasTopUpHook.sol";
+import { TransferHook } from "../../../../src/hooks/tokens/TransferHook.sol";
 import {
     ISuperHook,
     ISuperHookResult,
@@ -196,11 +197,11 @@ contract HyperCoreGasTopUpHookTest is Helpers {
         hook.postExecute(address(0), address(account), data);
     }
 
-    function test_AccountOriginatedTransferPreservesERC20Pipe() public {
+    function test_AccountOriginatedTransferDoesNotForwardERC20Pipe() public {
         _assertPipe(address(0xCAFE));
     }
 
-    function test_AccountOriginatedTransferPreservesNativePipe() public {
+    function test_AccountOriginatedTransferDoesNotForwardNativePipe() public {
         _assertPipe(NATIVE_TOKEN);
     }
 
@@ -209,17 +210,23 @@ contract HyperCoreGasTopUpHookTest is Helpers {
         uint256 topUp = 0.01 ether;
         GasTopUpSourceHook source = new GasTopUpSourceHook(token, principal);
         account.executeHook(source, address(0), "");
-        vm.deal(address(account), principal + topUp);
+        vm.deal(address(account), principal);
         account.executeHook(hook, address(source), _data(topUp));
         assertEq(receiver.lastSender(), address(account));
         assertEq(receiver.lastValue(), topUp);
         assertEq(receiver.lastData().length, 0);
-        assertEq(address(account).balance, principal);
+        assertEq(address(account).balance, principal - topUp);
         assertEq(address(hook).balance, 0);
-        assertEq(hook.getOutAmount(address(account)), principal);
-        assertEq(hook.getOutToken(address(account)), token);
+        assertEq(hook.getOutAmount(address(account)), 0);
+        assertEq(hook.getOutToken(address(account)), address(0));
         assertEq(source.getOutAmount(address(account)), principal);
         assertEq(source.getOutToken(address(account)), token);
+
+        // A production consumer must reject the empty output instead of spending the stale principal.
+        TransferHook consumer = new TransferHook(NATIVE_TOKEN);
+        bytes memory consumerData = abi.encodePacked(bytes32(0), address(0), token, address(0xDE57), uint256(0), true);
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        consumer.build(address(hook), address(account), consumerData);
 
         // A new first-hook context cannot reuse the prior pipeline output.
         account.executeHook(hook, address(0), _data(topUp));
