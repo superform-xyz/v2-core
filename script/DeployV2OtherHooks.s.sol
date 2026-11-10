@@ -561,9 +561,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
-        // Morpho Vault V2 force deallocate hook (no constructor args)
+        // Morpho Vault V2 force deallocate hook. SUP-21780 Inv2: the penalty ceiling is a CONSTRUCTOR
+        // IMMUTABLE, so it is part of the CREATE2 address and every Merkle leaf authorising this hook
+        // commits to it. Changing the policy is a deliberate redeploy.
         hooks[8] = HookDeployment(
-            FORCE_DEALLOCATE_MORPHO_HOOK_KEY, "", __getOtherHooksBytecode("ForceDeallocateMorphoHook", env)
+            FORCE_DEALLOCATE_MORPHO_HOOK_KEY,
+            "",
+            abi.encodePacked(
+                __getOtherHooksBytecode("ForceDeallocateMorphoHook", env),
+                abi.encode(FORCE_DEALLOCATE_MAX_PENALTY_WAD)
+            )
         );
 
         for (uint256 i = 0; i < len; ++i) {

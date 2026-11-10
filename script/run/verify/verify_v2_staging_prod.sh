@@ -142,6 +142,22 @@ generate_stargate_adapter_constructor_args() {
     fi
 }
 
+# Reads FORCE_DEALLOCATE_MAX_PENALTY_WAD out of script/utils/Constants.sol and prints it in wei.
+# Single source of truth: the deploy script uses the Solidity constant directly, so verification must
+# resolve the same value rather than keep its own copy. Handles the `0.0025e18` scientific form.
+_force_deallocate_cap_wei() {
+    python3 - "$PROJECT_ROOT/script/utils/Constants.sol" <<'PYEOF'
+import re, sys
+from decimal import Decimal
+src = open(sys.argv[1]).read()
+m = re.search(r'FORCE_DEALLOCATE_MAX_PENALTY_WAD\s*=\s*([0-9_.e+]+)\s*;', src)
+if not m:
+    sys.exit(1)
+raw = m.group(1).replace('_', '')
+print(int(Decimal(raw)))
+PYEOF
+}
+
 generate_constructor_args() {
     local contract_name=$1
     local chain_id=$2
@@ -562,6 +578,19 @@ generate_constructor_args() {
             ;;
         "StargateAdapter"|"StargateAdapterV2")
             generate_stargate_adapter_constructor_args "$contract_name" "$chain_id"
+            ;;
+        # SUP-21780 Inv2: this hook took no constructor args until the penalty ceiling became an
+        # immutable. Without a case here it falls through to the `constructor()` default below, which
+        # would submit empty args and fail verification for what looks like a compiler mismatch.
+        # MUST track FORCE_DEALLOCATE_MAX_PENALTY_WAD in script/utils/Constants.sol — the value is part
+        # of the CREATE2 address, so a mismatch here means verifying against the wrong initcode.
+        "ForceDeallocateMorphoHook")
+            # DERIVED from script/utils/Constants.sol, not hardcoded. The value is part of this hook's
+            # CREATE2 address, so verification must use the exact word the deploy appended; a second
+            # literal here would drift silently and fail verification looking like a compiler mismatch.
+            local fd_cap
+            fd_cap=$(_force_deallocate_cap_wei) || die "could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD"
+            echo "$(cast abi-encode "constructor(uint256)" "$fd_cap")"
             ;;
         # ===== Gyld bonds (chain 747474 only today) =====
         # The registry's admin is the DEPLOYER at construction and stays so in the INITCODE even after

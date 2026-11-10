@@ -527,7 +527,7 @@ contract HookSizingInterfaceTest is Helpers {
         aaveRepayAndWithdraw = new AaveV4RepayAndWithdrawHook();
 
         // ── Newly-S1 hooks ──
-        forceDeallocateMorpho = new ForceDeallocateMorphoHook();
+        forceDeallocateMorpho = new ForceDeallocateMorphoHook(0.02e18);
 
         // ── Newly-S2 hooks ──
         pendleUnified = new PendleUnifiedHook(DUMMY_ROUTER);
@@ -4375,18 +4375,22 @@ contract HookSizingInterfaceTest is Helpers {
     }
 
     /// @dev ForceDeallocateMorphoHook: decodeAmounts reads at offset 72
+    /// @dev SUP-21780 reshaped the header, and `assets` DELIBERATELY stayed at 72: the two deleted words
+    ///      (deadline, maxPenaltyBps) sat after it, so the sized leg did not move. A non-zero oracle id is
+    ///      encoded at offset 0 rather than zeros, because that slot used to be a zero-filled
+    ///      `placeholder0` and the point of the rename is that a real id now occupies it.
     function test_ForceDeallocateMorpho_DecodeAmounts() public view {
-        // Layout: bytes32(0-32) + address(32-52) + address(52-72) + uint256 assets(72-104) + ...
+        // Layout: bytes32 id(0-32) + address yieldSource(32-52) + address adapter(52-72)
+        //         + uint256 assets(72-104) + bool usePrevHookAmount(104) + raw adapterData(105+)
         bytes memory data = abi.encodePacked(
-            bytes32(0),         // placeholder (32)
-            address(0xAA),      // morphoVaultV2 (20)
-            address(0xBB),      // adapter (20)
-            uint256(42e18),     // assets at offset 72 (32)
-            uint256(0),         // deadline (32)
-            uint256(0),         // maxPenaltyBps (32)
-            false,              // usePrevHookAmount (1)
-            bytes("")           // adapterData (0)
+            bytes32(uint256(0xFEED)), // yieldSourceOracleId (32)
+            address(0xAA),            // yieldSource (20)
+            address(0xBB),            // adapter (20)
+            uint256(42e18),           // assets at offset 72 (32)
+            false,                    // usePrevHookAmount at offset 104 (1)
+            bytes("")                 // adapterData (0)
         );
+        assertEq(data.length, 105, "the reshaped header is 105 bytes with an empty adapterData tail");
         uint256[] memory amounts = forceDeallocateMorpho.decodeAmounts(data);
         assertEq(amounts.length, 1);
         assertEq(amounts[0], 42e18);
@@ -4403,14 +4407,7 @@ contract HookSizingInterfaceTest is Helpers {
     /// @dev ForceDeallocateMorphoHook: decode/replace roundtrip
     function test_ForceDeallocateMorpho_DecodeReplace_Roundtrip() public view {
         bytes memory data = abi.encodePacked(
-            bytes32(0),
-            address(0xAA),
-            address(0xBB),
-            uint256(100e18),
-            uint256(1000),
-            uint256(500),
-            false,
-            bytes("")
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), uint256(100e18), false, bytes("")
         );
         assertEq(forceDeallocateMorpho.decodeAmounts(data)[0], 100e18);
         bytes memory replaced = forceDeallocateMorpho.replaceCalldataAmounts(data, _singleAmount(200e18));
@@ -4418,10 +4415,98 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(replaced.length, data.length);
     }
 
+    /// @dev The sized replacement must leave a NON-EMPTY raw `adapterData` tail byte-identical. The tail
+    ///      carries no length prefix, so an off-by-one in `_replaceCalldataAmount` would corrupt the
+    ///      adapter payload rather than fail loudly.
+    function test_ForceDeallocateMorpho_Replace_PreservesAdapterDataTail() public view {
+        bytes memory tail = hex"deadbeefcafe";
+        bytes memory data = abi.encodePacked(
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), uint256(100e18), true, tail
+        );
+        bytes memory replaced = forceDeallocateMorpho.replaceCalldataAmounts(data, _singleAmount(7e18));
+
+        assertEq(forceDeallocateMorpho.decodeAmounts(replaced)[0], 7e18, "amount replaced");
+        assertEq(replaced.length, data.length, "length unchanged");
+        assertTrue(forceDeallocateMorpho.decodeUsePrevHookAmount(replaced), "flag at 104 survived");
+        for (uint256 i; i < tail.length; ++i) {
+            assertEq(uint8(replaced[105 + i]), uint8(tail[i]), "adapterData tail byte unchanged");
+        }
+    }
+
+    /// @dev THE FLAG AT 104 AND THE TAIL AT 105 ARE ADJACENT WITH NO LENGTH PREFIX, so an off-by-one in
+    ///      either direction is invisible to a test whose flag and first tail byte agree. These two pin
+    ///      them apart: a non-zero first tail byte with the flag FALSE, and a zero first tail byte with
+    ///      the flag TRUE. A hook reading offset 105 instead of 104 fails the first; one reading 103
+    ///      fails the second.
+    function test_ForceDeallocateMorpho_FlagAt104_NotTheTailAt105() public view {
+        bytes memory falseFlagNonZeroTail = abi.encodePacked(
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), uint256(1e18), false, hex"ffffffff"
+        );
+        assertFalse(
+            forceDeallocateMorpho.decodeUsePrevHookAmount(falseFlagNonZeroTail),
+            "flag is byte 104 (false); the 0xff tail at 105+ must not be read as the flag"
+        );
+
+        bytes memory trueFlagZeroTail = abi.encodePacked(
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), uint256(1e18), true, hex"00000000"
+        );
+        assertTrue(
+            forceDeallocateMorpho.decodeUsePrevHookAmount(trueFlagZeroTail),
+            "flag is byte 104 (true); the zero tail must not mask it"
+        );
+    }
+
+    /// @dev The sized splice must leave the WHOLE header below `assets` untouched — the oracle id at 0,
+    ///      `yieldSource` at 32 and `adapter` at 52. This is what actually proves "the sized leg did not
+    ///      move"; asserting it in a comment proves nothing.
+    function test_ForceDeallocateMorpho_Replace_PreservesHeaderBelowAssets() public view {
+        bytes memory data = abi.encodePacked(
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), uint256(100e18), false, hex"abcd"
+        );
+        bytes memory replaced = forceDeallocateMorpho.replaceCalldataAmounts(data, _singleAmount(5e18));
+
+        for (uint256 i; i < 72; ++i) {
+            assertEq(uint8(replaced[i]), uint8(data[i]), "header byte below the assets slot changed");
+        }
+        assertEq(forceDeallocateMorpho.decodeAmounts(replaced)[0], 5e18, "only the assets slot moved");
+    }
+
+    /// @dev The sizing view must read the slot, not the flag or the tail. A fuzz over the amount with a
+    ///      non-zero flag and a non-zero tail catches an off-by-one in either direction.
+    function testFuzz_ForceDeallocateMorpho_DecodeAmounts_ReadsOnlyTheSlot(uint256 amount) public view {
+        bytes memory data = abi.encodePacked(
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), amount, true, hex"ffffffff"
+        );
+        assertEq(forceDeallocateMorpho.decodeAmounts(data)[0], amount, "offset 72 holds the amount");
+        assertTrue(forceDeallocateMorpho.decodeUsePrevHookAmount(data), "and 104 still holds the flag");
+    }
+
+    /// @dev `amountRoles` is constant: one IN/TOKEN leg regardless of input, including empty bytes.
+    ///      TOKEN rather than ASSETS is deliberate - see the hook's NatSpec - and a change here would
+    ///      need an amountMeta override in hook-enrichment.yaml, so it is worth pinning.
+    function testFuzz_ForceDeallocateMorpho_AmountRoles_AreInvariant(bytes memory anyData) public view {
+        ISuperHookInflowOutflow.AmountMeta[] memory meta = forceDeallocateMorpho.amountRoles(anyData);
+        assertEq(meta.length, 1);
+        assertEq(uint8(meta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
+        assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
+    }
+
+    /// @dev The cap is exposed as a public immutable so an off-chain consumer can read the bound that
+    ///      this hook's address commits to.
+    function test_ForceDeallocateMorpho_CapIsPubliclyReadable() public view {
+        assertEq(forceDeallocateMorpho.MAX_PENALTY_WAD(), 0.02e18, "the fixture's cap");
+        assertEq(forceDeallocateMorpho.MORPHO_MAX_PENALTY_WAD(), 0.02e18, "and Morpho's own ceiling");
+        assertLe(
+            forceDeallocateMorpho.MAX_PENALTY_WAD(),
+            forceDeallocateMorpho.MORPHO_MAX_PENALTY_WAD(),
+            "the cap can never exceed the protocol ceiling"
+        );
+    }
+
     /// @dev ForceDeallocateMorphoHook: replaceCalldataAmounts reverts on wrong length
     function test_ForceDeallocateMorpho_ReplaceCalldataAmounts_RevertsWrongLength() public {
         bytes memory data = abi.encodePacked(
-            bytes32(0), address(0xAA), address(0xBB), uint256(1e18), uint256(0), uint256(0), false, bytes("")
+            bytes32(uint256(0xFEED)), address(0xAA), address(0xBB), uint256(1e18), false, bytes("")
         );
         vm.expectRevert(BaseHook.INVALID_AMOUNTS_LENGTH.selector);
         forceDeallocateMorpho.replaceCalldataAmounts(data, new uint256[](0));
