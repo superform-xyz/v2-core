@@ -34,6 +34,39 @@ HOOKS["MorphoSupplyAndBorrowHook"]="0x3159751c40C58c0408421e82e36299b4Bc461472"
 HOOKS["MorphoSupplyHook"]="0x37fd99fDca734EcD9bEa8a8B4709346991f3412f"
 HOOKS["MorphoWithdrawHook"]="0xC6988018b78E2E54A1E0f97Bb513Ad92e30FDaD5"
 
+# ===== STALE-ADDRESS TRIPWIRE (SUP-21780) =====
+# Every address above is a literal from a past deployment (PR #943). SuperGovernor's registerHook is
+# an address SET, so re-running this after a hook has been REDEPLOYED silently re-registers the
+# superseded implementation alongside the new one, leaving two incompatible calldata layouts live at
+# once. ForceDeallocateMorphoHook is exactly that case: SUP-21780 reshaped its calldata AND its
+# constructor, so it lands at a new CREATE2 address.
+#
+# Cross-checked against the deployment output rather than trusted. ForceDeallocateMorphoHook ABORTS
+# on mismatch, because registering the old layout next to the new one is never correct. Other hooks
+# only WARN: at least one literal here is ALREADY stale against the output (MorphoLendHook, as of
+# 2026-11-09), which predates this ticket, so a blanket abort would disable a script that is
+# otherwise historical rather than wrong. Fix the literals or drive registration from the output.
+OUTPUT_JSON="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/script/output/prod/1/Ethereum-latest.json"
+if [[ -f "$OUTPUT_JSON" ]]; then
+    for name in "${!HOOKS[@]}"; do
+        deployed=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2],'') or '')" "$OUTPUT_JSON" "$name")
+        [[ -z "$deployed" ]] && continue
+        if [[ "$(echo "$deployed" | tr 'A-Z' 'a-z')" != "$(echo "${HOOKS[$name]}" | tr 'A-Z' 'a-z')" ]]; then
+            if [[ "$name" == "ForceDeallocateMorphoHook" ]]; then
+                echo "ERROR: $name is superseded." >&2
+                echo "  this script: ${HOOKS[$name]}" >&2
+                echo "  deployed   : $deployed" >&2
+                echo "  Registering the old layout alongside the new one leaves both live. Update the" >&2
+                echo "  literal above, or drive registration from the deployment output." >&2
+                exit 1
+            fi
+            echo "WARNING: $name literal (${HOOKS[$name]}) != deployed ($deployed) - pre-existing drift" >&2
+        fi
+    done
+else
+    echo "WARNING: Ethereum deployment output not found; hook addresses are UNVERIFIED" >&2
+fi
+
 HOOK_NAMES=(
     "FetchNativeFeeHook"
     "ForceDeallocateMorphoHook"
