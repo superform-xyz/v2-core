@@ -1374,6 +1374,7 @@
         "FlatFeeLedger": "0xAb56d09Ad9975116fCeb14970F2fFb3bB0ad683E",
         "HyperCoreAddApiWalletHook": "0x7d4610dbEe9A5DDD4DF43F438dd1C1709D431385",
         "HyperCoreApproveBuilderFeeHook": "0xe4cF68598878B13Bec9985baBc46Cc6b6733164e",
+        "HyperCoreGasTopUpHook": "0xc089fbEc2d959C99ac309702e50fdCbEAd43bB14",
         "HyperCorePerpPositionOracle": "0xB493FDebc1b5758A24680ac691e6349dE12f95cd",
         "HyperCoreSendAssetHook": "0x90dc9d2BB3cFF8E3b228F4a48Bb9678eCF52CD2E",
         "HyperCoreUsdClassTransferHook": "0x50c925F20993E0A1C91623df444b226417866DEE",
@@ -2633,5 +2634,5 @@
       }
     }
   },
-  "updated_at": "2026-11-10T09:11:36Z"
+  "updated_at": "2026-11-10T11:49:40Z"
 }

@@ -704,6 +704,10 @@ hooks:
     actionTypes: [{intent: config, stage: instant}]
     legSizing: [sized]
 
+  HyperCoreGasTopUpHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []  # sizeless — independent signed native fee reserve, S2 decode-only
+
   SetSlippageHook:
     actionTypes: [{intent: config, stage: instant}]
     legSizing: []  # sizeless — admin/config op

@@ -315,6 +315,7 @@ RFLR_HOOK_CONTRACTS=(
 # NOTE: these were missing from this script entirely, so a source change to them left the artifacts
 #       stale and a deploy would have shipped the previous bytecode.
 HYPERCORE_HOOK_CONTRACTS=(
+    "HyperCoreGasTopUpHook"
     "HyperCoreAddApiWalletHook"
     "HyperCoreApproveBuilderFeeHook"
     "HyperCoreSendAssetHook"
