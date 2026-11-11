@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-10T18:29:14Z",
+  "generatedAt": "2026-11-11T10:36:46Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1188,12 +1188,38 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xF0F41C5873130a2ad00A22f9dC8bFe26Ae363Ece",
+          "56": "0x660020865cf6c0Ab0d29ED733Ac997483672BD9E",
+          "4663": "0x9c89e2D9e9e8E2A0Cc6eD6D7577FD92A1e97E738",
+          "8453": "0xF0F41C5873130a2ad00A22f9dC8bFe26Ae363Ece",
+          "42161": "0x7b384655958FBBbe05c984B1D4a8aF8A765d850F"
+        },
+        "prod": {
+          "1": "0x798a8457EF2412d9304BFaf4E3A40206ed3bbE3f",
+          "10": "0x146E891e4FfAC6a5491Af50d119ea7eC8348Af90",
+          "56": "0x10B22A7faa33555C3901df070E76783ed12E4d2b",
+          "4663": "0xD2F9314491F40BD545f74c87c8FDab16b33601f7",
+          "8453": "0x798a8457EF2412d9304BFaf4E3A40206ed3bbE3f",
+          "42161": "0x4C9C5110CBaF675e91d396D0eb008F18fa28468c"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [
         {
