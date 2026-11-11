@@ -88,6 +88,7 @@
   "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
   "ForceDeallocateMorphoHook": "0xd16e258693b70fa0dE07b31d21afB5847f7b9b99",
   "ForceDeallocateMorphoVaultHook": "0xaAA8AfE45D876B13266805b2975e27cFE6973A38",
+  "ForceRedeemMorphoVaultHook": "0xF0F41C5873130a2ad00A22f9dC8bFe26Ae363Ece",
   "MarkRootAsUsedHook": "0x48C350aF3884326B6df05C4a9F9c9bCC5A185013",
   "MerklClaimRewardHook": "0x85682FfFB1ABaa5Def244373617EbB17a7829268",
   "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",

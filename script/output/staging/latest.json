@@ -84,6 +84,7 @@
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "ForceDeallocateMorphoHook": "0xd16e258693b70fa0dE07b31d21afB5847f7b9b99",
         "ForceDeallocateMorphoVaultHook": "0x23bf561F45Bfd30bdF1F78Ac4884c7799e6Dc70F",
+        "ForceRedeemMorphoVaultHook": "0x7b384655958FBBbe05c984B1D4a8aF8A765d850F",
         "MarkRootAsUsedHook": "0x48C350aF3884326B6df05C4a9F9c9bCC5A185013",
         "MerklClaimRewardHook": "0x85682FfFB1ABaa5Def244373617EbB17a7829268",
         "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",
@@ -504,6 +505,7 @@
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "ForceDeallocateMorphoHook": "0xd16e258693b70fa0dE07b31d21afB5847f7b9b99",
         "ForceDeallocateMorphoVaultHook": "0xA9207C787C4f0A2De1BbCaC5119d707ECf41Db08",
+        "ForceRedeemMorphoVaultHook": "0x660020865cf6c0Ab0d29ED733Ac997483672BD9E",
         "MarkRootAsUsedHook": "0x48C350aF3884326B6df05C4a9F9c9bCC5A185013",
         "MerklClaimRewardHook": "0x85682FfFB1ABaa5Def244373617EbB17a7829268",
         "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",
@@ -676,6 +678,7 @@
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "ForceDeallocateMorphoHook": "0xd16e258693b70fa0dE07b31d21afB5847f7b9b99",
         "ForceDeallocateMorphoVaultHook": "0xaAA8AfE45D876B13266805b2975e27cFE6973A38",
+        "ForceRedeemMorphoVaultHook": "0xF0F41C5873130a2ad00A22f9dC8bFe26Ae363Ece",
         "MarkRootAsUsedHook": "0x48C350aF3884326B6df05C4a9F9c9bCC5A185013",
         "MerklClaimRewardHook": "0x85682FfFB1ABaa5Def244373617EbB17a7829268",
         "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",
@@ -855,6 +858,7 @@
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "ForceDeallocateMorphoHook": "0xd16e258693b70fa0dE07b31d21afB5847f7b9b99",
         "ForceDeallocateMorphoVaultHook": "0xaAA8AfE45D876B13266805b2975e27cFE6973A38",
+        "ForceRedeemMorphoVaultHook": "0xF0F41C5873130a2ad00A22f9dC8bFe26Ae363Ece",
         "MarkRootAsUsedHook": "0x48C350aF3884326B6df05C4a9F9c9bCC5A185013",
         "MerklClaimRewardHook": "0x85682FfFB1ABaa5Def244373617EbB17a7829268",
         "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",
@@ -1366,6 +1370,7 @@
         "FlatFeeLedger": "0xb989FC825C8C77fbE84b69082048372d548f6FeF",
         "ForceDeallocateMorphoHook": "0xd16e258693b70fa0dE07b31d21afB5847f7b9b99",
         "ForceDeallocateMorphoVaultHook": "0x6dCaAeC78c938F5d878ACD7108bD59291bd2e67A",
+        "ForceRedeemMorphoVaultHook": "0x9c89e2D9e9e8E2A0Cc6eD6D7577FD92A1e97E738",
         "MarkRootAsUsedHook": "0x48C350aF3884326B6df05C4a9F9c9bCC5A185013",
         "MerklClaimRewardHook": "0x85682FfFB1ABaa5Def244373617EbB17a7829268",
         "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",
@@ -1537,5 +1542,5 @@
       }
     }
   },
-  "updated_at": "2026-11-10T18:15:10Z"
+  "updated_at": "2026-11-11T10:29:00Z"
 }
