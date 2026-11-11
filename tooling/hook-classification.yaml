@@ -97,10 +97,14 @@ hooks:
     legSizing: []  # sizeless — cancel/claim ops with no sizable amount
 
   # ============================================================
-  # WITHDRAW (20 hooks)
+  # WITHDRAW (21 hooks)
   # ============================================================
 
-  # withdraw / instant (8)
+  ForceRedeemMorphoVaultHook:
+    actionTypes: [{intent: withdraw, stage: instant}]
+    legSizing: [sized]  # one IN/ASSETS leg on `assets`, rewritten at offset 52
+
+  # withdraw / instant (9)
   Redeem4626VaultHook:
     actionTypes: [{intent: withdraw, stage: instant}]
     legSizing: [sized]

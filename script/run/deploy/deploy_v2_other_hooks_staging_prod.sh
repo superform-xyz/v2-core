@@ -134,6 +134,7 @@ MORPHO_HOOKS=(
     "MetaMorphoReallocateHook"
     "ForceDeallocateMorphoHook"
     "ForceDeallocateMorphoVaultHook"
+    "ForceRedeemMorphoVaultHook"
     "MorphoSupplyAndBorrowHookV2"
     "MorphoRepayHookV2"
     "MorphoRepayAndWithdrawHookV2"
