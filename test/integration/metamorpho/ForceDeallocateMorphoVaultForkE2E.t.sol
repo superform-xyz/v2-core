@@ -10,6 +10,7 @@ import { ForceDeallocateMorphoVaultHook } from
 import { IMorphoVaultV2 } from "../../../src/vendor/morpho/IMorphoVaultV2.sol";
 import { IMorphoMarketV1Adapter } from "../../../src/vendor/morpho/IMorphoMarketV1Adapter.sol";
 import { IMorphoStaticTyping, MarketParams, Id } from "../../../src/vendor/morpho/IMorpho.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { Constants } from "../../utils/Constants.sol";
 
 /// @title ForceDeallocateMorphoVaultForkE2E
@@ -34,6 +35,9 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
 
     /// @dev Gauntlet's live rate was 1e13 WAD (0.1 bps) at the pinned block, far under this.
     uint256 public constant CAP = 0.0025e18;
+    /// @dev Vault V2 curator at the pinned block. `setIsAllocator` sits behind a 7-day timelock, which a
+    ///      fork can simply warp past — so a test can become an allocator without discovering Gauntlet's.
+    address public constant CURATOR = 0x9E33faAE38ff641094fa68c65c2cE600b3410585;
 
     ForceDeallocateMorphoVaultHook internal hook;
     address internal account;
@@ -324,6 +328,98 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                 WHAT DEALLOCATE-ONLY DOES AND DOES NOT GUARANTEE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Ronny's SECOND failure mode, executed on live state: the allocator can push the freed idle back
+    ///      into a market before the payer withdraws it. The end state is a vault whose positions and idle
+    ///      are exactly where they began, and a payer whose shares are strictly lower. A penalty was paid
+    ///      for a net-zero change. This is the reason `ForceRedeemMorphoVaultHook` withdraws in-call.
+    function test_AllocatorCanPushTheFreedIdleBackBeforeThePayerWithdraws() public {
+        _becomeAllocator();
+
+        uint256 assets = _largestPullable(_capacities()) / 2;
+        uint256 idle0 = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        uint256 positions0 = _positions();
+        uint256 payerShares0 = IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account);
+
+        _runHook(assets);
+        assertEq(IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME) - idle0, assets, "deallocate freed exactly assets");
+        assertEq(positions0 - _positions(), assets, "out of the markets");
+
+        // A separate transaction, by the allocator, before the payer gets to its withdraw.
+        Capacity[] memory caps = _capacities();
+        uint256 best;
+        for (uint256 i = 1; i < caps.length; ++i) {
+            if (caps[i].liquidity > caps[best].liquidity) best = i;
+        }
+        address adapter = IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0);
+        (bool ok,) = GAUNTLET_WETH_PRIME.call(
+            abi.encodeWithSignature(
+                "allocate(address,bytes,uint256)", adapter, abi.encode(_paramsOf(caps[best].marketId)), assets
+            )
+        );
+        assertTrue(ok, "the allocator re-allocates the freed idle");
+
+        assertEq(IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME), idle0, "idle is back where it started");
+        assertEq(_positions(), positions0, "and so are the positions");
+        assertLt(
+            IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account),
+            payerShares0,
+            "but the payer's penalty is already gone"
+        );
+    }
+
+    /// @dev The intended two-step, uninterrupted: deallocate in one tx, the payer withdraws in the next. The
+    ///      deallocate is proven by the POSITION delta — the fixture's own deposit sits in idle, so a
+    ///      successful withdraw alone would prove nothing — and the net effect equals a single-call exit.
+    function test_HappyPathTwoStep_DeallocateThenWithdrawLater() public {
+        uint256 assets = _largestPullable(_capacities()) / 2;
+        uint256 positions0 = _positions();
+        uint256 idle0 = IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        uint256 under0 = IERC20(WETH).balanceOf(account);
+
+        _runHook(assets);
+        assertEq(positions0 - _positions(), assets, "the markets really were drawn down");
+
+        vm.prank(account);
+        (bool ok,) = GAUNTLET_WETH_PRIME.call(abi.encodeCall(IERC4626.withdraw, (assets, account, account)));
+        assertTrue(ok, "the payer can withdraw in a later tx when nobody intervened");
+        assertEq(IERC20(WETH).balanceOf(account) - under0, assets, "and receives exactly what it freed");
+        assertEq(IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME), idle0, "idle back to baseline");
+    }
+
+    /// @dev DOCUMENTS AN OPEN DECISION (SUP-21799 §11.7-d): the hook does NOT net the vault's existing idle
+    ///      against the request. The fixture guarantees idle >= assets, yet every pull is still planned and
+    ///      the markets are still drawn down by the full amount — so the penalty is charged on liquidity
+    ///      that never needed moving. If the owner approves netting, this is the test that must change.
+    function test_ExistingIdleIsNotNettedAgainstTheRequest() public {
+        uint256 assets = _largestPullable(_capacities()) / 2;
+        assertGe(IERC20(WETH).balanceOf(GAUNTLET_WETH_PRIME), assets, "fixture: idle already covers it");
+
+        uint256 positions0 = _positions();
+        uint256 pulls = _runHook(assets);
+
+        assertGt(pulls, 0, "pulls were planned despite ample idle");
+        assertEq(positions0 - _positions(), assets, "and the markets were drawn down by the full request");
+    }
+
+    /// @dev Two deallocates in sequence: the second plans against what the first left, and the total drawn
+    ///      from the markets is the sum.
+    function test_SequentialDeallocatesCompound() public {
+        uint256 assets = _largestPullable(_capacities()) / 3;
+        uint256 positions0 = _positions();
+
+        _runHook(assets);
+        uint256 positions1 = _positions();
+        assertEq(positions0 - positions1, assets, "first");
+
+        _runHook(assets);
+        assertEq(positions1 - _positions(), assets, "second, planned against the drained state");
+        assertEq(positions0 - _positions(), 2 * assets, "cumulative");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -401,6 +497,28 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         for (uint256 i; i < caps.length; ++i) {
             if (caps[i].pullable != 0) ++n;
         }
+    }
+
+    /// @dev Total underlying the vault's markets hold — the one measure the fixture's own deposit in idle
+    ///      cannot satisfy, hence the load-bearing assertion in every test above.
+    function _positions() internal view returns (uint256 total) {
+        Capacity[] memory caps = _capacities();
+        for (uint256 i; i < caps.length; ++i) {
+            total += caps[i].position;
+        }
+    }
+
+    /// @dev Becomes a Vault V2 allocator through the curator's own timelock: submit, warp past the 7-day
+    ///      delay, execute. Nothing is bypassed; the fork just advances time.
+    function _becomeAllocator() internal {
+        bytes memory grant = abi.encodeWithSignature("setIsAllocator(address,bool)", address(this), true);
+        vm.prank(CURATOR);
+        (bool ok,) = GAUNTLET_WETH_PRIME.call(abi.encodeWithSignature("submit(bytes)", grant));
+        require(ok, "submit");
+        vm.warp(block.timestamp + 7 days + 1);
+        vm.prank(CURATOR);
+        (ok,) = GAUNTLET_WETH_PRIME.call(grant);
+        require(ok, "execute setIsAllocator");
     }
 
     function _largestPullable(Capacity[] memory caps) internal pure returns (uint256 largest) {

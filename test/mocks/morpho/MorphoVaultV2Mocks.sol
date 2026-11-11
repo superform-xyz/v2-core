@@ -56,6 +56,13 @@ contract MockMorphoMarketAdapter {
     ///      that is not malformed but simply expensive — the case a per-probe stipend cannot catch,
     ///      because `staticcall` does not surface out-of-gas to the caller.
     bool internal burnGas;
+    /// @dev Answers `adaptiveCurveIrm()` with the zero address instead of reverting. The hook reads a
+    ///      FAILED probe as "pins no IRM"; this is the distinct case of an adapter that answers and says
+    ///      zero, which disables the IRM filter through a success rather than a failure.
+    bool internal zeroIrm;
+    /// @dev `morpho()` reverts. Distinct from a codeless adapter: the contract exists and answers
+    ///      `parentVault()` correctly, then fails the very next probe.
+    bool internal breakMorpho;
 
     constructor(address parentVault_, address morpho_) {
         _parentVault = parentVault_;
@@ -69,6 +76,7 @@ contract MockMorphoMarketAdapter {
 
     function morpho() external view returns (address) {
         _burn();
+        require(!breakMorpho, "no morpho");
         return _morpho;
     }
 
@@ -94,6 +102,14 @@ contract MockMorphoMarketAdapter {
 
     function setBurnGas(bool value) external {
         burnGas = value;
+    }
+
+    function setZeroIrm(bool value) external {
+        zeroIrm = value;
+    }
+
+    function setBreakMorpho(bool value) external {
+        breakMorpho = value;
     }
 
     /// @dev Leaves ~2k so the call still returns rather than reverting, which is the expensive case.
@@ -130,6 +146,7 @@ contract MockMorphoMarketAdapter {
 
     function adaptiveCurveIrm() external view returns (address) {
         _burn();
+        if (zeroIrm) return address(0);
         require(pinnedIrm != address(0), "no pinned irm");
         return pinnedIrm;
     }
@@ -211,5 +228,73 @@ contract MockMorphoVaultV2 {
 
     function callAt(uint256 i) external view returns (Call memory) {
         return calls[i];
+    }
+
+    function _creditShares(address owner, uint256 amount) internal {
+        shares[owner] += amount;
+    }
+
+    /// @notice ERC-4626 `withdraw`: pays `assets` of underlying and burns the corresponding shares
+    /// @dev Needed because `ForceRedeemMorphoVaultHook` measures what the account actually RECEIVED. A mock
+    ///      that recorded the call without moving tokens would let the hook's accounting assertions pass
+    ///      against an outAmount of zero, which is the one thing they exist to catch.
+    function withdraw(uint256 assets, address receiver, address owner)
+        external
+        virtual
+        returns (uint256 sharesBurned)
+    {
+        sharesBurned = (assets * previewRate + 1e18 - 1) / 1e18;
+        require(shares[owner] >= sharesBurned, "mock: insufficient shares");
+        shares[owner] -= sharesBurned;
+        IMockMintable(asset).mint(receiver, assets);
+    }
+
+}
+
+interface IMockMintable {
+    function mint(address to, uint256 amount) external;
+}
+
+/// @notice An underlying that keeps a cut on every transfer, to prove `outAmount` is MEASURED not declared
+/// @dev `ForceRedeemMorphoVaultHook` publishes the account's observed balance delta rather than the
+///      requested `assets`. On a plain ERC-20 the two are equal, so only a token that delivers less can
+///      tell the two implementations apart.
+contract FeeOnTransferToken {
+    string public name = "Fee On Transfer";
+    string public symbol = "FOT";
+    uint8 public decimals = 18;
+    uint256 public feeBps;
+    mapping(address => uint256) public balanceOf;
+
+    constructor(uint256 feeBps_) {
+        feeBps = feeBps_;
+    }
+
+    function mint(address to, uint256 amount) external {
+        uint256 fee = (amount * feeBps) / 10_000;
+        balanceOf[to] += amount - fee;
+    }
+
+    function asset() external view returns (address) {
+        return address(this);
+    }
+}
+
+/// @notice A vault that MINTS shares during the withdraw, to reach `_postExecute`'s clamp
+/// @dev The clamp cannot be reached by any honest path — every leg of the hook only burns the account's
+///      shares — so the only way to cover that branch is a vault that violates the assumption.
+contract SharesInflatingVault is MockMorphoVaultV2 {
+    bool public inflate;
+
+    constructor(address asset_) MockMorphoVaultV2(asset_) { }
+
+    function setInflate(bool v) external {
+        inflate = v;
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256) {
+        IMockMintable(asset).mint(receiver, assets);
+        if (inflate) _creditShares(owner, assets * 10);
+        return 0;
     }
 }

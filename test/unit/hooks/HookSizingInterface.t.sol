@@ -41,6 +41,8 @@ import { EthenaUnstakeHook } from "../../../src/hooks/vaults/ethena/EthenaUnstak
 import { ForceDeallocateMorphoHook } from "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol";
 import { ForceDeallocateMorphoVaultHook } from
     "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoVaultHook.sol";
+import { ForceRedeemMorphoVaultHook } from
+    "../../../src/hooks/vaults/metamorpho/ForceRedeemMorphoVaultHook.sol";
 import { MetaMorphoReallocateHook } from "../../../src/hooks/vaults/metamorpho/MetaMorphoReallocateHook.sol";
 import { CancelDepositRequest7540Hook } from "../../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
 import {
@@ -373,6 +375,7 @@ contract HookSizingInterfaceTest is Helpers {
     // ──────── Newly-S1 hooks ────────
     ForceDeallocateMorphoHook forceDeallocateMorpho;
     ForceDeallocateMorphoVaultHook forceDeallocateMorphoVault;
+    ForceRedeemMorphoVaultHook forceRedeemMorphoVault;
 
     // ──────── Newly-S2 hooks (opaque-blob + sizeless) ────────
     PendleUnifiedHook pendleUnified;
@@ -532,6 +535,7 @@ contract HookSizingInterfaceTest is Helpers {
         // ── Newly-S1 hooks ──
         forceDeallocateMorpho = new ForceDeallocateMorphoHook(0.02e18);
         forceDeallocateMorphoVault = new ForceDeallocateMorphoVaultHook(address(0xB10E), 0.02e18);
+        forceRedeemMorphoVault = new ForceRedeemMorphoVaultHook(address(0xB10E), 0.02e18);
 
         // ── Newly-S2 hooks ──
         pendleUnified = new PendleUnifiedHook(DUMMY_ROUTER);
@@ -4725,7 +4729,7 @@ contract HookSizingInterfaceTest is Helpers {
 
     /// @notice Returns every hook instantiated in this test contract.
     function _allHooks() internal view returns (ISuperHook[] memory hooks) {
-        hooks = new ISuperHook[](129);
+        hooks = new ISuperHook[](130);
         uint256 i;
         // ── Token (7) ──
         hooks[i++] = ISuperHook(address(transferERC20));
@@ -4824,9 +4828,10 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(aaveRepay));
         hooks[i++] = ISuperHook(address(aaveSupplyAndBorrow));
         hooks[i++] = ISuperHook(address(aaveRepayAndWithdraw));
-        // ── Newly-S1 (2) ──
+        // ── Newly-S1 (3) ──
         hooks[i++] = ISuperHook(address(forceDeallocateMorpho));
         hooks[i++] = ISuperHook(address(forceDeallocateMorphoVault));
+        hooks[i++] = ISuperHook(address(forceRedeemMorphoVault));
         // ── Newly-S2 (30) ──
         hooks[i++] = ISuperHook(address(pendleUnified));
         hooks[i++] = ISuperHook(address(pendleRouterSwap));
@@ -4870,7 +4875,7 @@ contract HookSizingInterfaceTest is Helpers {
         hooks[i++] = ISuperHook(address(approveAndTradeGyldBond));
         hooks[i++] = ISuperHook(address(gyldTradeGuard));
 
-        assertEq(i, 129, "allHooks count mismatch - add new hooks here");
+        assertEq(i, 130, "allHooks count mismatch - add new hooks here");
     }
 
     /// @dev CI guardrail: every INFLOW or OUTFLOW hook MUST support both sizing interfaces.

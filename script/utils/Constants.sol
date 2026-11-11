@@ -299,6 +299,9 @@ abstract contract Constants {
     string internal constant FORCE_DEALLOCATE_MORPHO_HOOK_KEY = "ForceDeallocateMorphoHook";
     /// @notice SUP-21799. The vault-level sibling; both are deployed and registered simultaneously.
     string internal constant FORCE_DEALLOCATE_MORPHO_VAULT_HOOK_KEY = "ForceDeallocateMorphoVaultHook";
+    /// @notice The deallocate-and-withdraw variant. A THIRD hook, not a replacement: the two deallocate
+    ///         hooks stop at the vault's idle balance, this one completes the exit in the same call.
+    string internal constant FORCE_REDEEM_MORPHO_VAULT_HOOK_KEY = "ForceRedeemMorphoVaultHook";
     /// @notice SUP-21780 Inv2: the highest Morpho `forceDeallocatePenalty` the force-deallocate hook will
     ///         execute against, in WAD. 25 bps.
     /// @dev PROVISIONAL, NEEDS A RISK SIGN-OFF BEFORE MAINNET USE. A starting point, not a derived

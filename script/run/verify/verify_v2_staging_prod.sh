@@ -542,7 +542,7 @@ generate_constructor_args() {
                 echo "$(cast abi-encode "constructor()")"
             fi
             ;;
-        "ForceDeallocateMorphoVaultHook")
+        "ForceDeallocateMorphoVaultHook"|"ForceRedeemMorphoVaultHook")
             # SUP-21799. TWO constructor words, in this order: the per-chain Morpho Blue singleton (pinned
             # as an immutable so a curator-registered adapter cannot redirect the hook's market reads) and
             # the penalty ceiling. Both are part of the CREATE2 address, so verification must reproduce the
@@ -915,6 +915,8 @@ get_contract_source() {
         "ForceDeallocateMorphoHook") echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoHook.sol" ;;
         "ForceDeallocateMorphoVaultHook")
             echo "src/hooks/vaults/metamorpho/ForceDeallocateMorphoVaultHook.sol" ;;
+        "ForceRedeemMorphoVaultHook")
+            echo "src/hooks/vaults/metamorpho/ForceRedeemMorphoVaultHook.sol" ;;
         "MorphoHealthCheckHook") echo "src/hooks/loan/morpho/MorphoHealthCheckHook.sol" ;;
 
         # Sponsorship

@@ -51,6 +51,7 @@ compatibleProtocols:
   MetaMorphoReallocateHook: [morpho-metamorpho]
   ForceDeallocateMorphoHook: [morpho-metamorpho]
   ForceDeallocateMorphoVaultHook: [morpho-metamorpho]
+  ForceRedeemMorphoVaultHook: [morpho-metamorpho]
   # Aave V4
   AaveV4SupplyHook: [aave-v4]
   AaveV4WithdrawHook: [aave-v4]
@@ -300,6 +301,8 @@ asyncLifecycleMap:
 # Only list hooks that differ from the default (single IN/TOKEN).
 # Hooks not listed default to [{direction: IN, denomination: TOKEN}].
 amountMeta:
+  # OUTFLOW ERC-4626 withdraw: the sized leg is underlying, so ASSETS rather than the IN/TOKEN default.
+  ForceRedeemMorphoVaultHook: [{direction: IN, denomination: ASSETS}]
   # Sizeless hooks: amountRoles() returns an EMPTY array, so the default single IN/TOKEN entry would
   # misdescribe them to the OMS. The spend is committed inside a venue-signed quote (trade) or there is
   # no amount at all (guard).

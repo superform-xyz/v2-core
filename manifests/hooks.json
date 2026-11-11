@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-10T13:20:13Z",
+  "generatedAt": "2026-11-10T18:29:14Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1171,6 +1171,46 @@
       },
       "compatibleProtocols": [
         "erc7540"
+      ]
+    },
+    "ForceRedeemMorphoVaultHook": {
+      "name": "Force Redeem Morpho Vault",
+      "description": "Force deallocates across a Morpho Vault V2's markets and withdraws the assets",
+      "hookType": "OUTFLOW",
+      "subtype": "ERC4626",
+      "actionTypes": [
+        {
+          "intent": "withdraw",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "ASSETS"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "morpho-metamorpho"
       ]
     },
     "Redeem4626VaultHook": {
@@ -10461,12 +10501,38 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "1": "0xaAA8AfE45D876B13266805b2975e27cFE6973A38",
+          "56": "0xA9207C787C4f0A2De1BbCaC5119d707ECf41Db08",
+          "4663": "0x6dCaAeC78c938F5d878ACD7108bD59291bd2e67A",
+          "8453": "0xaAA8AfE45D876B13266805b2975e27cFE6973A38",
+          "42161": "0x23bf561F45Bfd30bdF1F78Ac4884c7799e6Dc70F"
+        },
+        "prod": {
+          "1": "0x81fCC76adcE2180D43b375D6d065FE81bc15586e",
+          "10": "0x051e381a70b05206cD0E10389DA7200D5730A294",
+          "56": "0x05BfBAF82dDD79A1E75c42Da70e83F537B6f9e3E",
+          "4663": "0x757f2f21a3F6D6780D28DA5c0aE5a8cB66Bd70aE",
+          "8453": "0x81fCC76adcE2180D43b375D6d065FE81bc15586e",
+          "42161": "0x9ce963B703CedCd9C8345b433F916490f2F44b88"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "1",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ],
+        "prod": [
+          "1",
+          "10",
+          "56",
+          "4663",
+          "8453",
+          "42161"
+        ]
       },
       "amountMeta": [
         {

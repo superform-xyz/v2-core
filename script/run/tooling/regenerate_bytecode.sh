@@ -238,6 +238,7 @@ MORPHO_HOOK_CONTRACTS=(
     "MetaMorphoReallocateHook"
     "ForceDeallocateMorphoHook"
     "ForceDeallocateMorphoVaultHook"
+    "ForceRedeemMorphoVaultHook"
     "MorphoSupplyAndBorrowHookV2"
     "MorphoRepayHookV2"
     "MorphoRepayAndWithdrawHookV2"
