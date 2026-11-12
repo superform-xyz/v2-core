@@ -160,6 +160,22 @@ abstract contract Constants {
     // PancakeSwap's Arc calldata uses this native-token placeholder instead of 0xEeee… / address(0).
     address internal constant PANCAKESWAP_NATIVE_ARC = 0x3600000000000000000000000000000000000000;
 
+    // SushiSwap v7: RedSnwapper is the approval spender + execution target (source verified on Katanascan; same
+    // address on Katana and most chains, Arc differs and is left unconfigured). The nested RouteProcessor executor
+    // is pinned PER CHAIN: the Katana one is byte-identical to Base's and exposes
+    // processRoute(address,uint256,address,uint256,address,bytes,bool,uint32); Ethereum's executor has a different
+    // ABI and is NOT compatible with the hooks (see src/vendor/sushiswap/IRouteProcessor7.sol).
+    address internal constant SUSHISWAP_RED_SNWAPPER = 0xAC4c6e212A361c968F1725b4d055b47E63F80b75;
+    address internal constant SUSHISWAP_ROUTE_PROCESSOR_KATANA = 0xC10eE9031F2a0B84766A86B55a8D90F357910fb4;
+
+    // Everlong Router (router.foreverlong.io) on Katana = VERIFIED canonical Uniswap SwapRouter02 (solc 0.7.6):
+    // approval spender + call target. WETH9 is the router's immutable (vbETH on Katana). Both are per-chain
+    // constructor args; the hooks accept only the exact-input V3 + sweep/unwrap + refundETH subset (see
+    // src/vendor/everlong/ISwapRouter02.sol). Live calldata charges a 4 bps output fee although the docs say
+    // "zero fees"; the deadline is fixed at quote + 600 s.
+    address internal constant EVERLONG_ROUTER_KATANA = 0x42eF97FaE7AD46d98bAf99A0e505b43B7e1C00e9;
+    address internal constant EVERLONG_WETH9_KATANA = 0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62;
+
     // Pendle Router addresses per chain
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
@@ -271,6 +287,10 @@ abstract contract Constants {
     string internal constant APPROVE_AND_SWAP_OPENOCEAN_HOOK_KEY = "ApproveAndSwapOpenOceanHook";
     string internal constant SWAP_PANCAKESWAP_HOOK_KEY = "SwapPancakeSwapHook";
     string internal constant APPROVE_AND_SWAP_PANCAKESWAP_HOOK_KEY = "ApproveAndSwapPancakeSwapHook";
+    string internal constant SWAP_SUSHISWAP_HOOK_KEY = "SwapSushiSwapHook";
+    string internal constant APPROVE_AND_SWAP_SUSHISWAP_HOOK_KEY = "ApproveAndSwapSushiSwapHook";
+    string internal constant SWAP_EVERLONG_HOOK_KEY = "SwapEverlongHook";
+    string internal constant APPROVE_AND_SWAP_EVERLONG_HOOK_KEY = "ApproveAndSwapEverlongHook";
     string internal constant SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY = "SwapAerodromeUniversalRouterHook";
     string internal constant APPROVE_AND_SWAP_AERODROME_UNIVERSAL_ROUTER_HOOK_KEY =
         "ApproveAndSwapAerodromeUniversalRouterHook";

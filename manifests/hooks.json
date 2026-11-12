@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-11T10:36:46Z",
+  "generatedAt": "2026-11-12T11:42:33Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -5381,6 +5381,166 @@
       "approveVariant": null,
       "asyncLifecycle": null,
       "compatibleProtocols": []
+    },
+    "SwapSushiSwapHook": {
+      "name": "Swap SushiSwap",
+      "description": "Swaps tokens via SushiSwap aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapSushiSwapHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "sushiswap"
+      ]
+    },
+    "ApproveAndSwapSushiSwapHook": {
+      "name": "Approve and Swap SushiSwap",
+      "description": "Approves and swaps tokens via SushiSwap aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapSushiSwapHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "sushiswap"
+      ]
+    },
+    "SwapEverlongHook": {
+      "name": "Swap Everlong",
+      "description": "Swaps tokens via Everlong Router aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": true,
+      "approveVariant": "ApproveAndSwapEverlongHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "everlong"
+      ]
+    },
+    "ApproveAndSwapEverlongHook": {
+      "name": "Approve and Swap Everlong",
+      "description": "Approves and swaps tokens via Everlong Router aggregator",
+      "hookType": "NONACCOUNTING",
+      "subtype": "SWAP",
+      "actionTypes": [
+        {
+          "intent": "swap",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": "SwapEverlongHook",
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "everlong"
+      ]
     },
     "SwapAerodromeUniversalRouterHook": {
       "name": "Swap Aerodrome Universal Router",

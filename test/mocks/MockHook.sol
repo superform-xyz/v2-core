@@ -8,6 +8,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     uint256 public outAmount;
     uint256 public usedShares;
     address public asset;
+    address public outToken;
     bool public preExecuteCalled;
     bool public postExecuteCalled;
     Execution[] public executions;
@@ -57,8 +58,12 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         return outAmount;
     }
 
-    function getOutToken(address) external pure returns (address) {
-        return address(0);
+    function setOutToken(address _outToken) external {
+        outToken = _outToken;
+    }
+
+    function getOutToken(address) external view returns (address) {
+        return outToken;
     }
 
     function setUsedShares(uint256 _usedShares) external {
@@ -71,9 +76,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         for (uint256 i; i < _executions.length; ++i) {
             executions.push(
                 Execution({
-                    target: _executions[i].target,
-                    value: _executions[i].value,
-                    callData: _executions[i].callData
+                    target: _executions[i].target, value: _executions[i].value, callData: _executions[i].callData
                 })
             );
         }
@@ -85,9 +88,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         for (uint256 i; i < _executions.length; ++i) {
             executions.push(
                 Execution({
-                    target: _executions[i].target,
-                    value: _executions[i].value,
-                    callData: _executions[i].callData
+                    target: _executions[i].target, value: _executions[i].value, callData: _executions[i].callData
                 })
             );
         }
@@ -121,25 +122,19 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
 
         // FIRST: preExecute
         _executions[0] = Execution({
-            target: address(this),
-            value: 0,
-            callData: abi.encodeCall(this.preExecute, (prevHook, account, hookData))
+            target: address(this), value: 0, callData: abi.encodeCall(this.preExecute, (prevHook, account, hookData))
         });
 
         // MIDDLE: hook-specific operations
         for (uint256 i = 0; i < hookExecutions.length; i++) {
             _executions[i + 1] = Execution({
-                target: hookExecutions[i].target,
-                value: hookExecutions[i].value,
-                callData: hookExecutions[i].callData
+                target: hookExecutions[i].target, value: hookExecutions[i].value, callData: hookExecutions[i].callData
             });
         }
 
         // LAST: postExecute
         _executions[_executions.length - 1] = Execution({
-            target: address(this),
-            value: 0,
-            callData: abi.encodeCall(this.postExecute, (prevHook, account, hookData))
+            target: address(this), value: 0, callData: abi.encodeCall(this.postExecute, (prevHook, account, hookData))
         });
     }
 
@@ -147,9 +142,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         Execution[] memory result = new Execution[](executions.length);
         for (uint256 i = 0; i < executions.length; i++) {
             result[i] = Execution({
-                target: executions[i].target,
-                value: executions[i].value,
-                callData: executions[i].callData
+                target: executions[i].target, value: executions[i].value, callData: executions[i].callData
             });
         }
         return result;
