@@ -84,12 +84,13 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
         return "Force deallocates liquidity from a Morpho market";
     }
 
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc BaseHook
+    /// @dev `build` makes no call to `yieldSource` (SUP-21849 removed the only read it had), so a codeless
+    ///      vault address fails at execution inside `forceDeallocate`, not here.
     function _buildHookExecutions(
         address prevHook,
         address account,

@@ -54,11 +54,10 @@ contract PrevHookStub is BaseHook {
 }
 
 /// @title ForceRedeemMorphoVaultHookTest
-/// @notice SUP-21849: the share-sized exit. The 117-byte layout with the leaf cap, the smallest-deallocation
-///         solver against a Vault V2 mock that applies V2's own arithmetic, `redeem(S - P)` as the last leg,
-///         `previewAssetsOut` agreeing with what the account receives, and the filters the hook kept.
+/// @notice SUP-21849: the share-sized exit. The 117-byte layout with the `minAssetsOut` floor, the
+///         smallest-deallocation solver against a Vault V2 mock that applies V2's own arithmetic, `redeem(S - P)`
+///         as the last leg, `previewAssetsOut` agreeing with what the account receives, and the filters.
 contract ForceRedeemMorphoVaultHookTest is Test {
-    /// @dev The immutable hard ceiling (deploy constant) and the leaf cap the fixtures commit by default.
     /// @dev Morpho's own ceiling on `forceDeallocatePenalty`; the only bound on the rate that is left.
     uint256 internal constant MORPHO_MAX_PENALTY = 0.02e18;
     uint256 internal constant WAD = 1e18;
@@ -702,6 +701,179 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         // both positions are 100 but the MARKET can only pay 100 in total
         vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.SHORTFALL.selector, 100 ether, gross));
         hook.build(address(0), account, _data(150 ether));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                 ADAPTER AND MARKET FILTERS (ported, SUP-21799)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Shape-rejected adapters contribute zero markets, so `MAX_MARKETS` alone never bounds the walk.
+    function test_TooManyAdaptersRevertsBeforeAnyProbing() public {
+        for (uint256 i; i < 32; ++i) {
+            vault.addAdapter(address(uint160(0xE0A0 + i)), 0);
+        }
+        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.TOO_MANY_ADAPTERS.selector, 33, 32));
+        hook.build(address(0), account, _data(1 ether));
+    }
+
+    function test_OverlongProbeReplyIsTreatedAsAFailedProbeNotARevert() public {
+        MockMorphoMarketAdapter hostile = new MockMorphoMarketAdapter(address(vault), address(morpho));
+        hostile.setOverlongReplies(true);
+        vault.addAdapter(address(hostile), 0);
+        _listMarket(hostile, address(asset), address(0xC022), HELD, uint128(HELD), 0);
+        _list(HELD, uint128(HELD));
+        (address a,,,) = _decodePull(_pulls(_data(10 ether))[0]);
+        assertEq(a, address(adapter), "decode of a two-word reply must not take down build");
+    }
+
+    function test_UnknownMarketIdIsSkipped() public {
+        adapter.addMarket(ID_C, HELD); // never registered on the Morpho mock => zero params
+        _list(HELD, uint128(HELD));
+        assertEq(_pulls(_data(10 ether)).length, 1, "zero loanToken excluded");
+    }
+
+    function test_MarketOutsideTheAdaptersPinnedIrmIsSkipped() public {
+        adapter.setPinnedIrm(irm);
+        MarketParams memory off = MarketParams(address(asset), address(0xC022), address(0x0AC1), address(0xBAD1), 0.945e18);
+        morpho.setMarket(_idOf(off), off, uint128(HELD), 0);
+        adapter.addMarket(_idOf(off), HELD);
+        _list(HELD, uint128(HELD));
+        (, MarketParams memory used,,) = _decodePull(_pulls(_data(10 ether))[0]);
+        assertEq(used.irm, irm, "the market on the foreign IRM is dropped");
+    }
+
+    /// @dev The one fail-OPEN branch: an adapter that answers `adaptiveCurveIrm()` with zero pins no IRM.
+    function test_AdapterAnsweringZeroIrmDisablesTheIrmFilter() public {
+        adapter.setZeroIrm(true);
+        MarketParams memory off = MarketParams(address(asset), address(0xC022), address(0x0AC1), address(0xBAD1), 0.945e18);
+        morpho.setMarket(_idOf(off), off, 100 ether, 0);
+        adapter.addMarket(_idOf(off), 100 ether);
+        _list(100 ether, 100 ether);
+        assertEq(_pulls(_data(150 ether)).length, 2, "both markets admitted, because no IRM is pinned");
+    }
+
+    /// @dev `adapter.morpho()` is pinned against the immutable; an impostor's market state is never read.
+    function test_AdapterPointingAtADifferentMorphoIsSkipped() public {
+        MockMorphoBlue impostor = new MockMorphoBlue();
+        MockMorphoMarketAdapter liar = new MockMorphoMarketAdapter(address(vault), address(impostor));
+        vault.addAdapter(address(liar), 0); // zero penalty would otherwise sort it first
+        MarketParams memory pm = _params(address(asset));
+        impostor.setMarket(_idOf(pm), pm, type(uint128).max, 0);
+        liar.addMarket(_idOf(pm), type(uint128).max);
+        _list(HELD, uint128(HELD));
+        (address a,,,) = _decodePull(_pulls(_data(10 ether))[0]);
+        assertEq(a, address(adapter), "filled from the adapter on the pinned Morpho");
+    }
+
+    function test_AdapterWhoseMorphoProbeRevertsIsSkipped() public {
+        MockMorphoMarketAdapter broken = new MockMorphoMarketAdapter(address(vault), address(morpho));
+        broken.setBreakMorpho(true);
+        vault.addAdapter(address(broken), 0);
+        _listMarket(broken, address(asset), address(0xC022), HELD, uint128(HELD), 0);
+        _list(HELD, uint128(HELD));
+        (address a,,,) = _decodePull(_pulls(_data(10 ether))[0]);
+        assertEq(a, address(adapter), "skipped at the morpho probe, not fatal");
+    }
+
+    /// @dev Market liquidity floors at zero: borrow above supply is "nothing withdrawable", not an underflow.
+    function test_MarketWithBorrowAboveSupplyIsTreatedAsEmpty() public {
+        _listMarket(adapter, address(asset), address(0xC022), HELD, 100 ether, 150 ether);
+        _list(HELD, uint128(HELD));
+        (, MarketParams memory used,,) = _decodePull(_pulls(_data(10 ether))[0]);
+        assertEq(used.collateralToken, address(0xC011), "the underwater market contributed nothing");
+    }
+
+    function test_SkippedAdaptersDoNotCountTowardMaxMarkets() public {
+        for (uint256 i; i < 32; ++i) {
+            _listMarket(adapter, address(asset), address(uint160(0xC000 + i)), HELD, uint128(HELD), 0);
+        }
+        MockMorphoMarketAdapter shapeless = new MockMorphoMarketAdapter(address(vault), address(morpho));
+        shapeless.setBreakMarketIdsLength(true);
+        vault.addAdapter(address(shapeless), 0);
+        assertEq(_pulls(_data(1 ether)).length, 1, "32 real markets plus a shapeless adapter still build");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         LIFECYCLE AND LAYOUT GUARDS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_OnlyTheAccountMayDriveTheLifecycle() public {
+        _list(HELD, uint128(HELD));
+        bytes memory data = _data(100 ether);
+        vm.prank(account);
+        hook.setExecutionContext(account);
+
+        vm.prank(makeAddr("stranger"));
+        vm.expectRevert();
+        hook.preExecute(address(0), account, data);
+
+        vm.prank(makeAddr("stranger"));
+        vm.expectRevert();
+        hook.postExecute(address(0), account, data);
+    }
+
+    function test_MutexesAreOneShotAndClearedByReset() public {
+        _list(HELD, uint128(HELD));
+        bytes memory data = _data(100 ether);
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        Execution[] memory all = hook.build(address(0), account, data);
+        for (uint256 i; i < all.length; ++i) {
+            (bool ok,) = all[i].target.call(all[i].callData);
+            assertTrue(ok, "first run");
+        }
+        vm.expectRevert();
+        hook.preExecute(address(0), account, data);
+
+        hook.resetExecutionState(account);
+        hook.setExecutionContext(account);
+        hook.preExecute(address(0), account, data);
+        vm.stopPrank();
+    }
+
+    function testFuzz_OnlyOneHundredSeventeenBytesIsAccepted(uint16 lenRaw) public {
+        uint256 len = bound(uint256(lenRaw), 0, 300);
+        vm.assume(len != 117);
+        bytes memory data = new bytes(len);
+        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, len, 117));
+        hook.build(address(0), account, data);
+    }
+
+    /// @dev For ANY floor: at or below the quote the exit settles and meets it; above the quote build refuses.
+    function testFuzz_FloorBelowOrEqualQuotePasses_AboveReverts(uint256 floorRaw) public {
+        _list(HELD, uint128(HELD));
+        uint256 shares = 5000 ether;
+        uint256 quoted = hook.previewAssetsOut(address(vault), account, shares);
+        uint256 floor = bound(floorRaw, 0, 2 * quoted);
+        bytes memory d = _dataFull(shares, false, floor);
+        if (floor > quoted) {
+            vm.expectRevert(
+                abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quoted, floor)
+            );
+            hook.build(address(0), account, d);
+            return;
+        }
+        (uint256 received,) = _run(d);
+        assertEq(received, quoted);
+        assertGe(received, floor);
+    }
+
+    /// @dev OMS resizes the share leg through `replaceCalldataAmounts`; the floor it signed must still bind
+    ///      the resized exit at build, not just survive as bytes.
+    function test_FloorStillBindsAfterReplaceCalldataAmounts() public {
+        _list(HELD, uint128(HELD));
+        uint256 quotedBig = hook.previewAssetsOut(address(vault), account, 5000 ether);
+        bytes memory signed = _dataFull(5000 ether, false, quotedBig);
+        uint256[] memory smaller = new uint256[](1);
+        smaller[0] = 1000 ether;
+        bytes memory resized = hook.replaceCalldataAmounts(signed, smaller);
+        uint256 quotedSmall = hook.previewAssetsOut(address(vault), account, 1000 ether);
+        assertLt(quotedSmall, quotedBig);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quotedSmall, quotedBig)
+        );
+        hook.build(address(0), account, resized);
     }
 
     function test_ThirtyThreeListedMarketsRevertEvenWhenTheFirstFewCouldFill() public {

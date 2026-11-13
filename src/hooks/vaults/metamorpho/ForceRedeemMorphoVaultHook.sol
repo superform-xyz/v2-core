@@ -13,7 +13,6 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookContextAware,
-    ISuperHookInspector,
     ISuperHookInflowOutflow,
     ISuperHookOutflow
 } from "../../../interfaces/ISuperHook.sol";
@@ -161,13 +160,11 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
     /// @param n `totalSupply + fee shares + virtualShares`, minus the penalty burns so far
     /// @param d `newTotalAssets + 1`, minus the penalty assets so far
     /// @param penaltyShares `P`, the shares the pulls burn from the account
-    /// @param penaltyAssets the assets those burns were priced on
     /// @param sourced `X`, the underlying deallocated into idle
     struct Ladder {
         uint256 n;
         uint256 d;
         uint256 penaltyShares;
-        uint256 penaltyAssets;
         uint256 sourced;
     }
 
@@ -175,8 +172,6 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
     struct Plan {
         Pull[] pulls;
         uint256 penaltyShares;
-        uint256 penaltyAssets;
-        uint256 sourced;
         uint256 assetsOut;
     }
 
@@ -318,8 +313,6 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
             plan.assetsOut = _assetsOut(fin, shares);
             if (plan.assetsOut == 0) return (false, plan);
             plan.penaltyShares = fin.penaltyShares;
-            plan.penaltyAssets = fin.penaltyAssets;
-            plan.sourced = fin.sourced;
             plan.pulls = _materialise(candidates, order, caps, k, x);
             return (true, plan);
         }
@@ -356,7 +349,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         uint256 pa = x.mulDivUp(rate, WAD);
         uint256 ps = pa.mulDivUp(s.n, s.d);
         if (ps >= s.n || pa >= s.d) return (s, false);
-        next = Ladder(s.n - ps, s.d - pa, s.penaltyShares + ps, s.penaltyAssets + pa, s.sourced + x);
+        next = Ladder(s.n - ps, s.d - pa, s.penaltyShares + ps, s.sourced + x);
         ok = true;
     }
 
@@ -705,6 +698,9 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
 
     /// @dev THE FLOOR IS CHECKED ON WHAT ARRIVED, not on the quote: a fee-on-transfer underlying or a vault that
     ///      pays less than `previewRedeem` fails here even though `build` passed.
+    /// @dev PRE-FEE. The floor is judged on the gross delta; `SuperExecutor` then refreshes `outAmount` net of
+    ///      the ledger's performance fee, so a successor sizing from `getOutAmount` (the ADL repay) may read
+    ///      slightly less than `minAssetsOut`. Size the floor on the gross quote, not on the net amount.
     /// @dev Clamped: a vault that minted shares mid-exit would otherwise panic at the very end.
     function _postExecute(address, address account, bytes calldata data) internal override {
         address vault = data.extractYieldSource();

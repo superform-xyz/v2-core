@@ -283,7 +283,7 @@ contract ForceDeallocateMorphoVaultHook is
 
     /// @notice Pass A: probe every registered adapter and bound the total market count
     /// @dev The count is summed over adapters that SURVIVE the adapter-level filter only. An adapter
-    ///      rejected on shape or penalty contributes zero, because its `marketIds` are never read. Markets
+    ///      rejected on shape contributes zero, because its `marketIds` are never read. Markets
     ///      that survive this pass but are dropped later (wrong loan token, IRM mismatch, no capacity) DO
     ///      count — the bound is on walking work, not on usable markets.
     function _probeAdapters(address vault) private view returns (AdapterInfo[] memory infos) {
@@ -302,7 +302,7 @@ contract ForceDeallocateMorphoVaultHook is
         }
     }
 
-    /// @notice The adapter-level filter: is this a Morpho Blue market adapter of THIS vault, cheap enough?
+    /// @notice The adapter-level filter: is this a Morpho Blue market adapter of THIS vault?
     /// @dev Every read is a guarded `staticcall` rather than a typed call, because the adapter list is
     ///      heterogeneous and curator-controlled: a `MorphoVaultV1Adapter` implements none of these, and a
     ///      `STATICCALL` to a codeless address SUCCEEDS with empty returndata, so `try/catch` would take the

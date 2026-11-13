@@ -309,7 +309,7 @@ asyncLifecycleMap:
 # Only list hooks that differ from the default (single IN/TOKEN).
 # Hooks not listed default to [{direction: IN, denomination: TOKEN}].
 amountMeta:
-  # OUTFLOW ERC-4626 withdraw: the sized leg is underlying, so ASSETS rather than the IN/TOKEN default.
+  # OUTFLOW ERC-4626 forced exit sized in SHARES (not the IN/TOKEN default, not ASSETS).
   ForceRedeemMorphoVaultHook: [{direction: IN, denomination: SHARES}]  # SUP-21849: offset 52 is the share input; the last leg is redeem(S - P)
   # Sizeless hooks: amountRoles() returns an EMPTY array, so the default single IN/TOKEN entry would
   # misdescribe them to the OMS. The spend is committed inside a venue-signed quote (trade) or there is
