@@ -497,11 +497,69 @@ contract EverlongAmountUpdaterTest is Test, EverlongKatanaFixtures {
         ISwapRouter02.ExactInputSingleParams memory s =
             abi.decode(_body(calls[0]), (ISwapRouter02.ExactInputSingleParams));
         assertEq(s.amountIn, 950);
-        assertEq(s.amountOutMinimum, 7); // ceil(7 * 0.95) = 7
+        assertEq(s.amountOutMinimum, 7); // single leg: own ratio == total ratio, ceil(7 * 950 / 1000) = 7
         assertEq(s.recipient, THIS);
         f = h.readFields(h.rescale(d, WETH9, 3000), WETH9);
         assertEq(f.totalIn, 3000);
         assertEq(f.tailMin, 2700);
+    }
+
+    /// @dev PR #1048 review P2. Legs 1 + 999 with a nonzero minimum on the 1-wei leg, resized to 1999: the first
+    ///      leg stays at 1 (floor) while the total ratio is 1.999, so a minimum scaled by the total ratio becomes 2
+    ///      and a 1:1 venue reverts 'Too little received' on a route that can produce 1999. Minimums must follow
+    ///      their own leg's ratio.
+    function test_Rescale_LegMin_FollowsOwnLegRatio_NotTotalRatio() public view {
+        bytes[] memory c = new bytes[](3);
+        c[0] = _eis(1, 1);
+        c[1] = _ei(abi.encodePacked(TOKEN_IN, uint24(500), MID, uint24(3000), TOKEN_OUT), 999, 990);
+        c[2] = _sweepFee(TOKEN_OUT, 990, RCPT);
+        bytes memory out = h.rescale(_mc(c), WETH9, 1999);
+        (, bytes[] memory calls) = abi.decode(_body(out), (uint256, bytes[]));
+        ISwapRouter02.ExactInputSingleParams memory s0 =
+            abi.decode(_body(calls[0]), (ISwapRouter02.ExactInputSingleParams));
+        ISwapRouter02.ExactInputParams memory s1 = abi.decode(_body(calls[1]), (ISwapRouter02.ExactInputParams));
+        assertEq(s0.amountIn, 1, "floor(1 * 1999 / 1000)");
+        assertEq(s0.amountOutMinimum, 1, "min follows the leg: ceil(1 * 1 / 1), NOT ceil(1 * 1999 / 1000) = 2");
+        assertEq(s1.amountIn, 1998, "remainder");
+        assertEq(s1.amountOutMinimum, Math.mulDiv(990, 1998, 999, Math.Rounding.Ceil), "ceil(990 * 1998 / 999)");
+        assertEq(
+            h.readFields(out, WETH9).tailMin, Math.mulDiv(990, 1999, 1000, Math.Rounding.Ceil), "tail: total ratio"
+        );
+        // the leg minimum never exceeds what the leg's own input can produce at the quoted leg rate
+        assertLe(s0.amountOutMinimum * 1, s0.amountIn * 1);
+    }
+
+    /// @dev Fractional ratios on both branches: per-leg minimum == ceil(oldMin * newLeg / oldLeg) for every leg,
+    ///      and a zero minimum stays zero.
+    function testFuzz_Rescale_LegMin_PerLegRatio(
+        uint64 a0,
+        uint64 a1,
+        uint64 m0,
+        uint64 m1,
+        uint64 newRaw
+    )
+        public
+        view
+    {
+        uint256 l0 = bound(uint256(a0), 1, 1e12);
+        uint256 l1 = bound(uint256(a1), 1, 1e12);
+        uint256 min0 = bound(uint256(m0), 0, l0);
+        uint256 min1 = bound(uint256(m1), 0, l1);
+        uint256 total = l0 + l1;
+        uint256 newAmount = bound(uint256(newRaw), total, type(uint112).max); // upscale: no zero legs
+        bytes[] memory c = new bytes[](3);
+        c[0] = _eis(l0, min0);
+        c[1] = _ei(abi.encodePacked(TOKEN_IN, uint24(500), MID, uint24(3000), TOKEN_OUT), l1, min1);
+        c[2] = _sweepFee(TOKEN_OUT, total / 2, RCPT);
+        (, bytes[] memory calls) = abi.decode(_body(h.rescale(_mc(c), WETH9, newAmount)), (uint256, bytes[]));
+        ISwapRouter02.ExactInputSingleParams memory s0 =
+            abi.decode(_body(calls[0]), (ISwapRouter02.ExactInputSingleParams));
+        ISwapRouter02.ExactInputParams memory s1 = abi.decode(_body(calls[1]), (ISwapRouter02.ExactInputParams));
+        assertEq(s0.amountOutMinimum, min0 == 0 ? 0 : Math.mulDiv(min0, s0.amountIn, l0, Math.Rounding.Ceil));
+        assertEq(s1.amountOutMinimum, min1 == 0 ? 0 : Math.mulDiv(min1, s1.amountIn, l1, Math.Rounding.Ceil));
+        // a minimum at most the leg input (1:1 quote) stays at most the rescaled leg input
+        assertLe(s0.amountOutMinimum, s0.amountIn);
+        assertLe(s1.amountOutMinimum, s1.amountIn);
     }
 
     function test_Rescale_MultiLeg_SumExact_RemainderOnLast() public view {

@@ -288,14 +288,59 @@ contract EverlongHookE2ETest is Test, EverlongKatanaFixtures {
         assertEq(outToken.balanceOf(account), actual - actual * FEE_BIPS / 10_000);
     }
 
+    /// @notice PR #1048 review P2, reproduced through both hooks: legs 1 + 999 with a nonzero minimum on the 1-wei
+    ///         leg, previous hook output 1999, 1:1 venue. With the minimum scaled by the total ratio the first leg
+    ///         demanded 2 for 1 wei in and the batch reverted 'Too little received'; per-leg scaling lets the route
+    ///         spend and receive 1999.
+    function test_E2E_UsePrevHookAmount_NonzeroLegMin_FractionalRatio() public {
+        _legMinChained(address(approveHook));
+        _legMinChained(address(swapHook));
+    }
+
+    function _legMinChained(address hook) internal {
+        uint256 quotedIn = 1000;
+        uint256 actual = 1999;
+        bytes[] memory c = new bytes[](3);
+        c[0] = _eisMin(address(inToken), address(outToken), 1, 1);
+        c[1] = _eisMin(address(inToken), address(outToken), 999, 999);
+        c[2] = _sweepFee(address(outToken), quotedIn, account);
+        bytes memory data = _hookData(
+            address(inToken),
+            address(outToken),
+            quotedIn,
+            quotedIn,
+            quotedIn * (10_000 - FEE_BIPS) / 10_000,
+            true,
+            _mc(c)
+        );
+        inToken.mint(account, actual);
+        if (hook == address(swapHook)) inToken.approve(address(router), actual);
+        prevHook.setOutAmount(actual, account);
+        uint256 outBefore = outToken.balanceOf(account);
+        uint256 feeBefore = outToken.balanceOf(FEE_RECIPIENT);
+        _executeAll(ISuperHook(hook).build(address(prevHook), account, data));
+        assertEq(inToken.balanceOf(account), 0, "spent 1999");
+        assertEq(
+            outToken.balanceOf(account) - outBefore + outToken.balanceOf(FEE_RECIPIENT) - feeBefore,
+            actual,
+            "received 1999"
+        );
+        assertEq(inToken.allowance(account, address(router)), 0, "allowance reset");
+    }
+
+    function _eisMin(address tIn, address tOut, uint256 amountIn, uint256 minOut) internal pure returns (bytes memory) {
+        return abi.encodeWithSelector(
+            ISwapRouter02.exactInputSingle.selector,
+            ISwapRouter02.ExactInputSingleParams(tIn, tOut, 500, THIS, amountIn, minOut, 0)
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 SECURITY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Everlong's own floor passes (tail min 995 pre-fee, rate 0.996 -> 996) but the signed post-fee header
-    ///         floor (994.6) does not clear 996 x 0.9996 = 995.6? It does — so use rate 0.9950: tail 995 >= 995
-    /// passes,
-    ///         account gets 994.602 < header 994.6? Use header 994.7e18 to bind: 995 x 0.9996 = 994.602 < 994.7.
+    /// @notice Everlong's own floor passes (rate 0.995 -> router balance 995 == tail min) but the signed post-fee
+    /// header floor does not: the account receives 995 x 0.9996 = 994.602 < 994.7.
     function test_E2E_Security_HookFloor_RevertsBelowPostFeeHeaderMin() public {
         router.setRate(0.995e18);
         inToken.mint(account, IN);

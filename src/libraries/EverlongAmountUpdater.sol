@@ -113,15 +113,15 @@ library EverlongAmountUpdater {
             if (sel == EXACT_INPUT_SINGLE_SELECTOR) {
                 ISwapRouter02.ExactInputSingleParams memory s =
                     abi.decode(_body(p.calls[i]), (ISwapRouter02.ExactInputSingleParams));
-                (s.amountIn, assigned) = _scaledLeg(s.amountIn, i == p.lastSwapIdx, newAmount_, oldTotal, assigned);
-                s.amountOutMinimum = Math.mulDiv(s.amountOutMinimum, newAmount_, oldTotal, Math.Rounding.Ceil);
+                (s.amountIn, s.amountOutMinimum, assigned) =
+                    _scaledLeg(s.amountIn, s.amountOutMinimum, i == p.lastSwapIdx, newAmount_, oldTotal, assigned);
                 p.calls[i] = abi.encodeWithSelector(EXACT_INPUT_SINGLE_SELECTOR, s);
             } else {
                 // _parse guarantees this is an exactInput leg
                 ISwapRouter02.ExactInputParams memory s =
                     abi.decode(_body(p.calls[i]), (ISwapRouter02.ExactInputParams));
-                (s.amountIn, assigned) = _scaledLeg(s.amountIn, i == p.lastSwapIdx, newAmount_, oldTotal, assigned);
-                s.amountOutMinimum = Math.mulDiv(s.amountOutMinimum, newAmount_, oldTotal, Math.Rounding.Ceil);
+                (s.amountIn, s.amountOutMinimum, assigned) =
+                    _scaledLeg(s.amountIn, s.amountOutMinimum, i == p.lastSwapIdx, newAmount_, oldTotal, assigned);
                 p.calls[i] = abi.encodeWithSelector(EXACT_INPUT_SELECTOR, s);
             }
         }
@@ -130,9 +130,13 @@ library EverlongAmountUpdater {
         return abi.encodeWithSelector(MULTICALL_SELECTOR, p.deadline, p.calls);
     }
 
-    /// @dev Proportional leg amount; the last leg takes the remainder. Zero legs revert.
+    /// @dev Proportional leg amount; the last leg takes the remainder. Zero legs revert. The leg's minimum is
+    ///      ceil-scaled by the leg's OWN input ratio, not the total ratio: floor rounding and the remainder make
+    ///      the two differ, and a minimum scaled by the larger ratio can be unreachable for a leg that was scaled
+    ///      by the smaller one (PR review P2).
     function _scaledLeg(
         uint256 original,
+        uint256 originalMin,
         bool isLast,
         uint256 newTotal,
         uint256 oldTotal,
@@ -140,10 +144,11 @@ library EverlongAmountUpdater {
     )
         private
         pure
-        returns (uint256 scaled, uint256 newAssigned)
+        returns (uint256 scaled, uint256 scaledMin, uint256 newAssigned)
     {
         scaled = isLast ? newTotal - assigned : Math.mulDiv(original, newTotal, oldTotal);
         if (scaled == 0) revert ZERO_LEG_AMOUNT();
+        scaledMin = originalMin == 0 ? 0 : Math.mulDiv(originalMin, scaled, original, Math.Rounding.Ceil);
         newAssigned = assigned + scaled;
     }
 
