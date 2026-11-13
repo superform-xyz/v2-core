@@ -1175,7 +1175,7 @@
     },
     "ForceRedeemMorphoVaultHook": {
       "name": "Force Redeem Morpho Vault",
-      "description": "Force deallocates across a Morpho Vault V2's markets and redeems the shares above a minimum output",
+      "description": "Force deallocates across a Morpho Vault V2's markets and redeems the shares",
       "hookType": "OUTFLOW",
       "subtype": "ERC4626",
       "actionTypes": [

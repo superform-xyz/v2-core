@@ -60,6 +60,9 @@ interface IMorphoVaultV2 {
     /// @notice Assets paid for redeeming exactly `shares`, rounded down.
     function previewRedeem(uint256 shares) external view returns (uint256);
 
+    /// @notice Apply the pending accrual now; a no-op for the rest of the transaction (transient latch).
+    function accrueInterest() external;
+
     /// @notice The accrual the next state-changing call will apply, without applying it.
     /// @dev Returns `(newTotalAssets, performanceFeeShares, managementFeeShares)`. Once a transaction has
     ///      accrued (Vault V2 latches a transient marker) it returns `(_totalAssets, 0, 0)`, so reading it

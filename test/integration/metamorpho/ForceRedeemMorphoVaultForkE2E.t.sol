@@ -107,7 +107,7 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
         uint256 shares = claimShares / 3;
         Execution[] memory all = _build(shares);
         uint256 sourced;
-        for (uint256 i = 1; i + 2 < all.length; ++i) {
+        for (uint256 i = 2; i + 2 < all.length; ++i) {
             (,, uint256 x,) = _decodePull(all[i]);
             sourced += x;
         }
@@ -126,7 +126,8 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
     function test_PerPullBurns_MatchTheSteppedRate() public {
         uint256 shares = claimShares; // full exit
         Execution[] memory all = _build(shares);
-        assertGe(all.length, 4, "at least one pull");
+        assertGe(all.length, 5, "at least one pull");
+        assertEq(bytes4(all[1].callData), IMorphoVaultV2.accrueInterest.selector, "accrual is the first leg");
 
         IMorphoVaultV2 vault = IMorphoVaultV2(GAUNTLET_WETH_PRIME);
         (uint256 ta, uint256 pf, uint256 mf) = vault.accrueInterestView();
@@ -140,7 +141,7 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
         for (uint256 i; i < all.length; ++i) {
             (bool ok, bytes memory ret) = all[i].target.call(all[i].callData);
             assertTrue(ok, string.concat("leg ", vm.toString(i)));
-            if (i != 0 && i + 2 < all.length) {
+            if (i > 1 && i + 2 < all.length) {
                 (,, uint256 x,) = _decodePull(all[i]);
                 uint256 pa = _mulDivUp(x, rate, 1e18);
                 uint256 ps = _mulDivUp(pa, n, d);
@@ -174,8 +175,8 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
     function test_IdleCovers_SingleRedeem_NoPenalty() public {
         uint256 shares = IMorphoVaultV2(GAUNTLET_WETH_PRIME).previewWithdraw(RESIDUAL_IDLE / 2);
         Execution[] memory all = _build(shares);
-        assertEq(all.length, 3, "pre, redeem, post");
-        (uint256 s,,) = _decodeRedeem(all[1]);
+        assertEq(all.length, 4, "pre, accrue, redeem, post");
+        (uint256 s,,) = _decodeRedeem(all[2]);
         assertEq(s, shares);
         uint256 quoted = IMorphoVaultV2(GAUNTLET_WETH_PRIME).previewRedeem(shares);
         uint256 sharesBefore = IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account);
@@ -209,29 +210,8 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
         assertEq(IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(whale), whaleShares, "no shares burned");
     }
 
-    /// @dev SUP-21849: `minAssetsOut` is the on-chain bound. One wei above the live quote is refused at build;
-    ///      a floor equal to the quote builds, runs and is met exactly on the real vault.
-    function test_MinAssetsOut_RefusedAboveTheQuote_MetAtTheQuote() public {
-        uint256 shares = claimShares / 3;
-        uint256 quoted = hook.previewAssetsOut(GAUNTLET_WETH_PRIME, account, shares);
-        assertGt(quoted, 0);
-
-        vm.startPrank(account);
-        hook.setExecutionContext(account);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quoted, quoted + 1)
-        );
-        hook.build(address(0), account, _hookDataWithMin(shares, quoted + 1));
-        vm.stopPrank();
-
-        uint256 before = IERC20(WETH).balanceOf(account);
-        _runHookWithData(_hookDataWithMin(shares, quoted));
-        assertEq(IERC20(WETH).balanceOf(account) - before, quoted, "the floor set at the quote is met exactly");
-    }
-
     function test_UsePrevHookAmount_IsRefused() public {
-        bytes memory flagged =
-            abi.encodePacked(bytes32(uint256(0xFEED)), GAUNTLET_WETH_PRIME, uint256(1), true, uint256(0));
+        bytes memory flagged = abi.encodePacked(bytes32(uint256(0xFEED)), GAUNTLET_WETH_PRIME, uint256(1), true);
         vm.expectRevert(ForceRedeemMorphoVaultHook.USE_PREV_HOOK_AMOUNT_NOT_SUPPORTED.selector);
         hook.build(address(0), account, flagged);
     }
@@ -325,7 +305,7 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
         }
         hook.resetExecutionState(account);
         vm.stopPrank();
-        emit log_named_uint("pulls                  ", all.length - 3);
+        emit log_named_uint("pulls                  ", all.length - 4);
         emit log_named_uint("build gas (live state) ", buildGas);
         assertLt(buildGas, 2 ** 24, "build alone must fit under the per-transaction gas cap");
     }
@@ -334,13 +314,8 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev No floor unless a test sets one.
     function _hookData(uint256 shares) internal pure returns (bytes memory) {
-        return _hookDataWithMin(shares, 0);
-    }
-
-    function _hookDataWithMin(uint256 shares, uint256 minAssetsOut) internal pure returns (bytes memory) {
-        return abi.encodePacked(bytes32(uint256(0xFEED)), GAUNTLET_WETH_PRIME, shares, false, minAssetsOut);
+        return abi.encodePacked(bytes32(uint256(0xFEED)), GAUNTLET_WETH_PRIME, shares, false);
     }
 
     function _build(uint256 shares) internal view returns (Execution[] memory) {
@@ -358,7 +333,7 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
         vm.startPrank(account);
         hook.setExecutionContext(account);
         Execution[] memory executions = hook.build(address(0), account, data);
-        assertGe(executions.length, 3, "preExecute + the redeem + postExecute");
+        assertGe(executions.length, 4, "preExecute + accrue + the redeem + postExecute");
         for (uint256 i; i < executions.length; ++i) {
             if (i != 0 && i != executions.length - 1) {
                 assertEq(executions[i].target, GAUNTLET_WETH_PRIME, "pulls and the redeem target the vault");
@@ -373,7 +348,7 @@ contract ForceRedeemMorphoVaultForkE2ETest is Test, Constants {
         }
         hook.resetExecutionState(account);
         vm.stopPrank();
-        return executions.length - 3;
+        return executions.length - 4;
     }
 
     function _runHookReturningDelta(uint256 shares) internal returns (uint256 delta) {

@@ -11,11 +11,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import {
-    ISuperHookContextAware,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IMorphoVaultV2 } from "../../../vendor/morpho/IMorphoVaultV2.sol";
 import { IMorphoMarketV1Adapter } from "../../../vendor/morpho/IMorphoMarketV1Adapter.sol";
 import { IMorphoStaticTyping, MarketParams, Id } from "../../../vendor/morpho/IMorpho.sol";
@@ -39,26 +35,24 @@ import { MathLib } from "../../../vendor/morpho/MathLib.sol";
 ///      and binary-searches the last partial pull for the smallest `X` with `assetsOut <= idle + X`; a larger
 ///      `X` only burns more and pays less. `X = 0` is a plain `redeem(S)`. No feasible `X` reverts
 ///      `SHORTFALL`, never a partial exit.
-/// @dev ON-CHAIN OUTPUT FLOOR, NO PENALTY CAP. `minAssetsOut` at offset 85 is the least underlying the account
-///      must receive from the whole call: `build` refuses a plan that quotes below it and `_postExecute`
-///      re-checks the MEASURED balance delta, so a rate the curator raises between signing and execution fails
-///      the floor instead of silently burning more. The planner prices the live penalty into its quote and
-///      expresses its tolerance through this one word; a per-adapter cap would be a second knob for the same
-///      thing. Zero disables the floor. The word is committed by the signature over the hook data (source and
-///      destination leaves hash the calldata), so a signer cannot loosen it; `inspect()` stays address-only.
+/// @dev NO FLOOR OR PENALTY CAP OF ITS OWN. `outAmount` is the MEASURED underlying delta, and the caller's per-leg
+///      `expectedAssetsOrSharesOut` (SuperVaultStrategy) is the slippage check, exactly as for every other outflow
+///      hook; a rate the curator raises between signing and execution lowers the delivery and fails that check.
+///      The planner prices the live penalty into its quote. A hook-level `minAssetsOut` would duplicate the
+///      strategy's floor and a per-adapter cap would be a second knob for the same thing.
 /// @dev `usePrevHookAmount` is REJECTED: a previous outflow publishes underlying, and copying that into a
 ///      share field over-burns. This hop is the withdrawal vault-main; the flag is false by construction.
-/// @dev FIRST-ACCRUAL ROUNDING. The chain accrues after pull 1 moved its assets adapter -> vault; the Morpho Blue
-///      adapter can report up to 2 wei less than `build` read, so on a vault that is not rate-capped one
-///      penalty burn can exceed the prediction by a single share-wei on an integer boundary, and a FULL exit's
-///      `redeem(S - P)` then reverts (no loss). Partial exits are unaffected.
-/// @dev data has the following structure (standard yield-source header + hook-specific), exactly 117 bytes:
+/// @dev ACCRUAL FIRST. The first leg is `accrueInterest()`, so the vault settles on exactly the state `build`
+///      read through `accrueInterestView` BEFORE any pull moves assets; every later leg hits the once-per-tx
+///      latch and the ladder is exact. Without it the first penalty withdraw accrued after pull 1, and the
+///      Morpho Blue adapter's post-withdraw `realAssets` could differ by a wei or two from the view, enough to
+///      make a FULL exit's `redeem(S - P)` revert on an integer boundary.
+/// @dev data has the following structure (standard yield-source header), exactly 85 bytes:
 /// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-/// @notice         uint256 minAssetsOut = BytesLib.toUint256(data, 85);
-/// @dev Those five lines ARE the OMS registry build path, not documentation. `yieldSourceOracleId` must not
+/// @dev Those four lines ARE the OMS registry build path, not documentation. `yieldSourceOracleId` must not
 ///      match `^placeholder\d*$` (zero-filled), OMS asset identity reads the field named literally
 ///      `yieldSource`, and the sized word is named `shares` so the encoder writes the share integer there.
 /// @dev OUTFLOW/ERC4626 because it pays the account, so offset 0 must carry the chain's real oracle id;
@@ -75,9 +69,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The underlying this call quotes (in `build`) or delivered (in `_postExecute`) is below the floor
-    error INSUFFICIENT_OUTPUT(uint256 received, uint256 minAssetsOut);
-    /// @notice The payload is not exactly the declared 117-byte layout
+    /// @notice The payload is not exactly the declared 85-byte layout
     error INVALID_DATA_LENGTH(uint256 given, uint256 expected);
     /// @notice The vault lists more markets than one transaction will walk
     error TOO_MANY_MARKETS(uint256 count, uint256 maxCount);
@@ -105,10 +97,8 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
     /// @notice The single sized leg (shares). `replaceCalldataAmounts` writes bytes 52..83 and nothing else.
     uint256 private constant AMOUNT_POSITION = 52;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
-    /// @notice The output floor, in underlying
-    uint256 private constant MIN_ASSETS_OUT_POSITION = 85;
-    /// @notice Exact, not minimum: nothing may follow the floor word.
-    uint256 private constant DATA_LENGTH = 117;
+    /// @notice Exact, not minimum: nothing may follow the flag.
+    uint256 private constant DATA_LENGTH = 85;
 
     /// @dev Measured, and the SUM is what matters: 192 probes worst case, so 100_000 each exceeded the
     ///      16,777,216 (2^24) per-tx cap from EIP-7825. This is ~3x the heaviest honest probe.
@@ -192,7 +182,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Force deallocates across a Morpho Vault V2's markets and redeems the shares above a minimum output";
+        return "Force deallocates across a Morpho Vault V2's markets and redeems the shares";
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -210,10 +200,8 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         override
         returns (Execution[] memory)
     {
-        (address vault, uint256 shares, uint256 minAssetsOut) = _decodeRequest(data);
+        (address vault, uint256 shares) = _decodeRequest(data);
         Plan memory plan = _plan(vault, account, shares);
-        // Quoted here so the OMS pre-flight sees the same verdict; `_postExecute` re-checks what was delivered.
-        if (plan.assetsOut < minAssetsOut) revert INSUFFICIENT_OUTPUT(plan.assetsOut, minAssetsOut);
         return _emit(vault, account, shares - plan.penaltyShares, plan.pulls);
     }
 
@@ -227,20 +215,15 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         return _plan(vault, account, shares).assetsOut;
     }
 
-    /// @dev Checks 1-4 of the revert order: length, vault, flag, shares. The floor word is read, not validated
-    ///      (zero disables it). Shared by `build` and `_preExecute`; nothing else reads the layout.
-    function _decodeRequest(bytes calldata data)
-        private
-        pure
-        returns (address vault, uint256 shares, uint256 minAssetsOut)
-    {
+    /// @dev Checks 1-4 of the revert order: length, vault, flag, shares. Shared by `build` and `_preExecute`;
+    ///      nothing else reads the layout.
+    function _decodeRequest(bytes calldata data) private pure returns (address vault, uint256 shares) {
         if (data.length != DATA_LENGTH) revert INVALID_DATA_LENGTH(data.length, DATA_LENGTH);
         vault = data.extractYieldSource();
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) revert USE_PREV_HOOK_AMOUNT_NOT_SUPPORTED();
         shares = data.toUint256(AMOUNT_POSITION);
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        minAssetsOut = data.toUint256(MIN_ASSETS_OUT_POSITION);
     }
 
     /// @dev Probe, collect, order, net capacities, read the ladder once, solve. Reverts on anything short.
@@ -587,7 +570,8 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         return count;
     }
 
-    /// @dev The pulls, then `redeem(S - P)`: `receiver` and `onBehalf` are both the account, so no allowance.
+    /// @dev `accrueInterest()` first (see ACCRUAL FIRST), the pulls, then `redeem(S - P)`: `receiver` and
+    ///      `onBehalf` are both the account, so no allowance.
     function _emit(
         address vault,
         address account,
@@ -598,9 +582,11 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         pure
         returns (Execution[] memory)
     {
-        Execution[] memory executions = new Execution[](pulls.length + 1);
+        Execution[] memory executions = new Execution[](pulls.length + 2);
+        executions[0] =
+            Execution({ target: vault, value: 0, callData: abi.encodeCall(IMorphoVaultV2.accrueInterest, ()) });
         for (uint256 i; i < pulls.length; ++i) {
-            executions[i] = Execution({
+            executions[i + 1] = Execution({
                 target: vault,
                 value: 0,
                 callData: abi.encodeCall(
@@ -609,7 +595,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
                 )
             });
         }
-        executions[pulls.length] = Execution({
+        executions[pulls.length + 1] = Execution({
             target: vault, value: 0, callData: abi.encodeCall(IERC4626.redeem, (remainderShares, account, account))
         });
         return executions;
@@ -660,7 +646,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @inheritdoc ISuperHookOutflow
-    /// @dev Writes bytes 52..83 only: the flag at 84 and the floor word at 85..116 are untouched.
+    /// @dev Writes bytes 52..83 only: the flag at 84 is untouched.
     function replaceCalldataAmounts(
         bytes memory data,
         uint256[] memory amounts
@@ -674,8 +660,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
-    /// @dev The vault alone, address-shaped as every inspector in the fleet. The floor word is committed by the
-    ///      signature over the hook data, not by the allowlist.
+    /// @dev The vault alone, address-shaped as every inspector in the fleet.
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
@@ -688,7 +673,7 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
     ///      call, penalty burns included. `build` ran on chain in this same transaction, so the rates it
     ///      planned on cannot have moved; only the layout is re-validated here.
     function _preExecute(address, address account, bytes calldata data) internal override {
-        (address vault,,) = _decodeRequest(data);
+        (address vault,) = _decodeRequest(data);
 
         asset = IERC4626(vault).asset();
         spToken = vault;
@@ -696,20 +681,14 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         usedShares = IMorphoVaultV2(vault).balanceOf(account);
     }
 
-    /// @dev THE FLOOR IS CHECKED ON WHAT ARRIVED, not on the quote: a fee-on-transfer underlying or a vault that
-    ///      pays less than `previewRedeem` fails here even though `build` passed.
-    /// @dev PRE-FEE. The floor is judged on the gross delta; `SuperExecutor` then refreshes `outAmount` net of
-    ///      the ledger's performance fee, so a successor sizing from `getOutAmount` (the ADL repay) may read
-    ///      slightly less than `minAssetsOut`. Size the floor on the gross quote, not on the net amount.
+    /// @dev MEASURED, NOT QUOTED: `outAmount` is what actually arrived, so a fee-on-transfer underlying or a vault
+    ///      paying less than `previewRedeem` shows up in the caller's `expectedAssetsOrSharesOut` check. On the
+    ///      SuperExecutor path the ledger's performance fee is then netted out of `outAmount`.
     /// @dev Clamped: a vault that minted shares mid-exit would otherwise panic at the very end.
     function _postExecute(address, address account, bytes calldata data) internal override {
         address vault = data.extractYieldSource();
 
-        uint256 received = IERC20(asset).balanceOf(account) - getOutAmount(account);
-        uint256 minAssetsOut = data.toUint256(MIN_ASSETS_OUT_POSITION);
-        if (received < minAssetsOut) revert INSUFFICIENT_OUTPUT(received, minAssetsOut);
-
-        _setOutAmount(received, account);
+        _setOutAmount(IERC20(asset).balanceOf(account) - getOutAmount(account), account);
         _setOutToken(asset, account);
 
         uint256 remaining = IMorphoVaultV2(vault).balanceOf(account);

@@ -4410,17 +4410,15 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
     }
 
-    /// @dev SUP-21849: the redeem sibling is sized in SHARES at the same offset 52, and carries a
-    ///      `minAssetsOut` word at 85..116, so its payload is exactly 117 bytes.
+    /// @dev SUP-21849: the redeem sibling is sized in SHARES at the same offset 52 of the same 85-byte layout.
     function test_ForceRedeemMorphoVault_DecodeAmounts_And_AmountRoles() public view {
         bytes memory data = abi.encodePacked(
             bytes32(uint256(0xFEED)), // yieldSourceOracleId (32)
             address(0xAA), // yieldSource (20)
             uint256(42e18), // shares at offset 52 (32)
-            false, // usePrevHookAmount at offset 84 (1)
-            uint256(7e18) // minAssetsOut at offset 85 (32)
+            false // usePrevHookAmount at offset 84 (1)
         );
-        assertEq(data.length, 117, "the redeem layout is exactly 117 bytes");
+        assertEq(data.length, 85, "the redeem layout is exactly 85 bytes");
         assertEq(forceRedeemMorphoVault.decodeAmounts(data)[0], 42e18);
         _assertSingleMeta(
             forceRedeemMorphoVault.amountRoles(""),
@@ -4429,16 +4427,15 @@ contract HookSizingInterfaceTest is Helpers {
         );
     }
 
-    /// @dev A splice writes 52..83 only: the flag at 84 and the floor word at 85..116 survive.
-    function test_ForceRedeemMorphoVault_Replace_PreservesFlagAndFloor() public view {
-        bytes memory data =
-            abi.encodePacked(bytes32(uint256(0xFEED)), address(0xAA), uint256(100e18), true, uint256(7e18));
+    /// @dev A splice writes 52..83 only: the header below and the flag at 84 survive.
+    function test_ForceRedeemMorphoVault_Replace_PreservesHeaderAndFlag() public view {
+        bytes memory data = abi.encodePacked(bytes32(uint256(0xFEED)), address(0xAA), uint256(100e18), true);
         bytes memory replaced = forceRedeemMorphoVault.replaceCalldataAmounts(data, _singleAmount(9e18));
-        assertEq(replaced.length, 117, "length unchanged");
+        assertEq(replaced.length, 85, "length unchanged");
         assertEq(forceRedeemMorphoVault.decodeAmounts(replaced)[0], 9e18, "shares replaced");
         assertTrue(forceRedeemMorphoVault.decodeUsePrevHookAmount(replaced), "flag at 84 stayed true");
-        for (uint256 i = 85; i < 117; ++i) {
-            assertEq(uint8(replaced[i]), uint8(data[i]), "floor word byte unchanged");
+        for (uint256 i; i < 52; ++i) {
+            assertEq(uint8(replaced[i]), uint8(data[i]), "header byte unchanged");
         }
     }
 

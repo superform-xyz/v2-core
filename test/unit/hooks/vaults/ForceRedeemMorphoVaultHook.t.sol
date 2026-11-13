@@ -54,7 +54,7 @@ contract PrevHookStub is BaseHook {
 }
 
 /// @title ForceRedeemMorphoVaultHookTest
-/// @notice SUP-21849: the share-sized exit. The 117-byte layout with the `minAssetsOut` floor, the
+/// @notice SUP-21849: the share-sized exit. The 85-byte layout, `accrueInterest()` as the first leg, the
 ///         smallest-deallocation solver against a Vault V2 mock that applies V2's own arithmetic, `redeem(S - P)`
 ///         as the last leg, `previewAssetsOut` agreeing with what the account receives, and the filters.
 contract ForceRedeemMorphoVaultHookTest is Test {
@@ -128,25 +128,24 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         return _listMarket(adapter, address(asset), address(0xC011), position, supply, 0);
     }
 
-    /// @dev No floor (`minAssetsOut = 0`) unless a test says otherwise.
     function _data(uint256 shares) internal view returns (bytes memory) {
-        return _dataFull(shares, false, 0);
+        return _dataFull(shares, false);
     }
 
-    function _dataFull(uint256 shares, bool usePrev, uint256 minAssetsOut) internal view returns (bytes memory) {
-        return abi.encodePacked(ORACLE_ID, address(vault), shares, usePrev, minAssetsOut);
+    function _dataFull(uint256 shares, bool usePrev) internal view returns (bytes memory) {
+        return abi.encodePacked(ORACLE_ID, address(vault), shares, usePrev);
     }
 
     function _idle(uint256 amount) internal {
         asset.mint(address(vault), amount);
     }
 
-    /// @dev The forceDeallocate legs only: everything between preExecute and the redeem.
+    /// @dev The forceDeallocate legs only: everything between the accrue leg and the redeem.
     function _pulls(bytes memory data) internal view returns (Execution[] memory mid) {
         Execution[] memory all = hook.build(address(0), account, data);
-        mid = new Execution[](all.length - 3);
+        mid = new Execution[](all.length - 4);
         for (uint256 i; i < mid.length; ++i) {
-            mid[i] = all[i + 1];
+            mid[i] = all[i + 2];
         }
     }
 
@@ -195,7 +194,7 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         hook.resetExecutionState(account);
         vm.stopPrank();
         received = asset.balanceOf(account) - before;
-        pulls = all.length - 3;
+        pulls = all.length - 4;
     }
 
     /// @dev Test-side stepper, written from Morpho's arithmetic rather than copied from the hook.
@@ -241,50 +240,41 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         new ForceRedeemMorphoVaultHook(address(0));
     }
 
-    function test_DataLengthIsExactlyOneHundredSeventeen() public {
+    function test_DataLengthIsExactlyEightyFive() public {
         _list(HELD, uint128(HELD));
-        assertEq(_data(1 ether).length, 117);
-        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, 118, 117));
+        assertEq(_data(1 ether).length, 85);
+        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, 86, 85));
         hook.build(address(0), account, abi.encodePacked(_data(1 ether), hex"00"));
-        // the OLD 85-byte layout is refused, never decoded as "no floor"
-        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, 85, 117));
-        hook.build(address(0), account, abi.encodePacked(ORACLE_ID, address(vault), uint256(1 ether), false));
+        // a trailing word (the interim 117-byte layout) is refused rather than ignored
+        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, 117, 85));
+        hook.build(address(0), account, abi.encodePacked(_data(1 ether), uint256(0)));
     }
 
-    function test_RevertOrder_Vault_Flag_Shares_Held_Floor() public {
+    function test_RevertOrder_Vault_Flag_Shares_Held() public {
         _list(HELD, uint128(HELD));
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), account, abi.encodePacked(ORACLE_ID, address(0), uint256(1 ether), false, uint256(0)));
+        hook.build(address(0), account, abi.encodePacked(ORACLE_ID, address(0), uint256(1 ether), false));
 
         PrevHookStub prev = new PrevHookStub();
         prev.publish(5 ether, address(asset), account);
         vm.expectRevert(ForceRedeemMorphoVaultHook.USE_PREV_HOOK_AMOUNT_NOT_SUPPORTED.selector);
-        hook.build(address(prev), account, _dataFull(1 ether, true, 0));
+        hook.build(address(prev), account, _dataFull(1 ether, true));
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), account, _data(0));
 
         vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_SHARES.selector, HELD, HELD + 1));
         hook.build(address(0), account, _data(HELD + 1));
-
-        // the floor is judged LAST, against the solved plan
-        uint256 quoted = hook.previewAssetsOut(address(vault), account, 1 ether);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quoted, quoted + 1)
-        );
-        hook.build(address(0), account, _dataFull(1 ether, false, quoted + 1));
     }
 
     function test_PreExecute_RevalidatesLayoutOnly() public {
         _list(HELD, uint128(HELD));
         vm.startPrank(account);
         hook.setExecutionContext(account);
-        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, 85, 117));
-        hook.preExecute(address(0), account, abi.encodePacked(ORACLE_ID, address(vault), uint256(1 ether), false));
+        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, 117, 85));
+        hook.preExecute(address(0), account, abi.encodePacked(_data(1 ether), uint256(0)));
         vm.expectRevert(ForceRedeemMorphoVaultHook.USE_PREV_HOOK_AMOUNT_NOT_SUPPORTED.selector);
-        hook.preExecute(address(0), account, _dataFull(1 ether, true, 0));
-        // an unreachable floor is NOT judged here: preExecute has nothing measured yet
-        hook.preExecute(address(0), account, _dataFull(1 ether, false, type(uint256).max));
+        hook.preExecute(address(0), account, _dataFull(1 ether, true));
         vm.stopPrank();
     }
 
@@ -302,23 +292,21 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         assertFalse(hook.decodeUsePrevHookAmount(d));
     }
 
-    function test_ReplaceCalldataAmountsWritesOffsetFiftyTwoAndPreservesFlagAndFloor() public view {
-        bytes memory original = _dataFull(1 ether, true, 0.002e18);
+    function test_ReplaceCalldataAmountsWritesOffsetFiftyTwoAndPreservesTheFlag() public view {
+        bytes memory original = _dataFull(1 ether, true);
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 9 ether;
         bytes memory replaced = hook.replaceCalldataAmounts(original, amounts);
-        assertEq(replaced.length, 117);
+        assertEq(replaced.length, 85);
         assertEq(hook.decodeAmounts(replaced)[0], 9 ether);
         assertTrue(hook.decodeUsePrevHookAmount(replaced));
-        bytes memory floorWord = new bytes(32);
-        for (uint256 i; i < 32; ++i) {
-            floorWord[i] = replaced[85 + i];
+        for (uint256 i; i < 52; ++i) {
+            assertEq(replaced[i], original[i], "header byte untouched");
         }
-        assertEq(uint256(bytes32(floorWord)), 0.002e18, "the floor word is untouched");
     }
 
     function test_InspectIsTheVaultAlone() public view {
-        assertEq(hook.inspect(_dataFull(1 ether, true, 1)), abi.encodePacked(address(vault)));
+        assertEq(hook.inspect(_dataFull(1 ether, true)), abi.encodePacked(address(vault)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -331,8 +319,9 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         _idle(vault.previewRedeem(shares));
 
         Execution[] memory all = hook.build(address(0), account, _data(shares));
-        assertEq(all.length, 3, "pre, redeem, post");
-        (uint256 s, address r, address o) = _decodeRedeem(all[1]);
+        assertEq(all.length, 4, "pre, accrue, redeem, post");
+        assertEq(bytes4(all[1].callData), IMorphoVaultV2.accrueInterest.selector, "accrual is the first leg");
+        (uint256 s, address r, address o) = _decodeRedeem(all[2]);
         assertEq(s, shares, "the whole input is redeemed, nothing burned");
         assertEq(r, account);
         assertEq(o, account);
@@ -486,7 +475,7 @@ contract ForceRedeemMorphoVaultHookTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      SHORTFALL AND THE OUTPUT FLOOR
+                              SHORTFALL
     //////////////////////////////////////////////////////////////*/
 
     function test_Shortfall_NoExecutionsBuilt_LiveNumbers() public {
@@ -530,41 +519,10 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         vault.setPenalty(address(adapter), 0.003e18);
         _list(HELD, uint128(HELD));
         uint256 quoted = hook.previewAssetsOut(address(vault), account, 100 ether);
-        (uint256 received, uint256 pulls) = _run(_dataFull(100 ether, false, quoted));
+        (uint256 received, uint256 pulls) = _run(_data(100 ether));
         assertEq(pulls, 1);
-        assertEq(received, quoted, "the floor set at the quote is met exactly");
+        assertEq(received, quoted, "settles exactly at 30 bps");
     }
-
-    /// @dev `minAssetsOut` is judged twice: on the QUOTE in `build` (what the OMS pre-flight sees) and on
-    ///      the MEASURED delivery in `_postExecute`. Floor == quote passes both.
-    function test_MinAssetsOut_QuoteBelowTheFloorIsRefusedAtBuild() public {
-        _list(HELD, uint128(HELD));
-        uint256 shares = 1000 ether;
-        uint256 quoted = hook.previewAssetsOut(address(vault), account, shares);
-        assertGt(quoted, 0);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quoted, quoted + 1)
-        );
-        hook.build(address(0), account, _dataFull(shares, false, quoted + 1));
-        assertEq(vault.callCount(), 0, "nothing ran");
-
-        (uint256 received,) = _run(_dataFull(shares, false, quoted));
-        assertEq(received, quoted, "a floor equal to the quote is met");
-        assertEq(hook.getOutAmount(account), quoted);
-    }
-
-    /// @dev `previewAssetsOut` is how a caller finds the floor, so it must not itself judge one.
-    function test_PreviewAssetsOut_IgnoresTheFloor() public {
-        _list(HELD, uint128(HELD));
-        uint256 quoted = hook.previewAssetsOut(address(vault), account, 1000 ether);
-        assertGt(quoted, 0);
-        assertEq(hook.previewAssetsOut(address(vault), account, 1000 ether), quoted, "pure function of state");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            FEES AND ACCOUNTING
-    //////////////////////////////////////////////////////////////*/
 
     function test_PendingFeeSharesEnterTheRate_AndTheMockAccruesOnTheFirstPull() public {
         _list(2 * HELD, uint128(2 * HELD));
@@ -581,7 +539,7 @@ contract ForceRedeemMorphoVaultHookTest is Test {
     function test_OutAmountIsTheMeasuredDeltaNotTheQuote_FeeOnTransfer() public {
         (MockMorphoVaultV2 v, FeeOnTransferToken fot) = _feeOnTransferFixture();
         uint256 shares = 1000 ether;
-        bytes memory d = abi.encodePacked(ORACLE_ID, address(v), shares, false, uint256(0));
+        bytes memory d = abi.encodePacked(ORACLE_ID, address(v), shares, false);
         uint256 quoted = hook.previewAssetsOut(address(v), account, shares);
 
         vm.startPrank(account);
@@ -595,32 +553,6 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         vm.stopPrank();
         assertEq(hook.getOutAmount(account), fot.balanceOf(account), "measured");
         assertEq(hook.getOutAmount(account), quoted - quoted / 100, "one percent less than the vault accounted");
-    }
-
-    /// @dev THE FLOOR IS JUDGED ON DELIVERY, not on the quote. The quote equals the floor so `build`
-    ///      passes; the token keeps 1% in transit and `_postExecute` refuses with the measured number.
-    function test_MinAssetsOut_MeasuredDeliveryBelowTheFloorRevertsInPostExecute() public {
-        (MockMorphoVaultV2 v,) = _feeOnTransferFixture();
-        uint256 shares = 1000 ether;
-        uint256 quoted = hook.previewAssetsOut(address(v), account, shares);
-        bytes memory d = abi.encodePacked(ORACLE_ID, address(v), shares, false, quoted);
-
-        vm.startPrank(account);
-        hook.setExecutionContext(account);
-        Execution[] memory all = hook.build(address(0), account, d);
-        for (uint256 i; i + 1 < all.length; ++i) {
-            (bool ok,) = all[i].target.call(all[i].callData);
-            assertTrue(ok, "every leg before postExecute succeeds");
-        }
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quoted - quoted / 100, quoted
-            )
-        );
-        (bool okPost, bytes memory ret) = all[all.length - 1].target.call(all[all.length - 1].callData);
-        okPost;
-        ret;
-        vm.stopPrank();
     }
 
     function _feeOnTransferFixture() internal returns (MockMorphoVaultV2 v, FeeOnTransferToken fot) {
@@ -643,7 +575,7 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         v.setInflate(true);
         _listMarket(a, address(asset), address(0xC011), HELD, uint128(HELD), 0);
         asset.mint(address(v), 10 ether); // idle covers: single redeem path
-        bytes memory d = abi.encodePacked(ORACLE_ID, address(v), uint256(1 ether), false, uint256(0));
+        bytes memory d = abi.encodePacked(ORACLE_ID, address(v), uint256(1 ether), false);
         vm.startPrank(account);
         hook.setExecutionContext(account);
         Execution[] memory all = hook.build(address(0), account, d);
@@ -734,7 +666,8 @@ contract ForceRedeemMorphoVaultHookTest is Test {
 
     function test_MarketOutsideTheAdaptersPinnedIrmIsSkipped() public {
         adapter.setPinnedIrm(irm);
-        MarketParams memory off = MarketParams(address(asset), address(0xC022), address(0x0AC1), address(0xBAD1), 0.945e18);
+        MarketParams memory off =
+            MarketParams(address(asset), address(0xC022), address(0x0AC1), address(0xBAD1), 0.945e18);
         morpho.setMarket(_idOf(off), off, uint128(HELD), 0);
         adapter.addMarket(_idOf(off), HELD);
         _list(HELD, uint128(HELD));
@@ -745,7 +678,8 @@ contract ForceRedeemMorphoVaultHookTest is Test {
     /// @dev The one fail-OPEN branch: an adapter that answers `adaptiveCurveIrm()` with zero pins no IRM.
     function test_AdapterAnsweringZeroIrmDisablesTheIrmFilter() public {
         adapter.setZeroIrm(true);
-        MarketParams memory off = MarketParams(address(asset), address(0xC022), address(0x0AC1), address(0xBAD1), 0.945e18);
+        MarketParams memory off =
+            MarketParams(address(asset), address(0xC022), address(0x0AC1), address(0xBAD1), 0.945e18);
         morpho.setMarket(_idOf(off), off, 100 ether, 0);
         adapter.addMarket(_idOf(off), 100 ether);
         _list(100 ether, 100 ether);
@@ -832,48 +766,12 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         vm.stopPrank();
     }
 
-    function testFuzz_OnlyOneHundredSeventeenBytesIsAccepted(uint16 lenRaw) public {
+    function testFuzz_OnlyEightyFiveBytesIsAccepted(uint16 lenRaw) public {
         uint256 len = bound(uint256(lenRaw), 0, 300);
-        vm.assume(len != 117);
+        vm.assume(len != 85);
         bytes memory data = new bytes(len);
-        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, len, 117));
+        vm.expectRevert(abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INVALID_DATA_LENGTH.selector, len, 85));
         hook.build(address(0), account, data);
-    }
-
-    /// @dev For ANY floor: at or below the quote the exit settles and meets it; above the quote build refuses.
-    function testFuzz_FloorBelowOrEqualQuotePasses_AboveReverts(uint256 floorRaw) public {
-        _list(HELD, uint128(HELD));
-        uint256 shares = 5000 ether;
-        uint256 quoted = hook.previewAssetsOut(address(vault), account, shares);
-        uint256 floor = bound(floorRaw, 0, 2 * quoted);
-        bytes memory d = _dataFull(shares, false, floor);
-        if (floor > quoted) {
-            vm.expectRevert(
-                abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quoted, floor)
-            );
-            hook.build(address(0), account, d);
-            return;
-        }
-        (uint256 received,) = _run(d);
-        assertEq(received, quoted);
-        assertGe(received, floor);
-    }
-
-    /// @dev OMS resizes the share leg through `replaceCalldataAmounts`; the floor it signed must still bind
-    ///      the resized exit at build, not just survive as bytes.
-    function test_FloorStillBindsAfterReplaceCalldataAmounts() public {
-        _list(HELD, uint128(HELD));
-        uint256 quotedBig = hook.previewAssetsOut(address(vault), account, 5000 ether);
-        bytes memory signed = _dataFull(5000 ether, false, quotedBig);
-        uint256[] memory smaller = new uint256[](1);
-        smaller[0] = 1000 ether;
-        bytes memory resized = hook.replaceCalldataAmounts(signed, smaller);
-        uint256 quotedSmall = hook.previewAssetsOut(address(vault), account, 1000 ether);
-        assertLt(quotedSmall, quotedBig);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceRedeemMorphoVaultHook.INSUFFICIENT_OUTPUT.selector, quotedSmall, quotedBig)
-        );
-        hook.build(address(0), account, resized);
     }
 
     function test_ThirtyThreeListedMarketsRevertEvenWhenTheFirstFewCouldFill() public {
@@ -891,8 +789,88 @@ contract ForceRedeemMorphoVaultHookTest is Test {
         uint256 g = gasleft();
         Execution[] memory all = hook.build(address(0), account, _data(31 ether));
         uint256 used = g - gasleft();
-        assertGt(all.length, 3);
+        assertGt(all.length, 4, "at least one pull");
         assertLt(used, 2 ** 24, "build fits under the per-transaction cap with the solver");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    DECIMAL OFFSET (cbAssets: USDC 6 / shares 18)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Vault V2 sets `virtualShares = 10 ** (18 - assetDecimals)`, so a USDC vault runs N ~ 1e12 x D. The
+    ///      ladder reads `virtualShares()` and uses Morpho's own mulDiv directions, so the exit settles exactly
+    ///      in 6-decimal units; a bare "+1" virtual share would be off by twelve orders of magnitude here.
+    function test_SixDecimalAsset_ExitSettlesExactly_FullAndPartial() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockMorphoVaultV2 v = new MockMorphoVaultV2(address(usdc));
+        MockMorphoMarketAdapter a = new MockMorphoMarketAdapter(address(v), address(morpho));
+        v.addAdapter(address(a), 0.003e18); // cbAssets' 30 bps
+        uint256 held = 250_000e18; // 18-decimal shares
+        v.setShares(account, held);
+        // ~33.9M USDC under ~32.7M shares, virtualShares 1e12: the live cbAssets ratio on Base (2026-11-13)
+        v.setTotals(32_744_524e18, 33_861_820e6, 1e12);
+        v.setTrackPositions(true);
+        _listMarket(a, address(usdc), address(0xCBB7), 40_000_000e6, 40_000_000e6, 0);
+        assertEq(usdc.balanceOf(address(v)), 0, "fully allocated: every redeem needs a pull");
+
+        // partial
+        uint256 shares = held / 3;
+        uint256 quoted = hook.previewAssetsOut(address(v), account, shares);
+        assertGt(quoted, 80_000e6);
+        assertLt(quoted, 90_000e6);
+        uint256 received = _runOn(usdc, abi.encodePacked(ORACLE_ID, address(v), shares, false));
+        assertEq(received, quoted, "partial exit pays exactly previewAssetsOut in USDC units");
+        assertEq(v.balanceOf(account), held - shares, "exactly S shares left the account");
+
+        // full
+        uint256 rest = v.balanceOf(account);
+        quoted = hook.previewAssetsOut(address(v), account, rest);
+        received = _runOn(usdc, abi.encodePacked(ORACLE_ID, address(v), rest, false));
+        assertEq(received, quoted, "full exit pays exactly previewAssetsOut");
+        assertEq(v.balanceOf(account), 0, "full exit ends at zero shares");
+        assertEq(hook.getOutAmount(account), received);
+    }
+
+    /// @dev The first leg is `accrueInterest()`, so the fee shares the view predicted are minted BEFORE any pull
+    ///      and the ladder `build` read is exactly the state the pulls run against (Kurisu's review note).
+    function test_AccrueInterestIsTheFirstLeg_AndMatchesTheViewExactly() public {
+        _list(HELD, uint128(HELD));
+        vault.setPendingFees(123_456 ether, 7890 ether);
+        (, uint256 pf, uint256 mf) = vault.accrueInterestView();
+        assertGt(pf + mf, 0);
+        uint256 supplyBefore = vault.totalSupply();
+
+        bytes memory d = _data(1000 ether);
+        Execution[] memory all = hook.build(address(0), account, d);
+        assertEq(all[1].target, address(vault));
+        assertEq(all[1].callData, abi.encodeCall(IMorphoVaultV2.accrueInterest, ()), "leg 1 accrues");
+
+        uint256 quoted = hook.previewAssetsOut(address(vault), account, 1000 ether);
+        (uint256 received,) = _run(d);
+        assertEq(received, quoted, "the exit settles on the accrued state the view described");
+        (, uint256 pfAfter, uint256 mfAfter) = vault.accrueInterestView();
+        assertEq(pfAfter + mfAfter, 0, "nothing left to accrue");
+        assertGe(vault.totalSupply() + 1000 ether, supplyBefore + pf + mf, "fee shares were minted before the burns");
+    }
+
+    /// @dev Runs the whole lifecycle against another vault/asset pair and returns the measured delivery.
+    function _runOn(MockERC20 token, bytes memory d) internal returns (uint256 received) {
+        uint256 before = token.balanceOf(account);
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        Execution[] memory all = hook.build(address(0), account, d);
+        assertEq(bytes4(all[1].callData), IMorphoVaultV2.accrueInterest.selector);
+        for (uint256 i; i < all.length; ++i) {
+            (bool ok, bytes memory ret) = all[i].target.call(all[i].callData);
+            if (!ok) {
+                assembly ("memory-safe") {
+                    revert(add(ret, 0x20), mload(ret))
+                }
+            }
+        }
+        hook.resetExecutionState(account);
+        vm.stopPrank();
+        received = token.balanceOf(account) - before;
     }
 
     /*//////////////////////////////////////////////////////////////

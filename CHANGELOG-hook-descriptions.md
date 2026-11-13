@@ -69,7 +69,7 @@ Total: **127 hooks**
 | FluidUnstakeHook | Fluid Unstake | Unstakes tokens from Fluid protocol |
 | ForceDeallocateMorphoHook | Force Deallocate Morpho | Force deallocates liquidity from a Morpho market |
 | ForceDeallocateMorphoVaultHook | Force Deallocate Morpho Vault | Fills a Morpho Vault V2's idle balance across its listed markets |
-| ForceRedeemMorphoVaultHook | Force Redeem Morpho Vault | Force deallocates across a Morpho Vault V2's markets and redeems the shares above a minimum output |
+| ForceRedeemMorphoVaultHook | Force Redeem Morpho Vault | Force deallocates across a Morpho Vault V2's markets and redeems the shares |
 | GearboxClaimRewardHook | Gearbox Claim Reward | Claims reward tokens from Gearbox protocol |
 | GearboxStakeHook | Gearbox Stake | Stakes tokens in Gearbox protocol |
 | GearboxUnstakeHook | Gearbox Unstake | Unstakes tokens from Gearbox protocol |

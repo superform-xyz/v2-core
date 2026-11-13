@@ -275,6 +275,10 @@ contract MockMorphoVaultV2 {
         return (_totalAssets, pendingPerfShares, pendingMgmtShares);
     }
 
+    function accrueInterest() external {
+        _accrueInterest();
+    }
+
     function _accrueInterest() internal {
         if (accrued) return;
         totalSupply += pendingPerfShares + pendingMgmtShares;
