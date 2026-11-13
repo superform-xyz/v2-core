@@ -45,7 +45,7 @@ contract GyldBondOracleAdversarialTest is Test {
     function setUp() public {
         vm.warp(1_800_000_000);
         registry = new GyldBondRegistry(admin);
-        oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry));
+        oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry), address(0));
         KIND_CHAINLINK = registry.FEED_KIND_CHAINLINK();
         KIND_NATIVE = registry.FEED_KIND_GYLD_NATIVE();
 

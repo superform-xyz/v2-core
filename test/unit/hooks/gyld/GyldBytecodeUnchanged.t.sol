@@ -22,13 +22,16 @@ contract GyldBytecodeUnchangedTest is Test {
     ///      passed 4/4 while never looking at the one contract every trade now depends on. It is pinned in
     ///      both trade hooks' immutables and carries several open review findings, so a fix landing there
     ///      without a re-lock is exactly the scenario this file exists to prevent.
-    function _names() internal pure returns (string[5] memory) {
+    function _names() internal pure returns (string[8] memory) {
         return [
             "GyldBondRegistry",
             "GyldBondYieldSourceOracle",
             "GyldTradePolicy",
             "GyldTradeGuardHook",
-            "ApproveAndTradeGyldBondHook"
+            "ApproveAndTradeGyldBondHook",
+            "GyldInTransitRegistry",
+            "GyldInvestorDepositHook",
+            "GyldInvestorRedeemHook"
         ];
     }
 
@@ -42,7 +45,7 @@ contract GyldBytecodeUnchangedTest is Test {
 
     /// @dev The deploy path reads this directory for EVERY environment, so this is the one that ships.
     function test_LockedBytecodeMatchesSource() public {
-        string[5] memory names = _names();
+        string[8] memory names = _names();
         for (uint256 i; i < names.length; ++i) {
             bytes memory locked = vm.getCode(string.concat("script/locked-bytecode/", names[i], ".json"));
             assertEq(
@@ -54,7 +57,7 @@ contract GyldBytecodeUnchangedTest is Test {
     }
 
     function test_DevLockedBytecodeMatchesSource() public {
-        string[5] memory names = _names();
+        string[8] memory names = _names();
         for (uint256 i; i < names.length; ++i) {
             bytes memory dev = vm.getCode(string.concat("script/locked-bytecode-dev/", names[i], ".json"));
             assertEq(
@@ -66,7 +69,7 @@ contract GyldBytecodeUnchangedTest is Test {
     }
 
     function test_GeneratedBytecodeMatchesSource() public {
-        string[5] memory names = _names();
+        string[8] memory names = _names();
         for (uint256 i; i < names.length; ++i) {
             bytes memory generated = vm.getCode(string.concat("script/generated-bytecode/", names[i], ".json"));
             assertEq(
@@ -80,7 +83,7 @@ contract GyldBytecodeUnchangedTest is Test {
     /// @dev All three directories must agree with each other too, so a partial copy is caught even if every
     ///      individual comparison above were somehow satisfied.
     function test_AllThreeArtifactDirectoriesAgree() public {
-        string[5] memory names = _names();
+        string[8] memory names = _names();
         for (uint256 i; i < names.length; ++i) {
             bytes32 prod = keccak256(vm.getCode(string.concat("script/locked-bytecode/", names[i], ".json")));
             bytes32 dev = keccak256(vm.getCode(string.concat("script/locked-bytecode-dev/", names[i], ".json")));

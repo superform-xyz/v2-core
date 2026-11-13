@@ -327,7 +327,7 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
         hook.build(address(prevHook), account, data);
 
         GyldTradeGuardHook guard =
-            new GyldTradeGuardHook(address(new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry))));
+            new GyldTradeGuardHook(address(new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry), address(0))));
         bytes memory guardLeaf = abi.encodePacked(
             bytes32(0), bytes20(address(bond)), bytes20(address(otherBond)), uint256(2 days), uint256(1 days)
         );
@@ -342,7 +342,7 @@ contract ApproveAndTradeGyldBondHookTest is InternalHelpers {
         hook.build(address(prevHook), account, data);
 
         GyldTradeGuardHook guard =
-            new GyldTradeGuardHook(address(new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry))));
+            new GyldTradeGuardHook(address(new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry), address(0))));
         bytes memory guardLeaf = abi.encodePacked(
             bytes32(0), bytes20(address(bond)), bytes20(address(wrongCash)), uint256(2 days), uint256(1 days)
         );

@@ -643,9 +643,26 @@ generate_constructor_args() {
         "GyldBondRegistry")
             echo "$(cast abi-encode "constructor(address)" "$deployer")"
             ;;
+        "GyldInTransitRegistry")
+            # Same admin-at-birth rule as GyldBondRegistry: DEPLOYER in the initcode regardless of the later
+            # role handover.
+            local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$gyld_registry")"
+            ;;
         "GyldBondYieldSourceOracle")
             local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
-            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$gyld_registry")"
+            local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
+            echo "$(cast abi-encode "constructor(address,address,address)" "$super_ledger_config" "$gyld_registry" "$gyld_in_transit")"
+            ;;
+        "GyldInvestorDepositHook")
+            local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
+            local gyld_policy=$(get_contract_address "$chain_id" "GyldTradePolicy")
+            echo "$(cast abi-encode "constructor(address,address)" "$gyld_in_transit" "$gyld_policy")"
+            ;;
+        "GyldInvestorRedeemHook")
+            local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
+            local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")
+            echo "$(cast abi-encode "constructor(address,address)" "$gyld_in_transit" "$gyld_oracle")"
             ;;
         "GyldTradeGuardHook")
             local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")

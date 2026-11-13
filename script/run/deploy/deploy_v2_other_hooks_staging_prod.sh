@@ -82,6 +82,23 @@
 #
 #     7. register the guard and both trade instances in the periphery SuperGovernor, then add the
 #        leaves to the strategy's Merkle root. Both are periphery-side and outside this repo.
+#
+#   INVESTOR API HOOKS (SUP-21848), only once gyldInvestorEnabled[chainId] is set and Gyld onboarding
+#   has returned a deposit address and a redeem holding wallet for the strategy. The in-transit registry
+#   itself ships with the valuation half (the oracle pins it) and is inert until configured.
+#     8. AS DEPLOYER (still MANAGER_ROLE): destinations, then the transit age:
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runDestinations(uint256,uint64,address,address,address)' <env> <chainId> <inTransit> <deposit> <holding>
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runTransitDefaults(uint256,uint64,address)' <env> <chainId> <inTransit>
+#        Left unset -> every deposit and redeem leaf reverts DESTINATION_NOT_SET / TRANSIT_AGE_NOT_CONFIGURED.
+#     9. hand the roles over (MANAGER -> GOVERNOR, RECONCILER -> the reconciler bot, admin -> SUPER_GOVERNOR):
+#          forge script script/TransferGyldInTransitRegistryRoles.s.sol:TransferGyldInTransitRegistryRoles \
+#            --sig 'run(uint256,uint64,address,address)' <env> <chainId> <inTransit> <reconciler>
+#    10. per instrument, AS GOVERNOR, after registerInstrument: the cap on cash at Gyld (zero = disabled):
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runCap(uint256,uint64,address,address,uint256)' <env> <chainId> <inTransit> <bondToken> <cap>
+#    11. check: --sig 'runCheck(uint64,address,address[])' <chainId> <inTransit> '[<bondToken>,...]'
 #   Note: a targeted family run executes on every configured network; families with chain
 #   requirements revert (and are reported) on unsupported chains.
 #
@@ -311,6 +328,9 @@ GYLD_CONTRACTS=(
     "GyldTradePolicy"
     "GyldTradeGuardHook"
     "ApproveAndTradeGyldBondHook"
+    "GyldInTransitRegistry"
+    "GyldInvestorDepositHook"
+    "GyldInvestorRedeemHook"
 )
 
 missing_gyld=0

@@ -121,7 +121,7 @@ contract GyldBondKatanaFork is Helpers, RhinestoneModuleKit, InternalHelpers {
         settlement = new MockGyldSettlement();
 
         registry = new GyldBondRegistry(admin);
-        oracle = new GyldBondYieldSourceOracle(address(new SuperLedgerConfiguration()), address(registry));
+        oracle = new GyldBondYieldSourceOracle(address(new SuperLedgerConfiguration()), address(registry), address(0));
         aggregator = new MockSuperVaultStrategyState();
         // Real policy, real aggregator shape: AGGREGATOR == 0 would exercise a
         // configuration that cannot ship, since a paused strategy could still trade.
