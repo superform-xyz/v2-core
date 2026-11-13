@@ -99,6 +99,12 @@ compatibleProtocols:
   # KyberSwap
   SwapKyberSwapHook: [kyberswap]
   ApproveAndSwapKyberSwapHook: [kyberswap]
+  # SushiSwap
+  SwapSushiSwapHook: [sushiswap]
+  ApproveAndSwapSushiSwapHook: [sushiswap]
+  # Everlong
+  SwapEverlongHook: [everlong]
+  ApproveAndSwapEverlongHook: [everlong]
   # Binance
   ApproveAndSwapBinanceHook: [binance]
   # Spark PSM
@@ -222,6 +228,8 @@ approvePairs:
   SwapOdosV2Hook: ApproveAndSwapOdosV2Hook
   SwapOdosV3Hook: ApproveAndSwapOdosV3Hook
   SwapKyberSwapHook: ApproveAndSwapKyberSwapHook
+  SwapSushiSwapHook: ApproveAndSwapSushiSwapHook
+  SwapEverlongHook: ApproveAndSwapEverlongHook
   SwapSparkPSMExactInHook: ApproveAndSwapSparkPSMExactInHook
   SwapSparkPSMExactOutHook: ApproveAndSwapSparkPSMExactOutHook
   SwapAlgebraIntegralHook: ApproveAndSwapAlgebraIntegralHook

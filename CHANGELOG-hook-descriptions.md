@@ -1,6 +1,6 @@
 # Hook Names & Descriptions
 
-Total: **123 hooks**
+Total: **127 hooks**
 
 | Contract | Name | Description |
 |----------|------|-------------|
@@ -12,6 +12,7 @@ Total: **123 hooks**
 | AaveV4WithdrawHook | Aave V4 Withdraw | Withdraws assets from an Aave V4 lending pool |
 | AcrossSendFundsAndExecuteOnDstHook | Across Bridge | Bridges tokens via Across and executes on destination chain |
 | AcrossSendFundsAndExecuteOnDstHookV2 | Across Bridge V2 | Bridges tokens via Across V2 and executes on destination chain |
+| ApproveAndSwapEverlongHook | Approve and Swap Everlong | Approves and swaps tokens via Everlong Router aggregator |
 | ApproveERC20Hook | Approve ERC-20 | Approves an ERC-20 token spending allowance |
 | ApproveAndAcrossSendFundsAndExecuteOnDstHook | Approve and Across Bridge | Approves and bridges tokens via Across with destination execution |
 | ApproveAndAcrossSendFundsAndExecuteOnDstHookV2 | Approve and Across Bridge V2 | Approves and bridges tokens via Across V2 with destination execution |
@@ -32,6 +33,7 @@ Total: **123 hooks**
 | ApproveAndSwapOpenOceanSparkDexHook | Approve and Swap OpenOcean SparkDex | Approves and swaps tokens via OpenOcean SparkDex aggregator |
 | ApproveAndSwapSparkPSMExactInHook | Approve and Swap Spark PSM Exact In | Approves and swaps exact input tokens via Spark PSM |
 | ApproveAndSwapSparkPSMExactOutHook | Approve and Swap Spark PSM Exact Out | Approves and swaps for exact output tokens via Spark PSM |
+| ApproveAndSwapSushiSwapHook | Approve and Swap SushiSwap | Approves and swaps tokens via SushiSwap aggregator |
 | ApproveAndSwapUniswapV2Hook | Approve and Swap Uniswap V2 | Approves and swaps tokens via Uniswap V2 |
 | ApproveAndSwapUniswapV3Hook | Approve and Swap Uniswap V3 | Approves and swaps tokens via Uniswap V3 |
 | ApproveAndSwapUniswapV3Router02Hook | Approve and Swap Uniswap V3 Router02 | Approves and swaps tokens via Uniswap V3 Router02 |
@@ -107,12 +109,14 @@ Total: **123 hooks**
 | StargateSendHookV2 | Stargate Bridge V2 | Bridges tokens via Stargate V2 cross-chain messaging |
 | Swap1InchHook | Swap 1inch | Swaps tokens via 1inch aggregator |
 | SwapAlgebraIntegralHook | Swap Algebra Integral | Swaps tokens via Algebra Integral DEX |
+| SwapEverlongHook | Swap Everlong | Swaps tokens via Everlong Router aggregator |
 | SwapKyberSwapHook | Swap KyberSwap | Swaps tokens via KyberSwap aggregator |
 | SwapOdosV2Hook | Swap Odos V2 | Swaps tokens via Odos V2 aggregator |
 | SwapOdosV3Hook | Swap Odos V3 | Swaps tokens via Odos V3 aggregator |
 | SwapOpenOceanSparkDexHook | Swap OpenOcean SparkDex | Swaps tokens via OpenOcean SparkDex aggregator |
 | SwapSparkPSMExactInHook | Swap Spark PSM Exact In | Swaps exact input tokens via Spark PSM |
 | SwapSparkPSMExactOutHook | Swap Spark PSM Exact Out | Swaps for exact output tokens via Spark PSM |
+| SwapSushiSwapHook | Swap SushiSwap | Swaps tokens via SushiSwap aggregator |
 | SwapUniswapV2Hook | Swap Uniswap V2 | Swaps tokens via Uniswap V2 |
 | SwapUniswapV3Hook | Swap Uniswap V3 | Swaps tokens via Uniswap V3 exact input single |
 | SwapUniswapV3Router02Hook | Swap Uniswap V3 Router02 | Swaps tokens via Uniswap V3 Router02 |

@@ -37,7 +37,7 @@ ftest :; forge test
 # market-maker vault; the live variant also shells out to the Hyperliquid info API with ffi curl. Both run
 # locally via `make ftest`; the mocked unit suites (HyperCoreReadLibTest, HyperCorePerpPositionOracleTest,
 # HyperCoreDeploymentTest) cover CI.
-FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork|BinanceHookE2E|BinanceHookTxCapResetE2E|HyperCorePerpPositionOracleFork|HyperCorePerpPositionOracleLiveFork|GyldBondKatanaFork
+FLARE_FORK_TESTS := FirelightHooksE2E|FirelightOracleFork|FlareWrappedNativeHookE2E|FlareRFLRHooksE2E|FlareClaimRFLRV2E2E|AlgebraIntegralFlareE2E|SpectraMetaVaultOracleFlare|ERC20YieldSourceOracleBSCFork|BinanceHookE2E|BinanceHookTxCapResetE2E|HyperCorePerpPositionOracleFork|HyperCorePerpPositionOracleLiveFork|GyldBondKatanaFork|SushiSwapKatanaFork|SushiSwapKatanaDestinationFork|SushiSwapKatanaRelayE2E|EverlongKatanaFork|EverlongKatanaRelayE2E|EverlongKatanaChainsE2E
 
 ftest-ci :; forge test -vvv --jobs 10 --compute-units-per-second 150 --no-match-contract "$(FLARE_FORK_TESTS)"
 

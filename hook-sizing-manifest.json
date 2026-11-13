@@ -238,6 +238,11 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "APPROVE_AND_SWAP_EVERLONG_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "APPROVE_AND_SWAP_KYBERSWAP_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
@@ -277,6 +282,11 @@
     "pipeMode": "transform",
     "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "APPROVE_AND_SWAP_SUSHISWAP_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "APPROVE_AND_SWAP_UNISWAPV2_HOOK_KEY",
@@ -855,6 +865,11 @@
     "track": "deprecate->replaceCalldata"
   },
   {
+    "hookKey": "SWAP_EVERLONG_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "SWAP_KYBERSWAP_HOOK_KEY",
     "mode": "replaceCalldata",
     "pipeMode": "transform"
@@ -894,6 +909,11 @@
     "pipeMode": "transform",
     "amountPosition": 92,
     "track": "deprecate->replaceCalldata"
+  },
+  {
+    "hookKey": "SWAP_SUSHISWAP_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
   },
   {
     "hookKey": "SWAP_UNISWAPV2_HOOK_KEY",

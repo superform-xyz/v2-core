@@ -196,6 +196,10 @@ HOOK_CONTRACTS=(
     "RelaySendFundsAndExecuteOnDstHook"
     "ApproveAndRelaySendFundsAndExecuteOnDstHook"
     "ApproveAndSwapBinanceHook"
+    "SwapSushiSwapHook"
+    "ApproveAndSwapSushiSwapHook"
+    "SwapEverlongHook"
+    "ApproveAndSwapEverlongHook"
 )
 
 # Oracle contracts from accounting/oracles

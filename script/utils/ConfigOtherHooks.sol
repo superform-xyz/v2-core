@@ -24,6 +24,13 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address hyperCoreUsdcGateway) hyperCoreUsdcGateways;
         mapping(uint64 chainId => address superVaultGovernor) superVaultGovernors;
         mapping(uint64 chainId => address binanceRouter) binanceRouters;
+        // SushiSwap v7 (SUP-21826): RedSnwapper is the approval spender/call target, the RouteProcessor is the
+        // ONLY executor the hooks accept inside the calldata. Both pinned per chain; presence of BOTH gates.
+        mapping(uint64 chainId => address redSnwapper) sushiRedSnwappers;
+        mapping(uint64 chainId => address routeProcessor) sushiRouteProcessors;
+        // Everlong Router (SUP-21826): canonical Uniswap SwapRouter02 + its WETH9. Presence of BOTH gates.
+        mapping(uint64 chainId => address router) everlongRouters;
+        mapping(uint64 chainId => address weth9) everlongWeth9s;
         mapping(uint64 chainId => uint256 maxInputAmount) binanceMaxInputAmounts;
         // Gyld tokenized bonds. TWO gates, deliberately, because the valuation half and the trading half
         // have different prerequisites: the registry, oracle and guard need nothing from Gyld and can ship
@@ -34,12 +41,12 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         /// @dev Zero means those checks are DISABLED and a paused strategy could still trade, so leave it
         ///      unset only on a chain with no SuperVault aggregator. The deploy script warns when it is zero.
         mapping(uint64 chainId => address aggregator) superVaultAggregators;
-    /// @notice STAGING SuperVaultAggregator per chain, kept separate from the production table above.
-    /// @dev `_setOtherHooksConfiguration()` takes no `env`, so one shared table would mean a staging Gyld
-    ///      deploy pinned the PRODUCTION aggregator into the staging policy's immutable — and the
-    ///      `code.length > 0` guard would pass, because the prod aggregator has code. Two tables plus an
-    ///      env-selected read in `_deployGyldHooks` is the structural fix for that.
-    mapping(uint64 chainId => address aggregator) superVaultAggregatorsStaging;
+        /// @notice STAGING SuperVaultAggregator per chain, kept separate from the production table above.
+        /// @dev `_setOtherHooksConfiguration()` takes no `env`, so one shared table would mean a staging Gyld
+        ///      deploy pinned the PRODUCTION aggregator into the staging policy's immutable — and the
+        ///      `code.length > 0` guard would pass, because the prod aggregator has code. Two tables plus an
+        ///      env-selected read in `_deployGyldHooks` is the structural fix for that.
+        mapping(uint64 chainId => address aggregator) superVaultAggregatorsStaging;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxCashInputAmounts;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxBondInputAmounts;
     }
@@ -96,6 +103,17 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         // TARGET_FAMILY=Binance) if the hook must not ship with a routine BSC run.
         otherHooksConfiguration.binanceRouters[BNB_CHAIN_ID] = BINANCE_DEX_ROUTER_BNB;
         otherHooksConfiguration.binanceMaxInputAmounts[BNB_CHAIN_ID] = BINANCE_MAX_INPUT_AMOUNT_BNB;
+
+        // SushiSwap v7 — Katana (SUP-21826). RedSnwapper verified on Katanascan; the Katana RouteProcessor is
+        // byte-identical to Base's and exposes the 8-arg processRoute the hooks patch. Ethereum's executor has
+        // a different ABI and is deliberately NOT configured. Presence of both rows gates the family.
+        otherHooksConfiguration.sushiRedSnwappers[KATANA_CHAIN_ID] = SUSHISWAP_RED_SNWAPPER;
+        otherHooksConfiguration.sushiRouteProcessors[KATANA_CHAIN_ID] = SUSHISWAP_ROUTE_PROCESSOR_KATANA;
+
+        // Everlong Router — Katana (SUP-21826). Verified canonical Uniswap SwapRouter02; WETH9 = vbETH. Both
+        // are constructor immutables of the two hooks. Presence of both rows gates the family.
+        otherHooksConfiguration.everlongRouters[KATANA_CHAIN_ID] = EVERLONG_ROUTER_KATANA;
+        otherHooksConfiguration.everlongWeth9s[KATANA_CHAIN_ID] = EVERLONG_WETH9_KATANA;
 
         // Odos V3 Router (same CREATE2 address on all EVM chains)
         otherHooksConfiguration.odosRouterV3s[MAINNET_CHAIN_ID] = ODOS_ROUTER_V3;

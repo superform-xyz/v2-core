@@ -334,6 +334,36 @@ echo -e "${YELLOW}   target it explicitly with TARGET_FAMILY=Gyld.${NC}"
 
 echo ""
 
+echo -e "${BLUE}Checking Katana swapper hook bytecode availability (SushiSwap v7, Everlong)...${NC}"
+
+# SUP-21826. Both families are gated in ConfigOtherHooks on their venue rows, which exist for Katana only,
+# so a routine run deploys them on Katana and skips every other chain. Targeted:
+#   TARGET_FAMILY=SushiSwap ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <env> deploy <account>
+#   TARGET_FAMILY=Everlong  ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh <env> deploy <account>
+KATANA_SWAPPER_HOOKS=(
+    "SwapSushiSwapHook"
+    "ApproveAndSwapSushiSwapHook"
+    "SwapEverlongHook"
+    "ApproveAndSwapEverlongHook"
+)
+
+missing_katana_swappers=0
+for contract in "${KATANA_SWAPPER_HOOKS[@]}"; do
+    if [ -f "$OTHER_BYTECODE_PATH/${contract}.json" ]; then
+        echo -e "${GREEN}   ${contract}${NC}"
+    else
+        echo -e "${YELLOW}   ${contract} - missing from $OTHER_BYTECODE_PATH${NC}"
+        missing_katana_swappers=$((missing_katana_swappers + 1))
+    fi
+done
+
+if [ $missing_katana_swappers -gt 0 ]; then
+    echo -e "${YELLOW}${missing_katana_swappers} Katana swapper hook(s) missing bytecode. The deploy will REVERT on Katana.${NC}"
+    echo -e "${YELLOW}   Run ./script/run/tooling/regenerate_bytecode.sh <Name> and copy to locked-bytecode/.${NC}"
+fi
+
+echo ""
+
 echo -e "${BLUE}Checking Algebra Integral hook bytecode availability...${NC}"
 
 ALGEBRA_INTEGRAL_HOOKS=(

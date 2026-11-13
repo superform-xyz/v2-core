@@ -380,6 +380,24 @@ hooks:
     actionTypes: [{intent: swap, stage: instant}]
     legSizing: [sized]
 
+  # SushiSwap (RedSnwapper + RouteProcessor executor)
+  SwapSushiSwapHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapSushiSwapHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  # Everlong Router (SwapRouter02 multicall) on Katana
+  SwapEverlongHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
+  ApproveAndSwapEverlongHook:
+    actionTypes: [{intent: swap, stage: instant}]
+    legSizing: [sized]
+
   # Aerodrome Universal Router
   SwapAerodromeUniversalRouterHook:
     actionTypes: [{intent: swap, stage: instant}]
