@@ -70,7 +70,7 @@ contract GyldHooksAdversarialTest is InternalHelpers {
         chainlinkFeed.setLatestAnswer(1e8);
 
         registry = new GyldBondRegistry(admin);
-        oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry));
+        oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry), address(0));
         settlement = new MockGyldSettlement();
 
         _registerBond(address(bond), address(cash), address(navFeed), registry.FEED_KIND_GYLD_NATIVE());

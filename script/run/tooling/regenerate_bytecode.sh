@@ -346,6 +346,9 @@ GYLD_CONTRACTS=(
     "GyldTradePolicy"
     "GyldTradeGuardHook"
     "ApproveAndTradeGyldBondHook"
+    "GyldInTransitRegistry"
+    "GyldInvestorDepositHook"
+    "GyldInvestorRedeemHook"
 )
 
 # Odos V3 hook contracts - now deployed via DeployV2Core (kept here for reference)

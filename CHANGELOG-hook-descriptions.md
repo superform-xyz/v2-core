@@ -1,6 +1,6 @@
 # Hook Names & Descriptions
 
-Total: **127 hooks**
+Total: **129 hooks**
 
 | Contract | Name | Description |
 |----------|------|-------------|
@@ -73,6 +73,8 @@ Total: **127 hooks**
 | GearboxClaimRewardHook | Gearbox Claim Reward | Claims reward tokens from Gearbox protocol |
 | GearboxStakeHook | Gearbox Stake | Stakes tokens in Gearbox protocol |
 | GearboxUnstakeHook | Gearbox Unstake | Unstakes tokens from Gearbox protocol |
+| GyldInvestorDepositHook | Gyld Investor Deposit | Sends cash to Gyld's pinned deposit address and records it as in transit |
+| GyldInvestorRedeemHook | Gyld Investor Redeem | Sends bond tokens to Gyld's pinned redeem holding wallet and records them as in transit |
 | MarkRootAsUsedHook | Mark Root As Used | Marks a Merkle root as used to prevent replay |
 | MerklClaimRewardHook | Merkl Claim Reward | Claims reward tokens from Merkl distributor |
 | MetaMorphoReallocateHook | MetaMorpho Reallocate | Reallocates liquidity across MetaMorpho vault markets |

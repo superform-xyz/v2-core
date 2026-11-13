@@ -10,6 +10,7 @@ import { IAggregatorV3 } from "modulekit/integrations/interfaces/chainlink/IAggr
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { GyldBondRegistry } from "./GyldBondRegistry.sol";
+import { GyldInTransitRegistry } from "./GyldInTransitRegistry.sol";
 import { IGyldNavFeed } from "../../vendor/gyld/IGyldNavFeed.sol";
 
 /// @title GyldBondYieldSourceOracle
@@ -37,6 +38,12 @@ import { IGyldNavFeed } from "../../vendor/gyld/IGyldNavFeed.sol";
 ///      ledger never touches this oracle, so a suspended instrument cannot brick accounting.
 /// @dev NEVER ASSUMES CASH EQUALS ONE DOLLAR. A USD-denominated NAV feed is converted through the instrument's
 ///      cash/USD feed, and that feed is staleness-checked just as strictly as the NAV feed.
+/// @dev IN-TRANSIT VALUE (Gyld Investor API, SUP-21848). Cash the account sent to Gyld's deposit address and
+///      bonds it sent to the redeem holding wallet are recorded in `GyldInTransitRegistry` and counted here, so
+///      the account's valuation does not drop while a broker order is open: cash at face, bonds at
+///      `min(exit NAV, live NAV)`. Entries older than the registry's `maxTransitAge` are valued at ZERO
+///      (conservative) and `hasStaleTransit` says so. `IN_TRANSIT == address(0)` turns the feature off.
+///      Per-share pricing is untouched: in-transit changes what an account holds, not what one bond is worth.
 contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     using Math for uint256;
 
@@ -56,6 +63,8 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     error GRACE_PERIOD_NOT_OVER();
     /// @notice A feed reported a zero or future timestamp
     error INVALID_TIMESTAMP();
+    /// @notice The in-transit registry is bound to a different bond registry
+    error REGISTRY_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                                  TYPES
@@ -106,19 +115,29 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     /// @notice The approved-instrument list. The only source of feeds and cash denominations.
     GyldBondRegistry public immutable REGISTRY;
 
+    /// @notice What each account has at Gyld through the Investor API; zero address disables the feature
+    GyldInTransitRegistry public immutable IN_TRANSIT;
+
     /// @dev Mirrors `GyldBondRegistry.FEED_KIND_GYLD_NATIVE`. A contract's `public constant` is not statically
     ///      reachable from another contract, and reading it through an external call on every valuation would be
     ///      wasteful, so the value is mirrored here and the two are asserted equal in the unit tests.
     uint8 private constant FEED_KIND_GYLD_NATIVE = 1;
 
+    /// @param inTransit_ `GyldInTransitRegistry`, or zero to value held bonds only. When set it must be
+    ///        bound to the same bond registry, or the pair and cap checks would run against another list.
     constructor(
         address superLedgerConfiguration_,
-        address registry_
+        address registry_,
+        address inTransit_
     )
         AbstractYieldSourceOracle(superLedgerConfiguration_)
     {
         if (registry_ == address(0)) revert ZERO_ADDRESS();
         REGISTRY = GyldBondRegistry(registry_);
+        if (inTransit_ != address(0)) {
+            if (address(GyldInTransitRegistry(inTransit_).BOND_REGISTRY()) != registry_) revert REGISTRY_MISMATCH();
+        }
+        IN_TRANSIT = GyldInTransitRegistry(inTransit_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,7 +152,9 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Identity read, and the "preserve visible holdings" escape hatch: a suspended, stale or
-    ///      unregistered instrument still reports the balance a strategy holds.
+    ///      unregistered instrument still reports the balance a strategy holds. In-transit bonds are added
+    ///      as they are; in-transit cash is converted to shares through the NON-reverting `previewNav` and
+    ///      contributes zero while the NAV is unusable (under-report, never revert).
     function getBalanceOfOwner(
         address yieldSourceAddress,
         address ownerOfShares
@@ -143,13 +164,29 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
+        uint256 balance = IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
+        (uint256 cashIn, uint256 bondsIn,) = _transitOf(yieldSourceAddress, ownerOfShares);
+        if (cashIn == 0 && bondsIn == 0) return balance;
+        uint256 cashShares;
+        if (cashIn != 0) {
+            NavStatus memory status = previewNav(yieldSourceAddress);
+            if (status.nav != 0) {
+                cashShares = cashIn.mulDiv(REGISTRY.getInstrumentConfig(yieldSourceAddress).bondScale, status.nav);
+            }
+        }
+        return balance + bondsIn + cashShares;
+    }
+
+    /// @notice Whether the account has an in-transit entry older than the registry's `maxTransitAge`
+    function hasStaleTransit(address bondToken, address account) external view returns (bool) {
+        if (address(IN_TRANSIT) == address(0)) return false;
+        return IN_TRANSIT.isStale(account, bondToken);
     }
 
     /// @notice Non-reverting NAV status
     /// @dev Reverts for nothing. An unregistered instrument comes back with `registered == false` rather than a
     ///      revert, so the guard hook can produce a precise error and the OMS can pre-flight a leaf.
-    function previewNav(address bondToken) external view returns (NavStatus memory status) {
+    function previewNav(address bondToken) public view returns (NavStatus memory status) {
         if (!REGISTRY.isRegistered(bondToken)) {
             status.failureCode = uint8(NavFailure.NOT_REGISTERED);
             return status;
@@ -315,8 +352,9 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    /// @dev Short-circuits to zero on a zero balance BEFORE touching any feed, so a strategy holding none of a
-    ///      suspended instrument is still priceable. Same precedent as the UniV3 CLP oracle.
+    /// @dev Short-circuits to zero when the owner holds nothing and has nothing in transit, BEFORE touching
+    ///      any feed, so a strategy holding none of a suspended instrument is still priceable. In-transit
+    ///      cash counts at face (it is already in cash units); in-transit bonds at `min(exit NAV, live NAV)`.
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares
@@ -327,17 +365,27 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         returns (uint256)
     {
         uint256 balance = IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
-        if (balance == 0) return 0;
+        (uint256 cashIn, uint256 bondsIn, uint256 exitNav) = _transitOf(yieldSourceAddress, ownerOfShares);
+        if (balance == 0 && cashIn == 0 && bondsIn == 0) return 0;
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
-        return balance.mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
+        uint256 nav = _nav(cfg);
+        uint256 value = balance.mulDiv(nav, cfg.bondScale, Math.Rounding.Floor) + cashIn;
+        if (bondsIn != 0) {
+            value += bondsIn.mulDiv(exitNav < nav ? exitNav : nav, cfg.bondScale, Math.Rounding.Floor);
+        }
+        return value;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev GLOBAL, MONITORING ONLY. Never a pricing input for any single strategy; total supply spans every
-    ///      holder on the chain. Same caveat as `ERC20YieldSourceOracle.getTVL`.
+    ///      holder on the chain. Same caveat as `ERC20YieldSourceOracle.getTVL`. Cash in transit is added;
+    ///      bonds in the holding wallet are NOT, because they are still part of `totalSupply` until Gyld
+    ///      burns them.
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
-        return IERC20(yieldSourceAddress).totalSupply().mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
+        uint256 value = IERC20(yieldSourceAddress).totalSupply().mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
+        if (address(IN_TRANSIT) != address(0)) value += IN_TRANSIT.totalCashInTransit(yieldSourceAddress);
+        return value;
     }
 
     /// @notice Asset output ignoring performance fees
@@ -361,6 +409,21 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev The account's in-transit position, or zeros when the feature is off or the entry is stale.
+    function _transitOf(
+        address bondToken,
+        address account
+    )
+        private
+        view
+        returns (uint256 cashIn, uint256 bondsIn, uint256 exitNav)
+    {
+        if (address(IN_TRANSIT) == address(0)) return (0, 0, 0);
+        GyldInTransitRegistry.Transit memory t = IN_TRANSIT.transit(account, bondToken);
+        if (t.oldestOpenAt == 0 || IN_TRANSIT.isStale(account, bondToken)) return (0, 0, 0);
+        return (t.cashOut, t.bondsOut, t.bondsOutNav);
+    }
 
     function _config(address bondToken) private view returns (GyldBondRegistry.InstrumentConfig memory cfg) {
         if (!REGISTRY.isRegistered(bondToken)) revert INSTRUMENT_NOT_REGISTERED();
