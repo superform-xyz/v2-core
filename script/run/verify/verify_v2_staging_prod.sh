@@ -594,6 +594,40 @@ generate_constructor_args() {
         "ApproveAndSwapBinanceHook")
             echo "$(cast abi-encode "constructor(address,uint256)" "$binance_router" "$binance_max_input_amount")"
             ;;
+        # ===== SushiSwap v7 / Everlong (SUP-21826), Katana only today =====
+        # Must match ConfigOtherHooks.sushiRedSnwappers / sushiRouteProcessors and everlongRouters / everlongWeth9s.
+        "SwapSushiSwapHook"|"ApproveAndSwapSushiSwapHook")
+            local sushi_red_snwapper=""
+            local sushi_route_processor=""
+            case $chain_id in
+                "747474")
+                    sushi_red_snwapper="0xAC4c6e212A361c968F1725b4d055b47E63F80b75"      # SUSHISWAP_RED_SNWAPPER
+                    sushi_route_processor="0xC10eE9031F2a0B84766A86B55a8D90F357910fb4"   # SUSHISWAP_ROUTE_PROCESSOR_KATANA
+                    ;;
+            esac
+            if [ -z "$sushi_red_snwapper" ]; then
+                echo "SUSHISWAP_NOT_CONFIGURED_FOR_CHAIN_$chain_id" >&2
+                echo ""
+                return 1
+            fi
+            echo "$(cast abi-encode "constructor(address,address,address)" "$sushi_red_snwapper" "$sushi_route_processor" "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE")"
+            ;;
+        "SwapEverlongHook"|"ApproveAndSwapEverlongHook")
+            local everlong_router=""
+            local everlong_weth9=""
+            case $chain_id in
+                "747474")
+                    everlong_router="0x42eF97FaE7AD46d98bAf99A0e505b43B7e1C00e9"   # EVERLONG_ROUTER_KATANA
+                    everlong_weth9="0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62"    # EVERLONG_WETH9_KATANA (vbETH)
+                    ;;
+            esac
+            if [ -z "$everlong_router" ]; then
+                echo "EVERLONG_NOT_CONFIGURED_FOR_CHAIN_$chain_id" >&2
+                echo ""
+                return 1
+            fi
+            echo "$(cast abi-encode "constructor(address,address,address)" "$everlong_router" "$everlong_weth9" "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE")"
+            ;;
         "SwapAlgebraIntegralHook"|"ApproveAndSwapAlgebraIntegralHook")
             local algebra_router=""
             case $chain_id in
@@ -812,6 +846,10 @@ get_contract_source() {
         "SwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol" ;;
         "ApproveAndSwapKyberSwapHook") echo "src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol" ;;
         "ApproveAndSwapBinanceHook") echo "src/hooks/swappers/binance/ApproveAndSwapBinanceHook.sol" ;;
+        "SwapSushiSwapHook") echo "src/hooks/swappers/sushiswap/SwapSushiSwapHook.sol" ;;
+        "ApproveAndSwapSushiSwapHook") echo "src/hooks/swappers/sushiswap/ApproveAndSwapSushiSwapHook.sol" ;;
+        "SwapEverlongHook") echo "src/hooks/swappers/everlong/SwapEverlongHook.sol" ;;
+        "ApproveAndSwapEverlongHook") echo "src/hooks/swappers/everlong/ApproveAndSwapEverlongHook.sol" ;;
         "SwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/SwapAlgebraIntegralHook.sol" ;;
         "ApproveAndSwapAlgebraIntegralHook") echo "src/hooks/swappers/algebra-integral/ApproveAndSwapAlgebraIntegralHook.sol" ;;
         "SwapSparkPSMExactInHook") echo "src/hooks/swappers/spark-psm/SwapSparkPSMExactInHook.sol" ;;

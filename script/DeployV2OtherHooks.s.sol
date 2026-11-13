@@ -143,6 +143,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndSwapBinanceHook;
     }
 
+    struct SushiSwapHookAddresses {
+        address swapSushiSwapHook;
+        address approveAndSwapSushiSwapHook;
+    }
+
+    struct EverlongHookAddresses {
+        address swapEverlongHook;
+        address approveAndSwapEverlongHook;
+    }
+
     struct SpectraExchangeHookAddresses {
         address spectraExchangeDepositHook;
         address spectraExchangeRedeemHook;
@@ -344,6 +354,26 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _writeExportedContracts(chainId);
     }
 
+    /// @notice SushiSwap v7 hooks (SUP-21826) — Katana only today; gated on BOTH venue rows for the chain
+    function runSushiSwap(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        require(_sushiConfigured(chainId), "SushiSwap hooks not gated for chain");
+        console2.log("Deploying SushiSwap Hooks on chainId: ", chainId);
+
+        _deploySushiSwapHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
+    /// @notice Everlong Router hooks (SUP-21826) — Katana only today; gated on BOTH router rows for the chain
+    function runEverlong(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env, "");
+        require(_everlongConfigured(chainId), "Everlong hooks not gated for chain");
+        console2.log("Deploying Everlong Hooks on chainId: ", chainId);
+
+        _deployEverlongHooks(chainId, env);
+        _writeExportedContracts(chainId);
+    }
+
     function runSpectraExchange(uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
         console2.log("Deploying Spectra Exchange Hooks on chainId: ", chainId);
@@ -489,6 +519,18 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             _deployBinanceHooks(chainId, env);
         }
 
+        // SushiSwap v7 hooks — gated on BOTH the RedSnwapper and the pinned RouteProcessor for the chain
+        if (_sushiConfigured(chainId)) {
+            console2.log("Deploying SushiSwap Hooks on chainId: ", chainId);
+            _deploySushiSwapHooks(chainId, env);
+        }
+
+        // Everlong Router hooks — gated on BOTH the router and its WETH9 for the chain
+        if (_everlongConfigured(chainId)) {
+            console2.log("Deploying Everlong Hooks on chainId: ", chainId);
+            _deployEverlongHooks(chainId, env);
+        }
+
         // SuperVault cap-bridge hooks — self-gated on superVaultGovernors (skips until configured)
         _deploySuperVaultCapBridgeHooks(chainId, env);
     }
@@ -499,14 +541,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     /// @notice Get bytecode from environment-specific artifacts
-    function __getOtherHooksBytecode(
-        string memory contractName,
-        uint256 env
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function __getOtherHooksBytecode(string memory contractName, uint256 env) internal view returns (bytes memory) {
         string memory artifactPath =
             string(abi.encodePacked(__getOtherHooksBytecodeDirectory(env), contractName, ".json"));
         return vm.getCode(artifactPath);
@@ -578,8 +613,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             FORCE_DEALLOCATE_MORPHO_HOOK_KEY,
             "",
             abi.encodePacked(
-                __getOtherHooksBytecode("ForceDeallocateMorphoHook", env),
-                abi.encode(FORCE_DEALLOCATE_MAX_PENALTY_WAD)
+                __getOtherHooksBytecode("ForceDeallocateMorphoHook", env), abi.encode(FORCE_DEALLOCATE_MAX_PENALTY_WAD)
             )
         );
 
@@ -650,9 +684,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         require(
             hookAddresses.forceDeallocateMorphoVaultHook != address(0), "ForceDeallocateMorphoVaultHook not assigned"
         );
-        require(
-            hookAddresses.forceRedeemMorphoVaultHook != address(0), "ForceRedeemMorphoVaultHook not assigned"
-        );
+        require(hookAddresses.forceRedeemMorphoVaultHook != address(0), "ForceRedeemMorphoVaultHook not assigned");
 
         console2.log("All Morpho hooks deployed and validated successfully.");
 
@@ -1210,6 +1242,80 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploys ApproveAndSwapBinanceHook (SUP-21203). No plain Swap variant exists by design:
     ///         the router calldata is opaque, so the allowance must be scoped to each execution.
+    function _sushiConfigured(uint64 chainId) internal view returns (bool) {
+        return otherHooksConfiguration.sushiRedSnwappers[chainId] != address(0)
+            && otherHooksConfiguration.sushiRouteProcessors[chainId] != address(0);
+    }
+
+    function _everlongConfigured(uint64 chainId) internal view returns (bool) {
+        return otherHooksConfiguration.everlongRouters[chainId] != address(0)
+            && otherHooksConfiguration.everlongWeth9s[chainId] != address(0);
+    }
+
+    /// @dev Both Sushi instances pin RedSnwapper (spender + target) and the chain's RouteProcessor (the only
+    ///      executor accepted in the calldata) as immutables, plus the native sentinel.
+    function _deploySushiSwapHooks(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (SushiSwapHookAddresses memory hookAddresses)
+    {
+        address redSnwapper = otherHooksConfiguration.sushiRedSnwappers[chainId];
+        address routeProcessor = otherHooksConfiguration.sushiRouteProcessors[chainId];
+        // A codeless venue would deploy two hooks whose every swap reverts with no named reason.
+        require(redSnwapper.code.length > 0, "SUSHISWAP_RED_SNWAPPER_NOT_DEPLOYED");
+        require(routeProcessor.code.length > 0, "SUSHISWAP_ROUTE_PROCESSOR_NOT_DEPLOYED");
+        bytes memory args = abi.encode(redSnwapper, routeProcessor, NATIVE_TOKEN_DEFAULT);
+
+        hookAddresses.swapSushiSwapHook = __deployContract(
+            SWAP_SUSHISWAP_HOOK_KEY,
+            chainId,
+            __getSalt(SWAP_SUSHISWAP_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("SwapSushiSwapHook", env), args)
+        );
+        hookAddresses.approveAndSwapSushiSwapHook = __deployContract(
+            APPROVE_AND_SWAP_SUSHISWAP_HOOK_KEY,
+            chainId,
+            __getSalt(APPROVE_AND_SWAP_SUSHISWAP_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapSushiSwapHook", env), args)
+        );
+        require(hookAddresses.swapSushiSwapHook != address(0), "SwapSushiSwapHook not assigned");
+        require(hookAddresses.approveAndSwapSushiSwapHook != address(0), "ApproveAndSwapSushiSwapHook not assigned");
+        console2.log("All SushiSwap hooks deployed and validated successfully.");
+    }
+
+    /// @dev Both Everlong instances pin the router (canonical SwapRouter02), its WETH9 and the native sentinel.
+    function _deployEverlongHooks(
+        uint64 chainId,
+        uint256 env
+    )
+        internal
+        returns (EverlongHookAddresses memory hookAddresses)
+    {
+        address router = otherHooksConfiguration.everlongRouters[chainId];
+        address weth9 = otherHooksConfiguration.everlongWeth9s[chainId];
+        require(router.code.length > 0, "EVERLONG_ROUTER_NOT_DEPLOYED");
+        require(weth9.code.length > 0, "EVERLONG_WETH9_NOT_DEPLOYED");
+        bytes memory args = abi.encode(router, weth9, NATIVE_TOKEN_DEFAULT);
+
+        hookAddresses.swapEverlongHook = __deployContract(
+            SWAP_EVERLONG_HOOK_KEY,
+            chainId,
+            __getSalt(SWAP_EVERLONG_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("SwapEverlongHook", env), args)
+        );
+        hookAddresses.approveAndSwapEverlongHook = __deployContract(
+            APPROVE_AND_SWAP_EVERLONG_HOOK_KEY,
+            chainId,
+            __getSalt(APPROVE_AND_SWAP_EVERLONG_HOOK_KEY),
+            abi.encodePacked(__getOtherHooksBytecode("ApproveAndSwapEverlongHook", env), args)
+        );
+        require(hookAddresses.swapEverlongHook != address(0), "SwapEverlongHook not assigned");
+        require(hookAddresses.approveAndSwapEverlongHook != address(0), "ApproveAndSwapEverlongHook not assigned");
+        console2.log("All Everlong hooks deployed and validated successfully.");
+    }
+
     function _deployBinanceHooks(
         uint64 chainId,
         uint256 env
@@ -1392,15 +1498,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     /// @notice Read a deployed core contract address from the environment output file
     /// @dev Only prod (0) and staging (2) have canonical output dirs; returns address(0) when the
     ///      file or key is absent so callers decide the fallback
-    function _readDeployedCoreAddress(
-        uint64 chainId,
-        uint256 env,
-        string memory key
-    )
-        internal
-        view
-        returns (address)
-    {
+    function _readDeployedCoreAddress(uint64 chainId, uint256 env, string memory key) internal view returns (address) {
         if (env != 0 && env != 2) return address(0);
         string memory root = vm.envOr("SUPERFORM_PROJECT_ROOT", vm.projectRoot());
         string memory outputPath = string(
@@ -1446,13 +1544,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deploy NativeFeeSponsorship (no constructor args) and FetchNativeFeeHook (takes sponsorship address)
-    function _deploySponsorshipContracts(
-        uint64 chainId,
-        uint256 env
-    )
-        internal
-        returns (SponsorshipAddresses memory)
-    {
+    function _deploySponsorshipContracts(uint64 chainId, uint256 env) internal returns (SponsorshipAddresses memory) {
         // First deploy NativeFeeSponsorship (no constructor args)
         address sponsorship = __deployContract(
             NATIVE_FEE_SPONSORSHIP_KEY,
@@ -1623,13 +1715,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploy WrappedNativeHook with chain-specific wrapped native address
     /// @dev Ethereum → WETH, Flare → WFLR (same ABI for deposit/withdraw)
-    function _deployWrappedNativeHook(
-        uint64 chainId,
-        uint256 env
-    )
-        internal
-        returns (WrappedNativeHookAddress memory)
-    {
+    function _deployWrappedNativeHook(uint64 chainId, uint256 env) internal returns (WrappedNativeHookAddress memory) {
         address wrappedNativeToken = chainId == MAINNET_CHAIN_ID ? WETH_ETHEREUM : WFLR_FLARE;
         bytes memory wflrArg = abi.encode(wrappedNativeToken);
 
@@ -1975,15 +2061,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     /// @param token The ERC-20 the instance will deposit
     /// @param gateway That token's HyperCore deposit gateway
     /// @param dex HYPERCORE_DESTINATION_DEX_PERP (dex 0) or HYPERCORE_DESTINATION_DEX_SPOT
-    function _hyperCoreDepositArgs(
-        address token,
-        address gateway,
-        uint32 dex
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function _hyperCoreDepositArgs(address token, address gateway, uint32 dex) internal pure returns (bytes memory) {
         require(
             dex == HYPERCORE_DESTINATION_DEX_PERP || dex == HYPERCORE_DESTINATION_DEX_SPOT,
             "HyperCore deposit: unsupported destinationDex"
