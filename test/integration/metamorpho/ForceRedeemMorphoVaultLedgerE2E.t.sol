@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Vm } from "forge-std/Vm.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 
@@ -30,7 +31,6 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
     using ModuleKitHelpers for *;
 
     address public constant GAUNTLET_WETH_PRIME = 0x43fCd85E8D9D003D515f886891B7C742AC9f92da;
-    uint256 public constant CAP = 0.0025e18;
 
     ForceRedeemMorphoVaultHook internal hook;
     ISuperNativePaymaster internal superNativePaymaster;
@@ -39,7 +39,7 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
     function setUp() public override {
         blockNumber = 26_384_300;
         super.setUp();
-        hook = new ForceRedeemMorphoVaultHook(MORPHO, CAP);
+        hook = new ForceRedeemMorphoVaultHook(MORPHO);
         feeRecipient = makeAddr("feeRecipient"); // the label MinimalBaseIntegrationTest registered
         superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
         _getTokens(CHAIN_1_WETH, accountEth, 8000 ether);
@@ -56,7 +56,10 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
     function test_FullPathThroughSuperExecutorAndLedger() public {
         _recordInflow(3000 ether);
 
-        uint256 assets = 1200 ether;
+        // SUP-21849: the hook is sized in SHARES; the underlying it pays is the solver's quote.
+        uint256 shares = 1200 ether;
+        uint256 assets = hook.previewAssetsOut(GAUNTLET_WETH_PRIME, accountEth, shares);
+        uint256 sourced = _plannedSourced(shares);
         uint256 accBefore = SuperLedger(address(ledger)).usersAccumulatorShares(accountEth, GAUNTLET_WETH_PRIME);
         uint256 sharesBefore = IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth);
         uint256 positionsBefore = _positions();
@@ -64,9 +67,10 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         uint256 feeBefore = IERC20(CHAIN_1_WETH).balanceOf(feeRecipient);
         assertGt(accBefore, 0, "the inflow must have been recorded by the ledger");
 
-        ExecutionReturnData memory r = executeOp(_forceRedeemOp(_oracleId(), assets));
+        ExecutionReturnData memory r = executeOp(_forceRedeemOp(_oracleId(), shares));
         (uint256 outflows, uint256 amount, uint256 fee) = _outflow(r);
         uint256 burned = sharesBefore - IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth);
+        assertEq(burned, shares, "a share-sized exit consumes exactly S: P burned as penalty, S - P redeemed");
 
         // The OUTFLOW branch of `_updateAccounting` ran through the ledger: without this, a hook that
         // never reached the ledger would pass every balance assertion below with fee == 0.
@@ -84,7 +88,7 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         assertEq(IERC20(CHAIN_1_WETH).balanceOf(feeRecipient) - feeBefore, fee, "fee reached the recipient");
         assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth) - wethBefore, assets - fee, "account paid net of fee");
         assertEq(hook.getOutAmount(accountEth), assets - fee, "outAmount refreshed net of fee by the executor");
-        assertEq(positionsBefore - _positions(), assets, "and the assets came out of the markets");
+        assertEq(positionsBefore - _positions(), sourced, "the markets were drawn down by exactly the planned pulls");
     }
 
     /// @dev The fee leg of `_updateAccounting`, with a profit that is KNOWN rather than hoped for. Vault V2's
@@ -101,14 +105,15 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         _recordInflow(3000 ether);
         vm.clearMockedCalls();
 
-        uint256 assets = 1000 ether;
+        uint256 shares = 1000 ether;
+        uint256 assets = hook.previewAssetsOut(GAUNTLET_WETH_PRIME, accountEth, shares);
         uint256 accShares = SuperLedger(address(ledger)).usersAccumulatorShares(accountEth, GAUNTLET_WETH_PRIME);
         uint256 accCost = SuperLedger(address(ledger)).usersAccumulatorCostBasis(accountEth, GAUNTLET_WETH_PRIME);
         uint256 feeBefore = IERC20(CHAIN_1_WETH).balanceOf(feeRecipient);
         uint256 wethBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
 
-        ExecutionReturnData memory r = executeOp(_forceRedeemOp(_oracleId(), assets));
-        (, , uint256 fee) = _outflow(r);
+        ExecutionReturnData memory r = executeOp(_forceRedeemOp(_oracleId(), shares));
+        (,, uint256 fee) = _outflow(r);
 
         // Re-derive what BaseLedger must have computed: cost basis pro-rata on the shares consumed, 1% of
         // the profit above it.
@@ -186,7 +191,7 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
     ///      must not be chained with `usePrevHookAmount`.
     function test_InflowAndForcedExitInOneUserOp() public {
         uint256 depositAmt = 3000 ether;
-        uint256 exitAmt = 1000 ether;
+        uint256 exitShares = 1000 ether;
 
         address[] memory hooks = new address[](3);
         hooks[0] = approveHook;
@@ -195,8 +200,9 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         bytes[] memory data = new bytes[](3);
         data[0] = _createApproveHookData(CHAIN_1_WETH, GAUNTLET_WETH_PRIME, depositAmt, false);
         data[1] = _createDeposit4626HookData(_oracleId(), GAUNTLET_WETH_PRIME, depositAmt, false, address(0), 0);
-        data[2] = abi.encodePacked(_oracleId(), GAUNTLET_WETH_PRIME, exitAmt, false);
-        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        data[2] = abi.encodePacked(_oracleId(), GAUNTLET_WETH_PRIME, exitShares, false, uint256(0));
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
 
         uint256 positions0 = _positions();
         uint256 weth0 = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
@@ -205,9 +211,14 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         (uint256 outflows, uint256 amount, uint256 fee) = _outflow(r);
 
         assertEq(outflows, 1, "one outflow in the op");
-        assertEq(amount, exitAmt, "for the exit amount");
-        assertEq(positions0 - _positions(), exitAmt, "the markets were drawn down by the exit");
-        assertEq(weth0 - IERC20(CHAIN_1_WETH).balanceOf(accountEth), depositAmt - exitAmt + fee, "net WETH movement");
+        assertEq(hook.usedShares(), exitShares, "the exit consumed exactly the share input");
+        assertEq(
+            amount, hook.getOutAmount(accountEth) + fee, "the ledger processed the gross underlying the hook paid out"
+        );
+        assertGt(amount, 0);
+        // the deposit landed in idle inside the same op, so the redeem may need no pull at all
+        assertLe(positions0 - _positions(), amount, "the markets were drawn down by at most the exit");
+        assertEq(weth0 - IERC20(CHAIN_1_WETH).balanceOf(accountEth), depositAmt - (amount - fee), "net WETH movement");
         uint256 acc = SuperLedger(address(ledger)).usersAccumulatorShares(accountEth, GAUNTLET_WETH_PRIME);
         assertEq(acc, IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth), "ledger shares == real shares after both");
     }
@@ -232,12 +243,32 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         executeOp(_getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry)));
     }
 
-    function _forceRedeemOp(bytes32 oracleId, uint256 assets) internal returns (UserOpData memory) {
+    /// @dev Sum of the `forceDeallocate` pulls the hook would emit right now for `shares`.
+    function _plannedSourced(uint256 shares) internal view returns (uint256 sourced) {
+        Execution[] memory all = hook.build(
+            address(0), accountEth, abi.encodePacked(_oracleId(), GAUNTLET_WETH_PRIME, shares, false, uint256(0))
+        );
+        for (uint256 i = 1; i + 2 < all.length; ++i) {
+            sourced += _pullAmount(all[i].callData);
+        }
+    }
+
+    /// @dev Own frame: a four-way `abi.decode` inside the loop above overflows the stack in this contract.
+    function _pullAmount(bytes memory raw) internal pure returns (uint256 x) {
+        bytes memory args = new bytes(raw.length - 4);
+        for (uint256 b; b < args.length; ++b) {
+            args[b] = raw[b + 4];
+        }
+        (,, x,) = abi.decode(args, (address, bytes, uint256, address));
+    }
+
+    function _forceRedeemOp(bytes32 oracleId, uint256 shares) internal returns (UserOpData memory) {
         address[] memory hooks = new address[](1);
         hooks[0] = address(hook);
         bytes[] memory data = new bytes[](1);
-        data[0] = abi.encodePacked(oracleId, GAUNTLET_WETH_PRIME, assets, false);
-        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        data[0] = abi.encodePacked(oracleId, GAUNTLET_WETH_PRIME, shares, false, uint256(0));
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
         return _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
     }
 

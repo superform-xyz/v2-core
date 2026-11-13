@@ -77,15 +77,6 @@ contract ForceDeallocateMorphoVaultHook is
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice A cap of zero, or one above Morpho's own 2% ceiling, would be meaningless
-    error INVALID_PENALTY_CAP();
-    /// @notice The fill fell short AND at least one adapter was excluded solely for being over the cap
-    /// @dev DELIBERATELY A SHORTFALL DIAGNOSTIC rather than a hard gate. An adapter over the cap is skipped,
-    ///      not fatal — a vault can fill from its cheaper adapters and never care. This fires only in the
-    ///      case where the cap is the actual cause of the failure, turning an opaque "not enough liquidity"
-    ///      into the one thing the operator can act on. Without it the error would be unreachable, and a
-    ///      dead custom error on a safety bound reads as a bound that does not work.
-    error PENALTY_ABOVE_CAP(uint256 penaltyWad, uint256 capWad);
     /// @notice The payload is not exactly the declared 85-byte layout
     error INVALID_DATA_LENGTH(uint256 given, uint256 expected);
     /// @notice The vault lists more markets than one transaction will walk
@@ -100,11 +91,6 @@ contract ForceDeallocateMorphoVaultHook is
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Morpho Vault V2's own hard ceiling on `forceDeallocatePenalty`, in WAD (2%).
-    /// @dev A compile-time constant in Morpho's non-upgradeable bytecode, so it cannot be raised. A cap
-    ///      above it would never bind and is rejected in the constructor as a configuration error.
-    uint256 public constant MORPHO_MAX_PENALTY_WAD = 0.02e18;
 
     /// @notice Hard bound on how many listed markets this hook will walk in one call.
     /// @dev A DOS BOUND, NOT A STYLE CHOICE. `build` runs ON CHAIN inside the UserOp
@@ -154,23 +140,6 @@ contract ForceDeallocateMorphoVaultHook is
     /*//////////////////////////////////////////////////////////////
                               IMMUTABLES
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice The highest `forceDeallocatePenalty` this hook will execute against, in WAD.
-    /// @dev AN IMMUTABLE RATHER THAN A CALLDATA FIELD, for the same three reasons as the one-market
-    ///      sibling: it keeps the 85-byte layout and the registry build path free of a new parameter;
-    ///      immutables live in the initcode, so the cap is part of this hook's CREATE2 address and every
-    ///      Merkle leaf authorising the hook already commits to it; and a per-call field could be set to a
-    ///      vacuous value by whoever builds the calldata, which is exactly the compromised-session-key case
-    ///      the bound exists for.
-    /// @dev WHY A BOUND IS NEEDED AT ALL, given Morpho caps the penalty at 2%: that ceiling is a protocol
-    ///      maximum, not the user's tolerance. The per-adapter rate below it is CURATOR-SETTABLE and read at
-    ///      execution time, and Superform signs intents that execute later — with `validUntil == 0` meaning
-    ///      infinite validity. So a signed exit can land at whatever the curator has since set, up to 200
-    ///      bps.
-    /// @dev THIS CAP IS THE ONLY BOUND ON WHAT A LEAF AUTHORISES, together with `MAX_MARKETS`. `inspect`
-    ///      returns the vault alone, so a leaf does not pin adapters or market ids and a market the curator
-    ///      adds later is usable — which is the entire point of reading the list on chain.
-    uint256 public immutable MAX_PENALTY_WAD;
 
     /// @notice The one Morpho Blue singleton this hook will read market state from.
     /// @dev AN IMMUTABLE GATE, NOT A CONVENIENCE. `adapter.morpho()` is answered by a CURATOR-REGISTERED
@@ -239,13 +208,12 @@ contract ForceDeallocateMorphoVaultHook is
 
     /// @param morpho_ The Morpho Blue singleton for this chain. Adapters pointing anywhere else are
     ///        skipped. Part of the CREATE2 address, so it cannot be repointed after deployment.
-    /// @param maxPenaltyWad_ Ceiling in WAD. Must be non-zero and at most `MORPHO_MAX_PENALTY_WAD`; a cap
-    ///        above Morpho's own ceiling could never bind.
-    constructor(address morpho_, uint256 maxPenaltyWad_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) {
+    /// @dev NO PENALTY CAP (SUP-21849). The per-adapter rate is read for ORDERING only; the exit planner
+    ///      prices it into the quote off chain and the redeem leg that follows enforces the output floor on
+    ///      chain, so a cap here was a second knob guarding the same thing. Morpho's own 2% ceiling stands.
+    constructor(address morpho_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
-        if (maxPenaltyWad_ == 0 || maxPenaltyWad_ > MORPHO_MAX_PENALTY_WAD) revert INVALID_PENALTY_CAP();
         MORPHO = morpho_;
-        MAX_PENALTY_WAD = maxPenaltyWad_;
     }
 
     /// @notice Human-readable name for UI display
@@ -281,7 +249,7 @@ contract ForceDeallocateMorphoVaultHook is
 
         AdapterInfo[] memory infos = _probeAdapters(vault);
         Candidate[] memory candidates = _collectCandidates(vault, infos);
-        Plan memory plan = _fill(candidates, _sortOrder(candidates), assets, infos);
+        Plan memory plan = _fill(candidates, _sortOrder(candidates), assets);
 
         _requireSolvent(vault, account, assets, plan);
 
@@ -354,8 +322,8 @@ contract ForceDeallocateMorphoVaultHook is
         if (!ok) return info;
         info.marketCount = uint256(word);
 
+        // Read for cheapest-first ordering, never as a gate.
         info.penaltyWad = IMorphoVaultV2(vault).forceDeallocatePenalty(adapter);
-        if (info.penaltyWad > MAX_PENALTY_WAD) return info;
 
         // Absent on the V1 adapter shape; a failed read is "pins no IRM", which is the correct reading.
         (ok, word) = _probe(adapter, abi.encodeCall(IMorphoMarketV1Adapter.adaptiveCurveIrm, ()));
@@ -539,11 +507,10 @@ contract ForceDeallocateMorphoVaultHook is
     function _fill(
         Candidate[] memory candidates,
         uint256[] memory order,
-        uint256 assets,
-        AdapterInfo[] memory infos
+        uint256 assets
     )
         private
-        view
+        pure
         returns (Plan memory plan)
     {
         Pull[] memory scratch = new Pull[](order.length);
@@ -581,7 +548,7 @@ contract ForceDeallocateMorphoVaultHook is
             }
         }
 
-        if (remaining != 0) _revertUnfillable(infos, assets, assets - remaining);
+        if (remaining != 0) revert SHORTFALL(assets - remaining, assets);
 
         plan.pulls = new Pull[](taken);
         for (uint256 k; k < taken; ++k) {
@@ -597,34 +564,17 @@ contract ForceDeallocateMorphoVaultHook is
         return count;
     }
 
-    /// @notice Explain a short fill: blame the cap when the cap is to blame, otherwise report the shortfall
-    /// @dev Reverts unconditionally. Split out of `_fill` to keep that function inside the repo's
-    ///      `code-complexity` ceiling.
-    /// @dev `_probeAdapter` leaves `penaltyWad` populated on an adapter it rejected for being too
-    ///      expensive, and zero on one it rejected earlier for shape, so a non-zero rate on an ineligible
-    ///      adapter is exactly the "skipped for cost" signal — no second bookkeeping field is needed.
-    function _revertUnfillable(AdapterInfo[] memory infos, uint256 assets, uint256 available) private view {
-        uint256 worstSkipped;
-        for (uint256 i; i < infos.length; ++i) {
-            if (!infos[i].eligible && infos[i].penaltyWad > worstSkipped) worstSkipped = infos[i].penaltyWad;
-        }
-        if (worstSkipped > MAX_PENALTY_WAD) revert PENALTY_ABOVE_CAP(worstSkipped, MAX_PENALTY_WAD);
-        revert SHORTFALL(available, assets);
-    }
-
     /// @notice Refuse the plan unless the account's claim covers the WHOLE exit: the assets it is freeing
     ///         plus the penalty those pulls will burn
-    /// @dev BOUNDING THE PENALTY ALONE WAS NOT ENOUGH, and this is the control that makes the cap mean
-    ///      something. `inspect` pins the vault and nothing else, and `assets` is a resizable sized leg, so
-    ///      whoever builds the calldata chooses how much to force out. Checking only
-    ///      `previewWithdraw(totalPenaltyAssets)` meant a leaf authorised "burn up to MAX_PENALTY_WAD of
-    ///      the vault's ENTIRE reachable liquidity", not "of this account's exit" — the cap bounded the
-    ///      RATE while the base was unbounded. Any position smaller than `MAX_PENALTY_WAD` of the vault's
-    ///      reachable liquidity could therefore be burned to nothing in one call, with the burned value
-    ///      accruing to the vault's other holders. That is precisely the compromised-session-key case the
-    ///      cap's own NatSpec invokes, and the vault-level hook widens the reach from one market to every
-    ///      eligible market of the vault under a single leaf. A mis-sized amount from OMS lands on the same
-    ///      path, because SUP-21689 sizes the force and redeem legs independently.
+    /// @dev THE BASE OF THE BURN IS WHAT THIS BOUNDS. `inspect` pins the vault and nothing else, and
+    ///      `assets` is a resizable sized leg, so whoever builds the calldata chooses how much to force out.
+    ///      Checking only `previewWithdraw(totalPenaltyAssets)` meant a leaf authorised "burn the penalty on
+    ///      the vault's ENTIRE reachable liquidity", not "on this account's exit": any position smaller than
+    ///      the penalty on that liquidity could be burned to nothing in one call, with the burned value
+    ///      accruing to the vault's other holders. That is the compromised-session-key case, and the
+    ///      vault-level hook widens the reach from one market to every eligible market under a single leaf.
+    ///      A mis-sized amount from OMS lands on the same path, because SUP-21689 sizes the force and
+    ///      redeem legs independently.
     /// @dev IT REJECTS NOTHING A REAL EXIT NEEDS. The next hop withdraws exactly `assets` for the account,
     ///      which costs `previewWithdraw(assets)` shares AFTER this leg has burned the penalty — so a plan
     ///      that fails this check would fail at its own withdraw step anyway. Checking it here converts a
@@ -768,8 +718,8 @@ contract ForceDeallocateMorphoVaultHook is
     /// @inheritdoc ISuperHookInspector
     /// @dev THE VAULT ALONE, deliberately. A leaf authorises this hook against one vault and does NOT pin
     ///      adapters or market ids, so a market the curator lists later is usable without re-signing — which
-    ///      is the reason this hook reads the list on chain instead of taking it as calldata. `MAX_PENALTY_WAD`
-    ///      and `MAX_MARKETS` are the bounds on that authority, and both are baked into the CREATE2 address.
+    ///      is the reason this hook reads the list on chain instead of taking it as calldata. `MAX_MARKETS`
+    ///      and `_requireSolvent` are the bounds on that authority; the penalty itself is priced off chain.
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }

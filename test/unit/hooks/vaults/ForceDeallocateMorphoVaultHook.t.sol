@@ -44,7 +44,8 @@ contract PrevHookStub is BaseHook {
 }
 
 contract ForceDeallocateMorphoVaultHookTest is Test {
-    uint256 internal constant CAP = 0.0025e18;
+    /// @dev A penalty rate for fixtures (the old deploy cap, 25 bps). No longer a bound anywhere.
+    uint256 internal constant RATE_25BPS = 0.0025e18;
 
     ForceDeallocateMorphoVaultHook internal hook;
     MockMorphoBlue internal morpho;
@@ -62,7 +63,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
 
     function setUp() public {
         morpho = new MockMorphoBlue();
-        hook = new ForceDeallocateMorphoVaultHook(address(morpho), CAP);
+        hook = new ForceDeallocateMorphoVaultHook(address(morpho));
         vault = new MockMorphoVaultV2(asset);
         adapter = new MockMorphoMarketAdapter(address(vault), address(morpho));
         vault.addAdapter(address(adapter), 1e13);
@@ -235,18 +236,27 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         assertEq(amount, 400 ether, "filled entirely from the funded market");
     }
 
-    function test_AdapterOverThePenaltyCapIsSkippedNotFatal() public {
+    /// @dev SUP-21849: there is no penalty cap any more. A dear adapter (cbAssets' 30 bps, which the old
+    ///      25 bps immutable refused) is ORDERED last, not skipped: untouched while the cheap one covers,
+    ///      drawn on for the remainder when it does not.
+    function test_DearAdapterIsOrderedLastNotSkipped() public {
         _listMarket(ID_A, 400 ether, 400 ether, 0);
 
         MockMorphoMarketAdapter dear = new MockMorphoMarketAdapter(address(vault), address(morpho));
-        vault.addAdapter(address(dear), CAP + 1);
+        vault.addAdapter(address(dear), 0.003e18);
         morpho.setMarket(ID_B, _params(asset), 1000 ether, 0);
         dear.addMarket(ID_B, 1000 ether);
 
         Execution[] memory pulls = _pulls(_data(400 ether, false), address(0));
-        assertEq(pulls.length, 1, "the expensive adapter contributed nothing");
+        assertEq(pulls.length, 1, "the cheap adapter covers alone");
         (address a,,,) = _decodeCall(pulls[0]);
         assertEq(a, address(adapter), "filled from the cheap adapter");
+
+        pulls = _pulls(_data(500 ether, false), address(0));
+        assertEq(pulls.length, 2, "the dear adapter is used for the remainder");
+        (address second,, uint256 amount,) = _decodeCall(pulls[1]);
+        assertEq(second, address(dear));
+        assertEq(amount, 100 ether, "only what the cheap adapter could not cover");
     }
 
     function test_CheaperPenaltyIsFilledFirstEvenWhenSmaller() public {
@@ -274,16 +284,19 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         hook.build(address(0), account, _data(99 ether, false));
     }
 
-    function test_ShortfallBlamesTheCapWhenTheCapIsTheCause() public {
+    /// @dev The case that motivated SUP-21849: an adapter at 30 bps is the ONLY liquidity, and the exit
+    ///      builds. Under the old 25 bps immutable this was a hard failure with nothing to do about it.
+    function test_ThirtyBpsAdapterAloneStillFills() public {
         MockMorphoMarketAdapter dear = new MockMorphoMarketAdapter(address(vault), address(morpho));
-        vault.addAdapter(address(dear), CAP + 5);
+        vault.addAdapter(address(dear), 0.003e18);
         morpho.setMarket(ID_B, _params(asset), 1000 ether, 0);
         dear.addMarket(ID_B, 1000 ether);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, CAP + 5, CAP)
-        );
-        hook.build(address(0), account, _data(100 ether, false));
+        Execution[] memory pulls = _pulls(_data(100 ether, false), address(0));
+        assertEq(pulls.length, 1);
+        (address a,, uint256 amount,) = _decodeCall(pulls[0]);
+        assertEq(a, address(dear));
+        assertEq(amount, 100 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -676,17 +689,17 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         assertEq(hook.getOutToken(account), asset, "outToken is still the underlying");
 
         // Any successor resolving its amount from this hop now resolves zero and refuses to build.
-        ForceDeallocateMorphoVaultHook successor = new ForceDeallocateMorphoVaultHook(address(morpho), CAP);
+        ForceDeallocateMorphoVaultHook successor = new ForceDeallocateMorphoVaultHook(address(morpho));
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         successor.build(address(hook), account, _data(1 ether, true));
     }
 
-    /// @dev THE BOUND THAT MAKES THE PENALTY CAP MEAN SOMETHING (review finding F1 on PR #1046).
-    ///      `inspect` pins the vault alone and `assets` is a resizable sized leg, so whoever builds the
-    ///      calldata chooses how much to force out. Bounding only the penalty meant a leaf authorised
-    ///      "burn up to MAX_PENALTY_WAD of the vault's ENTIRE reachable liquidity" rather than "of this
-    ///      account's exit": the cap bounded the rate while the base was unbounded.
-    ///      Limit case, at the deployed 25 bps cap: a 100-unit claim against a vault with 40,000 units
+    /// @dev THE BOUND ON THE BASE OF THE BURN (review finding F1 on PR #1046). `inspect` pins the vault
+    ///      alone and `assets` is a resizable sized leg, so whoever builds the calldata chooses how much to
+    ///      force out. Checking only that the penalty was payable meant a leaf authorised "burn the penalty
+    ///      on the vault's ENTIRE reachable liquidity" rather than "on this account's exit". With the rate
+    ///      cap gone (SUP-21849) this is the one on-chain bound the deallocate hook keeps.
+    ///      Limit case, at 25 bps: a 100-unit claim against a vault with 40,000 units
     ///      reachable. 40_000 * 0.0025 == 100, so one call burned the account's ENTIRE position, with the
     ///      value accruing to the vault's other holders — and the old pre-flight passed EXACTLY at full
     ///      loss, because it only ever asked whether the penalty itself was payable.
@@ -694,7 +707,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         // Penalty at the cap, and far more reachable liquidity than the account could ever claim.
         MockMorphoVaultV2 big = new MockMorphoVaultV2(asset);
         MockMorphoMarketAdapter rich = new MockMorphoMarketAdapter(address(big), address(morpho));
-        big.addAdapter(address(rich), CAP);
+        big.addAdapter(address(rich), RATE_25BPS);
         morpho.setMarket(ID_A, _params(asset), 100_000 ether, 0);
         rich.addMarket(ID_A, 100_000 ether);
 
@@ -702,7 +715,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         big.setShares(account, claim);
 
         uint256 oversized = 40_000 ether;
-        assertEq(_ceilPenalty(oversized, CAP), claim, "fixture: the penalty alone equals the whole claim");
+        assertEq(_ceilPenalty(oversized, RATE_25BPS), claim, "fixture: the penalty alone equals the whole claim");
 
         bytes memory data = abi.encodePacked(ORACLE_ID, address(big), oversized, false);
         vm.expectRevert(
@@ -718,7 +731,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
     function test_ProportionateRequestStillBuilds() public {
         MockMorphoVaultV2 big = new MockMorphoVaultV2(asset);
         MockMorphoMarketAdapter rich = new MockMorphoMarketAdapter(address(big), address(morpho));
-        big.addAdapter(address(rich), CAP);
+        big.addAdapter(address(rich), RATE_25BPS);
         morpho.setMarket(ID_A, _params(asset), 100_000 ether, 0);
         rich.addMarket(ID_A, 100_000 ether);
 
@@ -726,7 +739,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         big.setShares(account, claim);
 
         // Morpho's own full-exit size: claim / (1 + penalty), which is what SUP-21689 will size against.
-        uint256 sized = (claim * 1e18) / (1e18 + CAP);
+        uint256 sized = (claim * 1e18) / (1e18 + RATE_25BPS);
         bytes memory data = abi.encodePacked(ORACLE_ID, address(big), sized, false);
 
         Execution[] memory all = hook.build(address(0), account, data);
@@ -770,19 +783,10 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
                              CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function test_ConstructorRejectsZeroAndAboveMorphosOwnCeiling() public {
+    function test_ConstructorRejectsZeroMorpho() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ForceDeallocateMorphoVaultHook(address(0), CAP);
+        new ForceDeallocateMorphoVaultHook(address(0));
 
-        vm.expectRevert(ForceDeallocateMorphoVaultHook.INVALID_PENALTY_CAP.selector);
-        new ForceDeallocateMorphoVaultHook(address(morpho), 0);
-
-        vm.expectRevert(ForceDeallocateMorphoVaultHook.INVALID_PENALTY_CAP.selector);
-        new ForceDeallocateMorphoVaultHook(address(morpho), 0.02e18 + 1);
-
-        assertEq(new ForceDeallocateMorphoVaultHook(address(morpho), 0.02e18).MAX_PENALTY_WAD(), 0.02e18, "the ceiling itself is ok");
-        assertEq(hook.MAX_PENALTY_WAD(), CAP);
-        assertEq(hook.MORPHO_MAX_PENALTY_WAD(), 0.02e18);
         assertEq(hook.MAX_MARKETS(), 32);
         assertEq(hook.MAX_ADAPTERS(), 32);
         assertEq(hook.MORPHO(), address(morpho));

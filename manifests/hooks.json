@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-12T11:42:33Z",
+  "generatedAt": "2026-11-13T13:03:59Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1175,7 +1175,7 @@
     },
     "ForceRedeemMorphoVaultHook": {
       "name": "Force Redeem Morpho Vault",
-      "description": "Force deallocates across a Morpho Vault V2's markets and withdraws the assets",
+      "description": "Force deallocates across a Morpho Vault V2's markets and redeems the shares above a minimum output",
       "hookType": "OUTFLOW",
       "subtype": "ERC4626",
       "actionTypes": [
@@ -1224,7 +1224,7 @@
       "amountMeta": [
         {
           "direction": "IN",
-          "denomination": "ASSETS"
+          "denomination": "SHARES"
         }
       ],
       "sized": true,

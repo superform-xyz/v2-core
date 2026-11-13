@@ -33,8 +33,6 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant MORPHO_BLUE_ETHEREUM = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
-    /// @dev Gauntlet's live rate was 1e13 WAD (0.1 bps) at the pinned block, far under this.
-    uint256 public constant CAP = 0.0025e18;
     /// @dev Vault V2 curator at the pinned block. `setIsAllocator` sits behind a 7-day timelock, which a
     ///      fork can simply warp past — so a test can become an allocator without discovering Gauntlet's.
     address public constant CURATOR = 0x9E33faAE38ff641094fa68c65c2cE600b3410585;
@@ -51,7 +49,7 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
-        hook = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM, CAP);
+        hook = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM);
         account = makeAddr("forceDeallocateVaultAccount");
 
         // Mint a claim PROPORTIONATE TO WHAT THESE TESTS ASK FOR, not merely enough to pay a penalty.
@@ -209,24 +207,6 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.SHORTFALL.selector, total, assets));
         vm.prank(account);
         hook.build(address(0), account, _hookData(assets));
-    }
-
-    /// @dev A cap below the live rate removes the only adapter, so the fill has nothing to draw on and the
-    ///      failure is attributed to the cap rather than to liquidity.
-    function test_CapBelowTheLiveRateBlamesTheCap() public {
-        uint256 live = IMorphoVaultV2(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(
-            IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0)
-        );
-        assertGt(live, 1, "live rate must be above the tightest cap we can set");
-
-        ForceDeallocateMorphoVaultHook tight = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM, live - 1);
-        vm.prank(account);
-        tight.setExecutionContext(account);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, live, live - 1)
-        );
-        vm.prank(account);
-        tight.build(address(0), account, _hookData(1 ether));
     }
 
     /// @dev `outAmount` is zero and `outToken` is the underlying, so nothing downstream can chain off this

@@ -533,9 +533,9 @@ contract HookSizingInterfaceTest is Helpers {
         aaveRepayAndWithdraw = new AaveV4RepayAndWithdrawHook();
 
         // ── Newly-S1 hooks ──
-        forceDeallocateMorpho = new ForceDeallocateMorphoHook(0.02e18);
-        forceDeallocateMorphoVault = new ForceDeallocateMorphoVaultHook(address(0xB10E), 0.02e18);
-        forceRedeemMorphoVault = new ForceRedeemMorphoVaultHook(address(0xB10E), 0.02e18);
+        forceDeallocateMorpho = new ForceDeallocateMorphoHook();
+        forceDeallocateMorphoVault = new ForceDeallocateMorphoVaultHook(address(0xB10E));
+        forceRedeemMorphoVault = new ForceRedeemMorphoVaultHook(address(0xB10E));
 
         // ── Newly-S2 hooks ──
         pendleUnified = new PendleUnifiedHook(DUMMY_ROUTER);
@@ -4410,6 +4410,38 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
     }
 
+    /// @dev SUP-21849: the redeem sibling is sized in SHARES at the same offset 52, and carries a
+    ///      `minAssetsOut` word at 85..116, so its payload is exactly 117 bytes.
+    function test_ForceRedeemMorphoVault_DecodeAmounts_And_AmountRoles() public view {
+        bytes memory data = abi.encodePacked(
+            bytes32(uint256(0xFEED)), // yieldSourceOracleId (32)
+            address(0xAA), // yieldSource (20)
+            uint256(42e18), // shares at offset 52 (32)
+            false, // usePrevHookAmount at offset 84 (1)
+            uint256(7e18) // minAssetsOut at offset 85 (32)
+        );
+        assertEq(data.length, 117, "the redeem layout is exactly 117 bytes");
+        assertEq(forceRedeemMorphoVault.decodeAmounts(data)[0], 42e18);
+        _assertSingleMeta(
+            forceRedeemMorphoVault.amountRoles(""),
+            ISuperHookInflowOutflow.Direction.IN,
+            ISuperHookInflowOutflow.Denomination.SHARES
+        );
+    }
+
+    /// @dev A splice writes 52..83 only: the flag at 84 and the floor word at 85..116 survive.
+    function test_ForceRedeemMorphoVault_Replace_PreservesFlagAndFloor() public view {
+        bytes memory data =
+            abi.encodePacked(bytes32(uint256(0xFEED)), address(0xAA), uint256(100e18), true, uint256(7e18));
+        bytes memory replaced = forceRedeemMorphoVault.replaceCalldataAmounts(data, _singleAmount(9e18));
+        assertEq(replaced.length, 117, "length unchanged");
+        assertEq(forceRedeemMorphoVault.decodeAmounts(replaced)[0], 9e18, "shares replaced");
+        assertTrue(forceRedeemMorphoVault.decodeUsePrevHookAmount(replaced), "flag at 84 stayed true");
+        for (uint256 i = 85; i < 117; ++i) {
+            assertEq(uint8(replaced[i]), uint8(data[i]), "floor word byte unchanged");
+        }
+    }
+
     /// @dev THE FLAG AT 84 IS DIRECTLY ADJACENT TO THE AMOUNT AT 52..83, so an off-by-one in
     ///      `_replaceCalldataAmount` would overwrite it. Both flag polarities are pinned: a rewrite must
     ///      leave a TRUE flag true and a FALSE flag false.
@@ -4553,18 +4585,6 @@ contract HookSizingInterfaceTest is Helpers {
         assertEq(meta.length, 1);
         assertEq(uint8(meta[0].dir), uint8(ISuperHookInflowOutflow.Direction.IN));
         assertEq(uint8(meta[0].denom), uint8(ISuperHookInflowOutflow.Denomination.TOKEN));
-    }
-
-    /// @dev The cap is exposed as a public immutable so an off-chain consumer can read the bound that
-    ///      this hook's address commits to.
-    function test_ForceDeallocateMorpho_CapIsPubliclyReadable() public view {
-        assertEq(forceDeallocateMorpho.MAX_PENALTY_WAD(), 0.02e18, "the fixture's cap");
-        assertEq(forceDeallocateMorpho.MORPHO_MAX_PENALTY_WAD(), 0.02e18, "and Morpho's own ceiling");
-        assertLe(
-            forceDeallocateMorpho.MAX_PENALTY_WAD(),
-            forceDeallocateMorpho.MORPHO_MAX_PENALTY_WAD(),
-            "the cap can never exceed the protocol ceiling"
-        );
     }
 
     /// @dev ForceDeallocateMorphoHook: replaceCalldataAmounts reverts on wrong length

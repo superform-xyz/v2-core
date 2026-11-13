@@ -102,7 +102,7 @@ hooks:
 
   ForceRedeemMorphoVaultHook:
     actionTypes: [{intent: withdraw, stage: instant}]
-    legSizing: [sized]  # one IN/ASSETS leg on `assets`, rewritten at offset 52
+    legSizing: [sized]  # one IN/SHARES leg on `shares` at offset 52 (SUP-21849); `minAssetsOut` at 85 is a floor, not a sized leg
 
   # withdraw / instant (9)
   Redeem4626VaultHook:
