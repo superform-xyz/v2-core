@@ -102,7 +102,7 @@ hooks:
 
   ForceRedeemMorphoVaultHook:
     actionTypes: [{intent: withdraw, stage: instant}]
-    legSizing: [sized]  # one IN/ASSETS leg on `assets`, rewritten at offset 52
+    legSizing: [sized]  # one IN/SHARES leg on `shares` at offset 52 (SUP-21849)
 
   # withdraw / instant (9)
   Redeem4626VaultHook:
@@ -716,11 +716,11 @@ hooks:
 
   ForceDeallocateMorphoHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]
+    legSizing: [sized]  # one IN/TOKEN leg on `assets` at offset 72; `maxPenaltyWad` at 105 is a leaf cap, not a sized leg (SUP-21849)
 
   ForceDeallocateMorphoVaultHook:
     actionTypes: [{intent: config, stage: instant}]
-    legSizing: [sized]  # one IN/TOKEN leg on `assets`, rewritten at offset 52
+    legSizing: [sized]  # one IN/TOKEN leg on `assets`, rewritten at offset 52; `maxPenaltyWad` at 85 is a leaf cap, not a sized leg (SUP-21849)
 
   MarkRootAsUsedHook:
     actionTypes: [{intent: config, stage: instant}]

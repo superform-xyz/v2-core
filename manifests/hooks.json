@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-12T11:42:33Z",
+  "generatedAt": "2026-11-13T14:01:37Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -1175,7 +1175,7 @@
     },
     "ForceRedeemMorphoVaultHook": {
       "name": "Force Redeem Morpho Vault",
-      "description": "Force deallocates across a Morpho Vault V2's markets and withdraws the assets",
+      "description": "Force deallocates across a Morpho Vault V2's markets and redeems the shares",
       "hookType": "OUTFLOW",
       "subtype": "ERC4626",
       "actionTypes": [
@@ -1224,7 +1224,7 @@
       "amountMeta": [
         {
           "direction": "IN",
-          "denomination": "ASSETS"
+          "denomination": "SHARES"
         }
       ],
       "sized": true,
@@ -5397,12 +5397,20 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "747474": "0x986F38C03007b5a1C217ce0D7662D608835a4aC1"
+        },
+        "prod": {
+          "747474": "0xC0Be59Db95744c4f869d2C70c4dBE418045F8D9d"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "747474"
+        ],
+        "prod": [
+          "747474"
+        ]
       },
       "amountMeta": [
         {
@@ -5437,12 +5445,20 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "747474": "0x8F21fcF071aB5A5ddAb6352799255eE568969091"
+        },
+        "prod": {
+          "747474": "0x7EB04546025D95493Cc507be688F616dd2e1E344"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "747474"
+        ],
+        "prod": [
+          "747474"
+        ]
       },
       "amountMeta": [
         {
@@ -5477,12 +5493,20 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "747474": "0x96B8C80000e1705f7C1dCe89a0B350a5403355b6"
+        },
+        "prod": {
+          "747474": "0xea1c14642d11Bac46150b4C97Be51FDd49D2119C"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "747474"
+        ],
+        "prod": [
+          "747474"
+        ]
       },
       "amountMeta": [
         {
@@ -5517,12 +5541,20 @@
         "sized"
       ],
       "addresses": {
-        "staging": {},
-        "prod": {}
+        "staging": {
+          "747474": "0xebd52715e7799ac0e3c5c83db77177E2A22378Cd"
+        },
+        "prod": {
+          "747474": "0xEaDC0633A91e03fb6A057a325aa5d0e7E57A5F2D"
+        }
       },
       "availableChains": {
-        "staging": [],
-        "prod": []
+        "staging": [
+          "747474"
+        ],
+        "prod": [
+          "747474"
+        ]
       },
       "amountMeta": [
         {

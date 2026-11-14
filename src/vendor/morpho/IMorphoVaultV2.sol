@@ -25,7 +25,9 @@ interface IMorphoVaultV2 {
         bytes memory data,
         uint256 assets,
         address onBehalf
-    ) external returns (uint256 penaltyShares);
+    )
+        external
+        returns (uint256 penaltyShares);
 
     /// @notice Returns the penalty rate (in WAD, i.e. 1e18 = 100%) for forceDeallocate on a given adapter.
     /// @dev Maximum is 0.02e18 (2%).
@@ -54,4 +56,25 @@ interface IMorphoVaultV2 {
     /// @dev Pure share math: it does NOT require the vault to hold `assets` as idle, so it is valid to call
     ///      while the vault is still illiquid. That is what makes it usable as a pre-flight penalty bound.
     function previewWithdraw(uint256 assets) external view returns (uint256);
+
+    /// @notice Assets paid for redeeming exactly `shares`, rounded down.
+    function previewRedeem(uint256 shares) external view returns (uint256);
+
+    /// @notice Apply the pending accrual now; a no-op for the rest of the transaction (transient latch).
+    function accrueInterest() external;
+
+    /// @notice The accrual the next state-changing call will apply, without applying it.
+    /// @dev Returns `(newTotalAssets, performanceFeeShares, managementFeeShares)`. Once a transaction has
+    ///      accrued (Vault V2 latches a transient marker) it returns `(_totalAssets, 0, 0)`, so reading it
+    ///      before any pull yields the exact rate the first penalty withdraw will mint and price against.
+    function accrueInterestView()
+        external
+        view
+        returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares);
+
+    /// @notice Share supply EXCLUDING `virtualShares`.
+    function totalSupply() external view returns (uint256);
+
+    /// @notice The virtual-share offset Vault V2 adds to the supply in every conversion (`10 ** decimalOffset`).
+    function virtualShares() external view returns (uint256);
 }

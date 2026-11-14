@@ -106,7 +106,7 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
-        hook = new ForceDeallocateMorphoHook(0.02e18);
+        hook = new ForceDeallocateMorphoHook();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -378,38 +378,33 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
-            Inv2 AGAINST THE LIVE CURATOR-SETTABLE PENALTY
+          THE LEAF CAP AGAINST THE LIVE CURATOR-SETTABLE PENALTY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The cap binds against the real adapter rate, and the deploy-script value admits it.
-    /// @dev This is the scenario Inv2 exists for, measured rather than mocked: the live rate is 0.1 bps,
-    ///      Morpho's ceiling is 200 bps, and the provisional deploy cap is 25 bps. So today's rate passes
-    ///      with ~250x headroom while a curator raising toward the protocol maximum would be refused.
-    function test_Inv2_DeployCap_AdmitsTheLiveRate_AndWouldRefuseACuratorRaise() public {
+    /// @notice The leaf's `maxPenaltyWad` binds against the real adapter rate: the live 0.1 bps passes under a
+    ///         25 bps leaf with ~250x headroom, and a leaf one wei below the live rate is refused.
+    function test_LeafCap_AdmitsTheLiveRate_RefusesALeafBelowIt() public {
         uint256 live = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
         assertGt(live, 0, "this adapter does charge a penalty");
-        assertLt(live, 0.0025e18, "the live rate is comfortably under the provisional 25 bps cap");
-        assertLe(live, 0.02e18, "and under Morpho's own ceiling");
+        assertLt(live, 0.0025e18, "the live rate is comfortably under a 25 bps leaf");
 
-        // At the deploy cap, the live position executes.
-        ForceDeallocateMorphoHook atDeployCap = new ForceDeallocateMorphoHook(0.0025e18);
-        assertTrue(_tryHookWithHook(atDeployCap, DEALLOCATE_AMOUNT), "25 bps admits a 0.1 bps adapter");
-
-        // Capped just below the live rate, it refuses - proving the bound is live-rate driven.
-        ForceDeallocateMorphoHook tooTight = new ForceDeallocateMorphoHook(live - 1);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, live - 1)
+        assertTrue(_tryHookWithHook(hook, DEALLOCATE_AMOUNT), "under Morpho's ceiling the live position executes");
+        Execution[] memory ex = hook.build(
+            address(0), SUPER_WETH_STRATEGY, _hookDataWithCap(DEALLOCATE_AMOUNT, abi.encode(_market()), 0.0025e18)
         );
-        tooTight.build(address(0), SUPER_WETH_STRATEGY, _hookData(DEALLOCATE_AMOUNT, abi.encode(_market())));
+        assertEq(ex.length, 3, "a 25 bps leaf admits a 0.1 bps adapter");
+
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, live - 1));
+        hook.build(address(0), SUPER_WETH_STRATEGY, _hookDataWithCap(DEALLOCATE_AMOUNT, abi.encode(_market()), live - 1));
     }
 
-    /// @notice Inv2 is enforced per ADAPTER, not per vault: the rate is read for the adapter in calldata.
-    function test_Inv2_RateIsReadForTheAdapterInCalldata() public {
+    /// @notice The penalty is per ADAPTER, not per vault, and an unregistered adapter reads zero.
+    function test_PenaltyIsPerAdapter_UnregisteredReadsZero() public {
         uint256 live = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
-        // An unregistered adapter reads zero, which is why the cap cannot be the only adapter check -
-        // containment still rests on Morpho's own isAdapter gate inside forceDeallocate.
+        // Zero for an unknown adapter, so a rate read can never prove registration -
+        // containment rests on Morpho's own isAdapter gate inside forceDeallocate.
         uint256 unknown = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(makeAddr("nobody"));
-        assertEq(unknown, 0, "an unregistered adapter reads 0, so Inv2 alone does not prove registration");
+        assertEq(unknown, 0, "an unregistered adapter reads 0, so a rate read alone does not prove registration");
         assertGt(live, unknown, "the registered adapter has a real rate");
     }
 
@@ -579,17 +574,29 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
         });
     }
 
-    /// @dev The SUP-21780 layout: oracle id at 0, yieldSource at 32, adapter at 52, assets at 72,
-    ///      the flag at 104 and the raw adapterData tail at 105.
+    /// @dev The SUP-21849 layout: oracle id at 0, yieldSource at 32, adapter at 52, assets at 72, the flag at
+    ///      104, the leaf cap at 105 and the raw adapterData tail at 137. Morpho's ceiling is the default cap.
     function _hookData(uint256 assets, bytes memory adapterData) internal pure returns (bytes memory) {
-        return bytes.concat(
+        return _hookDataWithCap(assets, adapterData, 0.02e18);
+    }
+
+    function _hookDataWithCap(
+        uint256 assets,
+        bytes memory adapterData,
+        uint256 leafCap
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        // Two steps: a single wide `bytes.concat` pushes this large test contract over the stack limit.
+        bytes memory head = bytes.concat(
             abi.encodePacked(bytes32(uint256(0xFEED))),
             abi.encodePacked(GAUNTLET_WETH_PRIME),
             abi.encodePacked(GAUNTLET_ADAPTER),
-            abi.encode(assets),
-            abi.encodePacked(uint8(0)),
-            adapterData
+            abi.encode(assets)
         );
+        return bytes.concat(head, abi.encodePacked(uint8(0)), abi.encode(leafCap), adapterData);
     }
 
 }

@@ -181,16 +181,9 @@ echo ""
 echo "=== MORPHO HOOKS (no constructor args) ==="
 echo ""
 
-# SUP-21780: ForceDeallocateMorphoHook was REMOVED from this loop and is intentionally not
-# deployable from here any more. Its constructor now takes a uint256 penalty ceiling
-# (FORCE_DEALLOCATE_MAX_PENALTY_WAD), and this helper passes no constructor args while reading the
-# same `script/locked-bytecode` lock — so the deploy reverted, and the `|| true` below swallowed the
-# failure silently. Rather than add a second hardcoded copy of a risk parameter to a historical
-# helper, deploy it through the canonical path, which sources the value from
-# script/utils/Constants.sol:
-#     script/DeployV2OtherHooks.s.sol  (hooks[8], appends abi.encode(FORCE_DEALLOCATE_MAX_PENALTY_WAD))
-# The value is part of the CREATE2 address, so deployment and verification must agree on it; keeping
-# exactly one source is the point.
+# ForceDeallocateMorphoHook is deliberately NOT in this loop. Prefer the canonical path,
+# script/DeployV2OtherHooks.s.sol (hooks[8]), which also registers it; the two vault-level force hooks
+# take a per-chain Morpho address and are not deployable from this helper at all.
 for hook in MetaMorphoReallocateHook; do
     deploy_hook "$hook" || true
     echo ""

@@ -33,8 +33,6 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant MORPHO_BLUE_ETHEREUM = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
-    /// @dev Gauntlet's live rate was 1e13 WAD (0.1 bps) at the pinned block, far under this.
-    uint256 public constant CAP = 0.0025e18;
     /// @dev Vault V2 curator at the pinned block. `setIsAllocator` sits behind a 7-day timelock, which a
     ///      fork can simply warp past — so a test can become an allocator without discovering Gauntlet's.
     address public constant CURATOR = 0x9E33faAE38ff641094fa68c65c2cE600b3410585;
@@ -51,7 +49,7 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
-        hook = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM, CAP);
+        hook = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM);
         account = makeAddr("forceDeallocateVaultAccount");
 
         // Mint a claim PROPORTIONATE TO WHAT THESE TESTS ASK FOR, not merely enough to pay a penalty.
@@ -211,24 +209,6 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         hook.build(address(0), account, _hookData(assets));
     }
 
-    /// @dev A cap below the live rate removes the only adapter, so the fill has nothing to draw on and the
-    ///      failure is attributed to the cap rather than to liquidity.
-    function test_CapBelowTheLiveRateBlamesTheCap() public {
-        uint256 live = IMorphoVaultV2(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(
-            IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0)
-        );
-        assertGt(live, 1, "live rate must be above the tightest cap we can set");
-
-        ForceDeallocateMorphoVaultHook tight = new ForceDeallocateMorphoVaultHook(MORPHO_BLUE_ETHEREUM, live - 1);
-        vm.prank(account);
-        tight.setExecutionContext(account);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, live, live - 1)
-        );
-        vm.prank(account);
-        tight.build(address(0), account, _hookData(1 ether));
-    }
-
     /// @dev `outAmount` is zero and `outToken` is the underlying, so nothing downstream can chain off this
     ///      hop. Asserted against the live vault because that is where a successor would read it.
     function test_PublishesNoChainableOutput() public {
@@ -240,9 +220,38 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
     }
 
     /// @dev `inspect` commits the vault and nothing else, which is what lets a curator list a new market
-    ///      without re-signing the leaf. The bound on that authority is the immutable cap, not the leaf.
+    ///      without re-signing the leaf. The bounds on that authority are the leaf's own `maxPenaltyWad`
+    ///      (committed by the signature over the data, not by the allowlist) and `MAX_MARKETS`.
     function test_InspectCommitsOnlyTheVault() public view {
         assertEq(hook.inspect(_hookData(1 ether)), abi.encodePacked(GAUNTLET_WETH_PRIME));
+    }
+
+    /// @dev SUP-21849: the LEAF cap is the bound. One wei below the live rate removes the only adapter and the
+    ///      blame names the leaf; at the live rate it builds; zero or above Morpho's 2% fails closed.
+    function test_LeafCap_BlamesTheLeaf_AdmitsAtTheLiveRate_RefusesOutOfRange() public {
+        uint256 live = IMorphoVaultV2(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(
+            IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0)
+        );
+        assertGt(live, 1, "live rate must be above the tightest cap we can set");
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, live, live - 1)
+        );
+        hook.build(address(0), account, _hookDataWithCap(1 ether, live - 1));
+        assertEq(hook.build(address(0), account, _hookDataWithCap(1 ether, live)).length, 4, "at the live rate");
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0, 0.02e18)
+        );
+        hook.build(address(0), account, _hookDataWithCap(1 ether, 0));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ForceDeallocateMorphoVaultHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0.02e18 + 1, 0.02e18
+            )
+        );
+        hook.build(address(0), account, _hookDataWithCap(1 ether, 0.02e18 + 1));
+        vm.stopPrank();
     }
 
     /// @dev PINS WHAT `forceDeallocate` ACTUALLY RETURNS, because the vendored interface's return-value
@@ -266,17 +275,20 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         vm.startPrank(account);
         hook.setExecutionContext(account);
         Execution[] memory all = hook.build(address(0), account, _hookData(assets));
-        assertEq(all.length, 3, "one pull, so one return value to inspect");
+        assertEq(all.length, 4, "pre, accrue, one pull, post: one return value to inspect");
 
         (bool okPre,) = all[0].target.call(all[0].callData);
         assertTrue(okPre, "preExecute");
+        assertEq(bytes4(all[1].callData), IMorphoVaultV2.accrueInterest.selector, "accrual is the first leg");
+        (bool okAccrue,) = all[1].target.call(all[1].callData);
+        assertTrue(okAccrue, "accrueInterest");
 
         uint256 sharesBefore = IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account);
-        (bool okPull, bytes memory ret) = all[1].target.call(all[1].callData);
+        (bool okPull, bytes memory ret) = all[2].target.call(all[2].callData);
         assertTrue(okPull, "the pull itself");
         uint256 sharesBurned = sharesBefore - IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(account);
 
-        (bool okPost,) = all[2].target.call(all[2].callData);
+        (bool okPost,) = all[3].target.call(all[3].callData);
         assertTrue(okPost, "postExecute");
         hook.resetExecutionState(account);
         vm.stopPrank();
@@ -423,8 +435,13 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Morpho's own ceiling as the default leaf cap, so only the dedicated cap tests ever trip it.
     function _hookData(uint256 assets) internal pure returns (bytes memory) {
-        return abi.encodePacked(bytes32(uint256(0xFEED)), GAUNTLET_WETH_PRIME, assets, false);
+        return _hookDataWithCap(assets, 0.02e18);
+    }
+
+    function _hookDataWithCap(uint256 assets, uint256 leafCap) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes32(uint256(0xFEED)), GAUNTLET_WETH_PRIME, assets, false, leafCap);
     }
 
     /// @dev Mirrors `SuperExecutorBase._processHook`: set the context, build, run every execution as the
@@ -436,12 +453,13 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
         vm.startPrank(account);
         hook.setExecutionContext(account);
         Execution[] memory executions = hook.build(address(0), account, _hookData(assets));
-        assertGe(executions.length, 3, "preExecute + at least one pull + postExecute");
+        assertGe(executions.length, 4, "preExecute + accrue + at least one pull + postExecute");
+        assertEq(bytes4(executions[1].callData), IMorphoVaultV2.accrueInterest.selector, "accrual is the first leg");
 
         for (uint256 i; i < executions.length; ++i) {
             if (i != 0 && i != executions.length - 1) {
-                assertEq(executions[i].target, GAUNTLET_WETH_PRIME, "pulls target the vault");
-                assertEq(executions[i].value, 0, "pulls carry no value");
+                assertEq(executions[i].target, GAUNTLET_WETH_PRIME, "accrue and pulls target the vault");
+                assertEq(executions[i].value, 0, "no leg carries value");
             }
             (bool ok,) = executions[i].target.call(executions[i].callData);
             assertTrue(ok, string.concat("execution ", vm.toString(i), " failed"));
@@ -449,7 +467,7 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
 
         hook.resetExecutionState(account);
         vm.stopPrank();
-        return executions.length - 2;
+        return executions.length - 3;
     }
 
     /// @dev Reproduces the hook's own discovery over the live vault, so expectations are derived from the
@@ -475,7 +493,7 @@ contract ForceDeallocateMorphoVaultForkE2ETest is Test, Constants {
     ///      this from passing against whichever market the sort happened to pick.
     function _pullAmountFor(bytes32 marketId, uint256 assets) internal view returns (uint256) {
         Execution[] memory all = hook.build(address(0), account, _hookData(assets));
-        for (uint256 i = 1; i + 1 < all.length; ++i) {
+        for (uint256 i = 2; i + 1 < all.length; ++i) {
             bytes memory raw = all[i].callData;
             bytes memory args = new bytes(raw.length - 4);
             for (uint256 b; b < args.length; ++b) {

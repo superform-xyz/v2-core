@@ -606,40 +606,32 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             META_MORPHO_REALLOCATE_HOOK_KEY, "", __getOtherHooksBytecode("MetaMorphoReallocateHook", env)
         );
 
-        // Morpho Vault V2 force deallocate hook. SUP-21780 Inv2: the penalty ceiling is a CONSTRUCTOR
-        // IMMUTABLE, so it is part of the CREATE2 address and every Merkle leaf authorising this hook
-        // commits to it. Changing the policy is a deliberate redeploy.
+        // Morpho Vault V2 single-market force deallocate. No constructor args since SUP-21849 dropped the
+        // deploy-time penalty ceiling: the bound is the leaf-committed `maxPenaltyWad` in the hook data.
         hooks[8] = HookDeployment(
-            FORCE_DEALLOCATE_MORPHO_HOOK_KEY,
-            "",
-            abi.encodePacked(
-                __getOtherHooksBytecode("ForceDeallocateMorphoHook", env), abi.encode(FORCE_DEALLOCATE_MAX_PENALTY_WAD)
-            )
+            FORCE_DEALLOCATE_MORPHO_HOOK_KEY, "", __getOtherHooksBytecode("ForceDeallocateMorphoHook", env)
         );
 
-        // SUP-21799 vault-level sibling. Deliberately deployed with the SAME cap constant as hooks[8]:
-        // the two hooks are the same policy applied at two granularities, so a divergence here would be a
-        // silent policy split rather than a deliberate one.
+        // SUP-21799 vault-level sibling. One constructor word: Morpho Blue is pinned as an immutable so a
+        // curator-registered adapter cannot redirect this hook's market reads. `morphos[chainId]` is the
+        // same mapping that gates this whole set, so the address differs per chain.
         hooks[9] = HookDeployment(
             FORCE_DEALLOCATE_MORPHO_VAULT_HOOK_KEY,
             "",
             abi.encodePacked(
                 __getOtherHooksBytecode("ForceDeallocateMorphoVaultHook", env),
-                // Morpho is pinned as an immutable so a curator-registered adapter cannot redirect this
-                // hook's market reads. `morphos[chainId]` is the same mapping that gates this whole set.
-                abi.encode(otherHooksConfiguration.morphos[chainId], FORCE_DEALLOCATE_MAX_PENALTY_WAD)
+                abi.encode(otherHooksConfiguration.morphos[chainId])
             )
         );
 
-        // SUP-21799 follow-up: the deallocate-and-withdraw variant. Same two constructor words as
-        // hooks[9] — Morpho pinned as an immutable, and the shared penalty cap — so the policy cannot
-        // diverge between the two vault-level hooks.
+        // SUP-21799 follow-up, reshaped by SUP-21849: the deallocate-and-REDEEM variant, sized in shares; its
+        // measured outAmount is what the caller's expectedAssetsOrSharesOut floors. Same constructor word as hooks[9].
         hooks[10] = HookDeployment(
             FORCE_REDEEM_MORPHO_VAULT_HOOK_KEY,
             "",
             abi.encodePacked(
                 __getOtherHooksBytecode("ForceRedeemMorphoVaultHook", env),
-                abi.encode(otherHooksConfiguration.morphos[chainId], FORCE_DEALLOCATE_MAX_PENALTY_WAD)
+                abi.encode(otherHooksConfiguration.morphos[chainId])
             )
         );
 
