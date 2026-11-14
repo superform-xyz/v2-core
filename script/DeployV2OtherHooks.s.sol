@@ -607,7 +607,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
 
         // Morpho Vault V2 single-market force deallocate. No constructor args since SUP-21849 dropped the
-        // penalty ceiling (the planner prices the rate; the redeem leg enforces the output floor on chain).
+        // deploy-time penalty ceiling: the bound is the leaf-committed `maxPenaltyWad` in the hook data.
         hooks[8] = HookDeployment(
             FORCE_DEALLOCATE_MORPHO_HOOK_KEY, "", __getOtherHooksBytecode("ForceDeallocateMorphoHook", env)
         );
@@ -624,8 +624,8 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             )
         );
 
-        // SUP-21799 follow-up, reshaped by SUP-21849: the deallocate-and-REDEEM variant, sized in shares,
-        // with a per-leaf `minAssetsOut` floor. Same single constructor word as hooks[9].
+        // SUP-21799 follow-up, reshaped by SUP-21849: the deallocate-and-REDEEM variant, sized in shares; its
+        // measured outAmount is what the caller's expectedAssetsOrSharesOut floors. Same constructor word as hooks[9].
         hooks[10] = HookDeployment(
             FORCE_REDEEM_MORPHO_VAULT_HOOK_KEY,
             "",

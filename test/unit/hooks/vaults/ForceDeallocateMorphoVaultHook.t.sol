@@ -44,8 +44,10 @@ contract PrevHookStub is BaseHook {
 }
 
 contract ForceDeallocateMorphoVaultHookTest is Test {
-    /// @dev A penalty rate for fixtures (the old deploy cap, 25 bps). No longer a bound anywhere.
+    /// @dev A penalty rate for fixtures (the old deploy cap, 25 bps), and the leaf cap the cap tests use.
     uint256 internal constant RATE_25BPS = 0.0025e18;
+    /// @dev The leaf cap the fixtures commit by default: Morpho's own ceiling, so no fixture trips it.
+    uint256 internal constant LEAF_CAP = 0.02e18;
 
     ForceDeallocateMorphoVaultHook internal hook;
     MockMorphoBlue internal morpho;
@@ -85,15 +87,21 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
     }
 
     function _data(uint256 assets, bool usePrev) internal view returns (bytes memory) {
-        return abi.encodePacked(ORACLE_ID, address(vault), assets, usePrev);
+        return _dataWithCap(assets, usePrev, LEAF_CAP);
+    }
+
+    function _dataWithCap(uint256 assets, bool usePrev, uint256 leafCap) internal view returns (bytes memory) {
+        return abi.encodePacked(ORACLE_ID, address(vault), assets, usePrev, leafCap);
     }
 
     /// @dev `build` wraps the pulls between preExecute and postExecute, so the real calls are the middle
+    /// @dev The `forceDeallocate` legs only: after preExecute and the accrue leg, before postExecute.
     function _pulls(bytes memory data, address prevHook) internal view returns (Execution[] memory mid) {
         Execution[] memory all = hook.build(prevHook, account, data);
-        mid = new Execution[](all.length - 2);
+        assertEq(bytes4(all[1].callData), bytes4(keccak256("accrueInterest()")), "leg 1 accrues");
+        mid = new Execution[](all.length - 3);
         for (uint256 i; i < mid.length; ++i) {
-            mid[i] = all[i + 1];
+            mid[i] = all[i + 2];
         }
     }
 
@@ -122,19 +130,154 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
                            LAYOUT AND SIZING
     //////////////////////////////////////////////////////////////*/
 
-    function test_DataLengthIsExactlyEightyFive() public view {
-        assertEq(_data(1 ether, false).length, 85);
+    function test_DataLengthIsExactlyOneHundredSeventeen() public view {
+        assertEq(_data(1 ether, false).length, 117);
     }
 
-    function test_RejectsAnyLengthOtherThanEightyFive() public {
+    function test_RejectsAnyLengthOtherThanOneHundredSeventeen() public {
         _listMarket(ID_A, 100 ether, 200 ether, 0);
         bytes memory good = _data(1 ether, false);
 
-        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.INVALID_DATA_LENGTH.selector, 86, 85));
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.INVALID_DATA_LENGTH.selector, 118, 117));
         hook.build(address(0), account, abi.encodePacked(good, hex"00"));
 
-        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.INVALID_DATA_LENGTH.selector, 84, 85));
-        hook.build(address(0), account, abi.encodePacked(ORACLE_ID, address(vault), uint256(1 ether)));
+        // the pre-cap 85-byte layout is refused outright, never read with a zero cap
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.INVALID_DATA_LENGTH.selector, 85, 117));
+        hook.build(address(0), account, abi.encodePacked(ORACLE_ID, address(vault), uint256(1 ether), false));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      THE LEAF-COMMITTED PENALTY CAP
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev An adapter over the leaf cap is SKIPPED, not fatal: the fill completes from the cheaper one.
+    function test_LeafCap_AdapterAboveIsSkippedNotFatal() public {
+        _listMarket(ID_A, 400 ether, 400 ether, 0);
+        MockMorphoMarketAdapter dear = new MockMorphoMarketAdapter(address(vault), address(morpho));
+        vault.addAdapter(address(dear), 0.003e18); // cbAssets' 30 bps
+        morpho.setMarket(ID_B, _params(asset), 1000 ether, 0);
+        dear.addMarket(ID_B, 1000 ether);
+
+        Execution[] memory pulls = _pulls(_dataWithCap(400 ether, false, RATE_25BPS), address(0));
+        assertEq(pulls.length, 1, "the 30 bps adapter contributed nothing under a 25 bps leaf");
+        (address a,,,) = _decodeCall(pulls[0]);
+        assertEq(a, address(adapter));
+    }
+
+    /// @dev When the cap is the reason the fill came short, the revert says so instead of SHORTFALL.
+    function test_LeafCap_ShortfallBlamesTheCapWhenTheCapIsTheCause() public {
+        MockMorphoMarketAdapter dear = new MockMorphoMarketAdapter(address(vault), address(morpho));
+        vault.addAdapter(address(dear), 0.003e18);
+        morpho.setMarket(ID_B, _params(asset), 1000 ether, 0);
+        dear.addMarket(ID_B, 1000 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, 0.003e18, RATE_25BPS)
+        );
+        hook.build(address(0), account, _dataWithCap(100 ether, false, RATE_25BPS));
+        // a wider leaf admits the same adapter: the knob is per intent, not per deployment
+        assertEq(_pulls(_dataWithCap(100 ether, false, 0.003e18), address(0)).length, 1);
+    }
+
+    /// @dev The comparison is `>`, not `>=`: an adapter exactly at the cap is eligible.
+    function test_LeafCap_ExactlyAtTheCapIsEligible() public {
+        vault.setPenalty(address(adapter), RATE_25BPS);
+        _listMarket(ID_A, 400 ether, 400 ether, 0);
+        assertEq(_pulls(_dataWithCap(100 ether, false, RATE_25BPS), address(0)).length, 1);
+    }
+
+    /// @dev Zero (an encoder that zero-fills an unknown word) and anything above Morpho's own 2% fail closed,
+    ///      on the view path and on the binding one.
+    function test_LeafCap_ZeroOrAboveMorphoCeilingReverts_OnBuildAndPreExecute() public {
+        _listMarket(ID_A, 400 ether, 400 ether, 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0, 0.02e18)
+        );
+        hook.build(address(0), account, _dataWithCap(100 ether, false, 0));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ForceDeallocateMorphoVaultHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0.02e18 + 1, 0.02e18
+            )
+        );
+        hook.build(address(0), account, _dataWithCap(100 ether, false, 0.02e18 + 1));
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0, 0.02e18)
+        );
+        hook.preExecute(address(0), account, _dataWithCap(100 ether, false, 0));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ForceDeallocateMorphoVaultHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0.02e18 + 1, 0.02e18
+            )
+        );
+        hook.preExecute(address(0), account, _dataWithCap(100 ether, false, 0.02e18 + 1));
+        vm.stopPrank();
+        assertEq(hook.MORPHO_MAX_PENALTY_WAD(), 0.02e18);
+    }
+
+    /// @dev For ANY in-range leaf: the adapter is used iff its rate is at or under the leaf; a lone adapter
+    ///      above the leaf makes the fill fail with the cap as the stated cause.
+    function testFuzz_LeafCap_Boundary(uint256 capRaw, uint64 rateRaw) public {
+        uint256 cap = bound(capRaw, 1, 0.02e18);
+        uint256 rate = bound(uint256(rateRaw), 0, 0.02e18);
+        vault.setPenalty(address(adapter), rate);
+        _listMarket(ID_A, 400 ether, 400 ether, 0);
+        bytes memory d = _dataWithCap(100 ether, false, cap);
+        if (rate <= cap) {
+            assertEq(_pulls(d, address(0)).length, 1, "rate <= leaf: eligible");
+        } else {
+            vm.expectRevert(
+                abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, rate, cap)
+            );
+            hook.build(address(0), account, d);
+        }
+    }
+
+    /// @dev PINNED ASYMMETRY with the single-market sibling: this hook's `_preExecute` range-checks the leaf word
+    ///      but does NOT re-probe adapter rates. It relies on `build` having run ON CHAIN in the same transaction
+    ///      (`SuperExecutorBase._processHook`), where the 32-market walk already applied the cap; repeating it
+    ///      would double the gas for no new information. A caller that builds off chain must not assume otherwise.
+    function test_LeafCap_PreExecuteRangeChecksButDoesNotReprobe() public {
+        vault.setPenalty(address(adapter), 0.003e18); // above the 25 bps leaf used below
+        _listMarket(ID_A, 400 ether, 400 ether, 0);
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        hook.preExecute(address(0), account, _dataWithCap(100 ether, false, RATE_25BPS));
+        vm.stopPrank();
+        assertEq(hook.getOutAmount(account), 0, "preExecute ran: it is build that enforces the rate");
+    }
+
+    /// @dev An adapter skipped for cost that lists NO markets could not have helped, so it is not blamed: the
+    ///      shortfall stays a SHORTFALL rather than pointing at a cap that would change nothing.
+    function test_LeafCap_MarketlessDearAdapterIsNotBlamed() public {
+        _listMarket(ID_A, 50 ether, 50 ether, 0);
+        MockMorphoMarketAdapter dearEmpty = new MockMorphoMarketAdapter(address(vault), address(morpho));
+        vault.addAdapter(address(dearEmpty), 0.003e18); // no markets listed
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.SHORTFALL.selector, 50 ether, 100 ether));
+        hook.build(address(0), account, _dataWithCap(100 ether, false, RATE_25BPS));
+    }
+
+    /// @dev OMS resizes the amount through `replaceCalldataAmounts`; the cap word at 85..116 must survive the
+    ///      splice byte for byte AND still bind the resized build.
+    function test_LeafCap_SurvivesReplaceCalldataAmounts() public {
+        _listMarket(ID_A, 400 ether, 400 ether, 0);
+        vault.setPenalty(address(adapter), 0.003e18);
+        bytes memory signed = _dataWithCap(1 ether, true, RATE_25BPS);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 100 ether;
+        bytes memory resized = hook.replaceCalldataAmounts(signed, amounts);
+        assertEq(resized.length, 117);
+        for (uint256 i = 85; i < 117; ++i) {
+            assertEq(resized[i], signed[i], "cap word byte untouched");
+        }
+        assertTrue(hook.decodeUsePrevHookAmount(resized), "flag untouched");
+        bytes memory resizedNoPrev = hook.replaceCalldataAmounts(_dataWithCap(1 ether, false, RATE_25BPS), amounts);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, 0.003e18, RATE_25BPS)
+        );
+        hook.build(address(0), account, resizedNoPrev);
     }
 
     function test_ResolvedZeroAmountReverts() public {
@@ -623,9 +766,9 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         morpho.setMarket(ID_A, _params(asset), 500 ether, 0);
         freeAdapter.addMarket(ID_A, 500 ether);
 
-        bytes memory data = abi.encodePacked(ORACLE_ID, address(free), uint256(100 ether), false);
+        bytes memory data = abi.encodePacked(ORACLE_ID, address(free), uint256(100 ether), false, LEAF_CAP);
         Execution[] memory all = hook.build(address(0), account, data);
-        assertEq(all.length, 3, "one pull, with no share requirement at all");
+        assertEq(all.length, 4, "pre, accrue, one pull, post: no share requirement at all");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -643,11 +786,11 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         prev.publish(123 ether, asset, account);
 
         // Offset 52 carries a decoy the hook must not use.
-        bytes memory data = abi.encodePacked(ORACLE_ID, address(vault), uint256(1 wei), true);
+        bytes memory data = abi.encodePacked(ORACLE_ID, address(vault), uint256(1 wei), true, LEAF_CAP);
         Execution[] memory all = hook.build(address(prev), account, data);
-        assertEq(all.length, 3, "one pull");
+        assertEq(all.length, 4, "pre, accrue, one pull, post");
 
-        (,, uint256 amount,) = _decodeCall(all[1]);
+        (,, uint256 amount,) = _decodeCall(all[2]);
         assertEq(amount, 123 ether, "pulled the previous hop's outAmount, not the calldata decoy");
     }
 
@@ -717,7 +860,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         uint256 oversized = 40_000 ether;
         assertEq(_ceilPenalty(oversized, RATE_25BPS), claim, "fixture: the penalty alone equals the whole claim");
 
-        bytes memory data = abi.encodePacked(ORACLE_ID, address(big), oversized, false);
+        bytes memory data = abi.encodePacked(ORACLE_ID, address(big), oversized, false, LEAF_CAP);
         vm.expectRevert(
             abi.encodeWithSelector(
                 ForceDeallocateMorphoVaultHook.INSUFFICIENT_SHARES.selector, claim, oversized + claim
@@ -740,11 +883,11 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
 
         // Morpho's own full-exit size: claim / (1 + penalty), which is what SUP-21689 will size against.
         uint256 sized = (claim * 1e18) / (1e18 + RATE_25BPS);
-        bytes memory data = abi.encodePacked(ORACLE_ID, address(big), sized, false);
+        bytes memory data = abi.encodePacked(ORACLE_ID, address(big), sized, false, LEAF_CAP);
 
         Execution[] memory all = hook.build(address(0), account, data);
-        assertEq(all.length, 3, "a correctly sized exit is unaffected by the bound");
-        (,, uint256 amount,) = _decodeCall(all[1]);
+        assertEq(all.length, 4, "a correctly sized exit is unaffected by the bound");
+        (,, uint256 amount,) = _decodeCall(all[2]);
         assertEq(amount, sized, "and it frees exactly what was asked");
     }
 
@@ -774,7 +917,7 @@ contract ForceDeallocateMorphoVaultHookTest is Test {
         Execution[] memory all = hook.build(address(0), account, _data(1 ether, false));
         uint256 used = before - gasleft();
 
-        assertEq(all.length, 3, "it must actually complete a build, not revert early");
+        assertEq(all.length, 4, "it must actually complete a build, not revert early");
         emit log_named_uint("worst-case build gas", used);
         assertLt(used, 2 ** 24, "build must fit under the EIP-7825 per-transaction gas cap");
     }

@@ -322,10 +322,11 @@ abstract contract Constants {
     /// @notice The deallocate-and-withdraw variant. A THIRD hook, not a replacement: the two deallocate
     ///         hooks stop at the vault's idle balance, this one completes the exit in the same call.
     string internal constant FORCE_REDEEM_MORPHO_VAULT_HOOK_KEY = "ForceRedeemMorphoVaultHook";
-    // SUP-21849 REMOVED `FORCE_DEALLOCATE_MAX_PENALTY_WAD`. The three force hooks no longer take a penalty
-    // ceiling: the 25 bps immutable failed honest SuperStocks exits the day cbAssets moved its adapter to
-    // 30 bps, and any fixed number repeats that. The planner prices the live rate into its quote and
-    // `ForceRedeemMorphoVaultHook` enforces a per-leaf `minAssetsOut` on chain instead.
+    // SUP-21849 REMOVED `FORCE_DEALLOCATE_MAX_PENALTY_WAD`. The force hooks no longer take a deploy-time
+    // penalty ceiling: the 25 bps immutable failed honest SuperStocks exits the day cbAssets moved its adapter
+    // to 30 bps, and any fixed number repeats that. The two deallocate-only hooks carry a leaf-committed
+    // `maxPenaltyWad` in their hook data instead; `ForceRedeemMorphoVaultHook` needs none because its measured
+    // outAmount is what the caller's `expectedAssetsOrSharesOut` floors.
 
     // Aave V4 Hook Keys
     string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";

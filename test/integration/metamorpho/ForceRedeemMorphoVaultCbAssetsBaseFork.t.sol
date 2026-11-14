@@ -155,6 +155,100 @@ contract ForceRedeemMorphoVaultCbAssetsBaseForkTest is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                 300k USDC POSITION, DRY VAULT, 100% EXIT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev A SuperStocks-sized exit, end to end, on its own fixture: a fresh account holding shares worth 300k
+    ///      USDC AFTER its own mint diluted the price, the vault's idle USDC forced to exactly zero, and a 100%
+    ///      full-balance exit (`sharesIn == balanceOf`). The hook must deallocate (X > 0), pays the 30 bps penalty
+    ///      on what it pulls (P ~ 30 bps of X at the vault's rate), ends at exactly zero shares and delivers
+    ///      exactly `previewAssetsOut` in 6-decimal USDC: roughly 300k minus 30 bps.
+    function test_FullBalanceExit_300kUsdcPosition_ZeroIdle_PullsAtThirtyBps() public {
+        address exiter = makeAddr("superStocksExiter");
+
+        // Dry vault FIRST: idle counts toward totalAssets, so the position is sized against the dry state.
+        deal(USDC, CB_ASSETS, 0);
+        assertEq(IERC20(USDC).balanceOf(CB_ASSETS), 0, "idle forced to zero");
+        uint256 sharesIn = _mintPositionWorth(exiter, 300_000e6);
+
+        uint256 quoted = hook.previewAssetsOut(CB_ASSETS, exiter, sharesIn);
+        Execution[] memory all = hook.build(address(0), exiter, _hookData(sharesIn));
+        (uint256 sourced, uint256 penaltyShares) = _planOf(all, exiter, sharesIn);
+
+        assertGt(sourced, 0, "X > 0: with no idle the redeem cannot be paid without deallocating");
+        assertGe(sourced, quoted, "idle was zero, so everything paid out was deallocated first");
+        assertGt(penaltyShares, 0, "the 30 bps penalty burned shares");
+        // P is the penalty on X converted at the vault's rate; loose only for the per-pull round-ups.
+        uint256 expectedP = IMorphoVaultV2(CB_ASSETS).previewWithdraw(_mulDivUp(sourced, CB_ASSETS_PENALTY, 1e18));
+        assertApproxEqRel(penaltyShares, expectedP, 0.0001e18, "P ~ 30 bps of X in shares");
+        // The delivery is the position minus 30 bps of what was pulled, in USDC.
+        assertApproxEqRel(quoted, 300_000e6 - (sourced * CB_ASSETS_PENALTY) / 1e18, 0.0005e18, "~300k - 30 bps");
+        assertGt(quoted, 298_000e6);
+        assertLt(quoted, 300_000e6);
+
+        _executeAs(exiter, all);
+
+        assertEq(IMorphoVaultV2(CB_ASSETS).balanceOf(exiter), 0, "100% exit ends at zero shares");
+        assertEq(IERC20(USDC).balanceOf(exiter), quoted, "USDC received equals previewAssetsOut to the wei");
+        assertEq(hook.getOutAmount(exiter), quoted, "outAmount is the measured 6-decimal delta");
+        assertEq(hook.getOutToken(exiter), USDC);
+        assertEq(hook.usedShares(), sharesIn, "usedShares spans the whole call, penalty burns included");
+        assertEq(IERC20(USDC).balanceOf(CB_ASSETS), sourced - quoted, "what was pulled and not paid is the new idle");
+        assertLt(sourced - quoted, 10e6, "and that is rounding dust: the smallest covering X was chosen");
+    }
+
+    /// @dev Mints shares worth `positionUsdc` AFTER the mint itself diluted the price:
+    ///      value = s x D / (N + s)  =>  s = positionUsdc x N / (D - positionUsdc).
+    function _mintPositionWorth(address who, uint256 positionUsdc) internal returns (uint256 sharesIn) {
+        IMorphoVaultV2 vault = IMorphoVaultV2(CB_ASSETS);
+        (uint256 ta, uint256 pf, uint256 mf) = vault.accrueInterestView();
+        uint256 n = vault.totalSupply() + pf + mf + vault.virtualShares();
+        uint256 d = ta + 1;
+        sharesIn = _mulDivUp(positionUsdc, n, d - positionUsdc);
+        deal(CB_ASSETS, who, sharesIn, true);
+        assertApproxEqRel(vault.previewRedeem(sharesIn), positionUsdc, 0.0001e18, "the position is worth the target");
+        assertEq(vault.balanceOf(who), sharesIn, "sharesIn is the whole balance");
+    }
+
+    /// @dev Sum of the pulls and the shares the plan expects to burn, with the leg shape checked on the way.
+    function _planOf(
+        Execution[] memory all,
+        address who,
+        uint256 sharesIn
+    )
+        internal
+        pure
+        returns (uint256 sourced, uint256 penaltyShares)
+    {
+        assertEq(bytes4(all[1].callData), IMorphoVaultV2.accrueInterest.selector, "accrual is the first leg");
+        for (uint256 i = 2; i + 2 < all.length; ++i) {
+            (,, uint256 x, address onBehalf) = _decodePull(all[i]);
+            assertEq(onBehalf, who, "the penalty is charged to the exiting account");
+            sourced += x;
+        }
+        (uint256 redeemed, address receiver, address owner) = _decodeRedeem(all[all.length - 2]);
+        assertEq(receiver, who);
+        assertEq(owner, who);
+        penaltyShares = sharesIn - redeemed;
+    }
+
+    /// @dev Mirrors `SuperExecutorBase._processHook` for an arbitrary account.
+    function _executeAs(address who, Execution[] memory all) internal {
+        vm.startPrank(who);
+        hook.setExecutionContext(who);
+        for (uint256 i; i < all.length; ++i) {
+            (bool ok, bytes memory ret) = all[i].target.call(all[i].callData);
+            if (!ok) {
+                assembly ("memory-safe") {
+                    revert(add(ret, 0x20), mload(ret))
+                }
+            }
+        }
+        hook.resetExecutionState(who);
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 

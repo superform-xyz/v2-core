@@ -378,16 +378,24 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
-            THE LIVE CURATOR-SETTABLE PENALTY (NO CAP, SUP-21849)
+          THE LEAF CAP AGAINST THE LIVE CURATOR-SETTABLE PENALTY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The hook reads no penalty bound of its own; the live rate is Morpho's business and the
-    ///         planner's. Pinned so a future "helpful" cap shows up as a deliberate change.
-    function test_NoPenaltyCap_LiveRateIsNotReadAsABound() public {
+    /// @notice The leaf's `maxPenaltyWad` binds against the real adapter rate: the live 0.1 bps passes under a
+    ///         25 bps leaf with ~250x headroom, and a leaf one wei below the live rate is refused.
+    function test_LeafCap_AdmitsTheLiveRate_RefusesALeafBelowIt() public {
         uint256 live = IMorphoVaultV2Read(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(GAUNTLET_ADAPTER);
         assertGt(live, 0, "this adapter does charge a penalty");
-        assertLe(live, 0.02e18, "and sits under Morpho's own ceiling");
-        assertTrue(_tryHookWithHook(hook, DEALLOCATE_AMOUNT), "the live position executes with no cap in the way");
+        assertLt(live, 0.0025e18, "the live rate is comfortably under a 25 bps leaf");
+
+        assertTrue(_tryHookWithHook(hook, DEALLOCATE_AMOUNT), "under Morpho's ceiling the live position executes");
+        Execution[] memory ex = hook.build(
+            address(0), SUPER_WETH_STRATEGY, _hookDataWithCap(DEALLOCATE_AMOUNT, abi.encode(_market()), 0.0025e18)
+        );
+        assertEq(ex.length, 3, "a 25 bps leaf admits a 0.1 bps adapter");
+
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, live - 1));
+        hook.build(address(0), SUPER_WETH_STRATEGY, _hookDataWithCap(DEALLOCATE_AMOUNT, abi.encode(_market()), live - 1));
     }
 
     /// @notice The penalty is per ADAPTER, not per vault, and an unregistered adapter reads zero.
@@ -566,17 +574,29 @@ contract ForceDeallocateMorphoSuperWETHFork is Test, Constants {
         });
     }
 
-    /// @dev The SUP-21780 layout: oracle id at 0, yieldSource at 32, adapter at 52, assets at 72,
-    ///      the flag at 104 and the raw adapterData tail at 105.
+    /// @dev The SUP-21849 layout: oracle id at 0, yieldSource at 32, adapter at 52, assets at 72, the flag at
+    ///      104, the leaf cap at 105 and the raw adapterData tail at 137. Morpho's ceiling is the default cap.
     function _hookData(uint256 assets, bytes memory adapterData) internal pure returns (bytes memory) {
-        return bytes.concat(
+        return _hookDataWithCap(assets, adapterData, 0.02e18);
+    }
+
+    function _hookDataWithCap(
+        uint256 assets,
+        bytes memory adapterData,
+        uint256 leafCap
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        // Two steps: a single wide `bytes.concat` pushes this large test contract over the stack limit.
+        bytes memory head = bytes.concat(
             abi.encodePacked(bytes32(uint256(0xFEED))),
             abi.encodePacked(GAUNTLET_WETH_PRIME),
             abi.encodePacked(GAUNTLET_ADAPTER),
-            abi.encode(assets),
-            abi.encodePacked(uint8(0)),
-            adapterData
+            abi.encode(assets)
         );
+        return bytes.concat(head, abi.encodePacked(uint8(0)), abi.encode(leafCap), adapterData);
     }
 
 }

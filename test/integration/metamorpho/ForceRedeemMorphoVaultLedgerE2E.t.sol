@@ -17,6 +17,9 @@ import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSou
 import { ISuperNativePaymaster } from "../../../src/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 import { ForceRedeemMorphoVaultHook } from "../../../src/hooks/vaults/metamorpho/ForceRedeemMorphoVaultHook.sol";
+import {
+    ForceDeallocateMorphoVaultHook
+} from "../../../src/hooks/vaults/metamorpho/ForceDeallocateMorphoVaultHook.sol";
 import { IMorphoVaultV2 } from "../../../src/vendor/morpho/IMorphoVaultV2.sol";
 import { IMorphoMarketV1Adapter } from "../../../src/vendor/morpho/IMorphoMarketV1Adapter.sol";
 
@@ -157,6 +160,47 @@ contract ForceRedeemMorphoVaultLedgerE2ETest is MinimalBaseIntegrationTest {
         assertEq(IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth), sharesBefore, "no shares burned");
         assertEq(_positions(), positionsBefore, "no market touched");
         assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBefore, "nothing paid out");
+    }
+
+    /// @dev SUP-21849 DECISION 4: the deallocate-only sibling's leaf cap binds THROUGH THE EXECUTOR. The hook
+    ///      publishes outAmount 0, so no output floor could catch a penalty raise; the cap in the signed hook
+    ///      data is what refuses the leg, and it does so inside `build`, before any share is burned.
+    function test_DeallocateHook_LeafCapBelowTheLiveRate_IsRefusedByTheExecutor() public {
+        _recordInflow(3000 ether);
+        ForceDeallocateMorphoVaultHook dealloc = new ForceDeallocateMorphoVaultHook(MORPHO);
+        uint256 live = IMorphoVaultV2(GAUNTLET_WETH_PRIME).forceDeallocatePenalty(
+            IMorphoVaultV2(GAUNTLET_WETH_PRIME).adapters(0)
+        );
+        uint256 sharesBefore = IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth);
+        uint256 positionsBefore = _positions();
+
+        address[] memory hooks = new address[](1);
+        hooks[0] = address(dealloc);
+        bytes[] memory data = new bytes[](1);
+        data[0] = abi.encodePacked(_oracleId(), GAUNTLET_WETH_PRIME, uint256(1 ether), false, live - 1);
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        UserOpData memory op = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+
+        try this.executeOp(op) {
+            assertTrue(false, "a leaf below the live rate must not execute");
+        } catch (bytes memory reason) {
+            assertEq(bytes4(reason), UserOperationReverted.selector, "the op was rejected");
+            bytes memory tail = new bytes(reason.length - 4);
+            for (uint256 i; i < tail.length; ++i) tail[i] = reason[i + 4];
+            (,,,, bytes memory inner) = abi.decode(tail, (bytes32, address, string, uint256, bytes));
+            assertEq(bytes4(inner), ForceDeallocateMorphoVaultHook.PENALTY_ABOVE_CAP.selector, "cause is the cap");
+        }
+        assertEq(IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth), sharesBefore, "no shares burned");
+        assertEq(_positions(), positionsBefore, "no market touched");
+
+        // The same leg at the live rate goes through: one pull, idle up by exactly the request, nothing paid out.
+        data[0] = abi.encodePacked(_oracleId(), GAUNTLET_WETH_PRIME, uint256(1 ether), false, live);
+        entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        uint256 idleBefore = IERC20(CHAIN_1_WETH).balanceOf(GAUNTLET_WETH_PRIME);
+        executeOp(_getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry)));
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(GAUNTLET_WETH_PRIME) - idleBefore, 1 ether, "idle rose by the request");
+        assertLt(IMorphoVaultV2(GAUNTLET_WETH_PRIME).balanceOf(accountEth), sharesBefore, "the penalty was burned");
     }
 
     /// @dev Two forced exits through the executor: the accumulator falls by each exit's `usedShares` in

@@ -206,9 +206,9 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @notice The underlying the account would receive for `shares` right now, from the same solver `build` uses
-    /// @dev Reverts exactly like `build` (SHORTFALL, INSUFFICIENT_SHARES, ...), minus the floor: the caller is
-    ///      asking what the floor should be. Block-state dependent: a different block accrues differently. Not
-    ///      an OMS input; the OMS keeps its gross share quote.
+    /// @dev Reverts exactly like `build` (SHORTFALL, INSUFFICIENT_SHARES, ...). This is how a caller sizes its
+    ///      `expectedAssetsOrSharesOut`. Block-state dependent: a different block accrues differently. Not an
+    ///      OMS input; the OMS keeps its gross share quote.
     function previewAssetsOut(address vault, address account, uint256 shares) external view returns (uint256) {
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -439,7 +439,8 @@ contract ForceRedeemMorphoVaultHook is BaseHook, ISuperHookContextAware, ISuperH
         if (!ok) return info;
         info.marketCount = uint256(word);
 
-        // Read for cheapest-first ordering and the burn arithmetic, never as a gate: the floor is the bound.
+        // Read for cheapest-first ordering and the burn arithmetic, never as a gate: the caller's
+        // `expectedAssetsOrSharesOut` on the measured output is the bound.
         info.penaltyWad = IMorphoVaultV2(vault).forceDeallocatePenalty(adapter);
 
         (ok, word) = _probe(adapter, abi.encodeCall(IMorphoMarketV1Adapter.adaptiveCurveIrm, ()));
