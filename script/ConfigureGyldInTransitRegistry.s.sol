@@ -74,6 +74,25 @@ contract ConfigureGyldInTransitRegistry is DeployV2Base, ConstantsOtherHooks {
         console2.log("====== Cap configured ======");
     }
 
+    /// @notice Expected Gyld fee on in-transit legs for an instrument, in bps (netted out of in-transit value).
+    function runFee(
+        uint256 env,
+        uint64 chainId,
+        address registryAddr,
+        address bondToken,
+        uint256 bps
+    )
+        external
+        broadcast(env)
+    {
+        _requireRegistry(chainId, registryAddr);
+        GyldInTransitRegistry registry = GyldInTransitRegistry(registryAddr);
+        console2.log("transitFeeBps for", bondToken, "->", bps);
+        registry.setTransitFeeBps(bondToken, bps);
+        require(registry.transitFeeBps(bondToken) == bps, "FEE_NOT_APPLIED");
+        console2.log("====== Fee haircut configured ======");
+    }
+
     /// @notice Read-only check. Prints UNSET for every value the hooks would fail closed on.
     function runCheck(uint64 chainId, address registryAddr, address[] calldata bondTokens) external view {
         _requireRegistry(chainId, registryAddr);
@@ -88,6 +107,7 @@ contract ConfigureGyldInTransitRegistry is DeployV2Base, ConstantsOtherHooks {
         else console2.log("redeemHoldingWallet:", hold);
         if (age == 0) console2.log("maxTransitAge: UNSET (every record reverts)");
         else console2.log("maxTransitAge:", age);
+        console2.log("lots recorded so far:", registry.lotCount());
         (address pd, address ph, uint64 at) = registry.pendingDestinations();
         if (at != 0) {
             console2.log("PENDING destination change ->", pd, ph);

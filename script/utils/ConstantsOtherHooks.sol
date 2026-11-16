@@ -251,7 +251,7 @@ abstract contract ConstantsOtherHooks {
 
     address internal constant GYLD_CASH_TOKEN_KATANA = 0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36;
 
-    // ── Gyld Investor API (non-RFQ) hooks, SUP-21848 ──────────────────────────────────────────────
+    // ── Gyld Investor API (non-RFQ) hooks, SUP-21848 ──
     /// @notice On-chain memory of cash / bonds in transit at Gyld through the Investor API; pinned deposit
     ///         address and redeem holding wallet; per-instrument caps. Deployed BEFORE the oracle, which pins it.
     string internal constant GYLD_IN_TRANSIT_REGISTRY_KEY = "GyldInTransitRegistry";

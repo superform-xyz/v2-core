@@ -39,11 +39,16 @@ import { IGyldNavFeed } from "../../vendor/gyld/IGyldNavFeed.sol";
 /// @dev NEVER ASSUMES CASH EQUALS ONE DOLLAR. A USD-denominated NAV feed is converted through the instrument's
 ///      cash/USD feed, and that feed is staleness-checked just as strictly as the NAV feed.
 /// @dev IN-TRANSIT VALUE (Gyld Investor API, SUP-21848). Cash the account sent to Gyld's deposit address and
-///      bonds it sent to the redeem holding wallet are recorded in `GyldInTransitRegistry` and counted here, so
-///      the account's valuation does not drop while a broker order is open: cash at face, bonds at
-///      `min(exit NAV, live NAV)`. Entries older than the registry's `maxTransitAge` are valued at ZERO
-///      (conservative) and `hasStaleTransit` says so. `IN_TRANSIT == address(0)` turns the feature off.
-///      Per-share pricing is untouched: in-transit changes what an account holds, not what one bond is worth.
+///      bonds it sent to the redeem holding wallet are recorded in `GyldInTransitRegistry` and counted in the
+///      account's VALUE (`getTVLByOwnerOfShares`), so the valuation does not drop while a broker order is open:
+///      cash at face, bonds at the LIVE NAV, both net of the registry's expected-fee haircut (`transitFeeBps`).
+///      Cash stays cash and bonds stay bonds; nothing is converted on the assumption that an order fills, and
+///      bonds in transit are marked exactly like wallet bonds because the price risk is still ours until the
+///      sale fills. `getBalanceOfOwner` is deliberately NOT touched: it is
+///      the plain ERC20 balance, because its consumers size exits and neither cash at Gyld nor bonds in the holding
+///      wallet are redeemable from the wallet. Entries older than the registry's `maxTransitAge` are valued at
+///      ZERO (conservative) and `hasStaleTransit` says so. `IN_TRANSIT == address(0)` turns the feature off.
+///      Per-share pricing is untouched: in-transit changes what an account is worth, not what one bond is worth.
 contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     using Math for uint256;
 
@@ -152,9 +157,11 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Identity read, and the "preserve visible holdings" escape hatch: a suspended, stale or
-    ///      unregistered instrument still reports the balance a strategy holds. In-transit bonds are added
-    ///      as they are; in-transit cash is converted to shares through the NON-reverting `previewNav` and
-    ///      contributes zero while the NAV is unusable (under-report, never revert).
+    ///      unregistered instrument still reports the balance a strategy holds. THE PLAIN ERC20 BALANCE, no
+    ///      registry or NAV read (review finding on SUP-21848): in-transit cash and bonds are valuation, not
+    ///      balance. Padding this with cash converted at NAV assumed the order fills, made a pure balance read
+    ///      depend on a price feed, and handed exit sizing a share count the wallet cannot redeem. The
+    ///      breakdown lives in `GyldInTransitRegistry.transit(account, bondToken)`, in its own units.
     function getBalanceOfOwner(
         address yieldSourceAddress,
         address ownerOfShares
@@ -164,17 +171,7 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 balance = IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
-        (uint256 cashIn, uint256 bondsIn,) = _transitOf(yieldSourceAddress, ownerOfShares);
-        if (cashIn == 0 && bondsIn == 0) return balance;
-        uint256 cashShares;
-        if (cashIn != 0) {
-            NavStatus memory status = previewNav(yieldSourceAddress);
-            if (status.nav != 0) {
-                cashShares = cashIn.mulDiv(REGISTRY.getInstrumentConfig(yieldSourceAddress).bondScale, status.nav);
-            }
-        }
-        return balance + bondsIn + cashShares;
+        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
     /// @notice Whether the account has an in-transit entry older than the registry's `maxTransitAge`
@@ -353,8 +350,9 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Short-circuits to zero when the owner holds nothing and has nothing in transit, BEFORE touching
-    ///      any feed, so a strategy holding none of a suspended instrument is still priceable. In-transit
-    ///      cash counts at face (it is already in cash units); in-transit bonds at `min(exit NAV, live NAV)`.
+    ///      any feed, so a strategy holding none of a suspended instrument is still priceable. In-transit cash
+    ///      counts at face (it is already in cash units) and in-transit bonds at the live NAV; both legs are
+    ///      netted by `transitFeeBps` so the expected Gyld fee is not booked twice (once here, once at settle).
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares
@@ -365,13 +363,14 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         returns (uint256)
     {
         uint256 balance = IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
-        (uint256 cashIn, uint256 bondsIn, uint256 exitNav) = _transitOf(yieldSourceAddress, ownerOfShares);
+        (uint256 cashIn, uint256 bondsIn) = _transitOf(yieldSourceAddress, ownerOfShares);
         if (balance == 0 && cashIn == 0 && bondsIn == 0) return 0;
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
         uint256 nav = _nav(cfg);
-        uint256 value = balance.mulDiv(nav, cfg.bondScale, Math.Rounding.Floor) + cashIn;
-        if (bondsIn != 0) {
-            value += bondsIn.mulDiv(exitNav < nav ? exitNav : nav, cfg.bondScale, Math.Rounding.Floor);
+        uint256 value = balance.mulDiv(nav, cfg.bondScale, Math.Rounding.Floor);
+        if (cashIn != 0 || bondsIn != 0) {
+            uint256 inTransit = cashIn + bondsIn.mulDiv(nav, cfg.bondScale, Math.Rounding.Floor);
+            value += _netOfFee(yieldSourceAddress, inTransit);
         }
         return value;
     }
@@ -384,7 +383,9 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
         uint256 value = IERC20(yieldSourceAddress).totalSupply().mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
-        if (address(IN_TRANSIT) != address(0)) value += IN_TRANSIT.totalCashInTransit(yieldSourceAddress);
+        if (address(IN_TRANSIT) != address(0)) {
+            value += _netOfFee(yieldSourceAddress, IN_TRANSIT.totalCashInTransit(yieldSourceAddress));
+        }
         return value;
     }
 
@@ -411,18 +412,18 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev The account's in-transit position, or zeros when the feature is off or the entry is stale.
-    function _transitOf(
-        address bondToken,
-        address account
-    )
-        private
-        view
-        returns (uint256 cashIn, uint256 bondsIn, uint256 exitNav)
-    {
-        if (address(IN_TRANSIT) == address(0)) return (0, 0, 0);
+    function _transitOf(address bondToken, address account) private view returns (uint256 cashIn, uint256 bondsIn) {
+        if (address(IN_TRANSIT) == address(0)) return (0, 0);
         GyldInTransitRegistry.Transit memory t = IN_TRANSIT.transit(account, bondToken);
-        if (t.oldestOpenAt == 0 || IN_TRANSIT.isStale(account, bondToken)) return (0, 0, 0);
-        return (t.cashOut, t.bondsOut, t.bondsOutNav);
+        if (t.oldestOpenAt == 0 || IN_TRANSIT.isStale(account, bondToken)) return (0, 0);
+        return (t.cashOut, t.bondsOut);
+    }
+
+    /// @dev In-transit value net of the instrument's expected Gyld fee (`transitFeeBps`, zero = no haircut).
+    function _netOfFee(address bondToken, uint256 inTransitValue) private view returns (uint256) {
+        if (inTransitValue == 0) return 0;
+        uint256 bps = IN_TRANSIT.transitFeeBps(bondToken);
+        return bps == 0 ? inTransitValue : inTransitValue.mulDiv(10_000 - bps, 10_000, Math.Rounding.Floor);
     }
 
     function _config(address bondToken) private view returns (GyldBondRegistry.InstrumentConfig memory cfg) {

@@ -102,7 +102,7 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
         vm.stopPrank();
 
         depositHook = new GyldInvestorDepositHook(address(transit), address(policy));
-        redeemHook = new GyldInvestorRedeemHook(address(transit), address(oracle));
+        redeemHook = new GyldInvestorRedeemHook(address(transit));
         transferHook = new TransferHook(address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
 
         instance = makeAccountInstance(keccak256("gyld-investor-e2e-strategy"));
@@ -182,7 +182,7 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
         vm.prank(gyldMinter);
         bond.mint(strategy, 1990e18);
         vm.prank(reconciler);
-        transit.settleMint(strategy, address(bond), 2000e6, 1990e18, keccak256("mint_request_id"));
+        transit.settleMint(1, 2000e6, 1990e18, keccak256("mint_request_id")); // lot 1 = the deposit above
         assertEq(transit.cashOut(strategy, address(bond)), 0);
         assertEq(_tvl(), before + 1990e6, "valuation moved only by what Gyld actually delivered");
         assertEq(oracle.getBalanceOfOwner(address(bond), strategy), START_BONDS + 1990e18);
@@ -200,7 +200,7 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
         depositHook.build(address(0), strategy, _leaf(1, false));
         // settlement reopens
         vm.prank(reconciler);
-        transit.settleMint(strategy, address(bond), 1000e6, 1e18, bytes32("m"));
+        transit.settleMint(1, 1000e6, 1e18, bytes32("m"));
         depositHook.build(address(0), strategy, _leaf(1, false));
     }
 
@@ -260,7 +260,7 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
                                 REDEEM SIDE
     //////////////////////////////////////////////////////////////*/
 
-    function test_E2E_Redeem_TvlContinuous_ClampedAtExitNav_ThenPayout() public {
+    function test_E2E_Redeem_TvlContinuous_AtLiveNav_ThenPayout() public {
         uint256 before = _tvl();
         executeOp(_single(address(redeemHook), _leaf(400e18, false)));
         assertEq(bond.balanceOf(gyldHolding), 400e18, "bonds at Gyld's pinned holding wallet");
@@ -268,17 +268,17 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
         assertEq(transit.bondsOut(strategy, address(bond)), 400e18);
         assertEq(_tvl(), before, "valuation unchanged by the exit");
 
-        // NAV rises while the sale is pending: the exit is clamped at the exit NAV, held bonds accrue
+        // NAV rises while the sale is pending: bonds in transit are still bonds and mark at the live NAV too
         vm.warp(block.timestamp + 1 days);
         navFeed.setLatestAnswer(1.02e8);
         aggregator.setLastUpdate(strategy, block.timestamp);
-        assertEq(_tvl(), 600e18 * 1.02e6 / 1e18 + 400e18 * NAV_IN_CASH / 1e18, "held at 1.02, in transit at 1.00");
+        assertEq(_tvl(), 1000e18 * 1.02e6 / 1e18, "held and in transit both at 1.02");
 
         // the broker sale settles, Gyld pays out to the registered withdrawal address (the strategy)
         vm.prank(gyldMinter);
         cash.mint(strategy, 399e6);
         vm.prank(reconciler);
-        transit.settleRedemption(strategy, address(bond), 400e18, 399e6, keccak256("redeem_id"));
+        transit.settleRedemption(1, 400e18, 399e6, keccak256("redeem_id")); // lot 1 = the redeem above
         assertEq(transit.bondsOut(strategy, address(bond)), 0);
         assertEq(_tvl(), 600e18 * 1.02e6 / 1e18, "only held bonds remain in the bond valuation");
         assertEq(cash.balanceOf(strategy), START_CASH + 399e6);
@@ -293,7 +293,7 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
         assertEq(cash.balanceOf(strategy), cashBefore);
         executeOp(_single(address(redeemHook), _leaf(10e18, false)));
         assertEq(bond.balanceOf(gyldHolding), 10e18, "the exit stays possible during an incident");
-        assertEq(transit.transit(strategy, address(bond)).bondsOutNav, 0, "no usable NAV: exit recorded at zero");
+        assertEq(transit.bondsOut(strategy, address(bond)), 10e18, "recorded without needing a usable NAV");
     }
 
     /*//////////////////////////////////////////////////////////////
