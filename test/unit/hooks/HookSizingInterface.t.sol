@@ -584,7 +584,7 @@ contract HookSizingInterfaceTest is Helpers {
             );
         gyldTradeGuard = new GyldTradeGuardHook(address(gyldOracle));
         gyldInvestorDeposit = new GyldInvestorDepositHook(address(gyldInTransit), address(gyldPolicy));
-        gyldInvestorRedeem = new GyldInvestorRedeemHook(address(gyldInTransit), address(gyldOracle));
+        gyldInvestorRedeem = new GyldInvestorRedeemHook(address(gyldInTransit));
         aaveV4HealthCheck = new AaveV4HealthCheckHook();
         offrampTokens = new OfframpTokensHook();
         ethenaUnstake = new EthenaUnstakeHook();

@@ -11,18 +11,17 @@ import { BaseHook } from "../BaseHook.sol";
 import { BytesLib } from "../../vendor/BytesLib.sol";
 import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../interfaces/ISuperHook.sol";
 import { GyldInTransitRegistry } from "../../accounting/oracles/GyldInTransitRegistry.sol";
-import { GyldBondYieldSourceOracle } from "../../accounting/oracles/GyldBondYieldSourceOracle.sol";
 
 /// @title GyldInvestorRedeemHook
 /// @author Superform Labs
 /// @notice Sends bond tokens to Gyld's pinned redeem holding wallet and records them as bonds in transit at
-///         the current NAV, so the account stays valued until the broker sale pays out.
+///         Gyld, so the account stays valued until the broker sale pays out.
 /// @dev NOT A WITHDRAW. The payout lands in Gyld's off-chain cash balance and is withdrawn to the account's
 ///      registered withdrawal address by a human; the operator confirms the sale with `limit_price_usd`.
 ///      This hook moves the tokens and records the exit; it cannot see the sale.
 /// @dev SUSPENSION DOES NOT BLOCK. A credit-event exit must stay possible, so only pair approval and the
-///      pinned wallet are required. The exit NAV recorded is `previewNav().nav` (zero when unusable, the
-///      recovery mark when one is set) and the oracle clamps it at the live NAV regardless.
+///      pinned wallet are required. No NAV is recorded: the oracle marks bonds in transit at the live NAV,
+///      exactly like wallet bonds (review on SUP-21848).
 /// @dev The destination is `GyldInTransitRegistry.redeemHoldingWallet()`, never calldata.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific), exactly 125 bytes:
 /// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
@@ -34,9 +33,6 @@ import { GyldBondYieldSourceOracle } from "../../accounting/oracles/GyldBondYiel
 /// @dev THIS NATSPEC IS THE SOURCE OF THE REGISTRY BUILD PATH: the OMS derives offsets from the lines above
 ///      and reads asset identity from the field named literally `yieldSource`. Do not rename the fields.
 contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
-    /// @notice Source of the exit NAV recorded with the transit entry
-    GyldBondYieldSourceOracle public immutable GYLD_ORACLE;
-
     /// @dev Exact constant name: the sizing-manifest generator reads it from THIS file.
     uint256 private constant AMOUNT_POSITION = 92;
 
@@ -60,10 +56,7 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
         return _replaceCalldataAmount(data, amounts[0], AMOUNT_POSITION);
     }
 
-    constructor(address inTransit_, address oracle_) GyldInvestorTransferBase(inTransit_) {
-        if (oracle_ == address(0)) revert ADDRESS_NOT_VALID();
-        GYLD_ORACLE = GyldBondYieldSourceOracle(oracle_);
-    }
+    constructor(address inTransit_) GyldInvestorTransferBase(inTransit_) { }
 
     /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
@@ -91,9 +84,6 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
         address to = IN_TRANSIT.redeemHoldingWallet();
         if (to == address(0)) revert DESTINATION_NOT_SET();
         IN_TRANSIT.checkBondsOut(yieldSource, cashToken);
-        // build() and execution share a block on both the manager and the 4337 path, so this is the NAV
-        // the record carries; the oracle clamps it at the live NAV when valuing.
-        uint256 nav = GYLD_ORACLE.previewNav(yieldSource).nav;
 
         executions = new Execution[](2);
         executions[0] =
@@ -101,7 +91,7 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
         executions[1] = Execution({
             target: address(IN_TRANSIT),
             value: 0,
-            callData: abi.encodeCall(GyldInTransitRegistry.recordBondsOut, (yieldSource, cashToken, shares, nav))
+            callData: abi.encodeCall(GyldInTransitRegistry.recordBondsOut, (yieldSource, cashToken, shares))
         });
     }
 

@@ -117,7 +117,7 @@ contract GyldInvestorHooksTest is Test {
         vm.stopPrank();
 
         depositHook = new GyldInvestorDepositHook(address(transit), address(policy));
-        redeemHook = new GyldInvestorRedeemHook(address(transit), address(oracle));
+        redeemHook = new GyldInvestorRedeemHook(address(transit));
         prevHook = new PrevHookStub();
         prevHook.set(0, address(cash));
 
@@ -162,7 +162,6 @@ contract GyldInvestorHooksTest is Test {
         assertEq(address(depositHook.IN_TRANSIT()), address(transit));
         assertEq(address(depositHook.POLICY()), address(policy));
         assertEq(address(redeemHook.IN_TRANSIT()), address(transit));
-        assertEq(address(redeemHook.GYLD_ORACLE()), address(oracle));
         assertEq(uint256(depositHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(uint256(redeemHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(depositHook.SUB_TYPE(), HookSubTypes.MISC);
@@ -177,7 +176,7 @@ contract GyldInvestorHooksTest is Test {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new GyldInvestorDepositHook(address(transit), address(0));
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new GyldInvestorRedeemHook(address(transit), address(0));
+        new GyldInvestorRedeemHook(address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -216,8 +215,7 @@ contract GyldInvestorHooksTest is Test {
         assertEq(ex[1].target, address(bond));
         assertEq(ex[1].callData, abi.encodeCall(IERC20.transfer, (holding, SHARES)));
         assertEq(
-            ex[2].callData,
-            abi.encodeCall(GyldInTransitRegistry.recordBondsOut, (address(bond), address(cash), SHARES, 1.05e6))
+            ex[2].callData, abi.encodeCall(GyldInTransitRegistry.recordBondsOut, (address(bond), address(cash), SHARES))
         );
     }
 
@@ -267,7 +265,7 @@ contract GyldInvestorHooksTest is Test {
     function test_Build_RefusesMissingDestination() public {
         GyldInTransitRegistry bare = new GyldInTransitRegistry(admin, address(registry));
         GyldInvestorDepositHook d = new GyldInvestorDepositHook(address(bare), address(policy));
-        GyldInvestorRedeemHook r = new GyldInvestorRedeemHook(address(bare), address(oracle));
+        GyldInvestorRedeemHook r = new GyldInvestorRedeemHook(address(bare));
         vm.expectRevert(GyldInvestorTransferBase.DESTINATION_NOT_SET.selector);
         d.build(address(0), account, _dep(AMOUNT));
         vm.expectRevert(GyldInvestorTransferBase.DESTINATION_NOT_SET.selector);
@@ -289,13 +287,12 @@ contract GyldInvestorHooksTest is Test {
         assertEq(oracle.getTVLByOwnerOfShares(address(bond), account), tvlBefore + AMOUNT, "valued at face");
     }
 
-    function test_Redeem_FullLeg_MovesBonds_RecordsExitNav_ZeroOut() public {
+    function test_Redeem_FullLeg_MovesBonds_RecordsBondsOut_ZeroOut() public {
         uint256 tvlBefore = oracle.getTVLByOwnerOfShares(address(bond), account);
         _run(redeemHook, _red(SHARES));
         assertEq(bond.balanceOf(holding), SHARES);
         GyldInTransitRegistry.Transit memory t = transit.transit(account, address(bond));
         assertEq(t.bondsOut, SHARES);
-        assertEq(t.bondsOutNav, 1.05e6);
         assertEq(redeemHook.getOutAmount(account), 0);
         assertEq(redeemHook.getOutToken(account), address(bond));
         assertEq(oracle.getTVLByOwnerOfShares(address(bond), account), tvlBefore, "TVL unchanged by the exit");
@@ -307,7 +304,7 @@ contract GyldInvestorHooksTest is Test {
         vm.expectRevert(GyldTradePolicy.NAV_SUSPENDED.selector);
         depositHook.preExecute(address(0), account, _dep(AMOUNT));
         _run(redeemHook, _red(SHARES));
-        assertEq(transit.transit(account, address(bond)).bondsOutNav, 0, "no usable NAV at exit: recorded as zero");
+        assertEq(transit.transit(account, address(bond)).bondsOut, SHARES, "recorded without a usable NAV");
     }
 
     function test_Deposit_PolicyGates_RecoveryMark_PausedStrategy() public {

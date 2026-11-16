@@ -688,7 +688,6 @@ contract GyldDeploymentWiringTest is Test {
         assertEq(address(d.IN_TRANSIT()), a.gyldInTransitRegistry);
         assertEq(address(d.POLICY()), a.gyldTradePolicy);
         assertEq(address(r.IN_TRANSIT()), a.gyldInTransitRegistry);
-        assertEq(address(r.GYLD_ORACLE()), a.gyldBondYieldSourceOracle);
         assertTrue(a.gyldInvestorDepositHook != a.gyldInvestorRedeemHook);
         // the trade instances still need a venue; the investor hooks do not
         assertEq(a.approveAndTradeGyldBondCashInHook, address(0));

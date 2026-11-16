@@ -11,8 +11,9 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../../mocks/MockAggregator.sol";
 
 /// @title GyldBondYieldSourceOracleTransitTest
-/// @notice The in-transit half of the oracle (SUP-21848): what the registry entries add to each read, the
-///         `min(exit NAV, live NAV)` clamp, the stale-to-zero rule, and the invariants the existing reads keep.
+/// @notice The in-transit half of the oracle (SUP-21848): what the registry entries add to each read (cash at
+///         face, bonds at the live NAV, both net of `transitFeeBps`), the stale-to-zero rule, and the invariants
+///         the existing reads keep.
 ///         The pre-existing suite runs with `IN_TRANSIT == address(0)` and is unchanged.
 contract GyldBondYieldSourceOracleTransitTest is Test {
     GyldBondRegistry internal registry;
@@ -67,9 +68,14 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         transit.recordCashOut(address(bond), address(cash), amount);
     }
 
-    function _bondsOut(uint256 shares, uint256 nav) internal {
+    function _bondsOut(uint256 shares) internal {
         vm.prank(holder);
-        transit.recordBondsOut(address(bond), address(cash), shares, nav);
+        transit.recordBondsOut(address(bond), address(cash), shares);
+    }
+
+    function _setFee(uint256 bps) internal {
+        vm.prank(admin);
+        transit.setTransitFeeBps(address(bond), bps);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -92,17 +98,37 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
                           getTVLByOwnerOfShares
     //////////////////////////////////////////////////////////////*/
 
-    function test_TVL_HeldPlusCashAtFace_PlusBondsClamped() public {
+    function test_TVL_HeldPlusCashAtFace_PlusBondsAtLiveNav() public {
         bond.mint(holder, 100e18);
         _cashOut(250e6);
-        _bondsOut(10e18, 1.0e6); // exited below the live 1.05
-        // 100 bonds * 1.05 + 250 cash + 10 bonds * min(1.00, 1.05)
-        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 105e6 + 250e6 + 10e6);
-
-        // exit NAV above live: clamp to live
-        _bondsOut(10e18, 1.3e6); // weighted exit NAV becomes 1.15 > live 1.05
-        assertEq(transit.transit(holder, address(bond)).bondsOutNav, 1.15e6);
+        _bondsOut(10e18);
+        // 100 bonds * 1.05 + 250 cash + 10 bonds * 1.05: bonds in transit mark exactly like wallet bonds
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 105e6 + 250e6 + 10 * NAV_IN_CASH);
+        _bondsOut(10e18);
         assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 105e6 + 250e6 + 20 * NAV_IN_CASH);
+        // the live NAV moves: held and in-transit bonds move together, cash does not
+        navFeed.setLatestAnswer(1.2e8);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 120 * 1.2e6 + 250e6, "both legs at 1.20");
+    }
+
+    /// @dev The expected-fee haircut nets BOTH in-transit legs and never touches wallet bonds.
+    function test_TVL_FeeHaircut_NetsTransitLegsOnly() public {
+        bond.mint(holder, 100e18);
+        _cashOut(1000e6);
+        _bondsOut(10e18);
+        uint256 gross = 100 * NAV_IN_CASH + 1000e6 + 10 * NAV_IN_CASH;
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), gross, "no haircut by default");
+        _setFee(50); // 0.5%
+        uint256 inTransit = 1000e6 + 10 * NAV_IN_CASH;
+        assertEq(
+            oracle.getTVLByOwnerOfShares(address(bond), holder),
+            100 * NAV_IN_CASH + inTransit * 9950 / 10_000,
+            "transit legs net of 0.5%, wallet bonds untouched"
+        );
+        _setFee(1000);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 100 * NAV_IN_CASH + inTransit * 9000 / 10_000);
+        _setFee(0);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), gross);
     }
 
     function test_TVL_ZeroShortCircuit_StillHolds_WithNoTransit() public {
@@ -118,17 +144,19 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         registry.setNavSuspended(address(bond), true);
         vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
         oracle.getTVLByOwnerOfShares(address(bond), holder);
-        // identity read still answers: bonds-in-transit counted, cash contributes zero shares
+        // identity read still answers, and it is the plain balance: in-transit is valuation, not balance
         _unsuspendAndRecord();
     }
 
     function _unsuspendAndRecord() internal {
         vm.prank(admin);
         registry.setNavSuspended(address(bond), false);
-        _bondsOut(3e18, 1e6);
+        _bondsOut(3e18);
         vm.prank(admin);
         registry.setNavSuspended(address(bond), true);
-        assertEq(oracle.getBalanceOfOwner(address(bond), holder), 3e18, "cash shares are zero while NAV is unusable");
+        assertEq(
+            oracle.getBalanceOfOwner(address(bond), holder), bond.balanceOf(holder), "plain balance under suspension"
+        );
     }
 
     function test_TVL_StaleTransit_ValuedAtZero_AndFlagged() public {
@@ -150,24 +178,31 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         transit.setMaxCashInTransit(address(bond6), type(uint256).max);
         bond6.mint(holder, 100e6);
         vm.prank(holder);
-        transit.recordBondsOut(address(bond6), address(cash), 10e6, 1.0e6);
+        transit.recordBondsOut(address(bond6), address(cash), 10e6);
         vm.prank(holder);
         transit.recordCashOut(address(bond6), address(cash), 5e6);
-        // 100 * 1.05 + 10 * 1.00 + 5
-        assertEq(oracle.getTVLByOwnerOfShares(address(bond6), holder), 105e6 + 10e6 + 5e6);
-        // balance: 100 + 10 + 5 / 1.05 = 4.761904 bonds (floor, 6 dec)
-        assertEq(oracle.getBalanceOfOwner(address(bond6), holder), 100e6 + 10e6 + uint256(5e6) * 1e6 / NAV_IN_CASH);
+        // 100 * 1.05 + 10 * 1.05 + 5
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond6), holder), 105e6 + 10.5e6 + 5e6);
+        // balance: the wallet only; bonds in the holding wallet and cash at Gyld are value, not balance
+        assertEq(oracle.getBalanceOfOwner(address(bond6), holder), 100e6);
     }
 
     /*//////////////////////////////////////////////////////////////
                             getBalanceOfOwner
     //////////////////////////////////////////////////////////////*/
 
-    function test_BalanceOfOwner_AddsTransit_NeverReverts() public {
+    /// @dev Review finding (SUP-21848): the balance must not be padded with in-transit cash converted at NAV
+    ///      (assumes a fill, adds a NAV dependency to an identity read) nor with bonds in Gyld's holding wallet
+    ///      (not redeemable from the wallet). Value lives in TVL; the breakdown in `registry.transit`.
+    function test_BalanceOfOwner_IsThePlainBalance_NeverReverts() public {
         bond.mint(holder, 2e18);
-        _cashOut(2.1e6); // 2 bonds at 1.05
-        _bondsOut(1e18, 1e6);
-        assertEq(oracle.getBalanceOfOwner(address(bond), holder), 2e18 + 1e18 + 2e18);
+        _cashOut(2.1e6); // 2 bonds' worth at 1.05
+        _bondsOut(1e18);
+        assertEq(oracle.getBalanceOfOwner(address(bond), holder), 2e18, "wallet balance only");
+        GyldInTransitRegistry.Transit memory t = transit.transit(holder, address(bond));
+        assertEq(t.cashOut, 2.1e6, "cash in transit is reported as cash");
+        assertEq(t.bondsOut, 1e18, "bonds in transit are reported as bonds");
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 3 * NAV_IN_CASH + 2.1e6, "value counts both");
         // unregistered token: plain balance, no registry lookup
         MockERC20 stray = new MockERC20("S", "S", 18);
         stray.mint(holder, 7);
@@ -182,8 +217,10 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         bond.mint(holder, 100e18);
         bond.mint(holding, 10e18); // bonds "in the holding wallet" are still in totalSupply
         _cashOut(50e6);
-        _bondsOut(10e18, 1e6);
+        _bondsOut(10e18);
         assertEq(oracle.getTVL(address(bond)), 110 * NAV_IN_CASH + 50e6, "supply at NAV plus cash in transit only");
+        _setFee(100);
+        assertEq(oracle.getTVL(address(bond)), 110 * NAV_IN_CASH + 50e6 * 99 / 100, "cash in transit net of the fee");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -192,7 +229,7 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
 
     function test_PerSharePricing_IgnoresTransit() public {
         _cashOut(1000e6);
-        _bondsOut(1e18, 9e6);
+        _bondsOut(1e18);
         assertEq(oracle.getPricePerShare(address(bond)), NAV_IN_CASH);
         assertEq(oracle.getAssetOutput(address(bond), address(cash), 1e18), NAV_IN_CASH);
         assertEq(oracle.getShareOutput(address(bond), address(cash), NAV_IN_CASH), 1e18);
@@ -202,23 +239,31 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
                                   FUZZ
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev TVL is monotone in both transit components and bounded by valuing in-transit bonds at the live NAV.
-    function testFuzz_TVL_MonotoneAndBounded(uint96 held, uint64 cashIn, uint96 bondsIn, uint64 exitNavRaw) public {
+    /// @dev TVL is additive in both transit legs at the live mark, and the fee haircut scales exactly the
+    ///      in-transit part.
+    function testFuzz_TVL_AdditiveAtLiveNav_FeeNetsTransitOnly(
+        uint96 held,
+        uint64 cashIn,
+        uint96 bondsIn,
+        uint16 feeRaw
+    )
+        public
+    {
         uint256 h = bound(uint256(held), 0, 1e24);
         uint256 c = bound(uint256(cashIn), 0, 1e12);
         uint256 b = bound(uint256(bondsIn), 0, 1e24);
-        uint256 exitNav = bound(uint256(exitNavRaw), 0, 3e6);
+        uint256 fee = bound(uint256(feeRaw), 0, 1000);
         if (h != 0) bond.mint(holder, h);
         uint256 base = oracle.getTVLByOwnerOfShares(address(bond), holder);
         if (c != 0) _cashOut(c);
-        uint256 withCash = oracle.getTVLByOwnerOfShares(address(bond), holder);
-        assertEq(withCash, base + c, "cash at face");
-        if (b != 0) _bondsOut(b, exitNav);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), base + c, "cash at face");
+        if (b != 0) _bondsOut(b);
         uint256 full = oracle.getTVLByOwnerOfShares(address(bond), holder);
-        assertGe(full, withCash, "bonds never subtract");
-        assertLe(full, withCash + b * NAV_IN_CASH / 1e18 + 1, "never above the live mark");
-        if (exitNav >= NAV_IN_CASH && b != 0) {
-            assertEq(full, withCash + b * NAV_IN_CASH / 1e18, "clamped to live NAV");
-        }
+        uint256 inTransit = c + b * NAV_IN_CASH / 1e18;
+        assertEq(full, base + inTransit, "bonds in transit at the live NAV, like wallet bonds");
+        _setFee(fee);
+        uint256 net = oracle.getTVLByOwnerOfShares(address(bond), holder);
+        assertEq(net, base + inTransit * (10_000 - fee) / 10_000, "haircut on the transit part only");
+        assertGe(net, base, "the haircut never reaches wallet bonds");
     }
 }

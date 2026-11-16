@@ -1989,7 +1989,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
                 __getSalt(GYLD_INVESTOR_REDEEM_HOOK_KEY),
                 abi.encodePacked(
                     __getOtherHooksBytecode("GyldInvestorRedeemHook", env),
-                    abi.encode(hookAddresses.gyldInTransitRegistry, hookAddresses.gyldBondYieldSourceOracle)
+                    abi.encode(hookAddresses.gyldInTransitRegistry)
                 )
             );
             require(hookAddresses.gyldInvestorDepositHook != address(0), "GyldInvestorDepositHook not assigned");

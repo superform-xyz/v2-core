@@ -661,8 +661,7 @@ generate_constructor_args() {
             ;;
         "GyldInvestorRedeemHook")
             local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
-            local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")
-            echo "$(cast abi-encode "constructor(address,address)" "$gyld_in_transit" "$gyld_oracle")"
+            echo "$(cast abi-encode "constructor(address)" "$gyld_in_transit")"
             ;;
         "GyldTradeGuardHook")
             local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")
