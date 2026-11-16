@@ -71,11 +71,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), FORK_BLOCK);
-        // Constructed at MORPHO'S OWN CEILING (2%), not the deploy-script value. These fixtures include
-        // MAX_PENALTY_VAULT at exactly 200 bps, so a tighter cap would make the pre-existing max-penalty
-        // cases revert on Inv2 rather than exercising what they were written for. The cap's own
-        // behaviour is covered by the dedicated Inv2 tests below.
-        hook = new ForceDeallocateMorphoHook(0.02e18);
+        hook = new ForceDeallocateMorphoHook();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -188,10 +184,10 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
             ZERO_PENALTY_VAULT,
             "offset 32 must still be yieldSource, i.e. the two fields are not conflated"
         );
-        assertEq(data.length, 105, "header is exactly 105 bytes");
+        assertEq(data.length, 137, "header is exactly 137 bytes");
     }
 
-    /// @notice A NON-EMPTY adapterData tail must survive at the new offset 105, byte for byte.
+    /// @notice A NON-EMPTY adapterData tail must survive at the new offset 137, byte for byte.
     /// @dev The tail carries no length prefix, so an off-by-one in the slice would hand the adapter a
     ///      silently corrupted payload rather than fail. The old layout sliced from 169.
     function test_ForceDeallocate_AdapterDataTail_SurvivesAtNewOffset() public {
@@ -199,7 +195,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         bytes memory tail = hex"deadbeefcafe0123";
 
         bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, tail);
-        assertEq(data.length, 105 + tail.length, "header is 105 bytes, then the raw tail");
+        assertEq(data.length, 137 + tail.length, "header is 137 bytes, then the raw tail");
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(
@@ -327,29 +323,28 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         hook.build(address(0), makeAddr("account"), shortData);
     }
 
-    /// @notice Data exactly at MIN_DATA_LENGTH (105 bytes after SUP-21780) should work
+    /// @notice Data exactly at MIN_DATA_LENGTH (137 bytes after SUP-21849) should work
     function test_ForceDeallocate_MinDataLength() public {
         address account = makeAddr("smartAccount");
 
-        // Build data with empty adapterData — exactly 105 bytes
+        // Build data with empty adapterData — exactly 137 bytes
         bytes memory data = _encodeBaseData(
             ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, ""
         );
         // Verify we built exactly the minimum length
-        assertEq(data.length, 105, "Data should be exactly MIN_DATA_LENGTH");
+        assertEq(data.length, 137, "Data should be exactly MIN_DATA_LENGTH");
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(executions.length, 3);
     }
 
-    /// @notice Data at 104 bytes (one byte short) should revert
-    /// @dev THIS BOUNDARY MOVED WITH SUP-21780 AND THE OLD VALUE NO LONGER TESTS ANYTHING. It used to be
-    ///      `new bytes(168)` against a 169-byte minimum. 168 is now comfortably ABOVE the 105-byte
-    ///      minimum, so the length gate would pass, `yieldSource` would decode as address(0), and the test
-    ///      would have gone green on `ADDRESS_NOT_VALID` — asserting a different failure than it claims.
+    /// @notice Data at 136 bytes (one byte short) should revert
+    /// @dev THIS BOUNDARY MOVED TWICE (SUP-21780: 169 -> 105; SUP-21849: 105 -> 137). A stale value here would
+    ///      pass the length gate, decode `yieldSource` as address(0), and go green on `ADDRESS_NOT_VALID` —
+    ///      asserting a different failure than it claims.
     function test_ForceDeallocate_RevertIf_DataOneByteTooShort() public {
-        // 105 is MIN_DATA_LENGTH, so 104 should fail
-        bytes memory shortData = new bytes(104);
+        // 137 is MIN_DATA_LENGTH, so 136 should fail
+        bytes memory shortData = new bytes(136);
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), makeAddr("account"), shortData);
@@ -662,7 +657,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
 
     /// @notice For ANY header values and ANY tail, build produces exactly the expected forceDeallocate
     ///         calldata. The single strongest statement that the 105-byte layout decodes correctly.
-    /// @dev vault/adapter are fixed to the zero-penalty pair so Inv2 never interferes; the fields under
+    /// @dev vault/adapter are fixed to the zero-penalty pair so no penalty burn interferes; the fields under
     ///      test are the oracle id (which must be carried but never read), the amount, and the tail.
     function testFuzz_HeaderRoundTrip_ProducesExactCalldata(bytes32 oracleId, uint96 assets, bytes memory tail)
         public
@@ -675,6 +670,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
                 adapter: ZERO_PENALTY_ADAPTER,
                 assets: assets,
                 usePrevHookAmount: false,
+                maxPenaltyWad: DEFAULT_LEAF_CAP,
                 adapterData: tail
             })
         );
@@ -712,6 +708,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
                 adapter: ZERO_PENALTY_ADAPTER,
                 assets: original,
                 usePrevHookAmount: usePrev,
+                maxPenaltyWad: DEFAULT_LEAF_CAP,
                 adapterData: hex"a1b2c3"
             })
         );
@@ -725,37 +722,6 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
             assertEq(uint8(out[i]), uint8(data[i]), "a byte outside the assets slot changed");
         }
         assertEq(hook.decodeAmounts(out)[0], replacement, "and the slot itself took the new value");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    Inv2 BOUNDARY (FUZZ)
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice For ANY cap, build succeeds exactly when the cap is at least the adapter's live rate.
-    function testFuzz_Inv2_CapBoundary(uint256 capWad) public {
-        capWad = bound(capWad, 1, 0.02e18);
-        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
-        ForceDeallocateMorphoHook h = new ForceDeallocateMorphoHook(capWad);
-        bytes memory data = _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
-
-        if (capWad >= live) {
-            assertEq(h.build(address(0), makeAddr("a"), data).length, 3, "cap >= live rate must pass");
-        } else {
-            vm.expectRevert(
-                abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, capWad)
-            );
-            h.build(address(0), makeAddr("a"), data);
-        }
-    }
-
-    /// @notice The constructor accepts a cap exactly when it is in (0, MORPHO_MAX_PENALTY_WAD].
-    function testFuzz_Inv2_ConstructorValidation(uint256 capWad) public {
-        if (capWad != 0 && capWad <= 0.02e18) {
-            assertEq(new ForceDeallocateMorphoHook(capWad).MAX_PENALTY_WAD(), capWad, "accepted");
-        } else {
-            vm.expectRevert(ForceDeallocateMorphoHook.INVALID_PENALTY_CAP.selector);
-            new ForceDeallocateMorphoHook(capWad);
-        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -842,95 +808,114 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    SUP-21780 Inv2: PENALTY CEILING
+                SUP-21849: THE LEAF-COMMITTED PENALTY CAP
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice A hook capped BELOW the adapter's live rate refuses to build or to pre-execute.
-    /// @dev The adapter here charges 10 bps; the hook is capped at 5. Both the view path (`build`, what
-    ///      the OMS pre-flight sees) and the authoritative on-chain path (`_preExecute`) must refuse,
-    ///      because a penalty raised between simulation and execution has to be caught by the latter.
-    function test_Inv2_PenaltyAboveCap_IsRefusedOnBothPaths() public {
-        ForceDeallocateMorphoHook capped = new ForceDeallocateMorphoHook(0.0005e18); // 5 bps
+    /// @notice A leaf capped BELOW the adapter's live rate refuses to build AND to pre-execute.
+    /// @dev The adapter here charges 10 bps; the leaf says 5. Both the view path (`build`, what the OMS
+    ///      pre-flight sees) and the binding on-chain path (`_preExecute`) must refuse, because a penalty
+    ///      raised between simulation and execution has to be caught by the latter.
+    function test_LeafCap_BelowTheLiveRate_IsRefusedOnBothPaths() public {
         address account = makeAddr("smartAccount");
-        bytes memory data = _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
-
         uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
-        assertGt(live, 0.0005e18, "precondition: this adapter charges more than the cap");
+        assertGt(live, 0.0005e18, "precondition: this adapter charges more than 5 bps");
+        bytes memory data =
+            _encodeBaseDataWithCap(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, 0.0005e18, "");
 
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, 0.0005e18)
-        );
-        capped.build(address(0), account, data);
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, 0.0005e18));
+        hook.build(address(0), account, data);
 
-        // And directly on the on-chain path, bypassing build entirely.
         vm.startPrank(account);
-        capped.setExecutionContext(account);
-        vm.expectRevert(
-            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, 0.0005e18)
-        );
-        capped.preExecute(address(0), account, data);
+        hook.setExecutionContext(account);
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, 0.0005e18));
+        hook.preExecute(address(0), account, data);
         vm.stopPrank();
     }
 
-    /// @notice A cap AT the adapter's live rate passes - the comparison is `>`, not `>=`.
-    function test_Inv2_PenaltyExactlyAtCap_IsAllowed() public {
+    /// @notice A leaf AT the live rate passes: the comparison is `>`, not `>=`.
+    function test_LeafCap_ExactlyAtTheLiveRate_IsAllowed() public {
         uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
-        ForceDeallocateMorphoHook exact = new ForceDeallocateMorphoHook(live);
-        address account = makeAddr("smartAccount");
-
-        Execution[] memory ex =
-            exact.build(address(0), account, _encodeBaseData(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, ""));
-        assertEq(ex.length, 3, "a cap equal to the live rate must not bind");
-    }
-
-    /// @notice A zero-penalty adapter passes under any cap.
-    function test_Inv2_ZeroPenaltyAdapter_PassesUnderTheTightestCap() public {
-        ForceDeallocateMorphoHook tight = new ForceDeallocateMorphoHook(1); // 1 wei of WAD
-        address account = makeAddr("smartAccount");
-        assertEq(
-            IMorphoVaultV2(ZERO_PENALTY_VAULT).forceDeallocatePenalty(ZERO_PENALTY_ADAPTER),
-            0,
-            "precondition: this adapter is free"
+        Execution[] memory ex = hook.build(
+            address(0),
+            makeAddr("smartAccount"),
+            _encodeBaseDataWithCap(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, live, "")
         );
-        Execution[] memory ex =
-            tight.build(address(0), account, _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, ""));
-        assertEq(ex.length, 3, "a free adapter is never blocked by the ceiling");
+        assertEq(ex.length, 3, "a leaf equal to the live rate must not bind");
     }
 
-    /// @notice The constructor rejects caps that could never bind or would disable the check.
-    function test_Inv2_Constructor_RejectsMeaninglessCaps() public {
-        vm.expectRevert(ForceDeallocateMorphoHook.INVALID_PENALTY_CAP.selector);
-        new ForceDeallocateMorphoHook(0);
-
-        vm.expectRevert(ForceDeallocateMorphoHook.INVALID_PENALTY_CAP.selector);
-        new ForceDeallocateMorphoHook(0.02e18 + 1); // above Morpho's own ceiling
-
-        // The boundary itself is valid.
-        ForceDeallocateMorphoHook atCeiling = new ForceDeallocateMorphoHook(0.02e18);
-        assertEq(atCeiling.MAX_PENALTY_WAD(), 0.02e18, "Morpho's ceiling is an acceptable cap");
-        assertEq(atCeiling.MORPHO_MAX_PENALTY_WAD(), 0.02e18, "and is exposed for callers");
+    /// @notice A zero-penalty adapter passes under the tightest possible leaf.
+    function test_LeafCap_ZeroPenaltyAdapter_PassesUnderTheTightestLeaf() public {
+        assertEq(IMorphoVaultV2(ZERO_PENALTY_VAULT).forceDeallocatePenalty(ZERO_PENALTY_ADAPTER), 0);
+        Execution[] memory ex = hook.build(
+            address(0),
+            makeAddr("smartAccount"),
+            _encodeBaseDataWithCap(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, 1, "")
+        );
+        assertEq(ex.length, 3, "a free adapter is never blocked by the leaf");
     }
 
-    /// @notice The cap is an immutable, so it is part of the CREATE2 address.
-    /// @dev This is the property that makes a Merkle leaf authorising the hook also commit to its cap,
-    ///      with no extra machinery: two different caps are two different addresses.
-    function test_Inv2_DifferentCaps_AreDifferentAddresses() public {
-        ForceDeallocateMorphoHook a = new ForceDeallocateMorphoHook(0.001e18);
-        ForceDeallocateMorphoHook b = new ForceDeallocateMorphoHook(0.002e18);
-        assertTrue(address(a) != address(b), "the cap changes the deployed bytecode");
-        assertEq(a.MAX_PENALTY_WAD(), 0.001e18);
-        assertEq(b.MAX_PENALTY_WAD(), 0.002e18);
-    }
-
-    /// @notice Inv2 restores a probe the deleted guard provided: `build` now calls the yieldSource, so a
-    ///         non-contract address fails at build rather than only later at execution.
-    function test_Inv2_NonContractYieldSource_FailsAtBuild() public {
+    /// @notice Zero (a zero-filled word) and anything above Morpho's own 2% are refused on both paths.
+    function test_LeafCap_OutOfRange_IsRefusedOnBothPaths() public {
         address account = makeAddr("smartAccount");
-        address notAVault = makeAddr("notAVault");
-        bytes memory data = _encodeBaseData(notAVault, STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
+        bytes memory zero = _encodeBaseDataWithCap(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, 0, "");
+        bytes memory high =
+            _encodeBaseDataWithCap(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, 0.02e18 + 1, "");
 
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0, 0.02e18));
+        hook.build(address(0), account, zero);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0.02e18 + 1, 0.02e18)
+        );
+        hook.build(address(0), account, high);
+
+        vm.startPrank(account);
+        hook.setExecutionContext(account);
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0, 0.02e18));
+        hook.preExecute(address(0), account, zero);
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0.02e18 + 1, 0.02e18)
+        );
+        hook.preExecute(address(0), account, high);
+        vm.stopPrank();
+        assertEq(hook.MORPHO_MAX_PENALTY_WAD(), 0.02e18, "Morpho's ceiling is exposed for callers");
+    }
+
+    /// @notice The cap word survives an OMS resize byte for byte AND still binds the resized build.
+    function test_LeafCap_SurvivesSpliceAndStillBinds() public {
+        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
+        bytes memory signed =
+            _encodeBaseDataWithCap(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, live - 1, hex"beef");
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 7e6;
+        bytes memory spliced = hook.replaceCalldataAmounts(signed, amounts);
+        assertEq(spliced.length, signed.length);
+        for (uint256 i = 105; i < 137; ++i) {
+            assertEq(spliced[i], signed[i], "cap word byte untouched by the splice");
+        }
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, live - 1));
+        hook.build(address(0), makeAddr("smartAccount"), spliced);
+    }
+
+    /// @notice For ANY leaf in range, build succeeds exactly when the leaf is at least the live rate.
+    function testFuzz_LeafCap_Boundary(uint256 capWad) public {
+        capWad = bound(capWad, 1, 0.02e18);
+        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
+        bytes memory data =
+            _encodeBaseDataWithCap(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, false, capWad, "");
+        if (capWad >= live) {
+            assertEq(hook.build(address(0), makeAddr("a"), data).length, 3, "leaf >= live rate must pass");
+        } else {
+            vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, capWad));
+            hook.build(address(0), makeAddr("a"), data);
+        }
+    }
+
+    /// @notice The cap read is the one call `build` makes to the yieldSource, so a non-contract vault fails
+    ///         at build rather than only later at execution.
+    function test_NonContractYieldSource_FailsAtBuild() public {
+        bytes memory data = _encodeBaseData(makeAddr("notAVault"), STEAKHOUSE_USDT_ADAPTER, 1e6, false, "");
         vm.expectRevert();
-        hook.build(address(0), account, data);
+        hook.build(address(0), makeAddr("smartAccount"), data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -955,11 +940,11 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         );
     }
 
-    /// @notice A one-byte tail is valid: 105 header + 1 = 106 bytes.
+    /// @notice A one-byte tail is valid: 137 header + 1 = 138 bytes.
     function test_OneByteAdapterData_IsCarried() public {
         address account = makeAddr("smartAccount");
         bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, hex"7f");
-        assertEq(data.length, 106, "105 + 1");
+        assertEq(data.length, 138, "137 + 1");
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(
@@ -970,48 +955,65 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     }
 
     /// @notice Exactly MIN_DATA_LENGTH means an EMPTY tail, not a one-byte tail.
-    /// @dev `ADAPTER_DATA_OFFSET == MIN_DATA_LENGTH`, so the branch is `data.length > 105`. This pins the
-    ///      boundary from the other side: 105 bytes must produce `0x`, not a stray byte.
+    /// @dev `ADAPTER_DATA_OFFSET == MIN_DATA_LENGTH`, so the branch is `data.length > 137`. This pins the
+    ///      boundary from the other side: 137 bytes must produce `0x`, not a stray byte.
     function test_ExactMinLength_YieldsAnEmptyTail() public {
         address account = makeAddr("smartAccount");
         bytes memory data = _encodeBaseData(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, false, "");
-        assertEq(data.length, 105);
+        assertEq(data.length, 137);
 
         Execution[] memory executions = hook.build(address(0), account, data);
         assertEq(
             executions[1].callData,
             abi.encodeCall(IMorphoVaultV2.forceDeallocate, (ZERO_PENALTY_ADAPTER, "", 1e6, account)),
-            "105 bytes means an empty adapterData"
+            "137 bytes means an empty adapterData"
         );
     }
 
     /// @notice WHAT A LEGACY 169-BYTE PAYLOAD DOES, pinned rather than left to discovery.
-    /// @dev The migration hazard: the new layout accepts an old-format blob because 169 > 105. The flag
-    ///      is read from byte 104 (the top byte of the old `deadline`, normally 0x00 -> false) and the
-    ///      remaining 64 bytes become `adapterData`. It does NOT revert. This is why the old address must
-    ///      be deregistered rather than left live alongside the new one, and why the OMS encoder cutover
-    ///      has to land with the deployment. If this ever starts reverting, the layout gained a length
-    ///      check and this test should be updated deliberately.
-    function test_LegacyPayload_IsAcceptedAndReinterpreted() public {
-        bytes memory legacy = _legacyPayload(1e6);
-        assertEq(legacy.length, 169, "the superseded layout");
-        assertFalse(hook.decodeUsePrevHookAmount(legacy), "byte 104 is the old deadline's top byte: 0x00");
-        _assertLegacyTailBecomesAdapterData(legacy);
+    /// @dev The superseded layout was `deadline@104, maxPenaltyBps@136, flag@168`. 169 > 137 so the length gate
+    ///      passes, byte 104 is the deadline's top byte (0x00 -> flag false), and the cap word at 105..136 reads
+    ///      `(deadline << 8) | maxPenaltyBps[0]`. With a REAL deadline that is a tiny but in-range cap (1.7e9 x
+    ///      256 ~ 4.4e11 WAD = 0.00000004%), so what stops the blob is NOT the range check: on any adapter that
+    ///      charges a penalty it is `PENALTY_ABOVE_CAP`; on a free adapter `build` passes and the misaligned
+    ///      32-byte tail (`maxPenaltyBps[1..] || flag`) is handed to the adapter, whose MarketParams decode
+    ///      reverts at execution with nothing burned. Only a zero deadline, which no live signer ever used, is
+    ///      caught by the range check. The pre-SUP-21849 105-byte layout fails the length gate outright.
+    function test_LegacyPayload_RealDeadline_IsRefusedByTheCapOrTheAdapter() public {
+        address account = makeAddr("smartAccount");
+        uint256 deadline = 1_700_000_000;
+
+        // A penalised adapter: the reinterpreted word is a cap far below the live rate.
+        bytes memory onSteakhouse = _legacyPayloadFor(STEAKHOUSE_USDT_VAULT, STEAKHOUSE_USDT_ADAPTER, 1e6, deadline);
+        assertEq(onSteakhouse.length, 169, "the superseded layout");
+        assertFalse(hook.decodeUsePrevHookAmount(onSteakhouse), "byte 104 is the deadline's top byte: 0x00");
+        uint256 live = IMorphoVaultV2(STEAKHOUSE_USDT_VAULT).forceDeallocatePenalty(STEAKHOUSE_USDT_ADAPTER);
+        uint256 reinterpreted = deadline << 8; // maxPenaltyBps = 200 has a zero top byte
+        assertGt(reinterpreted, 0);
+        assertLt(reinterpreted, live, "the stale word is a cap no real adapter satisfies");
+        vm.expectRevert(abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_ABOVE_CAP.selector, live, reinterpreted));
+        hook.build(address(0), account, onSteakhouse);
+
+        // A free adapter: build passes, the adapter rejects the misaligned tail, nothing is burned.
+        bytes memory onFree = _legacyPayloadFor(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, 1e6, deadline);
+        Execution[] memory ex = hook.build(address(0), account, onFree);
+        assertEq(ex.length, 3);
+        vm.startPrank(account);
+        (bool okPre,) = ex[0].target.call(ex[0].callData);
+        assertTrue(okPre, "preExecute passes the same in-range cap");
+        (bool okCall,) = ex[1].target.call(ex[1].callData);
+        assertFalse(okCall, "forceDeallocate reverts decoding the 32-byte tail as MarketParams");
+        vm.stopPrank();
     }
 
-    /// @dev Split into its own frame purely to stay under the stack limit in this large test contract.
-    function _assertLegacyTailBecomesAdapterData(bytes memory legacy) internal {
-        address account = makeAddr("smartAccount");
-        Execution[] memory executions = hook.build(address(0), account, legacy);
-        // 169 - 105 = 64 bytes: the old deadline's lower word, maxPenaltyBps, and the old flag byte.
-        assertEq(
-            executions[1].callData,
-            abi.encodeCall(
-                IMorphoVaultV2.forceDeallocate,
-                (ZERO_PENALTY_ADAPTER, BytesLib.slice(legacy, 105, 64), 1e6, account)
-            ),
-            "the old trailing words are handed to the adapter as adapterData"
+    /// @notice The degenerate legacy blob with `deadline == 0` is the one case the range check catches.
+    function test_LegacyPayload_ZeroDeadline_IsRefusedByTheRangeCheck() public {
+        bytes memory legacy = _legacyPayload(1e6);
+        assertEq(legacy.length, 169, "the superseded layout");
+        vm.expectRevert(
+            abi.encodeWithSelector(ForceDeallocateMorphoHook.PENALTY_CAP_OUT_OF_RANGE.selector, 0, 0.02e18)
         );
+        hook.build(address(0), makeAddr("smartAccount"), legacy);
     }
 
     /// @notice usePrevHookAmount genuinely CONSUMES a predecessor's non-zero amount.
@@ -1075,6 +1077,7 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
                 adapter: ZERO_PENALTY_ADAPTER,
                 assets: 0,
                 usePrevHookAmount: true,
+                maxPenaltyWad: DEFAULT_LEAF_CAP,
                 adapterData: ""
             })
         );
@@ -1097,17 +1100,30 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
     /// @dev The superseded 169-byte layout: header(104) + deadline(32) + maxPenaltyBps(32) + flag(1).
     ///      Built here so the test that consumes it stays within the stack limit.
     function _legacyPayload(uint256 assets) internal pure returns (bytes memory) {
+        return _legacyPayloadFor(ZERO_PENALTY_VAULT, ZERO_PENALTY_ADAPTER, assets, 0);
+    }
+
+    function _legacyPayloadFor(
+        address vault,
+        address adapter,
+        uint256 assets,
+        uint256 deadline
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         // Built in two steps: a single 7-argument `bytes.concat` pushes this large test contract over
         // the stack limit.
         bytes memory head = bytes.concat(
             abi.encodePacked(bytes32(0)), // old placeholder0, zero-filled by the registry
-            abi.encodePacked(ZERO_PENALTY_VAULT),
-            abi.encodePacked(ZERO_PENALTY_ADAPTER),
+            abi.encodePacked(vault),
+            abi.encodePacked(adapter),
             abi.encode(assets) // same offset in both layouts
         );
         return bytes.concat(
             head,
-            abi.encode(uint256(0)), // old deadline
+            abi.encode(deadline), // old deadline
             abi.encode(uint256(200)), // old maxPenaltyBps
             abi.encodePacked(uint8(0)) // old flag
         );
@@ -1137,16 +1153,22 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         vm.stopPrank();
     }
 
-    /// @dev SUP-21780 layout: `deadline` and `maxPenaltyBps` are gone, `usePrevHookAmount` moved from
-    ///      offset 168 to 104, and the raw `adapterData` tail from 169 to 105.
+    /// @dev SUP-21849 layout: `usePrevHookAmount` at 104, the leaf-committed `maxPenaltyWad` at 105, and the
+    ///      raw `adapterData` tail at 137.
     struct BaseDataParams {
         bytes32 oracleId;
         address vault;
         address adapter;
         uint256 assets;
         bool usePrevHookAmount;
+        uint256 maxPenaltyWad;
         bytes adapterData;
     }
+
+    /// @dev Morpho's own ceiling as the default leaf cap: these fixtures include MAX_PENALTY_VAULT at exactly
+    ///      200 bps, so a tighter default would make the pre-existing cases revert on the cap rather than
+    ///      exercise what they were written for. The cap's own behaviour has dedicated tests above.
+    uint256 internal constant DEFAULT_LEAF_CAP = 0.02e18;
 
     /// @dev NON-ZERO on purpose. Offset 0 used to be a zero-filled `placeholder0`; encoding a real id
     ///      there is what demonstrates the first word is carried rather than conflated with another field.
@@ -1163,24 +1185,47 @@ contract ForceDeallocateMorphoHookE2E is Test, Constants {
         pure
         returns (bytes memory)
     {
-        return _encodeBaseDataFromParams(BaseDataParams({
-            oracleId: TEST_ORACLE_ID,
-            vault: vault,
-            adapter: adapter,
-            assets: assets,
-            usePrevHookAmount: usePrevHookAmount,
-            adapterData: adapterData
-        }));
+        return _encodeBaseDataWithCap(vault, adapter, assets, usePrevHookAmount, DEFAULT_LEAF_CAP, adapterData);
+    }
+
+    function _encodeBaseDataWithCap(
+        address vault,
+        address adapter,
+        uint256 assets,
+        bool usePrevHookAmount,
+        uint256 maxPenaltyWad,
+        bytes memory adapterData
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return _encodeBaseDataFromParams(
+            BaseDataParams({
+                oracleId: TEST_ORACLE_ID,
+                vault: vault,
+                adapter: adapter,
+                assets: assets,
+                usePrevHookAmount: usePrevHookAmount,
+                maxPenaltyWad: maxPenaltyWad,
+                adapterData: adapterData
+            })
+        );
     }
 
     function _encodeBaseDataFromParams(BaseDataParams memory p) internal pure returns (bytes memory) {
-        return bytes.concat(
+        // Two steps: a single wide `bytes.concat` pushes this large test contract over the stack limit.
+        bytes memory head = bytes.concat(
             abi.encodePacked(p.oracleId), // 0   yieldSourceOracleId
             abi.encodePacked(p.vault), // 32  yieldSource
             abi.encodePacked(p.adapter), // 52  adapter
-            abi.encode(p.assets), // 72  assets
+            abi.encode(p.assets) // 72  assets
+        );
+        return bytes.concat(
+            head,
             abi.encodePacked(p.usePrevHookAmount ? uint8(1) : uint8(0)), // 104 usePrevHookAmount
-            p.adapterData // 105 raw tail, no length prefix
+            abi.encode(p.maxPenaltyWad), // 105 leaf-committed cap
+            p.adapterData // 137 raw tail, no length prefix
         );
     }
 }

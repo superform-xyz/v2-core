@@ -167,22 +167,6 @@ for cid_name, addr_name in re.findall(r'morphos\[(\w+)\]\s*=\s*(\w+)\s*;', read(
 PYEOF
 }
 
-# Reads FORCE_DEALLOCATE_MAX_PENALTY_WAD out of script/utils/Constants.sol and prints it in wei.
-# Single source of truth: the deploy script uses the Solidity constant directly, so verification must
-# resolve the same value rather than keep its own copy. Handles the `0.0025e18` scientific form.
-_force_deallocate_cap_wei() {
-    python3 - "$PROJECT_ROOT/script/utils/Constants.sol" <<'PYEOF'
-import re, sys
-from decimal import Decimal
-src = open(sys.argv[1]).read()
-m = re.search(r'FORCE_DEALLOCATE_MAX_PENALTY_WAD\s*=\s*([0-9_.e+]+)\s*;', src)
-if not m:
-    sys.exit(1)
-raw = m.group(1).replace('_', '')
-print(int(Decimal(raw)))
-PYEOF
-}
-
 generate_constructor_args() {
     local contract_name=$1
     local chain_id=$2
@@ -543,27 +527,22 @@ generate_constructor_args() {
             fi
             ;;
         "ForceDeallocateMorphoVaultHook"|"ForceRedeemMorphoVaultHook")
-            # SUP-21799. TWO constructor words, in this order: the per-chain Morpho Blue singleton (pinned
-            # as an immutable so a curator-registered adapter cannot redirect the hook's market reads) and
-            # the penalty ceiling. Both are part of the CREATE2 address, so verification must reproduce the
-            # exact pair the deploy appended. Unlike the one-market sibling, this hook's address therefore
-            # DIFFERS PER CHAIN, because Morpho Blue is not deployed at one address everywhere.
+            # SUP-21799/21849. ONE constructor word: the per-chain Morpho Blue singleton, pinned as an
+            # immutable so a curator-registered adapter cannot redirect the hook's market reads. It is part
+            # of the CREATE2 address, so unlike the one-market sibling this hook's address DIFFERS PER
+            # CHAIN. (The penalty ceiling that used to be the second word was removed by SUP-21849.)
             # NOT `|| die`: `die` is not defined in this script and there is no `set -e`, so that
             # form printed "command not found" and then CONTINUED into `cast abi-encode` with an empty
             # address word — the silent-wrong-args failure this block exists to prevent. The caller
             # checks our exit status (`if ! constructor_args=$(generate_constructor_args ...)`), so
             # returning non-zero fails closed.
-            local fdv_morpho fdv_cap
+            local fdv_morpho
             fdv_morpho=$(_morpho_for_chain "$chain_id")
             if [ -z "$fdv_morpho" ]; then
                 echo "No Morpho Blue address configured for chain $chain_id" >&2
                 return 1
             fi
-            if ! fdv_cap=$(_force_deallocate_cap_wei); then
-                echo "Could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD from Constants.sol" >&2
-                return 1
-            fi
-            echo "$(cast abi-encode "constructor(address,uint256)" "$fdv_morpho" "$fdv_cap")"
+            echo "$(cast abi-encode "constructor(address)" "$fdv_morpho")"
             ;;
         "SuperSponsorshipPaymaster")
             local paymaster_admin="0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5"
@@ -655,24 +634,8 @@ generate_constructor_args() {
         "StargateAdapter"|"StargateAdapterV2")
             generate_stargate_adapter_constructor_args "$contract_name" "$chain_id"
             ;;
-        # SUP-21780 Inv2: this hook took no constructor args until the penalty ceiling became an
-        # immutable. Without a case here it falls through to the `constructor()` default below, which
-        # would submit empty args and fail verification for what looks like a compiler mismatch.
-        # MUST track FORCE_DEALLOCATE_MAX_PENALTY_WAD in script/utils/Constants.sol — the value is part
-        # of the CREATE2 address, so a mismatch here means verifying against the wrong initcode.
-        "ForceDeallocateMorphoHook")
-            # DERIVED from script/utils/Constants.sol, not hardcoded. The value is part of this hook's
-            # CREATE2 address, so verification must use the exact word the deploy appended; a second
-            # literal here would drift silently and fail verification looking like a compiler mismatch.
-            # See the note in the vault-hook case below: `die` is undefined here and there is no
-            # `set -e`, so `|| die` would have continued with an empty cap word.
-            local fd_cap
-            if ! fd_cap=$(_force_deallocate_cap_wei); then
-                echo "Could not read FORCE_DEALLOCATE_MAX_PENALTY_WAD from Constants.sol" >&2
-                return 1
-            fi
-            echo "$(cast abi-encode "constructor(uint256)" "$fd_cap")"
-            ;;
+        # ForceDeallocateMorphoHook: no constructor args again since SUP-21849 removed the penalty
+        # ceiling, so it deliberately falls through to the `constructor()` default below.
         # ===== Gyld bonds (chain 747474 only today) =====
         # The registry's admin is the DEPLOYER at construction and stays so in the INITCODE even after
         # `TransferGyldBondRegistryRoles` hands the roles to SUPER_GOVERNOR: constructor args are fixed at

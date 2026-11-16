@@ -28,23 +28,32 @@ import { IMorphoVaultV2 } from "../../../vendor/morpho/IMorphoVaultV2.sol";
 /// @notice         address adapter = BytesLib.toAddress(data, 52);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 72);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bytes adapterData = BytesLib.slice(data, 105, data.length - 105);
+/// @notice         uint256 maxPenaltyWad = BytesLib.toUint256(data, 105);
+/// @notice         bytes adapterData = BytesLib.slice(data, 137, data.length - 137);
 /// @dev SUP-21780: THIS NATSPEC IS THE SOURCE OF THE REGISTRY BUILD PATH, not just documentation. The OMS
 ///      hook registry parses these lines to derive:
 ///        None-bytes32-32-yieldSourceOracleId, None-address-20-yieldSource, None-address-20-adapter,
-///        None-uint256-32-assets, None-bool-1-usePrevHookAmount, None-bytes-0-adapterData
+///        None-uint256-32-assets, None-bool-1-usePrevHookAmount, None-uint256-32-maxPenaltyWad,
+///        None-bytes-0-adapterData
 ///      Two renames here are load-bearing rather than cosmetic. The first field used to be named
 ///      `placeholder0`, which matches the registry's reserved `^placeholder\d*$` pattern and is encoded
 ///      `Zeroes-...`, so the oracle id was zero-filled and never reached the chain. The second used to be
 ///      `morphoVaultV2`; OMS asset identity reads the parameter named literally `yieldSource`, so the old
 ///      name was invisible to it even though the offset was already correct. Renaming a field in this block
 ///      changes what Superman can encode. Do not rename them back.
-/// @dev `adapter` and `adapterData` are real `forceDeallocate` arguments and must stay. `deadline` and
-///      `maxPenaltyBps` were NOT: Morpho takes neither, it already caps the penalty at 2% (0.02e18)
-///      internally, and intent expiry already bounds the deadline. A tighter penalty policy belongs in the
-///      exit planner before submit (SUP-21689), not in hook calldata.
+/// @dev `adapter` and `adapterData` are real `forceDeallocate` arguments and must stay. `deadline` was NOT:
+///      Morpho takes none, and intent expiry already bounds it.
+/// @dev LEAF-COMMITTED PENALTY CAP (SUP-21849). This hook produces NO output — `outAmount` is zero by
+///      construction — so a caller's `expectedAssetsOrSharesOut` floor passes trivially and cannot see the
+///      penalty shares `forceDeallocate` burns. `maxPenaltyWad` at offset 105 is therefore the ONE on-chain
+///      bound on that burn: the adapter's live `forceDeallocatePenalty` must not exceed it, checked at `build`
+///      (what the OMS pre-flight sees) and again in `_preExecute` (what binds). It is chosen off chain per
+///      intent, committed by the signature over the hook data, must be non-zero (an encoder that zero-fills an
+///      unknown word fails closed) and at most Morpho's own 2% ceiling, above which it could never bind.
+///      There is deliberately NO deploy-time cap: the fixed 25 bps immutable this replaces broke honest
+///      SuperStocks exits the day cbAssets moved its adapter to 30 bps.
 /// @dev TRUST ASSUMPTION: This hook trusts Morpho Vault V2's internal reentrancy guards, adapter validation
-///      and its own 2% penalty cap. onBehalf is always set to the executing smart account.
+///      and its own 2% penalty ceiling. onBehalf is always set to the executing smart account.
 /// @dev NOT A WITHDRAW, despite moving underlying. `forceDeallocate` moves underlying from an adapter into
 ///      the vault's idle balance and burns penalty shares from the executing account; it does not redeem
 ///      shares and does not pay the account. It stays NONACCOUNTING, and the classification stays
@@ -57,18 +66,18 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The adapter's live penalty rate exceeds this hook's immutable ceiling
+    /// @notice The adapter's live penalty rate exceeds the leaf's `maxPenaltyWad`
     error PENALTY_ABOVE_CAP(uint256 penaltyWad, uint256 capWad);
-    /// @notice A cap of zero, or one above Morpho's own 2% ceiling, would be meaningless
-    error INVALID_PENALTY_CAP();
+    /// @notice The leaf's `maxPenaltyWad` is zero or above Morpho's own 2% ceiling
+    error PENALTY_CAP_OUT_OF_RANGE(uint256 leafCapWad, uint256 ceilingWad);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Morpho Vault V2's own hard ceiling on `forceDeallocatePenalty`, in WAD (2%).
-    /// @dev A compile-time constant in Morpho's non-upgradeable bytecode, so it cannot be raised. A cap
-    ///      above it would never bind and is rejected in the constructor as a configuration error.
+    /// @dev A compile-time constant in Morpho's non-upgradeable bytecode, so it cannot be raised. A leaf cap
+    ///      above it could never bind and is rejected as an encoding error.
     uint256 public constant MORPHO_MAX_PENALTY_WAD = 0.02e18;
 
     uint256 private constant ADAPTER_OFFSET = 52;
@@ -76,8 +85,10 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
     ///         `decodeAmounts` and `replaceCalldataAmounts` keep working on the same offset.
     uint256 private constant ASSETS_OFFSET = 72;
     uint256 private constant USE_PREV_HOOK_AMOUNT_OFFSET = 104;
+    /// @notice The leaf-committed penalty cap, WAD
+    uint256 private constant MAX_PENALTY_OFFSET = 105;
     /// @notice The raw `adapterData` tail starts here; a payload with no tail is exactly this long.
-    uint256 private constant ADAPTER_DATA_OFFSET = 105;
+    uint256 private constant ADAPTER_DATA_OFFSET = 137;
     /// @dev Tied to the offset above rather than repeated, so the two cannot drift apart in a later edit.
     uint256 private constant MIN_DATA_LENGTH = ADAPTER_DATA_OFFSET;
 
@@ -85,38 +96,7 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
                              CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    /*//////////////////////////////////////////////////////////////
-                              IMMUTABLES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Inv2: the highest `forceDeallocatePenalty` this hook will execute against, in WAD.
-    /// @dev AN IMMUTABLE RATHER THAN A CALLDATA FIELD, deliberately. Three reasons:
-    ///      1. The 105-byte layout and the registry build path SUP-21780 just established stay untouched
-    ///         — no new parameter, no OMS encoder change, no Merkle root re-derivation.
-    ///      2. Immutables live in the initcode, so the cap is part of this hook's CREATE2 address. Every
-    ///         Merkle leaf that authorises this hook therefore already commits to the cap, with no extra
-    ///         machinery. Changing the policy means a deliberate redeploy, which is the right friction
-    ///         for a safety bound.
-    ///      3. A per-call field could be set to a vacuous value by whoever builds the calldata, which is
-    ///         exactly the compromised-session-key case the bound exists for. An immutable cannot.
-    /// @dev WHY THE BOUND IS NEEDED AT ALL, given Morpho caps the penalty at 2%: that ceiling is a
-    ///      protocol maximum, not the user's tolerance. The per-adapter rate below it is CURATOR-SETTABLE
-    ///      and read at execution time, and Superform signs intents that execute later — with
-    ///      `validUntil == 0` meaning infinite validity (`SuperValidatorBase`, SECURITY.md item 10). So a
-    ///      signed exit can land at whatever the curator has since set, up to 200 bps. Every other
-    ///      value-extracting hook in this repo carries a caller-side cost bound; this restores that.
-    uint256 public immutable MAX_PENALTY_WAD;
-
-    /*//////////////////////////////////////////////////////////////
-                             CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    /// @param maxPenaltyWad_ Inv2 ceiling in WAD. Must be non-zero and at most
-    ///        `MORPHO_MAX_PENALTY_WAD`; a cap above Morpho's own ceiling could never bind.
-    constructor(uint256 maxPenaltyWad_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) {
-        if (maxPenaltyWad_ == 0 || maxPenaltyWad_ > MORPHO_MAX_PENALTY_WAD) revert INVALID_PENALTY_CAP();
-        MAX_PENALTY_WAD = maxPenaltyWad_;
-    }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.MISC) { }
 
     /// @notice Human-readable name for UI display
     function name() external pure override returns (string memory) {
@@ -127,7 +107,6 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
     function description() external pure override returns (string memory) {
         return "Force deallocates liquidity from a Morpho market";
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -162,11 +141,11 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
 
         if (assets == 0) revert AMOUNT_NOT_VALID();
 
-        // Inv2, checked here so the OMS pre-flight sees the same verdict the chain will.
-        _requirePenaltyWithinCap(vault, adapter);
+        // The leaf cap, checked here so the OMS pre-flight sees the same verdict the chain will.
+        _requirePenaltyWithinCap(vault, adapter, _leafCap(data));
 
         // Extract adapter data (raw tail, no length prefix). Empty is valid: an adapter that needs no
-        // data is encoded as exactly MIN_DATA_LENGTH bytes with nothing after the flag.
+        // data is encoded as exactly MIN_DATA_LENGTH bytes with nothing after the cap word.
         bytes memory adapterData;
         if (data.length > ADAPTER_DATA_OFFSET) {
             adapterData = data.slice(ADAPTER_DATA_OFFSET, data.length - ADAPTER_DATA_OFFSET);
@@ -179,7 +158,6 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
             value: 0,
             callData: abi.encodeCall(IMorphoVaultV2.forceDeallocate, (adapter, adapterData, assets, account))
         });
-
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -301,23 +279,27 @@ contract ForceDeallocateMorphoHook is BaseHook, ISuperHookContextAware, ISuperHo
         // worth surfacing here rather than at the venue).
         if (assets == 0) revert AMOUNT_NOT_VALID();
 
-        // Inv2 again, and THIS is the binding one. `build` is a view reachable off-chain; `_preExecute`
-        // runs inside the transaction, so a penalty raised between simulation and execution is caught
-        // here. The duplication is the same pattern the deleted `maxPenaltyBps` check used, and it is
-        // deliberate rather than redundant.
-        _requirePenaltyWithinCap(vault, data.toAddress(ADAPTER_OFFSET));
+        // The leaf cap again, and THIS is the binding one: `build` is a view reachable off chain, `_preExecute`
+        // runs inside the transaction, so a rate raised between simulation and execution is caught here.
+        _requirePenaltyWithinCap(vault, data.toAddress(ADAPTER_OFFSET), _leafCap(data));
 
         _setOutAmount(0, account);
         _setOutToken(IERC4626(vault).asset(), account);
     }
 
-    /// @dev Inv2. Reads the adapter's live rate and refuses anything above this hook's immutable cap.
-    /// @dev Also restores a side effect the deleted guard provided: `build` makes at least one call to
-    ///      the caller-supplied `yieldSource`, so a non-contract address fails during build rather than
-    ///      only later at execution.
-    function _requirePenaltyWithinCap(address vault, address adapter) private view {
+    /// @dev Reads and range-checks the leaf's `maxPenaltyWad`: non-zero, at most Morpho's own ceiling.
+    function _leafCap(bytes calldata data) private pure returns (uint256 leafCap) {
+        leafCap = data.toUint256(MAX_PENALTY_OFFSET);
+        if (leafCap == 0 || leafCap > MORPHO_MAX_PENALTY_WAD) {
+            revert PENALTY_CAP_OUT_OF_RANGE(leafCap, MORPHO_MAX_PENALTY_WAD);
+        }
+    }
+
+    /// @dev Reads the adapter's live rate and refuses anything above the leaf cap. Also the one call `build`
+    ///      makes to the caller-supplied `yieldSource`, so a codeless vault fails here rather than at execution.
+    function _requirePenaltyWithinCap(address vault, address adapter, uint256 leafCap) private view {
         uint256 penaltyWad = IMorphoVaultV2(vault).forceDeallocatePenalty(adapter);
-        if (penaltyWad > MAX_PENALTY_WAD) revert PENALTY_ABOVE_CAP(penaltyWad, MAX_PENALTY_WAD);
+        if (penaltyWad > leafCap) revert PENALTY_ABOVE_CAP(penaltyWad, leafCap);
     }
 
     /// @inheritdoc ISuperHookInspector

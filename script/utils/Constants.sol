@@ -322,17 +322,11 @@ abstract contract Constants {
     /// @notice The deallocate-and-withdraw variant. A THIRD hook, not a replacement: the two deallocate
     ///         hooks stop at the vault's idle balance, this one completes the exit in the same call.
     string internal constant FORCE_REDEEM_MORPHO_VAULT_HOOK_KEY = "ForceRedeemMorphoVaultHook";
-    /// @notice SUP-21780 Inv2: the highest Morpho `forceDeallocatePenalty` the force-deallocate hook will
-    ///         execute against, in WAD. 25 bps.
-    /// @dev PROVISIONAL, NEEDS A RISK SIGN-OFF BEFORE MAINNET USE. A starting point, not a derived
-    ///      number: Morpho's own ceiling is 200 bps (2%) and the one live adapter measured on Ethereum
-    ///      (Gauntlet WETH Prime's, 2026-11-09) charges 0.1 bps. So 25 bps leaves ~250x headroom over
-    ///      today's observed rate while still binding 8x below the protocol maximum a curator could
-    ///      raise to.
-    /// @dev This is a CONSTRUCTOR IMMUTABLE of the hook, so the value is baked into its CREATE2 address.
-    ///      Changing it is a redeploy plus a Merkle root update, not an ops transaction — which is the
-    ///      intended friction for a safety bound. Set it from the risk budget, not from the current rate.
-    uint256 internal constant FORCE_DEALLOCATE_MAX_PENALTY_WAD = 0.0025e18;
+    // SUP-21849 REMOVED `FORCE_DEALLOCATE_MAX_PENALTY_WAD`. The force hooks no longer take a deploy-time
+    // penalty ceiling: the 25 bps immutable failed honest SuperStocks exits the day cbAssets moved its adapter
+    // to 30 bps, and any fixed number repeats that. The two deallocate-only hooks carry a leaf-committed
+    // `maxPenaltyWad` in their hook data instead; `ForceRedeemMorphoVaultHook` needs none because its measured
+    // outAmount is what the caller's `expectedAssetsOrSharesOut` floors.
 
     // Aave V4 Hook Keys
     string internal constant AAVE_V4_SUPPLY_HOOK_KEY = "AaveV4SupplyHook";
