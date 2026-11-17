@@ -66,6 +66,7 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.morphos[ARBITRUM_CHAIN_ID] = MORPHO_ARBITRUM;
         otherHooksConfiguration.morphos[ROBINHOOD_CHAIN_ID] = MORPHO_ROBINHOOD; // Morpho live on RH (chain 4663)
         otherHooksConfiguration.morphos[BNB_CHAIN_ID] = MORPHO_BNB;
+        otherHooksConfiguration.morphos[KATANA_CHAIN_ID] = MORPHO_KATANA;
 
         // Euler EVK singletons per chain — gate Euler hook deployment (Base only for now, Clearstar).
         otherHooksConfiguration.eulerEvcs[BASE_CHAIN_ID] = EULER_EVC_BASE;
