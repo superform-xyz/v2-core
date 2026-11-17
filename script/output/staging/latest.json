@@ -1540,11 +1540,29 @@
         "ApproveAndSwapSushiSwapHook": "0x8F21fcF071aB5A5ddAb6352799255eE568969091",
         "FeeSplittingHook": "0xF97A4e4914faF4a4bF046F84A83098D292Cd6071",
         "FetchNativeFeeHook": "0x6D74aFf330603372aaaf288F3b97eD8d97EdfE57",
+        "ForceDeallocateMorphoHook": "0xdD04E2F6B7Ab26d3e22DfFFfcf580F5925250d40",
+        "ForceDeallocateMorphoVaultHook": "0xb6fbf010c1b0ec9284dAB569A0dce915685Eb998",
+        "ForceRedeemMorphoVaultHook": "0xD298B31Ff1Ec99dF92eC51c57b7769a1b6922F39",
+        "MetaMorphoReallocateHook": "0x64618355c7CEeBdcFBA393CF8bf17B364d899006",
+        "MorphoBorrowHook": "0x61b1C2513152e6d62A91730105f20F8555aBa804",
+        "MorphoBorrowHookV2": "0xFFc45F26e5d27b8c6dCe24850F3AceB591522528",
+        "MorphoHealthCheckHook": "0xf663dcA113FDF5B4532718Ae788b719402A9bDb6",
+        "MorphoLendHook": "0x935Dd4dDcE9d9198f5b150BFeD8fF2B676e77890",
+        "MorphoRepayAndWithdrawHook": "0x0E2CAfFf14054Cff4003B2d57395b3dF21c41e5a",
+        "MorphoRepayAndWithdrawHookV2": "0x42ac85703BB9CA380460Faf2B1cB7aed14FEECE3",
+        "MorphoRepayHook": "0x4b7577361eC71F4192e785FE219Fb47d2AD9d701",
+        "MorphoRepayHookV2": "0x7a9190CbCdA3b711680bc493D6C475b07BeAcE40",
+        "MorphoSupplyAndBorrowHook": "0xC5Ef936be0705BD545E44FCA4AfCb073AdEF9b74",
+        "MorphoSupplyAndBorrowHookV2": "0x6a57a2BA149d9F9CC20fF8bbc763fEa2a0990d53",
+        "MorphoSupplyHook": "0x865e99116ca0FdD5d72511a56D407063043FD82d",
+        "MorphoSupplyHookV2": "0x9b3754079c2cf443a6B2C59F76Dd9084E39546B4",
+        "MorphoWithdrawCollateralHookV2": "0x8F623f06A4Cf68C92a35E80CE1efc29Ec7c9c795",
+        "MorphoWithdrawHook": "0xd07bB29703dc9F970E0125Ea183E32baD7cB63a0",
         "NativeFeeSponsorship": "0x430E375eFE25D8732c918c417348c8d87D5aB7d9",
         "SwapEverlongHook": "0x96B8C80000e1705f7C1dCe89a0B350a5403355b6",
         "SwapSushiSwapHook": "0x986F38C03007b5a1C217ce0D7662D608835a4aC1"
       }
     }
   },
-  "updated_at": "2026-11-16T12:19:01Z"
+  "updated_at": "2026-11-17T11:33:39Z"
 }

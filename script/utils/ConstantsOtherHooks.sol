@@ -9,6 +9,9 @@ abstract contract ConstantsOtherHooks {
     address internal constant MORPHO_ARBITRUM = 0x6c247b1F6182318877311737BaC0844bAa518F5e;
     address internal constant MORPHO_ROBINHOOD = 0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010;
     address internal constant MORPHO_BNB = 0x01b0Bd309AA75547f7a37Ad7B1219A898E67a83a;
+    // Katana: docs.morpho.org/get-started/resources/addresses (Katana section), code confirmed on chain 2026-11-12.
+    // The canonical 0xBBBB… address is EMPTY on Katana; Morpho deployed there without the vanity address.
+    address internal constant MORPHO_KATANA = 0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc;
 
     // Euler EVK singletons per chain (source: euler-xyz/euler-interfaces CoreAddresses.json, verified).
     // One canonical EVC and one canonical GenericFactory (eVaultFactory) per chain; both are
