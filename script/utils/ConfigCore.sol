@@ -33,7 +33,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.acrossSpokePoolV3s[HYPEREVM_CHAIN_ID] = ACROSS_SPOKE_POOL_HYPEREVM;
         configuration.acrossSpokePoolV3s[FLARE_CHAIN_ID] = address(0); // Not deployed yet
         configuration.acrossSpokePoolV3s[STABLE_CHAIN_ID] = address(0); // Not deployed yet
-        configuration.acrossSpokePoolV3s[ARC_CHAIN_ID] = address(0); // Across not deployed on Arc yet
+        configuration.acrossSpokePoolV3s[ARC_CHAIN_ID] = ACROSS_SPOKE_POOL_ARC;
         configuration.acrossSpokePoolV3s[KATANA_CHAIN_ID] = address(0); // Across not on Katana
 
         // ===== RELAY DEPOSITORY ADDRESSES =====
