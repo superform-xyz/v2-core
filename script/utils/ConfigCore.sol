@@ -205,6 +205,7 @@ abstract contract ConfigCore is ConfigStargateOFTs {
         configuration.stargateTokenMessagings[STABLE_CHAIN_ID] = 0xd027aFcc69ffA2bCB288BA68da6B71EC90d7B1d2;
         configuration.stargateTokenMessagings[WORLDCHAIN_CHAIN_ID] = address(0); // Not available yet
         configuration.stargateTokenMessagings[ARC_CHAIN_ID] = address(0); // Stargate token messaging not configured on Arc
+        configuration.stargateTokenMessagings[HYPEREVM_CHAIN_ID] = address(0); // not in Stargate v2 deployments
         configuration.stargateTokenMessagings[KATANA_CHAIN_ID] = address(0); // not in Stargate v2 deployments
 
         // ===== STARGATE ALLOWED OFTs (non-pool OFT contracts that use LZ compose) =====
