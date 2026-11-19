@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-19T20:09:22Z",
+  "generatedAt": "2026-11-19T10:57:45Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4902,6 +4902,82 @@
         "gyld"
       ]
     },
+    "GyldInvestorDepositHook": {
+      "name": "Gyld Investor Deposit",
+      "description": "Sends cash to the strategy's pinned Gyld deposit address and records it as in transit",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
+      ]
+    },
+    "GyldInvestorRedeemHook": {
+      "name": "Gyld Investor Redeem",
+      "description": "Sends bond tokens to the strategy's pinned Gyld holding wallet and records them as in transit",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
+      ]
+    },
     "SwapSparkPSMExactInHook": {
       "name": "Swap Spark PSM Exact In",
       "description": "Swaps exact input tokens via Spark PSM",
@@ -6435,7 +6511,6 @@
           "480": "0xdbF538F10A25D146ede5EB1CFacb974bfaf01dC1",
           "999": "0x8C6aB0ef88F855A991033d9De37F9e06905Ab61B",
           "4663": "0xB3d909e1837056dF6cadb7529c74E7400B87006C",
-          "5042": "0xC16409b87e539106BE1A0315070b382Af85f4C71",
           "8453": "0xdbF538F10A25D146ede5EB1CFacb974bfaf01dC1",
           "42161": "0x4Fabd852bbffB6A3315eC3Fb8b04f2F03D3a3125",
           "43114": "0x3e293A35249cD8DCc6B37a2d21aA48cbac5D51A7",
@@ -6461,7 +6536,6 @@
           "480",
           "999",
           "4663",
-          "5042",
           "8453",
           "42161",
           "43114",
@@ -6519,7 +6593,6 @@
           "480": "0xc2D9A8f9eF78719a088E65C7bdCDD5816A786529",
           "999": "0x8905c8403B22b827749a349269ace41B78C78f2B",
           "4663": "0x65391075722aAC790B55e62B7524AB04218f3fE8",
-          "5042": "0xF26194c7dB0906658e55bC2eE158c30ACeA7Dd4f",
           "8453": "0xc2D9A8f9eF78719a088E65C7bdCDD5816A786529",
           "42161": "0xC2cb233C9797d591EF13A710499f6867c398b0D5",
           "43114": "0x42830A6848447E8dAD41044ebfE58e1b26Fa5f7a",
@@ -6545,7 +6618,6 @@
           "480",
           "999",
           "4663",
-          "5042",
           "8453",
           "42161",
           "43114",
@@ -6782,6 +6854,7 @@
           "14": "0xE53972944C0e9f27004C493C3C38AD52d8e54F3e",
           "56": "0xE53972944C0e9f27004C493C3C38AD52d8e54F3e",
           "988": "0x37082Da9b4C30485c5Bcd2c5FE367e6708f90dFb",
+          "999": "0xE53972944C0e9f27004C493C3C38AD52d8e54F3e",
           "4663": "0xE53972944C0e9f27004C493C3C38AD52d8e54F3e",
           "5042": "0xE53972944C0e9f27004C493C3C38AD52d8e54F3e",
           "8453": "0xE53972944C0e9f27004C493C3C38AD52d8e54F3e",
@@ -6800,13 +6873,15 @@
           "146": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "480": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "988": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
+          "999": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "4663": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "5042": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "8453": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "42161": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "43114": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
           "59144": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
-          "80094": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D"
+          "80094": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D",
+          "747474": "0x1E2E242EDf6e07652d3dE4697f0C8fE1d558909D"
         }
       },
       "availableChains": {
@@ -6815,6 +6890,7 @@
           "14",
           "56",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
@@ -6833,13 +6909,15 @@
           "146",
           "480",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
           "42161",
           "43114",
           "59144",
-          "80094"
+          "80094",
+          "747474"
         ]
       },
       "amountMeta": [
@@ -6880,6 +6958,7 @@
           "14": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
           "56": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
           "988": "0x22860E81bd454019d10E12138A3196ae9df1a786",
+          "999": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
           "4663": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
           "5042": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
           "8453": "0x6B792E5949Dd293065aBed1289f4E0d7B8D471F3",
@@ -6898,13 +6977,15 @@
           "146": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "480": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "988": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
+          "999": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "4663": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "5042": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "8453": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "42161": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "43114": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
           "59144": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
-          "80094": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3"
+          "80094": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3",
+          "747474": "0xB47aE8678384F482559eF6eEF296F9F9822D8BC3"
         }
       },
       "availableChains": {
@@ -6913,6 +6994,7 @@
           "14",
           "56",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
@@ -6931,13 +7013,15 @@
           "146",
           "480",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
           "42161",
           "43114",
           "59144",
-          "80094"
+          "80094",
+          "747474"
         ]
       },
       "amountMeta": [
@@ -7016,6 +7100,7 @@
           "14": "0x6f76Cff1a39B115d5696D2BC1abbC2A99972B7df",
           "56": "0x6f76Cff1a39B115d5696D2BC1abbC2A99972B7df",
           "988": "0x3d9C8A576c5B816ce1a821c1BA79a049249A9e13",
+          "999": "0x6f76Cff1a39B115d5696D2BC1abbC2A99972B7df",
           "4663": "0x6f76Cff1a39B115d5696D2BC1abbC2A99972B7df",
           "5042": "0x6f76Cff1a39B115d5696D2BC1abbC2A99972B7df",
           "8453": "0x6f76Cff1a39B115d5696D2BC1abbC2A99972B7df",
@@ -7034,13 +7119,15 @@
           "146": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "480": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "988": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
+          "999": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "4663": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "5042": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "8453": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "42161": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "43114": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
           "59144": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
-          "80094": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93"
+          "80094": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93",
+          "747474": "0xE8cF418a6F3738F3eb78364483122400fF9F7C93"
         }
       },
       "availableChains": {
@@ -7049,6 +7136,7 @@
           "14",
           "56",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
@@ -7067,13 +7155,15 @@
           "146",
           "480",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
           "42161",
           "43114",
           "59144",
-          "80094"
+          "80094",
+          "747474"
         ]
       },
       "amountMeta": [
@@ -7114,6 +7204,7 @@
           "14": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
           "56": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
           "988": "0xCe71Ab7a79a7fB0d9FfE31FCc4b4ff8FbF139f49",
+          "999": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
           "4663": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
           "5042": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
           "8453": "0x6Ea67240E9aA128433823199A1f013Dd3c45589E",
@@ -7132,13 +7223,15 @@
           "146": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "480": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "988": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
+          "999": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "4663": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "5042": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "8453": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "42161": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "43114": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
           "59144": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
-          "80094": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC"
+          "80094": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC",
+          "747474": "0xF14Ab1413406e74AF3a07B7363b33a6B71fF91FC"
         }
       },
       "availableChains": {
@@ -7147,6 +7240,7 @@
           "14",
           "56",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
@@ -7165,13 +7259,15 @@
           "146",
           "480",
           "988",
+          "999",
           "4663",
           "5042",
           "8453",
           "42161",
           "43114",
           "59144",
-          "80094"
+          "80094",
+          "747474"
         ]
       },
       "amountMeta": [

@@ -19,14 +19,15 @@ import {
 
 /// @title GyldInvestorTransferBase
 /// @author Superform Labs
-/// @notice Shared body of the two Gyld Investor API hooks: a plain ERC20 transfer from the account to a
-///         destination PINNED in `GyldInTransitRegistry`, plus the matching in-transit record, with both
-///         balance deltas verified in `_postExecute`.
+/// @notice Shared body of the two Gyld Investor API hooks: a plain ERC20 transfer from the account to the
+///         destination PINNED FOR THAT ACCOUNT in `GyldInTransitRegistry`, plus the matching in-transit
+///         record, with both balance deltas verified in `_postExecute`.
 /// @dev THE CHAIN SEES ONLY A TRANSFER. Gyld's Investor API places a broker limit order off chain and mints
 ///      (or pays out) in a later transaction signed by Gyld, so nothing about price, quantity or fill can be
-///      validated here. What CAN be enforced, and is: the destination is never read from calldata, the
-///      account's balance of the moved token decreases by exactly the amount, the destination's balance
-///      increases by exactly the amount, and the registry accepted the record in the same atomic batch.
+///      validated here. What CAN be enforced, and is: the destination is never read from calldata but
+///      from the registry's per-strategy pair (an account with no pair cannot move anything), the account's
+///      balance of the moved token decreases by exactly the amount, the destination's balance increases by
+///      exactly the amount, and the registry accepted the record in the same atomic batch.
 /// @dev TERMINAL. `outAmount` is published as ZERO (repo rule for hooks that produce nothing for the
 ///      account; see `ForceDeallocateMorphoHook._preExecute`), so a successor with `usePrevHookAmount` fails
 ///      closed. `outToken` is the moved token, for off-chain classification only.
@@ -48,7 +49,7 @@ abstract contract GyldInvestorTransferBase is
     error IDENTICAL_TOKENS();
     /// @notice The previous hook's output token is not the token this hook moves
     error PREV_TOKEN_MISMATCH();
-    /// @notice The pinned destination is still zero in the registry
+    /// @notice The account has no destination of this kind in the registry
     error DESTINATION_NOT_SET();
     /// @notice The account's balance did not decrease by exactly the amount
     error INPUT_NOT_SPENT(uint256 expected, uint256 actual);

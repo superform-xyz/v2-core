@@ -12,8 +12,8 @@ import { MockAggregator } from "../../../mocks/MockAggregator.sol";
 
 /// @title GyldBondYieldSourceOracleTransitTest
 /// @notice The in-transit half of the oracle (SUP-21848): what the registry entries add to each read (cash at
-///         face, bonds at the live NAV, both net of `transitFeeBps`), the stale-to-zero rule, and the invariants
-///         the existing reads keep.
+///         face, bonds at the live NAV, both net of `transitFeeBps`), the stale flag (a gate, never a write-down), and
+/// the invariants the existing reads keep.
 ///         The pre-existing suite runs with `IN_TRANSIT == address(0)` and is unchanged.
 contract GyldBondYieldSourceOracleTransitTest is Test {
     GyldBondRegistry internal registry;
@@ -46,10 +46,17 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
 
         _register(address(bond), 18);
         vm.startPrank(admin);
-        transit.setDestinations(deposit, holding);
+        transit.setDestinations(holder, deposit, holding);
         transit.setMaxTransitAge(AGE);
         transit.setMaxCashInTransit(address(bond), type(uint256).max);
+        transit.setMaxTotalCashInTransit(address(bond), type(uint256).max);
+        transit.setValuationOracle(address(oracle));
         vm.stopPrank();
+    }
+
+    /// @dev Gyld delivers into the strategy's receiver; a settle sweeps it into the wallet
+    function _recv(address acct) internal view returns (address) {
+        return address(transit.receiverOf(acct));
     }
 
     function _register(address bondToken, uint8) internal {
@@ -59,6 +66,8 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         cfg.cashToken = address(cash);
         cfg.maxObservationAge = 7 days;
         cfg.maxPublicationAge = 7 days;
+        cfg.maxEntryPremiumBps = 500;
+        cfg.maxExitDiscountBps = 500;
         vm.prank(admin);
         registry.registerInstrument(cfg);
     }
@@ -76,6 +85,16 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
     function _setFee(uint256 bps) internal {
         vm.prank(admin);
         transit.setTransitFeeBps(address(bond), bps);
+    }
+
+    /// @dev The loss path: MANAGER proposes, waits out the delay, executes (no asset arrives).
+    function _loss(uint256 lotId, uint256 amount, bytes32 ref) internal {
+        vm.startPrank(admin);
+        transit.proposeManualSettle(lotId, amount, ref);
+        vm.warp(block.timestamp + transit.MANUAL_SETTLE_DELAY());
+        transit.executeManualSettle(lotId);
+        vm.stopPrank();
+        navFeed.setLatestAnswer(NAV_ANSWER); // keep the feed fresh across the warp
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -138,10 +157,13 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 0);
     }
 
-    function test_TVL_TransitWithSuspendedNav_RevertsLikeAnyValueRead() public {
+    function test_TVL_TransitWithSuspendedNav_CashOnlyPrices_BondsRevert() public {
         _cashOut(1e6);
         vm.prank(admin);
         registry.setNavSuspended(address(bond), true);
+        // lazy NAV: a position with no bonds anywhere (wallet or transit) is cash at face, no feed read
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 1e6, "cash-only position needs no NAV");
+        _bondsOut(1e18);
         vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
         oracle.getTVLByOwnerOfShares(address(bond), holder);
         // identity read still answers, and it is the plain balance: in-transit is valuation, not balance
@@ -159,23 +181,41 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         );
     }
 
-    function test_TVL_StaleTransit_ValuedAtZero_AndFlagged() public {
+    /// @dev K8 (review on SUP-21848): a stale lot is FLAGGED and gates new deposits, but it is never written down.
+    ///      Zeroing it made the price per share fall for as long as the reconciler lagged, which is a discount for
+    ///      whoever buys in that window. A loss is booked through the manager's manual settle, never by the clock.
+    function test_TVL_StaleTransit_StillValued_OnlyFlagged() public {
         bond.mint(holder, 1e18);
         _cashOut(100e6);
-        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), NAV_IN_CASH + 100e6);
+        _bondsOut(2e18);
+        uint256 before = oracle.getTVLByOwnerOfShares(address(bond), holder);
+        assertEq(before, NAV_IN_CASH + 100e6 + 2 * NAV_IN_CASH);
         assertFalse(oracle.hasStaleTransit(address(bond), holder));
         vm.warp(block.timestamp + AGE + 1);
         navFeed.setLatestAnswer(NAV_ANSWER); // keep the feed itself fresh
-        assertTrue(oracle.hasStaleTransit(address(bond), holder));
-        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), NAV_IN_CASH, "stale transit drops out");
+        assertTrue(oracle.hasStaleTransit(address(bond), holder), "flagged");
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), before, "no cliff: value unchanged while stale");
+        assertEq(
+            oracle.getTVL(address(bond)), NAV_IN_CASH + 100e6, "getTVL (supply at NAV + cash in transit) unchanged too"
+        );
         assertEq(oracle.getBalanceOfOwner(address(bond), holder), 1e18);
+        // the gate is the registry's, not the oracle's
+        assertEq(transit.previewCashOut(holder, address(bond), address(cash), 1), 204, "new deposits blocked");
+        vm.expectRevert(GyldInTransitRegistry.TRANSIT_STALE.selector);
+        vm.prank(holder);
+        transit.recordCashOut(address(bond), address(cash), 1);
+        // the only thing that moves the value is a settle: here a governance-booked loss
+        _loss(1, 100e6, bytes32("lost"));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), before - 100e6, "a booked loss moves it");
     }
 
     function test_TVL_6DecimalBond() public {
         MockERC20 bond6 = new MockERC20("Gyld Bond 6", "GB6", 6);
         _register(address(bond6), 6);
-        vm.prank(admin);
+        vm.startPrank(admin);
         transit.setMaxCashInTransit(address(bond6), type(uint256).max);
+        transit.setMaxTotalCashInTransit(address(bond6), type(uint256).max);
+        vm.stopPrank();
         bond6.mint(holder, 100e6);
         vm.prank(holder);
         transit.recordBondsOut(address(bond6), address(cash), 10e6);
@@ -265,5 +305,198 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         uint256 net = oracle.getTVLByOwnerOfShares(address(bond), holder);
         assertEq(net, base + inTransit * (10_000 - fee) / 10_000, "haircut on the transit part only");
         assertGe(net, base, "the haircut never reaches wallet bonds");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         MORE: ACCOUNTS, ROUNDING, LOTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Two strategies on the same instrument: each is valued on its own lots; getTVL sums the cash legs.
+    function test_TVL_TwoAccountsAreIndependent_GetTVLSumsCash() public {
+        address other = address(0x07E7);
+        vm.prank(admin);
+        transit.setDestinations(other, address(0xD2), holding);
+        bond.mint(holder, 10e18);
+        bond.mint(other, 20e18);
+        _cashOut(100e6);
+        vm.prank(other);
+        transit.recordCashOut(address(bond), address(cash), 300e6);
+        vm.prank(other);
+        transit.recordBondsOut(address(bond), address(cash), 5e18);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 10 * NAV_IN_CASH + 100e6);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), other), 20 * NAV_IN_CASH + 300e6 + 5 * NAV_IN_CASH);
+        assertEq(oracle.getTVL(address(bond)), 30 * NAV_IN_CASH + 400e6, "supply at NAV + all cash in transit");
+        // settling one account never moves the other
+        _loss(2, 300e6, bytes32("gone"));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 10 * NAV_IN_CASH + 100e6, "holder untouched");
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), other), 25 * NAV_IN_CASH);
+        assertEq(oracle.getTVL(address(bond)), 30 * NAV_IN_CASH + 100e6);
+    }
+
+    /// @dev The haircut rounds DOWN on the combined transit value, once, never per leg and never on wallet bonds.
+    function test_TVL_FeeHaircut_RoundsDownOnce() public {
+        bond.mint(holder, 3e18);
+        _cashOut(7); // 7 raw cash units
+        _bondsOut(1e18); // 1.05e6
+        _setFee(33); // 0.33%
+        uint256 inTransit = 7 + NAV_IN_CASH;
+        uint256 expected = 3 * NAV_IN_CASH + (inTransit * (10_000 - 33)) / 10_000;
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), expected);
+        // a single-unit transit value nets to zero under any non-zero fee (floor), wallet bonds unaffected
+        address tiny = address(0x7111);
+        vm.prank(admin);
+        transit.setDestinations(tiny, address(0xD4), holding);
+        bond.mint(tiny, 1e18);
+        vm.prank(tiny);
+        transit.recordCashOut(address(bond), address(cash), 1);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), tiny), NAV_IN_CASH + 0);
+    }
+
+    /// @dev Valuation follows the OPEN part of each lot through partial settles, not what was recorded. A delivery
+    ///      sitting in the receiver is NOT valued (the open lot still is), and the settle that sweeps it into the
+    ///      wallet shrinks the lot in the same transaction: nothing is ever counted twice.
+    function test_TVL_TracksOpenAcrossPartialSettles_ReceiverNeverCounted() public {
+        bond.mint(holder, 1e18);
+        _cashOut(1000e6);
+        _bondsOut(10e18);
+        uint256 wallet = NAV_IN_CASH; // 1 bond
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), wallet + 1000e6 + 10 * NAV_IN_CASH);
+        // Gyld mints 380 bonds (399 of value at 1.05) for 400 of the cash: in the receiver they count for nothing
+        bond.mint(_recv(holder), 380e18);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), wallet + 1000e6 + 10 * NAV_IN_CASH, "unswept");
+        assertTrue(oracle.hasUnsettledDelivery(address(bond), holder));
+        vm.prank(admin);
+        transit.settleMint(1, 400e6, 380e18, bytes32("p1"));
+        wallet += 380 * NAV_IN_CASH;
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), wallet + 600e6 + 10 * NAV_IN_CASH);
+        assertFalse(oracle.hasUnsettledDelivery(address(bond), holder));
+        // 4 bonds sold, 4 of cash paid out (NAV 1.05, within the 5% discount)
+        cash.mint(_recv(holder), 4e6);
+        vm.prank(admin);
+        transit.settleRedemption(2, 4e18, 4e6, bytes32("r1"));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), wallet + 600e6 + 6 * NAV_IN_CASH);
+        assertEq(cash.balanceOf(holder), 4e6, "swept into the wallet");
+        // the remaining 600 of cash is lost (governance books it), the remaining 6 bonds come back
+        _loss(1, 600e6, bytes32("p2"));
+        bond.mint(_recv(holder), 6e18);
+        vm.prank(admin);
+        transit.settleReturn(2, 6e18, bytes32("r2"));
+        wallet += 6 * NAV_IN_CASH;
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), wallet, "everything settled: wallet only");
+        assertEq(transit.transit(holder, address(bond)).oldestOpenAt, 0);
+    }
+
+    /// @dev A stale lot keeps its value AND its haircut; the fee is not a second penalty for lateness.
+    function test_TVL_StaleLot_KeepsValueAndHaircut() public {
+        _setFee(100);
+        _cashOut(500e6);
+        uint256 v = oracle.getTVLByOwnerOfShares(address(bond), holder);
+        assertEq(v, 500e6 * 99 / 100);
+        vm.warp(block.timestamp + AGE + 1);
+        navFeed.setLatestAnswer(NAV_ANSWER);
+        assertTrue(oracle.hasStaleTransit(address(bond), holder));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v, "same value while stale");
+    }
+
+    /// @dev Many lots, mixed kinds, settled in a shuffled order: the valuation is always the sum of what is open.
+    function test_TVL_ManyLots_ShuffledSettles() public {
+        bond.mint(holder, 2e18);
+        uint256 cashOpen;
+        uint256 bondsOpen;
+        for (uint256 i = 1; i <= 8; ++i) {
+            if (i % 2 == 1) {
+                _cashOut(i * 10e6);
+                cashOpen += i * 10e6;
+            } else {
+                _bondsOut(i * 1e18);
+                bondsOpen += i * 1e18;
+            }
+        }
+        assertEq(
+            oracle.getTVLByOwnerOfShares(address(bond), holder),
+            2 * NAV_IN_CASH + cashOpen + bondsOpen * NAV_IN_CASH / 1e18
+        );
+        uint8[8] memory order = [7, 2, 5, 8, 1, 4, 3, 6];
+        uint256 walletBonds = 2e18;
+        vm.startPrank(admin);
+        for (uint256 k; k < 8; ++k) {
+            uint256 id = order[k];
+            GyldInTransitRegistry.Lot memory l = transit.getLot(id);
+            uint256 half = l.open / 2;
+            if (l.kind == GyldInTransitRegistry.LotKind.CASH_OUT) {
+                bond.mint(_recv(holder), half * 1e12); // the mint lands in the receiver first (1 bond per 1.00)
+                transit.settleMint(id, half, half * 1e12, bytes32(id));
+                walletBonds += half * 1e12;
+                cashOpen -= half;
+            } else {
+                bond.mint(_recv(holder), half); // the returned bonds land in the receiver first
+                walletBonds += half;
+                transit.settleReturn(id, half, bytes32(id));
+                bondsOpen -= half;
+            }
+            assertEq(
+                oracle.getTVLByOwnerOfShares(address(bond), holder),
+                (walletBonds + bondsOpen) * NAV_IN_CASH / 1e18 + cashOpen,
+                "wallet plus open after each settle"
+            );
+        }
+        vm.stopPrank();
+        assertEq(transit.cashOut(holder, address(bond)), cashOpen);
+        assertEq(transit.bondsOut(holder, address(bond)), bondsOpen);
+    }
+
+    /// @dev The three do-not-push signals are plain flags. Staleness never moves value. A PROPOSED write-down is
+    ///      recognised at once (the delay is a review period, not a head start for whoever reads the event), and a
+    ///      cancel restores it; the execute itself then changes nothing.
+    function test_PauseSignals_StaleAndPendingImpairment_ProvisionalRecognition() public {
+        bond.mint(holder, 1e18);
+        _cashOut(100e6);
+        uint256 v = oracle.getTVLByOwnerOfShares(address(bond), holder);
+        assertFalse(oracle.hasPendingImpairment(address(bond), holder));
+        vm.prank(admin);
+        transit.proposeManualSettle(1, 100e6, bytes32("imp"));
+        assertTrue(oracle.hasPendingImpairment(address(bond), holder), "pending impairment flagged");
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v - 100e6, "the proposal is priced in now");
+        assertEq(oracle.getTVL(address(bond)), 1 * NAV_IN_CASH, "getTVL nets it too");
+        vm.prank(admin);
+        transit.cancelManualSettle(1);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v, "a cancel restores the value");
+        vm.warp(block.timestamp + AGE + 1);
+        navFeed.setLatestAnswer(NAV_ANSWER);
+        assertTrue(oracle.hasStaleTransit(address(bond), holder));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v, "stale changes nothing");
+        vm.prank(admin);
+        transit.proposeManualSettle(1, 100e6, bytes32("imp"));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v - 100e6, "re-proposed: priced in again");
+        vm.warp(block.timestamp + transit.MANUAL_SETTLE_DELAY());
+        navFeed.setLatestAnswer(NAV_ANSWER);
+        vm.prank(admin);
+        transit.executeManualSettle(1);
+        assertFalse(oracle.hasPendingImpairment(address(bond), holder));
+        assertFalse(oracle.hasStaleTransit(address(bond), holder), "nothing open any more");
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v - 100e6, "the execute is not a second step");
+        // feature off: all flags are false
+        GyldBondYieldSourceOracle off = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry), address(0));
+        assertFalse(off.hasPendingImpairment(address(bond), holder));
+        assertFalse(off.hasUnsettledDelivery(address(bond), holder));
+    }
+
+    /// @dev Lazy NAV rescues a CASH-ONLY position only: wallet bonds, or bonds in transit, still need the feed, so a
+    ///      suspended instrument reverts for them (and getTVL always, since supply is priced).
+    function test_TVL_WalletBondsPlusCashOnlyTransit_SuspendedReverts() public {
+        bond.mint(holder, 1e18);
+        _cashOut(100e6);
+        vm.prank(admin);
+        registry.setNavSuspended(address(bond), true);
+        vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
+        oracle.getTVLByOwnerOfShares(address(bond), holder);
+        vm.expectRevert(GyldBondYieldSourceOracle.NAV_SUSPENDED.selector);
+        oracle.getTVL(address(bond));
+        address cashOnly = address(0xCA54);
+        vm.prank(admin);
+        transit.setDestinations(cashOnly, address(0xD5), holding);
+        vm.prank(cashOnly);
+        transit.recordCashOut(address(bond), address(cash), 5e6);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), cashOnly), 5e6, "cash-only still prices");
     }
 }

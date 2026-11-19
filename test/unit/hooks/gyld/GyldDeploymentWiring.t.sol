@@ -672,7 +672,12 @@ contract GyldDeploymentWiringTest is Test {
         );
         GyldInTransitRegistry reg = GyldInTransitRegistry(a.gyldInTransitRegistry);
         assertTrue(reg.hasRole(reg.MANAGER_ROLE(), h.deployer()), "DEPLOYER is manager at birth");
-        assertEq(reg.depositAddress(), address(0), "inert until configured");
+        assertEq(reg.maxTransitAge(), 0, "inert until configured");
+        assertEq(address(reg.valuationOracle()), address(0), "NAV tie unwired until ConfigureGyldInTransitRegistry");
+        assertEq(reg.maxCashInTransit(address(1)), 0, "per-strategy cap zero at birth: deposits disabled");
+        assertEq(reg.maxTotalCashInTransit(address(1)), 0, "instrument-wide cap zero at birth: deposits disabled");
+        assertEq(reg.previewCashOut(h.deployer(), address(1), address(2), 1), 201, "every gate shut at birth");
+        assertEq(reg.depositAddressOf(h.deployer()), address(0), "no strategy has a pair at birth");
         assertEq(a.gyldInvestorDepositHook, address(0), "no deposit hook without the flag");
         assertEq(a.gyldInvestorRedeemHook, address(0), "no redeem hook without the flag");
     }
