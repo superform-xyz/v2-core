@@ -363,7 +363,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     {
         // Initialize all skipped contracts array
         // Includes adapter skips, router-gated hooks, and optional Pendle oracle hooks.
-        string[] memory potentialSkips = new string[](51);
+        string[] memory potentialSkips = new string[](55);
         uint256 skipCount = 0;
         // Adapter contracts (8 contracts - conditionally deployed)
         string[8] memory adapterContracts = [
@@ -548,6 +548,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             expectedHooks -= 2;
             potentialSkips[skipCount++] = "RelaySendFundsAndExecuteOnDstHook";
             potentialSkips[skipCount++] = "ApproveAndRelaySendFundsAndExecuteOnDstHook";
+        }
+
+        // Deployment policy: expose Stargate send hooks only where our destination adapters are supported.
+        if (!availability.stargateAdapter) {
+            expectedHooks -= 4;
+            potentialSkips[skipCount++] = "StargateSendHook";
+            potentialSkips[skipCount++] = "ApproveAndStargateSendHook";
+            potentialSkips[skipCount++] = "StargateSendHookV2";
+            potentialSkips[skipCount++] = "ApproveAndStargateSendHookV2";
         }
 
         if (configuration.aggregationRouters[chainId] != address(0)) {
@@ -2739,8 +2748,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             console2.log("SKIPPED DeBridgeCancelOrderHook: DeBridge DLN DST not configured");
         }
 
-        // Stargate bridge hooks (V1 + V2)
-        if (superValidator != address(0)) {
+        // Stargate bridge hooks (V1 + V2) follow the adapter availability policy.
+        if (availability.stargateAdapter && superValidator != address(0)) {
             __checkContract(STARGATE_SEND_HOOK_KEY, __getSalt(STARGATE_SEND_HOOK_KEY), abi.encode(superValidator), env);
             __checkContract(
                 APPROVE_AND_STARGATE_SEND_HOOK_KEY,
@@ -2757,6 +2766,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 abi.encode(superValidator),
                 env
             );
+        } else if (!availability.stargateAdapter) {
+            console2.log("SKIPPED Stargate hooks: LZ EndpointV2 or TokenMessaging not configured for chain", chainId);
         } else {
             revert("STARGATE_HOOK_CHECK_FAILED_MISSING_SUPER_VALIDATOR");
         }
@@ -4877,8 +4888,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hooks[55] = HookDeployment("", "", ""); // Empty deployment
         }
 
-        // Stargate Bridge Hooks - Only require SuperValidator (pool address is in user-signed data)
-        {
+        // Stargate bridge hooks follow the same availability policy as the destination adapters.
+        if (availability.stargateAdapter) {
             address stargateValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
             require(stargateValidator != address(0), "STARGATE_HOOK_VALIDATOR_PARAM_ZERO");
             require(stargateValidator.code.length > 0, "STARGATE_HOOK_VALIDATOR_NOT_DEPLOYED");
@@ -4901,6 +4912,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 env,
                 abi.encode(stargateValidator)
             );
+        } else {
+            console2.log("SKIPPED Stargate hooks: LZ EndpointV2 or TokenMessaging not configured for chain", chainId);
+            hooks[62] = HookDeployment("", "", "");
+            hooks[63] = HookDeployment("", "", "");
+            hooks[74] = HookDeployment("", "", "");
+            hooks[75] = HookDeployment("", "", "");
         }
 
         // ClaimFailedTransferHook — no constructor args
