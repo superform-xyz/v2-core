@@ -22,11 +22,13 @@
 #   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting/runGyld):
 #     TARGET_FAMILY=HyperCore ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
 #
-#   Gyld tokenized bonds are ONLY deployable this way, because both config tables in
-#   ConfigOtherHooks are deliberately empty and the generic `run` path therefore skips the family
-#   on every chain:
-#     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
-#   That ships the registry, oracle and guard, which are inert until an instrument is registered.
+#   Gyld tokenized bonds: enabled on Katana (gyldOracleEnabled + gyldInvestorEnabled in ConfigOtherHooks),
+#   so the generic `run` path ships the valuation half and the investor hooks there; elsewhere the family
+#   is skipped. A targeted redeploy:
+#     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh prod deploy v2
+#   Everything is inert until an instrument is registered and the in-transit registry is configured.
+#   STAGING on Katana has no SuperVaultAggregator row yet: the policy ships with a zero aggregator (WARNING)
+#   and the investor hooks are skipped until superVaultAggregatorsStaging[747474] is set.
 #   The two trade instances additionally need gyldSettlements[chainId] set to Gyld's venue address,
 #   which does not exist yet.
 #

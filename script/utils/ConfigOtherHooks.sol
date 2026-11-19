@@ -137,23 +137,15 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         otherHooksConfiguration.hyperCoreUsdcs[HYPEREVM_CHAIN_ID] = HYPERCORE_USDC_HYPEREVM;
         otherHooksConfiguration.hyperCoreUsdcGateways[HYPEREVM_CHAIN_ID] = HYPERCORE_USDC_GATEWAY_HYPEREVM;
 
-        // Gyld tokenized bonds — Katana. BOTH tables are deliberately EMPTY, so the family is skipped on
-        // every chain by the generic `run` path and must be deployed with TARGET_FAMILY=Gyld.
-        //
-        // Why nothing is enabled yet:
-        //   1. Gyld's settlement contract and NAV feed are deployed NOWHERE. `IGyldSettlement` and
-        //      `IGyldNavFeed` are our ASSUMED ABIs and venue requirements R1-R7 are unconfirmed, so the
-        //      trade hooks have no address to pin and the registry has no feed to point an instrument at.
-        //   2. Three high-severity findings from the 2026-11-02 security review are open against the
-        //      change set (recovery NAV outranking the suspension switch; a future-dated publication
-        //      timestamp suspending the staleness check; the guard not being bound to the trade it
-        //      accompanies). See .claude/sessions/context_session_gyld_bonds.md.
-        //   3. Katana is not yet a deployable target in this repo beyond this chain id: no networks entry,
-        //      no RPC wiring, and the Nexus K1 factory and bootstrap are not deployed there.
-        //
-        // To enable the VALUATION half on a chain (registry + oracle + guard, all inert until an
-        // instrument is registered):
-        //     otherHooksConfiguration.gyldOracleEnabled[KATANA_CHAIN_ID] = true;
+        // Gyld tokenized bonds — Katana (747474). The VALUATION half (bond registry, in-transit registry,
+        // oracle, policy, guard) and the INVESTOR API hooks (SUP-21848) are enabled; both are inert until
+        // ConfigureGyldBondRegistry registers an instrument and ConfigureGyldInTransitRegistry sets the
+        // destinations, the transit age, the oracle and the caps (every value fails closed). The TRADING half
+        // (the two ApproveAndTrade instances) stays off: it needs gyldSettlements, see below.
+        // History: the 2026-11-02 review findings are fixed and Katana is wired in networks-*.sh since the
+        // Katana Morpho deploy (PR #1050).
+        otherHooksConfiguration.gyldOracleEnabled[KATANA_CHAIN_ID] = true;
+        otherHooksConfiguration.gyldInvestorEnabled[KATANA_CHAIN_ID] = true;
 
         // SuperVaultAggregator — SET, and the one Gyld-adjacent address that IS confirmed. GyldTradePolicy
         // reads strategy pause and PPS freshness through it; zero would mean a PAUSED strategy could still
@@ -162,25 +154,17 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         // answer for any address (no `validStrategy` upstream); `getPPS` reverts UNKNOWN_STRATEGY
         // (0x8a525cdd) for a non-strategy, which is precisely the registration probe the policy relies on.
         // Source: v2-periphery script/output/prod/747474/Katana-latest.json.
-        // Inert until gyldOracleEnabled[747474] is set, because the policy deploys with the oracle half.
-        //
-        // TWO HAZARDS BEFORE ENABLING ANY CHAIN.
-        // 1. THIS TABLE IS SHARED BY PROD AND STAGING. `_setOtherHooksConfiguration()` takes no `env` and
-        //    branches on none; only the CREATE2 salt namespace differs. v2-periphery has no
-        //    script/output/staging/747474, so a STAGING Gyld deploy on Katana would pin this PRODUCTION
-        //    aggregator into the staging policy's immutable — and the `code.length > 0` guard in
-        //    _deployGyldHooks PASSES, because the prod aggregator has code. Nothing catches it. Add an env
-        //    branch or a staging row before deploying Gyld to staging.
-        // 2. CHANGING THIS ADDRESS CHANGES THREE ADDRESSES. It is a constructor arg of GyldTradePolicy,
+        // STAGING: `superVaultAggregatorsStaging[KATANA_CHAIN_ID]` is NOT set (no v2-periphery staging output
+        // for 747474 at the time of writing). The deploy reads the env-specific table, so a staging run ships
+        // the policy with a zero aggregator (loud WARNING) and SKIPS the investor hooks, which need the pause
+        // check. Add the staging aggregator here before a staging Gyld deploy on Katana.
+        // CHANGING THIS ADDRESS CHANGES THREE ADDRESSES. It is a constructor arg of GyldTradePolicy,
         //    which is itself a constructor arg of both trade instances, so a new aggregator means a new
         //    policy AND two new trade hook addresses — re-registration in SuperGovernor plus a Merkle root
         //    re-sign. That is the deliberate cost of pinning it rather than resolving it dynamically; note
         //    SuperVaultStrategy resolves its own aggregator through SUPER_GOVERNOR precisely so it can move.
         otherHooksConfiguration.superVaultAggregators[KATANA_CHAIN_ID] = 0x10AC0b33e1C4501CF3ec1cB1AE51ebfdbd2d4698;
-        // VERIFICATION STATUS of the values these mappings would hold, checked 2026-11-02:
-        //   gyldOracleEnabled        chain 747474 confirmed live (eth_chainId). Katana is NOT in
-        //                            networks-production.sh / networks-staging.sh, so even a targeted run
-        //                            cannot reach it until it is added there with an RPC variable.
+        // VERIFICATION STATUS of the trading-half values, checked 2026-11-02:
         //   gyldSettlements          DO NOT SET. Gyld's stack is deployed on Katana BOKUTO TESTNET
         //                            (chain 737373), not on mainnet 747474, and the settling contract is
         //                            named GyldAtomicSwap, which does NOT match the fill(Quote, bytes)

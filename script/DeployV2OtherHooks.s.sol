@@ -1973,7 +1973,10 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         // No venue needed: they move tokens to Gyld-pinned destinations read from the in-transit registry.
         // Gated separately because they are only useful once Gyld onboarding has returned a deposit address
         // and a redeem holding wallet for the strategy; until then the registry is deployed and inert.
-        if (otherHooksConfiguration.gyldInvestorEnabled[chainId]) {
+        if (otherHooksConfiguration.gyldInvestorEnabled[chainId] && aggregator == address(0)) {
+            // the deposit hook's policy check needs the strategy pause: no aggregator row for this env, no hooks
+            console2.log("SKIPPED Gyld investor hooks: no SuperVaultAggregator for this env on chainId", chainId);
+        } else if (otherHooksConfiguration.gyldInvestorEnabled[chainId]) {
             hookAddresses.gyldInvestorDepositHook = __deployContract(
                 GYLD_INVESTOR_DEPOSIT_HOOK_KEY,
                 chainId,

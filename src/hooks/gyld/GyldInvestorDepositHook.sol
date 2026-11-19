@@ -109,8 +109,7 @@ contract GyldInvestorDepositHook is GyldInvestorTransferBase {
         code = POLICY.previewTrade(account, IGyldTradePolicy.TradeSide.BUY, cashToken, yieldSource);
         if (code != 0) return code;
         if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
-            // the amount is the previous hook's output, known only at execution: report the other gates on a
-            // nominal amount and, if they pass, say so with a code of its own
+            // amount known only at execution: check the other gates on a nominal amount, then report 208
             uint256 gates = IN_TRANSIT.previewCashOut(account, yieldSource, cashToken, 1);
             return gates != 0 ? gates : 208;
         }

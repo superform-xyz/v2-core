@@ -13,64 +13,35 @@ import { GyldDeliveryReceiver } from "./GyldDeliveryReceiver.sol";
 
 /// @title GyldInTransitRegistry
 /// @author Superform Labs
-/// @notice On-chain memory of what each account has at Gyld through the Investor API: cash sent to Gyld's
-///         deposit address and not yet minted against, bond tokens sent to the redeem holding wallet and not
-///         yet paid out. Also the single source of the pinned destinations and the per-instrument caps.
-/// @dev WHY THIS EXISTS. The Investor API is a brokerage account, not a venue: the chain only sees a plain
-///      transfer out, and the matching mint or payout arrives in a later transaction signed by Gyld. Without
-///      a record of what is in transit, a SuperVault's price per share drops the moment cash leaves and jumps
-///      when tokens land, which is a sandwich on every order. `GyldBondYieldSourceOracle` adds these entries
-///      to its valuation. A lot older than `maxTransitAge` is STALE: it keeps its value (a late settle is not a
-///      loss) but blocks new deposits for the pair until the reconciler settles it.
-/// @dev ONE LOT PER ORDER (review on SUP-21848). Every record opens a LOT: one transfer, one kind (cash out
-///      or bonds out), one `openedAt`, one open amount. Gyld manages orders per `request_id`, so settles name
-///      the lot they close and can only decrease THAT lot: a partial fill is bounded by its own order, and a
-///      stalled order ages alone. The per-(account, instrument) aggregates `cashOut` / `bondsOut` are the sums
-///      of the open lots and are what the oracle values. An aggregate clock was wrong in both directions: a
-///      strategy with a rolling book never drained its entry and read stale `maxTransitAge` after its first
-///      record, and one slow order made every healthy order behind it look expired.
-/// @dev SETTLES ARE RECEIVER-CHECKED (review on SUP-21848). The reconciler cannot be trusted to tell the chain what
-///      Gyld did, so Gyld never delivers to the strategy: every strategy has a `GyldDeliveryReceiver` (created
-///      here with its destinations) that is its whitelisted withdrawal address and the `wallet_address` of every
-///      mint order. A settle SWEEPS what it acknowledges out of that receiver into the strategy and shrinks the lot
-///      in the same transaction, so (a) only funds that actually came from Gyld can back a settle, (b) the
-///      strategy's own balance is irrelevant (user deposits into the vault, sweeps and withdrawals neither fake nor
-///      block a settle), and (c) a delivery is never counted twice: the oracle ignores the receiver and values the
-///      open lot until the sweep lands the asset in the wallet and closes the lot. On top, a settle's decrease is
-///      TIED TO THE DELIVERED VALUE at the live NAV, a BAND around it: at least the decrease net of the expected fee
-///      and the instrument's entry / exit tolerance (a partial delivery cannot justify a full decrease), and at most
-///      the decrease plus that tolerance (a full delivery cannot be swept against a sliver of decrease, which would
-///      leave the lot open and the strategy counted twice). Fills outside the band are governance's to book. Every
-/// `apiRef` is accepted once (anti replay; the reconciler picks its own refs, so this is not evidence). A LOSS, or a
-/// delivery that reached the
-///      strategy by another route, goes through the MANAGER's `proposeManualSettle` / `executeManualSettle`
-///      behind `MANUAL_SETTLE_DELAY`; the proposed decrease is recognised in valuation from the proposal on, so the
-///      delay is not a two-day window to exit ahead of a write-down.
-/// @dev WHO MAY WRITE. `recordCashOut`/`recordBondsOut` are called by the ACCOUNT itself (hooks execute as the
-///      account), so `msg.sender` cannot tell a hook from a direct call. That is accepted: a caller can only
-///      increase its OWN entries, the only consumer of those entries is the valuation of that same account, a
-///      SuperVault strategy can only reach this through root-authorised hooks, the two caps bound the exposure
-///      and the hooks verify the matching transfer in the same atomic batch. Decreases are RECONCILER settles
-///      backed by the receiver, or MANAGER manual settles behind the delay.
-/// @dev DESTINATIONS ARE PER STRATEGY, AND ONE GYLD ACCOUNT PER STRATEGY (review on SUP-21848, Gyld's answer of
-///      2026-11-16). Each account has its own (deposit address, redeem holding wallet) pair, and an account with no
-///      pair can neither deposit nor redeem: an outflow is refused until that strategy's configuration has been
-///      verified. Gyld pools cash per Investor API account (no sub-accounts, no per-wallet accounting), so two
-///      strategies behind one Gyld account could spend each other's cash. The registry therefore refuses a deposit
-///      address another strategy already uses (`DEPOSIT_ADDRESS_IN_USE`), on the immediate path, at proposal and
-///      again at execution: segregation is enforced here, not hoped for at Gyld. The holding wallet is not made
-///      exclusive: it may be Gyld-wide, and what sits in it is per order and burned per redemption.
-/// @dev TWO CAPS. `maxCashInTransit` bounds one strategy's cash at Gyld per instrument; `maxTotalCashInTransit`
-///      bounds the chain's total across strategies (one wrong fill, one issuer). Both fail closed at zero and both
-///      are checked on every deposit record, the per-strategy one first.
-/// @dev DESTINATIONS ARE TIMELOCKED. A re-pointed deposit address is the drain vector for every open deposit
-///      leaf, and the hooks cannot commit the address (it is not in calldata), so the first set is immediate
-///      and every change waits `DESTINATION_DELAY` behind a visible proposal, per account. Every lot
-///      snapshots the destination it was actually sent to, so a rotation never re-labels an open lot.
-/// @dev WHAT THIS DOES NOT PROTECT: Gyld's withdrawal address and mint wallet being the strategy's RECEIVER (an
-///      onboarding fact; a delivery sent to the strategy directly needs the manual path), the order price (lives
-///      in the API), Gyld's custody and solvency, and which Gyld order a settle really belongs to (the order never
-///      exists on chain; `apiRef` is the audit trail, not a proof).
+/// @notice What each strategy has at Gyld through the Investor API: cash sent to Gyld's deposit address and not yet
+///         minted against, bonds sent to the redeem holding wallet and not yet paid out. Also the source of the
+///         pinned destinations, the caps and each strategy's delivery receiver.
+/// @dev WHY. The Investor API is a brokerage account: the chain sees a transfer out, and the mint or payout lands
+///      later in a Gyld-signed transaction. Without a record of what is in transit the PPS drops when cash leaves
+///      and jumps when tokens land. `GyldBondYieldSourceOracle` values the open lots. A lot older than
+///      `maxTransitAge` is STALE: it keeps its value but blocks new deposits for the pair until it settles.
+/// @dev ONE LOT PER ORDER. Every record opens a lot (one transfer, one kind, its own clock). A settle names the
+///      lot and can only decrease it, so a partial fill is bounded by its order and a stalled order ages alone.
+/// @dev SETTLES ARE RECEIVER-CHECKED AND NAV-BANDED. Gyld delivers to the strategy's `GyldDeliveryReceiver`
+///      (its withdrawal address and mint wallet), never to the strategy. A settle sweeps what it acknowledges out
+///      of the receiver and shrinks the lot in the same transaction: only funds from Gyld can back a settle, the
+///      strategy's own balance is never read, and nothing is counted twice because the oracle ignores the
+///      receiver. The decrease must sit in a band around the delivered value at the live NAV: at least net of
+///      the expected fee and the instrument's tolerance (no dust settles), at most the tolerance above (no full
+///      delivery swept against a sliver of decrease). Fills outside the band are governance's to book through
+///      the timelocked manual settle, which is netted from the valuation from the proposal on. `apiRef` is
+///      anti-replay only.
+/// @dev WHO MAY WRITE. Records are made by the account itself (hooks execute as the account) and only ever
+///      increase its own entries, within the caps, with the transfer verified in the same batch. Decreases are
+///      RECONCILER settles backed by the receiver or MANAGER manual settles behind the delay.
+/// @dev ONE GYLD ACCOUNT PER STRATEGY. Gyld pools cash per account (no sub-accounts), so a deposit address may
+///      belong to one strategy only, checked on set, at proposal and at execution; a released address with open
+///      cash lots stays off limits. Destinations and the valuation oracle change behind `DESTINATION_DELAY`
+///      after their first set; every lot keeps the destination it was sent to.
+/// @dev TWO CAPS, both fail-closed at zero: `maxCashInTransit` per strategy and `maxTotalCashInTransit` across
+///      strategies, per instrument, checked on every deposit record.
+/// @dev NOT PROTECTED HERE: Gyld actually delivering to the receiver (an onboarding fact), the order price, Gyld's
+///      custody and solvency, and which Gyld order a settle belongs to (`apiRef` is an audit trail, not a proof).
 contract GyldInTransitRegistry is AccessControl {
     using Math for uint256;
 
@@ -490,8 +461,8 @@ contract GyldInTransitRegistry is AccessControl {
         emit TransitFeeUpdated(bondToken, bps);
     }
 
-    /// @notice The oracle whose NAV ties every mint / redemption settle to the delivered value. Must bind this
-    ///         registry. Until it is set, `settleMint` and `settleRedemption` revert `NAV_UNAVAILABLE`.
+    /// @notice First set of the oracle whose NAV the settle band reads; must pin this registry. Unset, the NAV-tied
+    ///         settles revert `NAV_UNAVAILABLE`. Later changes go through the timelocked proposal.
     function setValuationOracle(address oracle) external onlyRole(MANAGER_ROLE) {
         if (address(valuationOracle) != address(0)) revert ORACLE_ALREADY_SET();
         _checkOracle(oracle);
@@ -499,9 +470,8 @@ contract GyldInTransitRegistry is AccessControl {
         emit ValuationOracleSet(oracle);
     }
 
-    /// @notice Propose a different valuation oracle; executable after `DESTINATION_DELAY`. The oracle is the
-    ///         NAV every settle is tied to, so swapping it is as sensitive as re-pointing a destination: a fake NAV
-    ///         would let a reconciler clear lots for dust. Hence the same delay.
+    /// @notice Propose a new valuation oracle, executable after `DESTINATION_DELAY`: a fake NAV would let a
+    ///         reconciler clear lots for dust, so the swap waits like a destination change.
     function proposeValuationOracle(address oracle) external onlyRole(MANAGER_ROLE) {
         _checkOracle(oracle);
         uint64 executeAt = uint64(block.timestamp + DESTINATION_DELAY);
@@ -525,17 +495,13 @@ contract GyldInTransitRegistry is AccessControl {
         emit ValuationOracleCancelled();
     }
 
-    /// @notice Move a stray balance out of a strategy's receiver into the strategy WITHOUT touching any lot.
-    /// @dev Governance-trusted, like the manual settle: the normal way for a delivery to reach the strategy is a
-    ///      settle. Meant for a delivery whose lot governance already wrote off, or a token that is not an
-    ///      instrument's at all. Moving a live delivery this way overstates the strategy until the lot is settled.
+    /// @notice Move a stray balance out of a strategy's receiver into the strategy without touching any lot: a
+    ///         token no instrument uses, or a delivery whose lot was already written off.
     function rescueFromReceiver(address account, address token, uint256 amount) external onlyRole(MANAGER_ROLE) {
         GyldDeliveryReceiver r = receiverOf[account];
         if (address(r) == address(0)) revert RECEIVER_NOT_SET();
         if (amount == 0) revert ZERO_AMOUNT();
-        // an instrument's bond with lots still open for this account is a live delivery, not a stray: rescuing it
-        // would land the bonds in the wallet while the lot is still valued (counted twice, with no delay). Settle
-        // or write the lot off first. Cash cannot be tied to one instrument, so it stays governance's judgement.
+        // a bond with lots still open is a live delivery, not a stray: rescuing it would count it twice
         if (BOND_REGISTRY.isRegistered(token)) {
             Position storage p = _positions[account][token];
             if (p.cashOut != 0 || p.bondsOut != 0) revert RESCUE_BLOCKED(token);
@@ -638,11 +604,9 @@ contract GyldInTransitRegistry is AccessControl {
 
     /// @notice A mint request reached `minted`: sweep the bonds Gyld delivered to the receiver into the strategy
     ///         and clear the cash they consumed from the lot.
-    /// @dev Checked in this order: the lot is open for at least `cashConsumed`; the bonds' value at the live NAV is
-    ///      within the band [cashConsumed * (1 - fee) / (1 + maxEntryPremium), cashConsumed * (1 + maxEntryPremium)]
-    ///      (`SETTLE_BELOW_NAV` / `SETTLE_ABOVE_NAV`); the reference is unused; the receiver holds `bondsReceived`
-    ///      (`DELIVERY_NOT_FOUND`). `cashConsumed` is Gyld's GROSS debit for the fill, fee included: the fee is
-    ///      what the band tolerates, not a separate loss. A fill outside the band is governance's to book.
+    /// @dev Order: open amount, band on the bonds' value at the live NAV ([cash * (1 - fee) / (1 + premium),
+    ///      cash * (1 + premium)]), reference, receiver balance. `cashConsumed` is Gyld's gross debit, fee
+    ///      included; a fill outside the band goes through the manual path.
     /// @param lotId The cash lot the order was placed against
     /// @param apiRef Gyld's `mint_request_id` (plus a fill index for partial fills), used once
     function settleMint(
@@ -676,10 +640,8 @@ contract GyldInTransitRegistry is AccessControl {
     }
 
     /// @notice A redemption completed and Gyld paid the cash to the receiver: sweep it and clear the bonds.
-    /// @dev Same order as `settleMint`: open amount, then the band on `cashReturned` against the bonds' value at the
-    ///      live NAV, [value * (1 - fee) * (1 - maxExitDiscount), value * (1 + maxExitDiscount)], then the reference,
-    ///      then the receiver. A redemption that paid less is a loss (manual path); one that "paid" more than the
-    ///      band is a payout for another lot being swept against this one.
+    /// @dev Same order as `settleMint`; band on `cashReturned` against the bonds' value at the live NAV:
+    ///      [value * (1 - fee) * (1 - discount), value * (1 + discount)].
     /// @param lotId The bond lot the redemption was placed against
     function settleRedemption(
         uint256 lotId,
@@ -717,13 +679,10 @@ contract GyldInTransitRegistry is AccessControl {
                 MANAGER: MANUAL SETTLE (LOSS / OVERRIDE), TIMELOCKED
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Propose a decrease the receiver cannot back: a loss (fees, a failed order, a Gyld default) or a
-    ///         delivery that reached the strategy by another route. Executable after `MANUAL_SETTLE_DELAY`, for
-    ///         `MANUAL_SETTLE_WINDOW`. Valuation nets the proposed amount out from this block on.
-    /// @dev Deliberately the ONLY way to book a loss, and deliberately slow: it is the one decrease nothing on chain
-    ///      can verify. Recognising it provisionally means the delay is a review period, not a two-day head start
-    ///      for holders who read the event; a cancel restores the value. The reference is reserved here so a
-    ///      reconciler cannot burn it in the meantime.
+    /// @notice Propose a decrease the receiver cannot back (a loss, or a delivery that reached the strategy
+    ///         directly). Executable after `MANUAL_SETTLE_DELAY` for `MANUAL_SETTLE_WINDOW`; netted from the
+    ///         valuation from this block on, so the delay is a review period, not an exit window. The reference is
+    ///         reserved here; an expired proposal is replaced by the next one.
     function proposeManualSettle(uint256 lotId, uint256 amount, bytes32 apiRef) external onlyRole(MANAGER_ROLE) {
         Lot storage lot = _lots[lotId];
         if (lot.recorded == 0) revert LOT_NOT_FOUND(lotId);
@@ -818,9 +777,7 @@ contract GyldInTransitRegistry is AccessControl {
         return totalCashInTransit[bondToken] - totalPendingCashDecrease[bondToken];
     }
 
-    /// @notice Whether Gyld has delivered something to the account's receiver that no settle has swept yet
-    /// @dev The third do-not-push signal (P4): while true, a PPS push would miss value that a settle is about to
-    ///      move into the wallet. Checks the instrument's bond and cash tokens.
+    /// @notice The pair has lots open and its receiver holds bond or cash no settle has swept: do not push a PPS
     function hasUnsettledDelivery(address account, address bondToken) external view returns (bool) {
         Position storage p = _positions[account][bondToken];
         if (p.cashOut == 0 && p.bondsOut == 0) return false; // nothing open: a balance here cannot be a delivery
@@ -828,9 +785,7 @@ contract GyldInTransitRegistry is AccessControl {
         return bondsHeld != 0 || cashHeld != 0;
     }
 
-    /// @notice What the account's receiver holds of the instrument's bond and cash, swept by nobody yet. The
-    ///         amounts behind `hasUnsettledDelivery`, so the PPS pusher can apply a dust floor: anyone can send a
-    ///         wei to a receiver, and a wei is not a reason to hold a push.
+    /// @notice The amounts behind `hasUnsettledDelivery`, so the pusher can apply a dust floor
     function unsweptDelivery(address account, address bondToken) public view returns (uint256 bonds, uint256 cash) {
         GyldDeliveryReceiver r = receiverOf[account];
         if (address(r) == address(0)) return (0, 0);
@@ -944,8 +899,7 @@ contract GyldInTransitRegistry is AccessControl {
         p.lotIds.push(lotId);
     }
 
-    /// @dev One Gyld account per strategy: a deposit address belongs to at most one account. Releases the
-    ///      account's previous address on a rotation. Both destination paths call this when the pair is written.
+    /// @dev Claim a deposit address for the account, releasing its previous one
     function _claimDepositAddress(address account, address depositAddress_) private {
         _checkDepositAddressFree(account, depositAddress_);
         address previous = _destinations[account].depositAddress;
@@ -961,8 +915,7 @@ contract GyldInTransitRegistry is AccessControl {
         emit ReceiverCreated(account, address(r));
     }
 
-    /// @dev Move `amount` of `token` from the account's receiver into the account. What the receiver holds is an
-    ///      upper bound on what Gyld delivered, so a sweep is the proof of delivery a settle rests on.
+    /// @dev The receiver's balance is an upper bound on what Gyld delivered: the sweep is the settle's proof
     function _sweep(Lot storage lot, uint256 lotId, address token, uint256 amount) private {
         GyldDeliveryReceiver r = receiverOf[lot.account];
         if (address(r) == address(0)) revert RECEIVER_NOT_SET();
@@ -971,8 +924,7 @@ contract GyldInTransitRegistry is AccessControl {
         _moveFromReceiver(r, lot.account, token, amount);
     }
 
-    /// @dev Receiver -> strategy, and the strategy must receive exactly `amount`: the lot shrinks by what it was
-    ///      told, so a fee-on-transfer or allowlisted bond token must not shrink it by more than what arrives.
+    /// @dev Receiver -> strategy; the strategy must receive exactly `amount` (fee-on-transfer or restricted tokens)
     function _moveFromReceiver(GyldDeliveryReceiver r, address account, address token, uint256 amount) private {
         uint256 before = IERC20(token).balanceOf(account);
         r.sweep(token, amount);
@@ -1014,8 +966,7 @@ contract GyldInTransitRegistry is AccessControl {
         if (paid > upper) revert SETTLE_ABOVE_NAV(lotId, paid, upper);
     }
 
-    /// @dev One Gyld account per strategy: refused while another strategy holds the address, or while open cash lots
-    ///      of anyone else still point at it (a released address with money in flight is not free yet)
+    /// @dev Refused while another strategy holds the address or open cash lots still point at it
     function _checkDepositAddressFree(address account, address depositAddress_) private view {
         address holder = accountOfDepositAddress[depositAddress_];
         if (holder != address(0) && holder != account) revert DEPOSIT_ADDRESS_IN_USE(depositAddress_, holder);
@@ -1028,8 +979,7 @@ contract GyldInTransitRegistry is AccessControl {
         if (address(GyldBondYieldSourceOracle(oracle).IN_TRANSIT()) != address(this)) revert ORACLE_MISMATCH(oracle);
     }
 
-    /// @dev Drop a lot's proposal: release the netting and the reference. Cancel, expiry replacement and the close
-    ///      branch of `_decrease` all end here.
+    /// @dev Drop a lot's proposal: release the netting and the reference
     function _dropPending(uint256 lotId, Lot storage lot) private {
         PendingManualSettle memory m = pendingManualSettles[lotId];
         delete pendingManualSettles[lotId];
@@ -1097,9 +1047,8 @@ contract GyldInTransitRegistry is AccessControl {
         p = _positions[lot.account][lot.bondToken];
     }
 
-    /// @dev Decrease one lot, never below zero, and move the queue head past it once it closes. A pending manual
-    ///      settle on the lot is clamped to what stays open and dropped (reference released) once the lot closes,
-    ///      so a proposal can never over-decrease or linger on a closed lot.
+    /// @dev Decrease one lot and advance the head once it closes; a pending proposal is clamped to what stays open
+    ///      and dropped when the lot closes.
     function _decrease(uint256 lotId, Lot storage lot, Position storage p, uint256 amount) private {
         if (amount == 0) revert ZERO_AMOUNT();
         if (amount > lot.open) revert EXCEEDS_OPEN(lot.open, amount);

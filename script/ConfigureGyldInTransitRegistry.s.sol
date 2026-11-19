@@ -8,24 +8,16 @@ import { console2 } from "forge-std/console2.sol";
 
 /// @title ConfigureGyldInTransitRegistry
 /// @notice Post-deploy configuration of `GyldInTransitRegistry` (Gyld Investor API hooks, SUP-21848).
-/// @dev EVERY VALUE FAILS CLOSED WHEN UNSET. The registry refuses `recordCashOut` / `recordBondsOut`, and so
-///      both investor hooks revert in `build()`, until the destinations AND the transit age are set, and a
-///      deposit additionally needs non-zero per-strategy AND instrument-wide caps (`runCap`). A deploy without this
-///      script is inert.
-/// @dev ORDER. AS DEPLOYER (still MANAGER_ROLE): `runDestinations` once PER STRATEGY, `runTransitDefaults`, and
-///      `runOracle` (binds the valuation oracle the NAV-tied settles read; without it `settleMint` and
-///      `settleRedemption` revert `NAV_UNAVAILABLE` and only the cash-for-cash / bonds-for-bonds settles work).
-///      Then `TransferGyldInTransitRegistryRoles` hands the roles over. Then AS GOVERNOR, per registered instrument:
-///      `runCap` (zero = deposits disabled) and `runFee` (the expected upfront fee, netted from the valuation and
-///      tolerated by the settle tie). A strategy onboarded AFTER the handover gets its pair through the same
-///      `runDestinations`, run as GOVERNOR. The destinations come from Gyld onboarding (`GET /deposit/address`,
-///      `GET /portfolio.redeem_holding_wallet`) for the Gyld account that strategy trades through; the first set is
-///      immediate and every later change waits `DESTINATION_DELAY` behind `proposeDestinations`. A strategy with no
-///      pair is refused by both hooks, whatever else is configured.
-/// @dev THE RECEIVER IS AN ONBOARDING INPUT. `runDestinations` also deploys the strategy's `GyldDeliveryReceiver`
-///      (printed, and shown by `runCheck`). That address, not the strategy, is what Gyld must hold as the
-///      whitelisted withdrawal address and use as the `wallet_address` of every mint order: a delivery that lands
-///      on the strategy directly cannot be settled by the reconciler and needs the MANAGER's manual path.
+/// @dev Everything fails closed when unset: both hooks revert in `build()` until the destinations and the transit
+///      age exist, deposits also need both caps, and the NAV-tied settles need the oracle.
+/// @dev ORDER. As DEPLOYER (still MANAGER): `runDestinations` per strategy, `runTransitDefaults`, `runOracle`. Then
+///      `TransferGyldInTransitRegistryRoles`. Then as GOVERNOR, per registered instrument: `runCap` and `runFee`.
+///      Strategies onboarded later get `runDestinations` as GOVERNOR. Destinations come from Gyld onboarding
+///      (`GET /deposit/address`, `GET /portfolio.redeem_holding_wallet`); the first set is immediate, later changes
+///      wait `DESTINATION_DELAY`.
+/// @dev THE RECEIVER IS AN ONBOARDING INPUT. `runDestinations` deploys and prints the strategy's
+///      `GyldDeliveryReceiver`: that address, not the strategy, is Gyld's whitelisted withdrawal address and the
+///      `wallet_address` of every mint order. A delivery to the strategy itself cannot be settled.
 contract ConfigureGyldInTransitRegistry is DeployV2Base, ConstantsOtherHooks {
     /// @notice First-time set of ONE strategy's two Gyld destinations
     function runDestinations(

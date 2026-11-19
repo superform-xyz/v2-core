@@ -38,26 +38,15 @@ import { IGyldNavFeed } from "../../vendor/gyld/IGyldNavFeed.sol";
 ///      ledger never touches this oracle, so a suspended instrument cannot brick accounting.
 /// @dev NEVER ASSUMES CASH EQUALS ONE DOLLAR. A USD-denominated NAV feed is converted through the instrument's
 ///      cash/USD feed, and that feed is staleness-checked just as strictly as the NAV feed.
-/// @dev IN-TRANSIT VALUE (Gyld Investor API, SUP-21848). Cash the account sent to Gyld's deposit address and
-///      bonds it sent to the redeem holding wallet are recorded in `GyldInTransitRegistry` and counted in the
-///      account's VALUE (`getTVLByOwnerOfShares`), so the valuation does not drop while a broker order is open:
-///      cash at face, bonds at the LIVE NAV, both net of the registry's expected-fee haircut (`transitFeeBps`).
-///      Cash stays cash and bonds stay bonds; nothing is converted on the assumption that an order fills, and
-///      bonds in transit are marked exactly like wallet bonds because the price risk is still ours until the
-///      sale fills. `getBalanceOfOwner` is deliberately NOT touched: it is
-///      the plain ERC20 balance, because its consumers size exits and neither cash at Gyld nor bonds in the holding
-///      wallet are redeemable from the wallet. Deliveries sit in the strategy's `GyldDeliveryReceiver` until a
-///      settle sweeps them in and closes the lot atomically, so the receiver balance is never valued and nothing
-///      is counted twice (`hasUnsettledDelivery` flags it for the PPS pusher). A pending manual settle (a
-///      governance write-down) is netted out of the in-transit value from the proposal on.
-///      STALENESS IS A GATE, NOT A WRITE-DOWN (review on SUP-21848): a lot
-///      older than the registry's `maxTransitAge` keeps its value here and only blocks NEW deposits in the
-///      registry; `hasStaleTransit` exposes the flag for monitoring. Zeroing it treated operational latency as an
-///      economic loss, dropped the price per share for as long as the reconciler lagged and let buyers in at that
-///      artificial discount. A real loss is booked by governance (the registry's timelocked manual settle), never
-///      by the clock.
-///      `IN_TRANSIT == address(0)` turns the feature off.
-///      Per-share pricing is untouched: in-transit changes what an account is worth, not what one bond is worth.
+/// @dev IN-TRANSIT VALUE (Gyld Investor API, SUP-21848). Cash at Gyld's deposit address and bonds at its redeem
+///      holding wallet, as recorded in `GyldInTransitRegistry`, count in `getTVLByOwnerOfShares`: cash at face,
+///      bonds at the live NAV, both net of the expected-fee haircut and of pending manual write-downs. Nothing is
+///      converted on the assumption that an order fills. The strategy's delivery receiver is never valued (the
+///      settle that sweeps it closes the lot atomically), and `getBalanceOfOwner` stays the plain ERC20 balance,
+///      because its consumers size exits. A stale lot keeps its value and only blocks new deposits; a real loss is
+///      booked by governance, never by the clock. The three flags for the PPS pusher are `hasStaleTransit`,
+///      `hasPendingImpairment` and `hasUnsettledDelivery`. `IN_TRANSIT == address(0)` turns the feature off;
+///      per-share pricing is untouched.
 contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     using Math for uint256;
 

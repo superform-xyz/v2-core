@@ -7,21 +7,12 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 /// @title GyldDeliveryReceiver
 /// @author Superform Labs
-/// @notice One strategy's mailbox for Gyld deliveries. Gyld mints bond tokens and pays redemption cash HERE
-///         (the receiver is the strategy's whitelisted withdrawal address and the `wallet_address` of every mint
-///         order), never to the strategy directly. Nothing leaves except through `GyldInTransitRegistry`, which
-///         sweeps exactly what a settle acknowledges into the strategy and shrinks the matching lot in the same
-///         transaction.
-/// @dev WHY A SEPARATE CONTRACT. An EARLIER DESIGN (not in this codebase any more) proved "the asset arrived" by
-///      reading the strategy's wallet balance against a per-lot snapshot. That balance rises for many reasons (user deposits into the SuperVault above all), so a
-///      compromised reconciler could point at a user deposit and erase a claim on Gyld while the money was
-///      still at Gyld; and ordinary strategy outflows pushed the balance below any baseline and blocked honest
-///      settles. Funds in this contract can only have come from Gyld (or a donation, which only ever reaches the
-///      strategy anyway), so what the registry can sweep is an upper bound on what Gyld delivered. The oracle does
-///      NOT count this balance: the open lot is still valued, and the sweep that moves the delivery into the
-///      wallet closes the lot atomically, so nothing is ever counted twice.
-/// @dev Deployed by the registry in `setDestinations`; the registry is the only caller. Deliberately has no owner,
-///      no upgrade path and no other function: it is a vault with one key.
+/// @notice One strategy's mailbox for Gyld deliveries: its whitelisted withdrawal address and the `wallet_address`
+///         of its mint orders. Only `GyldInTransitRegistry` can move funds out, and only into the strategy, as the
+///         sweep of a settle that shrinks the matching lot in the same transaction.
+/// @dev Funds here can only have come from Gyld (or a donation that ends in the strategy anyway), so the balance is
+///      an upper bound on what Gyld delivered, and the oracle never values it: no delivery is counted twice.
+///      Deployed by the registry with the strategy's destinations; no owner, no upgrade path, one function.
 contract GyldDeliveryReceiver {
     using SafeERC20 for IERC20;
 

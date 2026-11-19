@@ -70,6 +70,14 @@ contract GyldWiringHarness is DeployV2OtherHooks {
         otherHooksConfiguration.gyldInvestorEnabled[chainId] = true;
     }
 
+    function disableInvestor(uint64 chainId) external {
+        otherHooksConfiguration.gyldInvestorEnabled[chainId] = false;
+    }
+
+    function stagingAggregator(uint64 chainId) external view returns (address) {
+        return otherHooksConfiguration.superVaultAggregatorsStaging[chainId];
+    }
+
     function inTransitKey() external pure returns (string memory) {
         return GYLD_IN_TRANSIT_REGISTRY_KEY;
     }
@@ -147,6 +155,7 @@ contract GyldDeploymentWiringTest is Test {
     uint64 internal constant HYPEREVM = 999;
     uint64 internal constant BNB = 56;
     uint256 internal constant ENV_PROD = 0;
+    uint256 internal constant ENV_STAGING = 1;
 
     address internal constant VENUE = address(0xBEEF);
     uint256 internal constant CASH_CAP = 500_000e6;
@@ -164,9 +173,9 @@ contract GyldDeploymentWiringTest is Test {
     /// @dev Gyld's settlement contract and NAV feed are deployed nowhere, and three high-severity review
     ///      findings are open, so a routine deploy run must ship none of this. If someone enables a chain,
     ///      this test fails and they have to update it deliberately, which is the point.
-    function test_FamilyIsDisabledOnEveryChain() public view {
-        // Every chain in networks-production.sh, not a sample: the point of this test is that enabling ANY
-        // chain fails it, and a 5-chain sample left 13 chains able to be enabled silently.
+    function test_FamilyIsEnabledOnKatanaOnly_TradingHalfNowhere() public view {
+        // Every chain in networks-production.sh, not a sample: enabling ANY other chain, or the trading half
+        // anywhere, fails this test rather than slipping in silently.
         uint64[18] memory chains = [
             KATANA,
             MAINNET,
@@ -188,7 +197,8 @@ contract GyldDeploymentWiringTest is Test {
             uint64(4663) // Robinhood
         ];
         for (uint256 i; i < chains.length; ++i) {
-            assertFalse(h.oracleEnabled(chains[i]), "valuation half must be disabled");
+            assertEq(h.oracleEnabled(chains[i]), chains[i] == KATANA, "valuation half enabled on Katana only");
+            assertEq(h.investorEnabled(chains[i]), chains[i] == KATANA, "investor hooks enabled on Katana only");
             assertEq(h.settlement(chains[i]), address(0), "no venue address may be configured yet");
             assertEq(h.cashCap(chains[i]), 0, "no cash cap may be configured yet");
             assertEq(h.bondCap(chains[i]), 0, "no bond cap may be configured yet");
@@ -648,9 +658,25 @@ contract GyldDeploymentWiringTest is Test {
                     INVESTOR API HOOKS (SUP-21848)
     //////////////////////////////////////////////////////////////*/
 
-    function test_InvestorFamilyIsDisabledOnEveryChain() public view {
-        assertFalse(h.investorEnabled(KATANA));
+    function test_InvestorFamily_KatanaProdHasAnAggregator_StagingDoesNot() public view {
+        assertTrue(h.investorEnabled(KATANA));
         assertFalse(h.investorEnabled(MAINNET));
+        assertEq(h.stagingAggregator(KATANA), address(0), "no staging aggregator row yet: staging skips the hooks");
+    }
+
+    /// @dev On an env with no aggregator row the valuation half still ships (zero aggregator, loud warning) but the
+    ///      investor hooks are skipped: their policy check needs the strategy pause.
+    function test_DeployPath_StagingWithoutAggregator_SkipsInvestorHooks() public {
+        _etchLedgerConfig();
+        vm.etch(h.ledgerConfigAddress(ENV_STAGING), hex"600160005260206000f3");
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_STAGING);
+        assertTrue(a.gyldInTransitRegistry != address(0), "valuation half ships");
+        assertTrue(a.gyldTradePolicy != address(0));
+        assertEq(a.gyldInvestorDepositHook, address(0), "no aggregator for this env: hooks skipped");
+        assertEq(a.gyldInvestorRedeemHook, address(0));
+        // prod on the same chain has the row and ships them
+        DeployV2OtherHooks.GyldHookAddresses memory p = h.deployGyld(KATANA, ENV_PROD);
+        assertTrue(p.gyldInvestorDepositHook != address(0) && p.gyldInvestorRedeemHook != address(0));
     }
 
     /// @dev The in-transit registry always ships with the valuation half and the oracle pins it; the two
@@ -658,6 +684,7 @@ contract GyldDeploymentWiringTest is Test {
     function test_DeployPath_InTransitRegistryShipsWithTheOracle_HooksGated() public {
         _etchLedgerConfig();
         h.enableOracleOnly(KATANA);
+        h.disableInvestor(KATANA); // the registry must ship even where the hooks themselves stay off
         DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
         assertTrue(a.gyldInTransitRegistry != address(0), "in-transit registry ships with the valuation half");
         assertEq(
