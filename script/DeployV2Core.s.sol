@@ -323,7 +323,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         string[] missingBytecodeContracts;
     }
 
-    struct AcrossV2AvalancheDeployment {
+    struct AcrossV2Deployment {
         address spokePool;
         address superDestinationExecutor;
         address superValidator;
@@ -1113,53 +1113,68 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     }
 
     function runAcrossV2Avalanche(bool check, uint256 env, uint64 chainId) public {
-        require(env == 0 || env == 2, "ACROSS_V2_AVALANCHE_INVALID_ENV");
         require(chainId == AVALANCHE_CHAIN_ID, "ACROSS_V2_AVALANCHE_INVALID_CHAIN");
-        require(block.chainid == chainId, "ACROSS_V2_AVALANCHE_CHAIN_ID_MISMATCH");
+        _runAcrossV2(check, env, chainId, ACROSS_SPOKE_POOL_AVALANCHE, "ACROSS_V2_AVALANCHE_WRITE_OUTPUT");
+    }
+
+    function runAcrossV2Arc(bool check, uint256 env, uint64 chainId) public {
+        require(chainId == ARC_CHAIN_ID, "ACROSS_V2_ARC_INVALID_CHAIN");
+        _runAcrossV2(check, env, chainId, ACROSS_SPOKE_POOL_ARC, "ACROSS_V2_ARC_WRITE_OUTPUT");
+    }
+
+    function _runAcrossV2(
+        bool check,
+        uint256 env,
+        uint64 chainId,
+        address expectedSpokePool,
+        string memory outputFlag
+    )
+        private
+    {
+        require(env == 0 || env == 2, "ACROSS_V2_INVALID_ENV");
+        require(block.chainid == chainId, "ACROSS_V2_CHAIN_ID_MISMATCH");
 
         _setConfiguration(env, "");
-        AcrossV2AvalancheDeployment memory deployment = _checkAcrossV2AvalancheContracts(env, chainId);
+        AcrossV2Deployment memory deployment = _checkAcrossV2Contracts(env, chainId, expectedSpokePool);
 
         _logDeploymentSummary(chainId);
         if (check) return;
 
-        deployment = _deployAcrossV2AvalancheContracts(deployment, env, chainId);
-        _validateAcrossV2AvalancheContracts(deployment);
+        deployment = _deployAcrossV2Contracts(deployment, env, chainId);
+        _validateAcrossV2Contracts(deployment);
 
-        if (vm.envOr("ACROSS_V2_AVALANCHE_WRITE_OUTPUT", false)) {
+        if (vm.envOr(outputFlag, false)) {
             vm.setEnv("CI", "true");
             vm.setEnv("GITHUB_REF_NAME", env == 0 ? "prod" : "staging");
             _writeExportedContracts(chainId);
         }
     }
 
-    function _checkAcrossV2AvalancheContracts(
+    function _checkAcrossV2Contracts(
         uint256 env,
-        uint64 chainId
+        uint64 chainId,
+        address expectedSpokePool
     )
         private
-        returns (AcrossV2AvalancheDeployment memory deployment)
+        returns (AcrossV2Deployment memory deployment)
     {
         deployment.spokePool = configuration.acrossSpokePoolV3s[chainId];
-        require(deployment.spokePool == ACROSS_SPOKE_POOL_AVALANCHE, "ACROSS_V2_AVALANCHE_SPOKE_POOL_MISMATCH");
-        require(deployment.spokePool.code.length > 0, "ACROSS_V2_AVALANCHE_SPOKE_POOL_NO_CODE");
-        require(DETERMINISTIC_DEPLOYER.code.length > 0, "ACROSS_V2_AVALANCHE_DEPLOYER_NO_CODE");
+        require(deployment.spokePool == expectedSpokePool, "ACROSS_V2_SPOKE_POOL_MISMATCH");
+        require(deployment.spokePool.code.length > 0, "ACROSS_V2_SPOKE_POOL_NO_CODE");
+        require(DETERMINISTIC_DEPLOYER.code.length > 0, "ACROSS_V2_DEPLOYER_NO_CODE");
 
         string memory existingContracts = _readCoreContractsFromOutput(chainId, env);
         deployment.superDestinationExecutor =
             _safeParseJsonAddress(existingContracts, string.concat(".", SUPER_DESTINATION_EXECUTOR_KEY));
         deployment.superValidator = _safeParseJsonAddress(existingContracts, string.concat(".", SUPER_VALIDATOR_KEY));
 
-        require(deployment.superDestinationExecutor.code.length > 0, "ACROSS_V2_AVALANCHE_DEST_EXECUTOR_NO_CODE");
-        require(deployment.superValidator.code.length > 0, "ACROSS_V2_AVALANCHE_VALIDATOR_NO_CODE");
-        require(__checkBytecodeExists("AcrossV3AdapterV2", env), "ACROSS_V2_AVALANCHE_ADAPTER_BYTECODE_MISSING");
-        require(
-            __checkBytecodeExists("AcrossSendFundsAndExecuteOnDstHookV2", env),
-            "ACROSS_V2_AVALANCHE_HOOK_BYTECODE_MISSING"
-        );
+        require(deployment.superDestinationExecutor.code.length > 0, "ACROSS_V2_DEST_EXECUTOR_NO_CODE");
+        require(deployment.superValidator.code.length > 0, "ACROSS_V2_VALIDATOR_NO_CODE");
+        require(__checkBytecodeExists("AcrossV3AdapterV2", env), "ACROSS_V2_ADAPTER_BYTECODE_MISSING");
+        require(__checkBytecodeExists("AcrossSendFundsAndExecuteOnDstHookV2", env), "ACROSS_V2_HOOK_BYTECODE_MISSING");
         require(
             __checkBytecodeExists("ApproveAndAcrossSendFundsAndExecuteOnDstHookV2", env),
-            "ACROSS_V2_AVALANCHE_APPROVE_HOOK_BYTECODE_MISSING"
+            "ACROSS_V2_APPROVE_HOOK_BYTECODE_MISSING"
         );
 
         (deployment.adapterDeployed, deployment.adapter) = __checkContract(
@@ -1182,13 +1197,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
     }
 
-    function _deployAcrossV2AvalancheContracts(
-        AcrossV2AvalancheDeployment memory deployment,
+    function _deployAcrossV2Contracts(
+        AcrossV2Deployment memory deployment,
         uint256 env,
         uint64 chainId
     )
         private
-        returns (AcrossV2AvalancheDeployment memory)
+        returns (AcrossV2Deployment memory)
     {
         vm.startBroadcast();
         if (!deployment.adapterDeployed) {
@@ -1228,27 +1243,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         return deployment;
     }
 
-    function _validateAcrossV2AvalancheContracts(AcrossV2AvalancheDeployment memory deployment) private view {
-        require(deployment.adapter.code.length > 0, "ACROSS_V2_AVALANCHE_ADAPTER_NO_CODE");
-        require(deployment.hook.code.length > 0, "ACROSS_V2_AVALANCHE_HOOK_NO_CODE");
-        require(deployment.approveHook.code.length > 0, "ACROSS_V2_AVALANCHE_APPROVE_HOOK_NO_CODE");
+    function _validateAcrossV2Contracts(AcrossV2Deployment memory deployment) private view {
+        require(deployment.adapter.code.length > 0, "ACROSS_V2_ADAPTER_NO_CODE");
+        require(deployment.hook.code.length > 0, "ACROSS_V2_HOOK_NO_CODE");
+        require(deployment.approveHook.code.length > 0, "ACROSS_V2_APPROVE_HOOK_NO_CODE");
         require(
             AcrossV3AdapterV2(deployment.adapter).ACROSS_SPOKE_POOL() == deployment.spokePool,
-            "ACROSS_V2_AVALANCHE_ADAPTER_SPOKE_POOL_MISMATCH"
+            "ACROSS_V2_ADAPTER_SPOKE_POOL_MISMATCH"
         );
         require(
             address(AcrossV3AdapterV2(deployment.adapter).SUPER_DESTINATION_EXECUTOR())
                 == deployment.superDestinationExecutor,
-            "ACROSS_V2_AVALANCHE_ADAPTER_EXECUTOR_MISMATCH"
+            "ACROSS_V2_ADAPTER_EXECUTOR_MISMATCH"
         );
         require(
             AcrossSendFundsAndExecuteOnDstHookV2(deployment.hook).SPOKE_POOL_V3() == deployment.spokePool,
-            "ACROSS_V2_AVALANCHE_HOOK_SPOKE_POOL_MISMATCH"
+            "ACROSS_V2_HOOK_SPOKE_POOL_MISMATCH"
         );
         require(
             ApproveAndAcrossSendFundsAndExecuteOnDstHookV2(deployment.approveHook).SPOKE_POOL_V3()
                 == deployment.spokePool,
-            "ACROSS_V2_AVALANCHE_APPROVE_HOOK_SPOKE_POOL_MISMATCH"
+            "ACROSS_V2_APPROVE_HOOK_SPOKE_POOL_MISMATCH"
         );
     }
 
