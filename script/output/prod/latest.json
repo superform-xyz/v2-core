@@ -185,6 +185,9 @@
         "AaveV4SupplyHookV2": "0xC0aC4F15eEf42a69cEf5c46096b4148A756a2F6D",
         "AaveV4SupplyYieldSourceOracle": "0x03d30af3910549B16AAA946e6E581f96e84409ce",
         "AaveV4WithdrawHookV2": "0xb9fD710EdEfBE98e15B042f0da7fBEe2ad4C9889",
+        "AcrossSendFundsAndExecuteOnDstHookV2": "0xC16409b87e539106BE1A0315070b382Af85f4C71",
+        "AcrossV3AdapterV2": "0x5156c0E6A3ED37B1b22217DCF9e1f36824DB2798",
+        "ApproveAndAcrossSendFundsAndExecuteOnDstHookV2": "0xF26194c7dB0906658e55bC2eE158c30ACeA7Dd4f",
         "ApproveAndCCTPSendHook": "0xAeE5195ec226cFC57FfF1841E270de2172470FfF",
         "ApproveAndDeposit4626VaultHook": "0xba687c9D5113a3B2692fd87b0F389dD5fF402808",
         "ApproveAndDeposit5115VaultHook": "0x4493313127E784420e4A69893e48F15BA78b858F",
@@ -2668,5 +2671,5 @@
       }
     }
   },
-  "updated_at": "2026-11-17T11:33:44Z"
+  "updated_at": "2026-11-19T16:13:26Z"
 }
