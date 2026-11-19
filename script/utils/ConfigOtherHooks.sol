@@ -49,6 +49,11 @@ abstract contract ConfigOtherHooks is ConfigBase, ConstantsOtherHooks {
         mapping(uint64 chainId => address aggregator) superVaultAggregatorsStaging;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxCashInputAmounts;
         mapping(uint64 chainId => uint256 maxInputAmount) gyldMaxBondInputAmounts;
+        /// @notice Gyld Investor API (non-RFQ) hooks, SUP-21848. Third gate: the in-transit registry always
+        ///         ships with the valuation half (the oracle pins it), but the two transfer hooks only deploy
+        ///         once Gyld onboarding has returned a deposit address and a redeem holding wallet for the
+        ///         strategy. Empty today.
+        mapping(uint64 chainId => bool enabled) gyldInvestorEnabled;
     }
 
     OtherHooksData internal otherHooksConfiguration;

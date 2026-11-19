@@ -554,6 +554,16 @@
     "pipeMode": "transform"
   },
   {
+    "hookKey": "GYLD_INVESTOR_DEPOSIT_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
+    "hookKey": "GYLD_INVESTOR_REDEEM_HOOK_KEY",
+    "mode": "replaceCalldata",
+    "pipeMode": "transform"
+  },
+  {
     "hookKey": "GYLD_TRADE_GUARD_HOOK_KEY",
     "mode": "sizeless",
     "pipeMode": "passthrough"

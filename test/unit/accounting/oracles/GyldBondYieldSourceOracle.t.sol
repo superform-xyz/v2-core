@@ -82,7 +82,7 @@ contract GyldBondYieldSourceOracleTest is Test {
         vm.warp(1_800_000_000);
 
         registry = new GyldBondRegistry(admin);
-        oracle = new GyldBondYieldSourceOracle(ledgerConfig, address(registry));
+        oracle = new GyldBondYieldSourceOracle(ledgerConfig, address(registry), address(0));
 
         KIND_CHAINLINK = registry.FEED_KIND_CHAINLINK();
         KIND_NATIVE = registry.FEED_KIND_GYLD_NATIVE();
@@ -153,7 +153,7 @@ contract GyldBondYieldSourceOracleTest is Test {
 
     function test_Constructor_RevertIf_RegistryZero() public {
         vm.expectRevert(GyldBondYieldSourceOracle.ZERO_ADDRESS.selector);
-        new GyldBondYieldSourceOracle(ledgerConfig, address(0));
+        new GyldBondYieldSourceOracle(ledgerConfig, address(0), address(0));
     }
 
     /// @dev The oracle mirrors `GyldBondRegistry.FEED_KIND_GYLD_NATIVE` as a private constant, so the two can

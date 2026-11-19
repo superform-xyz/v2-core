@@ -10,6 +10,7 @@ import { IAggregatorV3 } from "modulekit/integrations/interfaces/chainlink/IAggr
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { GyldBondRegistry } from "./GyldBondRegistry.sol";
+import { GyldInTransitRegistry } from "./GyldInTransitRegistry.sol";
 import { IGyldNavFeed } from "../../vendor/gyld/IGyldNavFeed.sol";
 
 /// @title GyldBondYieldSourceOracle
@@ -37,6 +38,26 @@ import { IGyldNavFeed } from "../../vendor/gyld/IGyldNavFeed.sol";
 ///      ledger never touches this oracle, so a suspended instrument cannot brick accounting.
 /// @dev NEVER ASSUMES CASH EQUALS ONE DOLLAR. A USD-denominated NAV feed is converted through the instrument's
 ///      cash/USD feed, and that feed is staleness-checked just as strictly as the NAV feed.
+/// @dev IN-TRANSIT VALUE (Gyld Investor API, SUP-21848). Cash the account sent to Gyld's deposit address and
+///      bonds it sent to the redeem holding wallet are recorded in `GyldInTransitRegistry` and counted in the
+///      account's VALUE (`getTVLByOwnerOfShares`), so the valuation does not drop while a broker order is open:
+///      cash at face, bonds at the LIVE NAV, both net of the registry's expected-fee haircut (`transitFeeBps`).
+///      Cash stays cash and bonds stay bonds; nothing is converted on the assumption that an order fills, and
+///      bonds in transit are marked exactly like wallet bonds because the price risk is still ours until the
+///      sale fills. `getBalanceOfOwner` is deliberately NOT touched: it is
+///      the plain ERC20 balance, because its consumers size exits and neither cash at Gyld nor bonds in the holding
+///      wallet are redeemable from the wallet. Deliveries sit in the strategy's `GyldDeliveryReceiver` until a
+///      settle sweeps them in and closes the lot atomically, so the receiver balance is never valued and nothing
+///      is counted twice (`hasUnsettledDelivery` flags it for the PPS pusher). A pending manual settle (a
+///      governance write-down) is netted out of the in-transit value from the proposal on.
+///      STALENESS IS A GATE, NOT A WRITE-DOWN (review on SUP-21848): a lot
+///      older than the registry's `maxTransitAge` keeps its value here and only blocks NEW deposits in the
+///      registry; `hasStaleTransit` exposes the flag for monitoring. Zeroing it treated operational latency as an
+///      economic loss, dropped the price per share for as long as the reconciler lagged and let buyers in at that
+///      artificial discount. A real loss is booked by governance (the registry's timelocked manual settle), never
+///      by the clock.
+///      `IN_TRANSIT == address(0)` turns the feature off.
+///      Per-share pricing is untouched: in-transit changes what an account is worth, not what one bond is worth.
 contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     using Math for uint256;
 
@@ -56,6 +77,8 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     error GRACE_PERIOD_NOT_OVER();
     /// @notice A feed reported a zero or future timestamp
     error INVALID_TIMESTAMP();
+    /// @notice The in-transit registry is bound to a different bond registry
+    error REGISTRY_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                                  TYPES
@@ -106,19 +129,29 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     /// @notice The approved-instrument list. The only source of feeds and cash denominations.
     GyldBondRegistry public immutable REGISTRY;
 
+    /// @notice What each account has at Gyld through the Investor API; zero address disables the feature
+    GyldInTransitRegistry public immutable IN_TRANSIT;
+
     /// @dev Mirrors `GyldBondRegistry.FEED_KIND_GYLD_NATIVE`. A contract's `public constant` is not statically
     ///      reachable from another contract, and reading it through an external call on every valuation would be
     ///      wasteful, so the value is mirrored here and the two are asserted equal in the unit tests.
     uint8 private constant FEED_KIND_GYLD_NATIVE = 1;
 
+    /// @param inTransit_ `GyldInTransitRegistry`, or zero to value held bonds only. When set it must be
+    ///        bound to the same bond registry, or the pair and cap checks would run against another list.
     constructor(
         address superLedgerConfiguration_,
-        address registry_
+        address registry_,
+        address inTransit_
     )
         AbstractYieldSourceOracle(superLedgerConfiguration_)
     {
         if (registry_ == address(0)) revert ZERO_ADDRESS();
         REGISTRY = GyldBondRegistry(registry_);
+        if (inTransit_ != address(0)) {
+            if (address(GyldInTransitRegistry(inTransit_).BOND_REGISTRY()) != registry_) revert REGISTRY_MISMATCH();
+        }
+        IN_TRANSIT = GyldInTransitRegistry(inTransit_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,7 +166,11 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Identity read, and the "preserve visible holdings" escape hatch: a suspended, stale or
-    ///      unregistered instrument still reports the balance a strategy holds.
+    ///      unregistered instrument still reports the balance a strategy holds. THE PLAIN ERC20 BALANCE, no
+    ///      registry or NAV read (review finding on SUP-21848): in-transit cash and bonds are valuation, not
+    ///      balance. Padding this with cash converted at NAV assumed the order fills, made a pure balance read
+    ///      depend on a price feed, and handed exit sizing a share count the wallet cannot redeem. The
+    ///      breakdown lives in `GyldInTransitRegistry.transit(account, bondToken)`, in its own units.
     function getBalanceOfOwner(
         address yieldSourceAddress,
         address ownerOfShares
@@ -146,10 +183,36 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
+    /// @notice Whether the account has an open in-transit lot older than the registry's `maxTransitAge`
+    /// @dev Monitoring and gating only. The value reads do NOT drop a stale lot; the registry refuses new deposits
+    ///      for the pair until the reconciler settles it.
+    function hasStaleTransit(address bondToken, address account) external view returns (bool) {
+        if (address(IN_TRANSIT) == address(0)) return false;
+        return IN_TRANSIT.isStale(account, bondToken);
+    }
+
+    /// @notice Whether governance has an impairment (manual settle) pending on one of the account's open lots
+    /// @dev Together with `hasStaleTransit` this is the signal for the affected-user policy: pause SuperVault
+    ///      deposits while either is true; withdrawals stay open. Valuation itself is unchanged by both.
+    function hasPendingImpairment(address bondToken, address account) external view returns (bool) {
+        if (address(IN_TRANSIT) == address(0)) return false;
+        return IN_TRANSIT.hasPendingManualSettle(account, bondToken);
+    }
+
+    /// @notice Whether Gyld has delivered to the account's receiver something no settle has swept yet
+    /// @dev The third do-not-push signal (P4). This value is deliberately NOT in `getTVLByOwnerOfShares`: the
+    ///      open lot is still counted, and the settle moves the delivery into the wallet and closes the lot in
+    ///      one transaction, so there is never a block where both are counted.
+    function hasUnsettledDelivery(address bondToken, address account) external view returns (bool) {
+        if (address(IN_TRANSIT) == address(0)) return false;
+        return IN_TRANSIT.hasUnsettledDelivery(account, bondToken);
+    }
+
     /// @notice Non-reverting NAV status
     /// @dev Reverts for nothing. An unregistered instrument comes back with `registered == false` rather than a
-    ///      revert, so the guard hook can produce a precise error and the OMS can pre-flight a leaf.
-    function previewNav(address bondToken) external view returns (NavStatus memory status) {
+    ///      revert, so the guard hook can produce a precise error and the OMS can pre-flight a leaf. Also the NAV
+    ///      source of `GyldInTransitRegistry`'s settle tie (`setValuationOracle`), which is why it is public.
+    function previewNav(address bondToken) public view returns (NavStatus memory status) {
         if (!REGISTRY.isRegistered(bondToken)) {
             status.failureCode = uint8(NavFailure.NOT_REGISTERED);
             return status;
@@ -315,8 +378,10 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    /// @dev Short-circuits to zero on a zero balance BEFORE touching any feed, so a strategy holding none of a
-    ///      suspended instrument is still priceable. Same precedent as the UniV3 CLP oracle.
+    /// @dev Short-circuits to zero when the owner holds nothing and has nothing in transit, BEFORE touching
+    ///      any feed, so a strategy holding none of a suspended instrument is still priceable. In-transit cash
+    ///      counts at face (it is already in cash units) and in-transit bonds at the live NAV; both legs are
+    ///      netted by `transitFeeBps` so the expected Gyld fee is not booked twice (once here, once at settle).
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares
@@ -327,17 +392,34 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
         returns (uint256)
     {
         uint256 balance = IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
-        if (balance == 0) return 0;
+        (uint256 cashIn, uint256 bondsIn) = _transitOf(yieldSourceAddress, ownerOfShares);
+        if (balance == 0 && cashIn == 0 && bondsIn == 0) return 0;
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
-        return balance.mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
+        // The NAV is read only when something is priced by it: a position that is cash-in-transit only values
+        // under a suspended or stale NAV, because cash needs no NAV.
+        uint256 value;
+        uint256 bondsAtNav;
+        if (balance != 0 || bondsIn != 0) {
+            uint256 nav = _nav(cfg);
+            value = balance.mulDiv(nav, cfg.bondScale, Math.Rounding.Floor);
+            bondsAtNav = bondsIn.mulDiv(nav, cfg.bondScale, Math.Rounding.Floor);
+        }
+        if (cashIn != 0 || bondsIn != 0) value += _netOfFee(yieldSourceAddress, cashIn + bondsAtNav);
+        return value;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev GLOBAL, MONITORING ONLY. Never a pricing input for any single strategy; total supply spans every
-    ///      holder on the chain. Same caveat as `ERC20YieldSourceOracle.getTVL`.
+    ///      holder on the chain. Same caveat as `ERC20YieldSourceOracle.getTVL`. Cash in transit is added;
+    ///      bonds in the holding wallet are NOT, because they are still part of `totalSupply` until Gyld
+    ///      burns them.
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         GyldBondRegistry.InstrumentConfig memory cfg = _config(yieldSourceAddress);
-        return IERC20(yieldSourceAddress).totalSupply().mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
+        uint256 value = IERC20(yieldSourceAddress).totalSupply().mulDiv(_nav(cfg), cfg.bondScale, Math.Rounding.Floor);
+        if (address(IN_TRANSIT) != address(0)) {
+            value += _netOfFee(yieldSourceAddress, IN_TRANSIT.totalCashInTransitNet(yieldSourceAddress));
+        }
+        return value;
     }
 
     /// @notice Asset output ignoring performance fees
@@ -361,6 +443,22 @@ contract GyldBondYieldSourceOracle is AbstractYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @dev The account's in-transit position, or zeros when the feature is off. Staleness is deliberately NOT
+    ///      consulted: a late settle is a valuation error to alert on, not a loss to book (see the header).
+    function _transitOf(address bondToken, address account) private view returns (uint256 cashIn, uint256 bondsIn) {
+        if (address(IN_TRANSIT) == address(0)) return (0, 0);
+        // NET of pending manual settles: a proposed write-down is priced in from the proposal on.
+        GyldInTransitRegistry.Transit memory t = IN_TRANSIT.transitNet(account, bondToken);
+        return (t.cashOut, t.bondsOut);
+    }
+
+    /// @dev In-transit value net of the instrument's expected Gyld fee (`transitFeeBps`, zero = no haircut).
+    function _netOfFee(address bondToken, uint256 inTransitValue) private view returns (uint256) {
+        if (inTransitValue == 0) return 0;
+        uint256 bps = IN_TRANSIT.transitFeeBps(bondToken);
+        return bps == 0 ? inTransitValue : inTransitValue.mulDiv(10_000 - bps, 10_000, Math.Rounding.Floor);
+    }
 
     function _config(address bondToken) private view returns (GyldBondRegistry.InstrumentConfig memory cfg) {
         if (!REGISTRY.isRegistered(bondToken)) revert INSTRUMENT_NOT_REGISTERED();

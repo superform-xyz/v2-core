@@ -10,6 +10,8 @@ compatibleProtocols:
   # Gyld tokenized bonds
   ApproveAndTradeGyldBondHook: [gyld]
   GyldTradeGuardHook: [gyld]
+  GyldInvestorDepositHook: [gyld]
+  GyldInvestorRedeemHook: [gyld]
   # ERC-5115
   Deposit5115VaultHook: [erc5115]
   ApproveAndDeposit5115VaultHook: [erc5115]

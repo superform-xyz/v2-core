@@ -61,7 +61,7 @@ contract GyldTradeGuardHookTest is Test {
         nativeFeed.setFreshNav(address(bond), 1.05e8);
 
         registry = new GyldBondRegistry(admin);
-        oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry));
+        oracle = new GyldBondYieldSourceOracle(address(0xC0FFEE), address(registry), address(0));
         hook = new GyldTradeGuardHook(address(oracle));
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(cash));
 
