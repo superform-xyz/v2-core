@@ -1995,8 +1995,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             require(hookAddresses.gyldInvestorDepositHook != address(0), "GyldInvestorDepositHook not assigned");
             require(hookAddresses.gyldInvestorRedeemHook != address(0), "GyldInvestorRedeemHook not assigned");
             if (verbose) {
-                console2.log("  TODO post-deploy: ConfigureGyldInTransitRegistry.runDestinations + runTransitDefaults");
-                console2.log("  TODO post-deploy: TransferGyldInTransitRegistryRoles");
+                console2.log(
+                    "  TODO post-deploy: ConfigureGyldInTransitRegistry.runDestinations + runTransitDefaults + runOracle"
+                );
+                console2.log("  TODO post-deploy: TransferGyldInTransitRegistryRoles; then AS GOVERNOR runCap + runFee");
+                console2.log("  TODO post-deploy: ConfigureGyldInTransitRegistry.runCheck before the first deposit");
             }
         } else if (verbose) {
             console2.log("SKIPPED Gyld investor hooks: not enabled on chainId", chainId);

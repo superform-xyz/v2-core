@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -111,9 +112,11 @@ contract GyldInvestorHooksTest is Test {
         registry.registerInstrument(cfg);
 
         vm.startPrank(admin);
-        transit.setDestinations(deposit, holding);
+        transit.setDestinations(account, deposit, holding);
         transit.setMaxTransitAge(AGE);
         transit.setMaxCashInTransit(address(bond), CAP);
+        transit.setMaxTotalCashInTransit(address(bond), 4 * CAP);
+        transit.setValuationOracle(address(oracle));
         vm.stopPrank();
 
         depositHook = new GyldInvestorDepositHook(address(transit), address(policy));
@@ -250,7 +253,7 @@ contract GyldInvestorHooksTest is Test {
         depositHook.build(address(0), account, _dep(CAP + 1));
         assertEq(depositHook.previewDeposit(_dep(CAP + 1), account), 205);
         assertEq(depositHook.previewDeposit(_dep(CAP), account), 0);
-        assertEq(redeemHook.previewRedeem(_red(SHARES)), 0);
+        assertEq(redeemHook.previewRedeem(_red(SHARES), account), 0);
         // stale transit blocks a new deposit, never a redeem
         _run(depositHook, _dep(AMOUNT));
         vm.warp(block.timestamp + AGE + 1);
@@ -270,6 +273,28 @@ contract GyldInvestorHooksTest is Test {
         d.build(address(0), account, _dep(AMOUNT));
         vm.expectRevert(GyldInvestorTransferBase.DESTINATION_NOT_SET.selector);
         r.build(address(0), account, _red(SHARES));
+    }
+
+    /// @dev Destinations are per strategy: on the SAME registry, a strategy without its own pair is refused by
+    ///      both hooks while a configured one is served, and the configured pair is the one the hook moves to.
+    function test_Build_DestinationIsTheAccountsOwn() public {
+        address otherStrategy = address(0x5EC0);
+        aggregator.register(otherStrategy);
+        vm.expectRevert(GyldInvestorTransferBase.DESTINATION_NOT_SET.selector);
+        depositHook.build(address(0), otherStrategy, _dep(AMOUNT));
+        vm.expectRevert(GyldInvestorTransferBase.DESTINATION_NOT_SET.selector);
+        redeemHook.build(address(0), otherStrategy, _red(SHARES));
+        assertEq(depositHook.previewDeposit(_dep(AMOUNT), otherStrategy), 202);
+        assertEq(redeemHook.previewRedeem(_red(SHARES), otherStrategy), 302);
+
+        vm.prank(admin);
+        transit.setDestinations(otherStrategy, address(0xD2), address(0x42));
+        Execution[] memory ex = depositHook.build(address(0), otherStrategy, _dep(AMOUNT));
+        assertEq(ex[1].callData, abi.encodeCall(IERC20.transfer, (address(0xD2), AMOUNT)), "other's own address");
+        ex = redeemHook.build(address(0), otherStrategy, _red(SHARES));
+        assertEq(ex[1].callData, abi.encodeCall(IERC20.transfer, (address(0x42), SHARES)));
+        ex = depositHook.build(address(0), account, _dep(AMOUNT));
+        assertEq(ex[1].callData, abi.encodeCall(IERC20.transfer, (deposit, AMOUNT)), "ours is unchanged");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -357,6 +382,7 @@ contract GyldInvestorHooksTest is Test {
         vm.startPrank(admin);
         registry.registerInstrument(cfg);
         transit.setMaxCashInTransit(address(bond2), CAP);
+        transit.setMaxTotalCashInTransit(address(bond2), CAP);
         vm.stopPrank();
         fee.mint(account, AMOUNT);
         bytes memory d = _data(address(bond2), address(fee), AMOUNT, false);
@@ -417,5 +443,182 @@ contract GyldInvestorHooksTest is Test {
         for (uint256 i; i < n; ++i) {
             out[i] = d[i];
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       MORE: PREV AMOUNT, LOTS, ROTATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Full legs sized from a predecessor: the lot opens for the predecessor's amount, not the calldata word.
+    function test_FullLeg_UsePrevHookAmount_BothHooks() public {
+        prevHook.set(AMOUNT / 4, address(cash));
+        _run(depositHook, _data(address(bond), address(cash), 999, true));
+        assertEq(transit.getLot(1).open, AMOUNT / 4, "deposit lot = predecessor amount");
+        assertEq(cash.balanceOf(deposit), AMOUNT / 4);
+        prevHook.set(SHARES / 5, address(bond));
+        _run(redeemHook, _data(address(bond), address(cash), 999, true));
+        assertEq(transit.getLot(2).open, SHARES / 5, "redeem lot = predecessor amount");
+        assertEq(bond.balanceOf(holding), SHARES / 5);
+        prevHook.set(0, address(cash));
+    }
+
+    /// @dev A run emits the lot id and the lot remembers the pinned destination it was sent to.
+    function test_FullLeg_EmitsLotId_And_LotKeepsDestination() public {
+        vm.recordLogs();
+        _run(depositHook, _dep(AMOUNT));
+        _run(redeemHook, _red(SHARES));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 cashSig = keccak256("CashOutRecorded(address,address,uint256,address,uint256,uint256)");
+        bytes32 bondSig = keccak256("BondsOutRecorded(address,address,uint256,address,uint256,uint256)");
+        uint256 seen;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(transit)) continue;
+            if (logs[i].topics[0] == cashSig) {
+                assertEq(address(uint160(uint256(logs[i].topics[1]))), account);
+                assertEq(uint256(logs[i].topics[3]), 1, "first lot id");
+                (address ct, uint256 amt, uint256 newOut) = abi.decode(logs[i].data, (address, uint256, uint256));
+                assertEq(ct, address(cash));
+                assertEq(amt, AMOUNT);
+                assertEq(newOut, AMOUNT);
+                ++seen;
+            } else if (logs[i].topics[0] == bondSig) {
+                assertEq(uint256(logs[i].topics[3]), 2, "second lot id");
+                (, uint256 sh,) = abi.decode(logs[i].data, (address, uint256, uint256));
+                assertEq(sh, SHARES);
+                ++seen;
+            }
+        }
+        assertEq(seen, 2, "both records emitted with their lot ids");
+        assertEq(transit.getLot(1).destination, deposit);
+        assertEq(transit.getLot(2).destination, holding);
+        assertEq(transit.getLot(1).account, account);
+        assertEq(uint256(transit.getLot(2).kind), uint256(GyldInTransitRegistry.LotKind.BONDS_OUT));
+    }
+
+    /// @dev The cap binds across runs and only a settle frees it; a redeem is never gated by it.
+    function test_FullLeg_CapAcrossRuns_FreedBySettleOnly() public {
+        _run(depositHook, _dep(CAP));
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.CAP_EXCEEDED.selector, CAP + 1, CAP));
+        depositHook.build(address(0), account, _dep(1));
+        assertEq(depositHook.previewDeposit(_dep(1), account), 205);
+        _run(redeemHook, _red(SHARES)); // exits are never capped
+        cash.mint(address(transit.receiverOf(account)), CAP / 2); // the cancelled half came back, to the receiver
+        vm.prank(admin);
+        transit.settleCashReturn(1, CAP / 2, bytes32("half back"));
+        depositHook.build(address(0), account, _dep(CAP / 2));
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.CAP_EXCEEDED.selector, CAP + 1, CAP));
+        depositHook.build(address(0), account, _dep(CAP / 2 + 1));
+    }
+
+    /// @dev Two strategies through the same hooks: separate pairs, separate lots, separate aggregates.
+    function test_FullLeg_TwoStrategies_SeparateBooks() public {
+        address otherStrategy = address(0x5EC0);
+        aggregator.register(otherStrategy);
+        vm.prank(admin);
+        transit.setDestinations(otherStrategy, address(0xD2), address(0x42));
+        cash.mint(otherStrategy, 10_000e6);
+        bond.mint(otherStrategy, 1000e18);
+        _run(depositHook, _dep(AMOUNT));
+        // run the other strategy's leg as that strategy (build already includes pre and post); the executor opens
+        // a fresh execution context per hook run, so do the same here
+        Execution[] memory ex = depositHook.build(address(0), otherStrategy, _dep(AMOUNT * 2));
+        depositHook.setExecutionContext(otherStrategy);
+        vm.startPrank(otherStrategy);
+        for (uint256 i; i < ex.length; ++i) {
+            (bool ok,) = ex[i].target.call(ex[i].callData);
+            assertTrue(ok, "every leg of the other strategy's plan runs");
+        }
+        vm.stopPrank();
+        assertEq(cash.balanceOf(deposit), AMOUNT, "ours went to our pair");
+        assertEq(cash.balanceOf(address(0xD2)), AMOUNT * 2, "theirs went to their pair");
+        assertEq(transit.cashOut(account, address(bond)), AMOUNT);
+        assertEq(transit.cashOut(otherStrategy, address(bond)), AMOUNT * 2);
+        assertEq(transit.getLot(1).account, account);
+        assertEq(transit.getLot(2).account, otherStrategy);
+        assertEq(transit.getLot(2).destination, address(0xD2));
+        assertEq(transit.totalCashInTransit(address(bond)), AMOUNT * 3);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), account), 1000e18 * 1.05e6 / 1e18 + AMOUNT);
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), otherStrategy), 1000e18 * 1.05e6 / 1e18 + AMOUNT * 2);
+    }
+
+    /// @dev inspect() pins exactly the pair: same pair -> same bytes regardless of amount; other cash -> different.
+    function test_Inspect_PinsThePair_Only() public view {
+        bytes memory a = depositHook.inspect(_dep(1));
+        bytes memory b = depositHook.inspect(_dep(type(uint128).max));
+        bytes memory c = redeemHook.inspect(_red(1));
+        assertEq(keccak256(a), keccak256(b), "amount is not part of the leaf identity");
+        assertEq(keccak256(a), keccak256(c), "both hooks pin the same (bond, cash) identity");
+        assertEq(a, abi.encodePacked(address(bond), address(cash)));
+        bytes memory d = depositHook.inspect(_data(address(bond), address(0xCA54), 1, false));
+        assertTrue(keccak256(a) != keccak256(d), "a different cash token is a different leaf");
+    }
+
+    /// @dev A destination rotation that lands between build and execution fails closed: the transfer built
+    ///      against the old pair does not credit the new destination, so _postExecute reverts.
+    function test_Rotation_BetweenBuildAndExecute_FailsClosed() public {
+        Execution[] memory ex = depositHook.build(address(prevHook), account, _dep(AMOUNT));
+        vm.startPrank(admin);
+        transit.proposeDestinations(account, address(0xD2), address(0x42));
+        vm.warp(block.timestamp + transit.DESTINATION_DELAY());
+        transit.executeDestinations(account);
+        vm.stopPrank();
+        navFeed.setLatestAnswer(1.05e8);
+        aggregator.setLastUpdate(account, block.timestamp);
+        // the stale plan is [pre, transfer to the OLD address, record, post]: pre snapshots the NEW destination,
+        // the transfer pays the old one, so post sees the new destination uncredited and reverts
+        assertEq(ex.length, 4);
+        for (uint256 i; i < 3; ++i) {
+            (bool ok,) = ex[i].target.call{ value: ex[i].value }(ex[i].callData);
+            assertTrue(ok);
+        }
+        (bool postOk, bytes memory ret) = ex[3].target.call(ex[3].callData);
+        assertFalse(postOk, "post fails closed");
+        assertEq(ret, abi.encodeWithSelector(GyldInvestorTransferBase.DESTINATION_NOT_CREDITED.selector, AMOUNT, 0));
+        // a fresh build targets the new pair
+        ex = depositHook.build(address(prevHook), account, _dep(AMOUNT));
+        assertEq(ex[1].callData, abi.encodeCall(IERC20.transfer, (address(0xD2), AMOUNT)));
+    }
+
+    /// @dev The instrument-wide cap through the hook: a second strategy with per-strategy headroom is refused at
+    ///      build once the instrument is full, with its own preview code; exits stay open.
+    function test_FullLeg_GlobalCap_AcrossStrategies() public {
+        address otherStrategy = address(0x5EC0);
+        aggregator.register(otherStrategy);
+        vm.startPrank(admin);
+        transit.setDestinations(otherStrategy, address(0xD2), address(0x42));
+        transit.setMaxTotalCashInTransit(address(bond), CAP + CAP / 2);
+        vm.stopPrank();
+        cash.mint(otherStrategy, 10_000e6);
+        bond.mint(otherStrategy, 1000e18);
+        _run(depositHook, _dep(CAP)); // ours fills its own cap
+        assertEq(depositHook.previewDeposit(_dep(CAP / 2), otherStrategy), 0, "its own headroom, instrument not full");
+        assertEq(depositHook.previewDeposit(_dep(CAP / 2 + 1), otherStrategy), 207, "instrument full");
+        vm.expectRevert(
+            abi.encodeWithSelector(GyldInTransitRegistry.GLOBAL_CAP_EXCEEDED.selector, CAP + CAP / 2 + 1, CAP + CAP / 2)
+        );
+        depositHook.build(address(0), otherStrategy, _dep(CAP / 2 + 1));
+        depositHook.build(address(0), otherStrategy, _dep(CAP / 2));
+        redeemHook.build(address(0), otherStrategy, _red(SHARES)); // never capped
+        // a settle on OUR lot frees the instrument for THEM (NAV 1.05: 960 bonds = 1008 of value for 1000 of cash)
+        bond.mint(address(transit.receiverOf(account)), 960e18);
+        vm.prank(admin);
+        transit.settleMint(1, 1000e6, 960e18, bytes32("m"));
+        assertEq(depositHook.previewDeposit(_dep(CAP / 2 + 1), otherStrategy), 0);
+    }
+
+    /// @dev Preview codes for what cannot be previewed: an amount that comes from the previous hook (208 / 308) and
+    ///      zero shares (304), each only after the other gates passed.
+    function test_Preview_UnresolvableAmounts_HaveTheirOwnCodes() public {
+        bytes memory dep = _data(address(bond), address(cash), 0, true);
+        assertEq(depositHook.previewDeposit(dep, account), 208, "usePrevHookAmount: amount known at execution");
+        bytes memory red = _data(address(bond), address(cash), 0, true);
+        assertEq(redeemHook.previewRedeem(red, account), 308);
+        assertEq(redeemHook.previewRedeem(_red(0), account), 304, "zero shares: build reverts");
+        // gates still come first (policy, then the registry's)
+        address stranger = address(0x5717);
+        assertTrue(depositHook.previewDeposit(dep, stranger) != 0, "policy refuses an unknown strategy");
+        aggregator.register(stranger);
+        assertEq(depositHook.previewDeposit(dep, stranger), 202);
+        assertEq(redeemHook.previewRedeem(red, stranger), 302);
     }
 }

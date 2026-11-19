@@ -645,7 +645,11 @@ generate_constructor_args() {
             ;;
         "GyldInTransitRegistry")
             # Same admin-at-birth rule as GyldBondRegistry: DEPLOYER in the initcode regardless of the later
-            # role handover.
+            # role handover. NOTE: the registry deploys one GyldDeliveryReceiver per strategy from inside
+            # ConfigureGyldInTransitRegistry.runDestinations (constructor(address strategy), creator = the
+            # registry). Those are not in the deploy manifest; verify them per strategy by hand with
+            #   forge verify-contract <receiver> src/accounting/oracles/GyldDeliveryReceiver.sol:GyldDeliveryReceiver \
+            #     --constructor-args $(cast abi-encode "constructor(address)" <strategy>)
             local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
             echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$gyld_registry")"
             ;;
@@ -975,6 +979,9 @@ get_contract_source() {
         "GyldBondYieldSourceOracle") echo "src/accounting/oracles/GyldBondYieldSourceOracle.sol" ;;
         "GyldTradePolicy") echo "src/accounting/oracles/GyldTradePolicy.sol" ;;
         "GyldTradeGuardHook") echo "src/hooks/swappers/gyld/GyldTradeGuardHook.sol" ;;
+        "GyldInTransitRegistry") echo "src/accounting/oracles/GyldInTransitRegistry.sol" ;;
+        "GyldInvestorDepositHook") echo "src/hooks/gyld/GyldInvestorDepositHook.sol" ;;
+        "GyldInvestorRedeemHook") echo "src/hooks/gyld/GyldInvestorRedeemHook.sol" ;;
         # Both trade directions are the SAME source file and the same contract; they differ only in
         # constructor args, so `get_artifact_contract_name` maps both keys onto the contract name.
         "ApproveAndTradeGyldBondCashInHook"|"ApproveAndTradeGyldBondBondInHook")

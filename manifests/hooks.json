@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-17T11:37:43Z",
+  "generatedAt": "2026-11-19T10:57:45Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -4894,6 +4894,82 @@
       "sized": false,
       "erc165": [
         "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
+      ]
+    },
+    "GyldInvestorDepositHook": {
+      "name": "Gyld Investor Deposit",
+      "description": "Sends cash to the strategy's pinned Gyld deposit address and records it as in transit",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": [
+        "gyld"
+      ]
+    },
+    "GyldInvestorRedeemHook": {
+      "name": "Gyld Investor Redeem",
+      "description": "Sends bond tokens to the strategy's pinned Gyld holding wallet and records them as in transit",
+      "actionTypes": [
+        {
+          "intent": "transfer",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [
+        "sized"
+      ],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
+      },
+      "amountMeta": [
+        {
+          "direction": "IN",
+          "denomination": "TOKEN"
+        }
+      ],
+      "sized": true,
+      "erc165": [
+        "ISuperHookInflowOutflow",
+        "ISuperHookOutflow"
       ],
       "requiresApproval": false,
       "approveVariant": null,

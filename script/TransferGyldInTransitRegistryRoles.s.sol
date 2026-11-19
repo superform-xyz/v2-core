@@ -9,15 +9,22 @@ import { console2 } from "forge-std/console2.sol";
 /// @title TransferGyldInTransitRegistryRoles
 /// @notice Transfers `GyldInTransitRegistry` roles from DEPLOYER to governance and the reconciler.
 /// @dev Role mapping, mirroring `TransferGyldBondRegistryRoles`:
-///      - MANAGER_ROLE       → GOVERNOR        (destinations, transit age, per-instrument caps)
-///      - RECONCILER_ROLE    → reconciler bot  (settles entries against Gyld API status; DECREASE only)
+///      - MANAGER_ROLE       → GOVERNOR        (destinations, transit age, valuation oracle, per-instrument caps and
+///                               fee haircuts, the timelocked manual settle, receiver rescue)
+///      - RECONCILER_ROLE    → reconciler bot  (sweeps deliveries out of the strategy's receiver and shrinks the lot
+///                               by what the delivery is worth at the live NAV, within the instrument's fee + entry /
+///                               exit tolerance band; DECREASE only, never a loss: losses go through the MANAGER's
+///                               timelocked manual settle)
 ///      - DEFAULT_ADMIN_ROLE → SUPER_GOVERNOR  (role administration)
 ///      All three are then revoked from DEPLOYER.
-/// @dev RUN AFTER `ConfigureGyldInTransitRegistry.runDestinations/runTransitDefaults` (they need the
+/// @dev RUN AFTER `ConfigureGyldInTransitRegistry.runDestinations/runTransitDefaults/runOracle` (they need the
 ///      DEPLOYER's MANAGER_ROLE) and BEFORE any deposit leaf executes: while DEPLOYER holds MANAGER_ROLE one
-///      key can re-point the deposit address, which is the drain vector for every open deposit leaf.
+///      key can re-point the deposit address, which is the drain vector for every open deposit leaf, and holds
+///      MANAGER and RECONCILER together, which is the one pairing the design does not defend against.
 /// @dev The reconciler is a dedicated signer, not a governance address: it runs continuously and can only
-///      decrease entries, so its compromise bounds to temporary under-valuation, never to moved funds.
+///      decrease entries by what the receiver actually holds, at the live NAV within the band, so its compromise
+///      bounds to delaying settles (temporary under-valuation) and to mis-stating a lot by at most the fee +
+///      tolerance band per settle, never to moved funds.
 contract TransferGyldInTransitRegistryRoles is DeployV2Base, ConstantsOtherHooks {
     /// @dev Same operational governor as the other registries in this repo
     address internal constant GOVERNOR = 0x9e01f41da2212C1FBc32A041CfAEF72479FA48eC;

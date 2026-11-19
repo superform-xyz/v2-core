@@ -20,7 +20,7 @@ import { IGyldTradePolicy } from "../../interfaces/accounting/IGyldTradePolicy.s
 /// @dev NOT A SWAP. Nothing about the bond, price or fill is on chain; the operator places `POST /invest`
 ///      against this cash and Gyld mints later. This hook bounds only HOW MUCH can be at Gyld per instrument
 ///      (registry cap) and WHEN (instrument tradable per `GyldTradePolicy`, no stale transit).
-/// @dev The destination is `GyldInTransitRegistry.depositAddress()`, never calldata.
+/// @dev The destination is `GyldInTransitRegistry.depositAddressOf(account)` (the strategy's own pair), never calldata.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific), exactly 125 bytes:
 /// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
@@ -70,7 +70,7 @@ contract GyldInvestorDepositHook is GyldInvestorTransferBase {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Sends cash to Gyld's pinned deposit address and records it as in transit";
+        return "Sends cash to the strategy's pinned Gyld deposit address and records it as in transit";
     }
 
     /// @inheritdoc BaseHook
@@ -86,7 +86,7 @@ contract GyldInvestorDepositHook is GyldInvestorTransferBase {
     {
         (address yieldSource, address cashToken) = _decode(data);
         uint256 amount = _resolveAmount(prevHook, account, data, cashToken);
-        address to = IN_TRANSIT.depositAddress();
+        address to = IN_TRANSIT.depositAddressOf(account);
         if (to == address(0)) revert DESTINATION_NOT_SET();
         // Same named errors the record call would throw, so the OMS pre-flight sees the chain's verdict.
         IN_TRANSIT.checkCashOut(account, yieldSource, cashToken, amount);
@@ -102,11 +102,18 @@ contract GyldInvestorDepositHook is GyldInvestorTransferBase {
     }
 
     /// @notice Pre-flight for the OMS. Zero means the leaf would execute right now.
-    /// @return code `GyldTradePolicy.previewTrade` code first, then `GyldInTransitRegistry.previewCashOut`
+    /// @return code `GyldTradePolicy.previewTrade` code first, then `GyldInTransitRegistry.previewCashOut`; 208 when
+    ///         `usePrevHookAmount` is set and every other gate passes (the amount itself is only known at execution)
     function previewDeposit(bytes calldata data, address account) external view returns (uint256 code) {
         (address yieldSource, address cashToken) = _decode(data);
         code = POLICY.previewTrade(account, IGyldTradePolicy.TradeSide.BUY, cashToken, yieldSource);
         if (code != 0) return code;
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
+            // the amount is the previous hook's output, known only at execution: report the other gates on a
+            // nominal amount and, if they pass, say so with a code of its own
+            uint256 gates = IN_TRANSIT.previewCashOut(account, yieldSource, cashToken, 1);
+            return gates != 0 ? gates : 208;
+        }
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         return IN_TRANSIT.previewCashOut(account, yieldSource, cashToken, amount);
     }
@@ -116,7 +123,7 @@ contract GyldInvestorDepositHook is GyldInvestorTransferBase {
         _resolveAmount(prevHook, account, data, cashToken);
         // Inside the transaction, so a state change between simulation and execution is caught here.
         POLICY.validateTrade(account, IGyldTradePolicy.TradeSide.BUY, cashToken, yieldSource, data);
-        address to = IN_TRANSIT.depositAddress();
+        address to = IN_TRANSIT.depositAddressOf(account);
         if (to == address(0)) revert DESTINATION_NOT_SET();
         _snapshot(account, cashToken, to);
     }
@@ -124,6 +131,6 @@ contract GyldInvestorDepositHook is GyldInvestorTransferBase {
     function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         (, address cashToken) = _decode(data);
         uint256 amount = _resolveAmount(prevHook, account, data, cashToken);
-        _verifyTransfer(account, cashToken, IN_TRANSIT.depositAddress(), amount);
+        _verifyTransfer(account, cashToken, IN_TRANSIT.depositAddressOf(account), amount);
     }
 }

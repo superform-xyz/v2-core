@@ -22,7 +22,8 @@ import { GyldInTransitRegistry } from "../../accounting/oracles/GyldInTransitReg
 /// @dev SUSPENSION DOES NOT BLOCK. A credit-event exit must stay possible, so only pair approval and the
 ///      pinned wallet are required. No NAV is recorded: the oracle marks bonds in transit at the live NAV,
 ///      exactly like wallet bonds (review on SUP-21848).
-/// @dev The destination is `GyldInTransitRegistry.redeemHoldingWallet()`, never calldata.
+/// @dev The destination is `GyldInTransitRegistry.redeemHoldingWalletOf(account)` (the strategy's own pair), never
+///      calldata.
 /// @dev data has the following structure (standard 52-byte strategy header + hook-specific), exactly 125 bytes:
 /// @notice         bytes32 placeholder0 = BytesLib.toBytes32(data, 0);
 /// @notice         address placeholder1 = BytesLib.toAddress(data, 32);
@@ -65,7 +66,7 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
 
     /// @notice One-sentence description of what this hook does
     function description() external pure override returns (string memory) {
-        return "Sends bond tokens to Gyld's pinned redeem holding wallet and records them as in transit";
+        return "Sends bond tokens to the strategy's pinned Gyld holding wallet and records them as in transit";
     }
 
     /// @inheritdoc BaseHook
@@ -81,9 +82,9 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
     {
         (address yieldSource, address cashToken) = _decode(data);
         uint256 shares = _resolveAmount(prevHook, account, data, yieldSource);
-        address to = IN_TRANSIT.redeemHoldingWallet();
+        address to = IN_TRANSIT.redeemHoldingWalletOf(account);
         if (to == address(0)) revert DESTINATION_NOT_SET();
-        IN_TRANSIT.checkBondsOut(yieldSource, cashToken);
+        IN_TRANSIT.checkBondsOut(account, yieldSource, cashToken);
 
         executions = new Execution[](2);
         executions[0] =
@@ -96,16 +97,21 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
     }
 
     /// @notice Pre-flight for the OMS. Zero means the leaf would execute right now.
-    /// @return code `GyldInTransitRegistry.previewBondsOut` code
-    function previewRedeem(bytes calldata data) external view returns (uint256 code) {
+    /// @return code `GyldInTransitRegistry.previewBondsOut` code; 304 for zero shares (build reverts
+    ///         AMOUNT_NOT_VALID); 308 when `usePrevHookAmount` is set and the gates pass (amount known at execution)
+    function previewRedeem(bytes calldata data, address account) external view returns (uint256 code) {
         (address yieldSource, address cashToken) = _decode(data);
-        return IN_TRANSIT.previewBondsOut(yieldSource, cashToken);
+        code = IN_TRANSIT.previewBondsOut(account, yieldSource, cashToken);
+        if (code != 0) return code;
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) return 308; // amount known only at execution
+        if (BytesLib.toUint256(data, AMOUNT_POSITION) == 0) return 304; // build reverts AMOUNT_NOT_VALID
+        return 0;
     }
 
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         (address yieldSource,) = _decode(data);
         _resolveAmount(prevHook, account, data, yieldSource);
-        address to = IN_TRANSIT.redeemHoldingWallet();
+        address to = IN_TRANSIT.redeemHoldingWalletOf(account);
         if (to == address(0)) revert DESTINATION_NOT_SET();
         _snapshot(account, yieldSource, to);
     }
@@ -113,6 +119,6 @@ contract GyldInvestorRedeemHook is GyldInvestorTransferBase {
     function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         (address yieldSource,) = _decode(data);
         uint256 shares = _resolveAmount(prevHook, account, data, yieldSource);
-        _verifyTransfer(account, yieldSource, IN_TRANSIT.redeemHoldingWallet(), shares);
+        _verifyTransfer(account, yieldSource, IN_TRANSIT.redeemHoldingWalletOf(account), shares);
     }
 }
