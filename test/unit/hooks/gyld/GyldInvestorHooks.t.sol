@@ -621,4 +621,31 @@ contract GyldInvestorHooksTest is Test {
         assertEq(depositHook.previewDeposit(dep, stranger), 202);
         assertEq(redeemHook.previewRedeem(red, stranger), 302);
     }
+
+    /// @dev The two new registry gates surface through the hooks exactly like the older ones: a preview code before
+    ///      sending (209 sole principal, 210 / 305 lot bound) and the registry's own error from build().
+    function test_Preview_SolePrincipalAndLotBound_SurfaceThroughTheHooks() public {
+        address hub = address(0x4B);
+        vm.prank(admin);
+        transit.setSolePrincipal(hub);
+        assertEq(depositHook.previewDeposit(_dep(1e6), account), 209);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.NOT_SOLE_PRINCIPAL.selector, hub));
+        depositHook.build(address(prevHook), account, _dep(1e6));
+        assertEq(redeemHook.previewRedeem(_red(1e18), account), 0, "redeeming is not funding the ledger");
+        _run(redeemHook, _red(1e18));
+        vm.prank(admin);
+        transit.setSolePrincipal(address(0));
+        assertEq(depositHook.previewDeposit(_dep(1e6), account), 0);
+        // fill the pair up to the bound through the registry (the account IS this contract)
+        uint256 max = transit.MAX_OPEN_LOTS_PER_PAIR();
+        for (uint256 i = transit.openLots(account, address(bond)); i < max; ++i) {
+            transit.recordBondsOut(address(bond), address(cash), 1);
+        }
+        assertEq(depositHook.previewDeposit(_dep(1e6), account), 210);
+        assertEq(redeemHook.previewRedeem(_red(1e18), account), 305);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.TOO_MANY_OPEN_LOTS.selector, max, max));
+        depositHook.build(address(prevHook), account, _dep(1e6));
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.TOO_MANY_OPEN_LOTS.selector, max, max));
+        redeemHook.build(address(prevHook), account, _red(1e18));
+    }
 }

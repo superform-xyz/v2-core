@@ -640,4 +640,39 @@ contract GyldInvestorE2E is Helpers, RhinestoneModuleKit, InternalHelpers {
         assertFalse(oracle.hasPendingImpairment(address(bond), strategy));
         assertEq(transit.cashOut(strategy, address(bond)), 0);
     }
+
+    /// @dev Segregation end to end: a second real account cannot be pointed at the first one's Gyld account, and a
+    ///      released address stays off limits while the first account still has cash in flight there.
+    function test_E2E_Segregation_SecondAccountCannotShareTheGyldAccount() public {
+        AccountInstance memory second = makeAccountInstance(keccak256("gyld-investor-e2e-strategy-D"));
+        address strategyB = second.account;
+        vm.startPrank(admin);
+        vm.expectRevert(
+            abi.encodeWithSelector(GyldInTransitRegistry.DEPOSIT_ADDRESS_IN_USE.selector, gyldDeposit, strategy)
+        );
+        transit.setDestinations(strategyB, gyldDeposit, gyldHolding);
+        vm.stopPrank();
+        // A deposits, then rotates away: its old address still has A's cash in flight
+        executeOp(_single(address(depositHook), _leaf(1000e6, false)));
+        vm.startPrank(admin);
+        transit.proposeDestinations(strategy, address(0xDE93), gyldHolding);
+        vm.warp(block.timestamp + transit.DESTINATION_DELAY());
+        transit.executeDestinations(strategy);
+        vm.expectRevert(
+            abi.encodeWithSelector(GyldInTransitRegistry.DEPOSIT_ADDRESS_HAS_OPEN_LOTS.selector, gyldDeposit, 1)
+        );
+        transit.setDestinations(strategyB, gyldDeposit, gyldHolding);
+        vm.stopPrank();
+        _refreshClocks();
+        // the lot settles (minted to A's receiver), the address is free, B may take it
+        vm.prank(gyldMinter);
+        bond.mint(receiver, 1000e18);
+        vm.prank(reconciler);
+        transit.settleMint(1, 1000e6, 1000e18, keccak256("a"));
+        vm.prank(admin);
+        transit.setDestinations(strategyB, gyldDeposit, gyldHolding);
+        assertEq(transit.accountOfDepositAddress(gyldDeposit), strategyB);
+        assertEq(transit.getLot(1).destination, gyldDeposit, "A's lot keeps the address it was sent to");
+    }
 }
+

@@ -24,8 +24,9 @@ import { GyldDeliveryReceiver } from "./GyldDeliveryReceiver.sol";
 ///      lot and can only decrease it, so a partial fill is bounded by its order and a stalled order ages alone.
 /// @dev SETTLES ARE RECEIVER-CHECKED AND NAV-BANDED. Gyld delivers to the strategy's `GyldDeliveryReceiver`
 ///      (its withdrawal address and mint wallet), never to the strategy. A settle sweeps what it acknowledges out
-///      of the receiver and shrinks the lot in the same transaction: only funds from Gyld can back a settle, the
-///      strategy's own balance is never read, and nothing is counted twice because the oracle ignores the
+///      of the receiver and shrinks the lot in the same transaction: only what reached this strategy's receiver can
+/// back a settle (which Gyld order it belongs to is the reconciler's claim; `apiRef` is the audit trail), the
+/// strategy's own balance is never read, and nothing is counted twice because the oracle ignores the
 ///      receiver. The decrease must sit in a band around the delivered value at the live NAV: at least net of
 ///      the expected fee and the instrument's tolerance (no dust settles), at most the tolerance above (no full
 ///      delivery swept against a sliver of decrease). Fills outside the band are governance's to book through
@@ -34,10 +35,13 @@ import { GyldDeliveryReceiver } from "./GyldDeliveryReceiver.sol";
 /// @dev WHO MAY WRITE. Records are made by the account itself (hooks execute as the account) and only ever
 ///      increase its own entries, within the caps, with the transfer verified in the same batch. Decreases are
 ///      RECONCILER settles backed by the receiver or MANAGER manual settles behind the delay.
-/// @dev ONE GYLD ACCOUNT PER STRATEGY. Gyld pools cash per account (no sub-accounts), so a deposit address may
-///      belong to one strategy only, checked on set, at proposal and at execution; a released address with open
-///      cash lots stays off limits. Destinations and the valuation oracle change behind `DESTINATION_DELAY`
-///      after their first set; every lot keeps the destination it was sent to.
+/// @dev ONE DEPOSIT ADDRESS PER STRATEGY, NOT ONE LEDGER. Gyld keeps one cash ledger per legal entity with several
+///      whitelisted addresses, so a distinct deposit address does NOT segregate cash before delivery: anything the
+///      legal entity holds at Gyld can fund any order. The address guard (`DEPOSIT_ADDRESS_IN_USE`, checked on set, at
+///      proposal and at execution; a released address with open cash lots stays off limits) keeps deposits and
+///      deliveries attributable per strategy. Segregation of the ledger itself is an onboarding fact: one funded
+///      principal per legal-entity ledger, which `solePrincipal` enforces on chain when set. Destinations and the
+///      valuation oracle change behind `DESTINATION_DELAY` after their first set; every lot keeps its destination.
 /// @dev TWO CAPS, both fail-closed at zero: `maxCashInTransit` per strategy and `maxTotalCashInTransit` across
 ///      strategies, per instrument, checked on every deposit record.
 /// @dev NOT PROTECTED HERE: Gyld actually delivering to the receiver (an onboarding fact), the order price, Gyld's
@@ -93,6 +97,16 @@ contract GyldInTransitRegistry is AccessControl {
     error ORACLE_ALREADY_SET();
     /// @notice Open cash lots still point at this deposit address: another strategy cannot take it yet
     error DEPOSIT_ADDRESS_HAS_OPEN_LOTS(address depositAddress, uint256 openLots);
+    /// @notice A sole principal is set and this account is not it: only that strategy may send cash to Gyld
+    error NOT_SOLE_PRINCIPAL(address principal);
+    /// @notice The pair already has `MAX_OPEN_LOTS_PER_PAIR` lots open: settle before recording more
+    error TOO_MANY_OPEN_LOTS(uint256 open, uint256 max);
+    /// @notice The instrument's cash token changed since the lot was recorded: priced settles need the manual path
+    error INSTRUMENT_DENOMINATION_CHANGED(uint256 lotId);
+    /// @notice A manual sweep may only move the lot's bond or cash token
+    error INVALID_SWEEP_TOKEN(address token);
+    /// @notice The recognised loss of a manual sweep cannot exceed the decrease
+    error LOSS_EXCEEDS_DECREASE(uint256 loss, uint256 amount);
     /// @notice No usable NAV for the tie (oracle unset, or `previewNav` reports a failure code)
     error NAV_UNAVAILABLE(uint8 code);
     /// @notice The manual settle's execution window has passed; propose again
@@ -145,7 +159,10 @@ contract GyldInTransitRegistry is AccessControl {
     ///         strategy by another route. Executable between `executeAt` and `executeAt + MANUAL_SETTLE_WINDOW`.
     ///         Recognised in valuation (netted out of the position) from the proposal on.
     struct PendingManualSettle {
-        uint256 amount;
+        uint256 amount; // the decrease
+        uint256 netted; // the part recognised as a loss now (netted from the valuation from the proposal on)
+        uint256 sweepAmount; // optional: delivered asset to sweep from the receiver at execution, atomically
+        address sweepToken;
         bytes32 apiRef;
         uint64 executeAt;
     }
@@ -189,6 +206,8 @@ contract GyldInTransitRegistry is AccessControl {
         uint256 bondsOut;
         uint256 pendingCashDecrease;
         uint256 pendingBondsDecrease;
+        uint256 openLots; // both kinds; bounded by MAX_OPEN_LOTS_PER_PAIR
+        uint256 pendingCount; // proposals on open lots: O(1) `hasPendingManualSettle`
         uint256 head;
         uint256[] lotIds;
     }
@@ -210,6 +229,9 @@ contract GyldInTransitRegistry is AccessControl {
     uint256 public constant MANUAL_SETTLE_DELAY = 2 days;
     /// @notice How long after its delay a manual settle stays executable before it must be re-proposed
     uint256 public constant MANUAL_SETTLE_WINDOW = 7 days;
+    /// @notice Open lots per (account, instrument), both kinds. Bounds every per-pair walk (`_advanceHead`, views)
+    ///         and is far above any sane book: hitting it means settles have stopped, which is the incident.
+    uint256 public constant MAX_OPEN_LOTS_PER_PAIR = 256;
     uint256 private constant BPS = 10_000;
 
     /// @notice The approved-instrument list; pairs and caps are validated against it
@@ -247,10 +269,16 @@ contract GyldInTransitRegistry is AccessControl {
     mapping(address account => PendingDestinations) public pendingDestinations;
 
     mapping(address account => Destinations) private _destinations;
-    /// @notice The strategy that owns a deposit address (one Gyld account per strategy); zero when free
+    /// @notice The strategy that owns a deposit address (one deposit address per strategy); zero when free
     mapping(address depositAddress => address account) public accountOfDepositAddress;
     /// @notice Open CASH_OUT lots pinned to a deposit address; while non-zero no OTHER strategy may claim it
     mapping(address depositAddress => uint256 count) public openCashLotsAt;
+    /// @notice Open lots of the account that may still be paid in `token` (cash returns and payouts land in the
+    ///         lot's cash token): a rescue of that token is refused while any is open
+    mapping(address account => mapping(address token => uint256 count)) public openLotsPayingIn;
+    /// @notice When set, the only account allowed to record cash out: Gyld's ledger is per legal entity, so one
+    ///         funded principal per ledger is how pre-delivery cash stays segregated. Zero = no restriction.
+    address public solePrincipal;
     /// @notice Each strategy's delivery receiver; created with its first destinations
     mapping(address account => GyldDeliveryReceiver receiver) public receiverOf;
     /// @notice Every Gyld reference that has settled something (or is reserved by a pending manual settle)
@@ -275,6 +303,9 @@ contract GyldInTransitRegistry is AccessControl {
     event ValuationOracleSet(address indexed oracle);
     event ValuationOracleProposed(address indexed oracle, uint64 executeAt);
     event ValuationOracleCancelled();
+    event SolePrincipalSet(address indexed principal);
+    event ManualSweepAttached(uint256 indexed lotId, address indexed token, uint256 sweepAmount, uint256 netted);
+    event ManualSweepExecuted(uint256 indexed lotId, address indexed token, uint256 sweepAmount);
     /// @notice Governance moved a stray balance out of a receiver into its strategy (not a settle: no lot moved)
     event ReceiverRescued(address indexed account, address indexed token, uint256 amount);
     event MaxTransitAgeUpdated(uint256 maxTransitAge);
@@ -495,8 +526,16 @@ contract GyldInTransitRegistry is AccessControl {
         emit ValuationOracleCancelled();
     }
 
+    /// @notice Restrict cash deposits to one strategy (zero clears). Gyld pools cash per legal entity, so this is
+    ///         the on-chain form of "one funded principal per ledger".
+    function setSolePrincipal(address principal) external onlyRole(MANAGER_ROLE) {
+        solePrincipal = principal;
+        emit SolePrincipalSet(principal);
+    }
+
     /// @notice Move a stray balance out of a strategy's receiver into the strategy without touching any lot: a
-    ///         token no instrument uses, or a delivery whose lot was already written off.
+    ///         token no instrument uses, or a delivery whose lot was already written off. Refused while any open
+    ///         lot of the account could still be paid in `token`.
     function rescueFromReceiver(address account, address token, uint256 amount) external onlyRole(MANAGER_ROLE) {
         GyldDeliveryReceiver r = receiverOf[account];
         if (address(r) == address(0)) revert RECEIVER_NOT_SET();
@@ -506,6 +545,7 @@ contract GyldInTransitRegistry is AccessControl {
             Position storage p = _positions[account][token];
             if (p.cashOut != 0 || p.bondsOut != 0) revert RESCUE_BLOCKED(token);
         }
+        if (openLotsPayingIn[account][token] != 0) revert RESCUE_BLOCKED(token);
         _moveFromReceiver(r, account, token, amount);
         emit ReceiverRescued(account, token, amount);
     }
@@ -522,6 +562,8 @@ contract GyldInTransitRegistry is AccessControl {
         address dest = _destinations[msg.sender].depositAddress;
         lotId = _openLot(p, msg.sender, bondToken, cashToken, LotKind.CASH_OUT, dest, amount);
         ++openCashLotsAt[dest];
+        ++p.openLots;
+        ++openLotsPayingIn[msg.sender][cashToken];
         p.cashOut += amount;
         totalCashInTransit[bondToken] += amount;
         emit CashOutRecorded(msg.sender, bondToken, lotId, cashToken, amount, p.cashOut);
@@ -544,6 +586,8 @@ contract GyldInTransitRegistry is AccessControl {
             _destinations[msg.sender].redeemHoldingWallet,
             shares
         );
+        ++p.openLots;
+        ++openLotsPayingIn[msg.sender][cashToken];
         p.bondsOut += shares;
         emit BondsOutRecorded(msg.sender, bondToken, lotId, cashToken, shares, p.bondsOut);
     }
@@ -560,7 +604,8 @@ contract GyldInTransitRegistry is AccessControl {
 
     /// @notice Non-reverting twin of `checkCashOut` for the OMS. Zero means the record would be accepted.
     /// @return code 0 ok; 201 pair not approved; 202 no deposit address; 203 age not configured; 204 stale
-    ///         lot open; 205 per-strategy cap exceeded; 206 zero amount; 207 instrument-wide cap exceeded
+    ///         lot open; 205 per-strategy cap exceeded; 206 zero amount; 207 instrument-wide cap exceeded;
+    ///         209 not the sole principal; 210 too many open lots
     function previewCashOut(
         address account,
         address bondToken,
@@ -574,15 +619,18 @@ contract GyldInTransitRegistry is AccessControl {
         if (amount == 0) return 206;
         if (!BOND_REGISTRY.isApprovedPair(bondToken, cashToken)) return 201;
         if (_destinations[account].depositAddress == address(0)) return 202;
+        if (solePrincipal != address(0) && account != solePrincipal) return 209;
         if (maxTransitAge == 0) return 203;
         if (isStale(account, bondToken)) return 204;
+        if (_positions[account][bondToken].openLots >= MAX_OPEN_LOTS_PER_PAIR) return 210;
         if (_positions[account][bondToken].cashOut + amount > maxCashInTransit[bondToken]) return 205;
         if (totalCashInTransit[bondToken] + amount > maxTotalCashInTransit[bondToken]) return 207;
         return 0;
     }
 
     /// @notice Non-reverting twin of `checkBondsOut`.
-    /// @return code 0 ok; 301 pair not approved; 302 no holding wallet for the account; 303 age not configured
+    /// @return code 0 ok; 301 pair not approved; 302 no holding wallet for the account; 303 age not configured;
+    ///         305 too many open lots
     function previewBondsOut(
         address account,
         address bondToken,
@@ -595,6 +643,7 @@ contract GyldInTransitRegistry is AccessControl {
         if (!BOND_REGISTRY.isApprovedPair(bondToken, cashToken)) return 301;
         if (_destinations[account].redeemHoldingWallet == address(0)) return 302;
         if (maxTransitAge == 0) return 303;
+        if (_positions[account][bondToken].openLots >= MAX_OPEN_LOTS_PER_PAIR) return 305;
         return 0;
     }
 
@@ -621,7 +670,7 @@ contract GyldInTransitRegistry is AccessControl {
         if (bondsReceived == 0) revert ZERO_BONDS_RECEIVED();
         (Lot storage lot, Position storage p) = _openLotOfKind(lotId, LotKind.CASH_OUT);
         _decreaseCash(lotId, lot, p, cashConsumed);
-        (uint256 nav, GyldBondRegistry.InstrumentConfig memory cfg) = _navFor(lot.bondToken);
+        (uint256 nav, GyldBondRegistry.InstrumentConfig memory cfg) = _navFor(lotId, lot);
         uint256 delivered = bondsReceived.mulDiv(nav, cfg.bondScale);
         _checkMintBand(lotId, delivered, cashConsumed, lot.bondToken, cfg.maxEntryPremiumBps);
         _useApiRef(apiRef);
@@ -655,7 +704,7 @@ contract GyldInTransitRegistry is AccessControl {
         if (cashReturned == 0) revert ZERO_CASH_RETURNED();
         (Lot storage lot, Position storage p) = _openLotOfKind(lotId, LotKind.BONDS_OUT);
         _decreaseBonds(lotId, lot, p, bondsConsumed);
-        (uint256 nav, GyldBondRegistry.InstrumentConfig memory cfg) = _navFor(lot.bondToken);
+        (uint256 nav, GyldBondRegistry.InstrumentConfig memory cfg) = _navFor(lotId, lot);
         uint256 value = bondsConsumed.mulDiv(nav, cfg.bondScale);
         _checkRedemptionBand(lotId, cashReturned, value, lot.bondToken, cfg.maxExitDiscountBps);
         _useApiRef(apiRef);
@@ -684,21 +733,31 @@ contract GyldInTransitRegistry is AccessControl {
     ///         valuation from this block on, so the delay is a review period, not an exit window. The reference is
     ///         reserved here; an expired proposal is replaced by the next one.
     function proposeManualSettle(uint256 lotId, uint256 amount, bytes32 apiRef) external onlyRole(MANAGER_ROLE) {
-        Lot storage lot = _lots[lotId];
-        if (lot.recorded == 0) revert LOT_NOT_FOUND(lotId);
-        if (amount == 0) revert ZERO_AMOUNT();
-        if (amount > lot.open) revert EXCEEDS_OPEN(lot.open, amount);
-        uint64 pendingAt = pendingManualSettles[lotId].executeAt;
-        if (pendingAt != 0) {
-            // a live proposal blocks; an EXPIRED one is replaced here (its netting and reference released)
-            if (block.timestamp <= pendingAt + MANUAL_SETTLE_WINDOW) revert MANUAL_SETTLE_PENDING(lotId);
-            _dropPending(lotId, lot);
-        }
-        _useApiRef(apiRef);
-        uint64 executeAt = uint64(block.timestamp + MANUAL_SETTLE_DELAY);
-        pendingManualSettles[lotId] = PendingManualSettle(amount, apiRef, executeAt);
-        _addPending(lot, amount);
-        emit ManualSettleProposed(lot.account, lotId, apiRef, amount, executeAt);
+        _propose(lotId, amount, amount, address(0), 0, apiRef);
+    }
+
+    /// @notice A decrease WITH a delivery to sweep: the governed path for a receipt the reconciler cannot settle (a
+    ///         NAV out of the band after a price move, a suspended or stale NAV, a re-denominated instrument). At
+    ///         execution the lot shrinks by `amount` and `sweepAmount` of `token` moves receiver -> strategy in the
+    ///         same transaction, so the asset enters the wallet as the claim leaves the valuation: no second step.
+    ///         Only `recognisedLoss` (<= amount) is netted from the valuation from the proposal on; a pure
+    ///         out-of-band receipt is proposed with zero loss and moves nothing until it executes. A reconciler
+    ///         settle on the lot in the meantime drops the proposal (its facts changed); the receiver must still
+    ///         hold `sweepAmount` at execution or the execute reverts and nothing moves.
+    function proposeManualSweep(
+        uint256 lotId,
+        uint256 amount,
+        uint256 recognisedLoss,
+        address token,
+        uint256 sweepAmount,
+        bytes32 apiRef
+    )
+        external
+        onlyRole(MANAGER_ROLE)
+    {
+        if (sweepAmount == 0) revert ZERO_AMOUNT();
+        if (recognisedLoss > amount) revert LOSS_EXCEEDS_DECREASE(recognisedLoss, amount);
+        _propose(lotId, amount, recognisedLoss, token, sweepAmount, apiRef);
     }
 
     /// @notice Apply a proposed decrease. Clamped to what the lot still has open (the reconciler may have settled
@@ -711,7 +770,8 @@ contract GyldInTransitRegistry is AccessControl {
         delete pendingManualSettles[lotId];
         Lot storage lot = _lots[lotId];
         Position storage p = _positions[lot.account][lot.bondToken];
-        _removePending(lot, m.amount);
+        --p.pendingCount;
+        _removePending(lot, m.netted);
         uint256 amount = m.amount > lot.open ? lot.open : m.amount; // _decrease keeps m.amount <= open; belt and braces
         uint256 remaining;
         if (lot.kind == LotKind.CASH_OUT) {
@@ -721,7 +781,42 @@ contract GyldInTransitRegistry is AccessControl {
             _decreaseBonds(lotId, lot, p, amount);
             remaining = p.bondsOut;
         }
+        if (m.sweepAmount != 0) {
+            _sweep(lot, lotId, m.sweepToken, m.sweepAmount);
+            emit ManualSweepExecuted(lotId, m.sweepToken, m.sweepAmount);
+        }
         emit ManualSettled(lot.account, lotId, m.apiRef, lot.bondToken, lot.kind, amount, lot.open, remaining);
+    }
+
+    /// @dev Shared body of the two proposal paths
+    function _propose(
+        uint256 lotId,
+        uint256 amount,
+        uint256 netted,
+        address token,
+        uint256 sweepAmount,
+        bytes32 apiRef
+    )
+        private
+    {
+        Lot storage lot = _lots[lotId];
+        if (lot.recorded == 0) revert LOT_NOT_FOUND(lotId);
+        if (amount == 0) revert ZERO_AMOUNT();
+        if (amount > lot.open) revert EXCEEDS_OPEN(lot.open, amount);
+        if (sweepAmount != 0 && token != lot.bondToken && token != lot.cashToken) revert INVALID_SWEEP_TOKEN(token);
+        uint64 pendingAt = pendingManualSettles[lotId].executeAt;
+        if (pendingAt != 0) {
+            // a live proposal blocks; an EXPIRED one is replaced here (its netting and reference released)
+            if (block.timestamp <= pendingAt + MANUAL_SETTLE_WINDOW) revert MANUAL_SETTLE_PENDING(lotId);
+            _dropPending(lotId, lot);
+        }
+        _useApiRef(apiRef);
+        uint64 executeAt = uint64(block.timestamp + MANUAL_SETTLE_DELAY);
+        pendingManualSettles[lotId] = PendingManualSettle(amount, netted, sweepAmount, token, apiRef, executeAt);
+        ++_positions[lot.account][lot.bondToken].pendingCount;
+        if (netted != 0) _addPending(lot, netted);
+        emit ManualSettleProposed(lot.account, lotId, apiRef, amount, executeAt);
+        if (sweepAmount != 0) emit ManualSweepAttached(lotId, token, sweepAmount, netted);
     }
 
     /// @notice Withdraw a proposal: the value comes back into the position and the reference is released.
@@ -823,13 +918,19 @@ contract GyldInTransitRegistry is AccessControl {
     ///      deposits at vault level (pausing the deposit hook alone would not stop users buying shares at a PPS
     ///      that may still be revised). Walks the open part of the queue only.
     function hasPendingManualSettle(address account, address bondToken) external view returns (bool) {
-        Position storage p = _positions[account][bondToken];
-        uint256 n = p.lotIds.length;
-        for (uint256 i = p.head; i < n; ++i) {
-            uint256 id = p.lotIds[i];
-            if (_lots[id].open != 0 && pendingManualSettles[id].executeAt != 0) return true;
-        }
-        return false;
+        return _positions[account][bondToken].pendingCount != 0; // proposals die with their lot, so this is exact
+    }
+
+    /// @notice A proposal whose execute window has passed: still netted and still flagged until governance cancels
+    ///         or replaces it (an expired clock never restores a loss by itself)
+    function isManualSettleExpired(uint256 lotId) external view returns (bool) {
+        uint64 at = pendingManualSettles[lotId].executeAt;
+        return at != 0 && block.timestamp > at + MANUAL_SETTLE_WINDOW;
+    }
+
+    /// @notice Open lots of the pair, both kinds (bounded by `MAX_OPEN_LOTS_PER_PAIR`)
+    function openLots(address account, address bondToken) external view returns (uint256) {
+        return _positions[account][bondToken].openLots;
     }
 
     /// @notice Whether a lot is still open and older than `maxTransitAge`
@@ -856,9 +957,13 @@ contract GyldInTransitRegistry is AccessControl {
         if (amount == 0) revert ZERO_AMOUNT();
         if (!BOND_REGISTRY.isApprovedPair(bondToken, cashToken)) revert PAIR_NOT_APPROVED();
         if (_destinations[account].depositAddress == address(0)) revert DESTINATION_NOT_SET();
+        address principal = solePrincipal;
+        if (principal != address(0) && account != principal) revert NOT_SOLE_PRINCIPAL(principal);
         if (maxTransitAge == 0) revert TRANSIT_AGE_NOT_CONFIGURED();
         if (isStale(account, bondToken)) revert TRANSIT_STALE();
-        uint256 outstanding = _positions[account][bondToken].cashOut + amount;
+        Position storage pos = _positions[account][bondToken];
+        if (pos.openLots >= MAX_OPEN_LOTS_PER_PAIR) revert TOO_MANY_OPEN_LOTS(pos.openLots, MAX_OPEN_LOTS_PER_PAIR);
+        uint256 outstanding = pos.cashOut + amount;
         uint256 cap = maxCashInTransit[bondToken];
         if (outstanding > cap) revert CAP_EXCEEDED(outstanding, cap);
         uint256 total = totalCashInTransit[bondToken] + amount;
@@ -870,6 +975,8 @@ contract GyldInTransitRegistry is AccessControl {
         if (!BOND_REGISTRY.isApprovedPair(bondToken, cashToken)) revert PAIR_NOT_APPROVED();
         if (_destinations[account].redeemHoldingWallet == address(0)) revert DESTINATION_NOT_SET();
         if (maxTransitAge == 0) revert TRANSIT_AGE_NOT_CONFIGURED();
+        uint256 open = _positions[account][bondToken].openLots;
+        if (open >= MAX_OPEN_LOTS_PER_PAIR) revert TOO_MANY_OPEN_LOTS(open, MAX_OPEN_LOTS_PER_PAIR);
     }
 
     /// @dev Append a lot to the pair's queue. Ids are global and start at 1 so that zero means "none".
@@ -983,24 +1090,30 @@ contract GyldInTransitRegistry is AccessControl {
     function _dropPending(uint256 lotId, Lot storage lot) private {
         PendingManualSettle memory m = pendingManualSettles[lotId];
         delete pendingManualSettles[lotId];
-        _removePending(lot, m.amount);
+        _removePending(lot, m.netted);
+        --_positions[lot.account][lot.bondToken].pendingCount;
         apiRefUsed[m.apiRef] = false;
         emit ManualSettleCancelled(lotId);
     }
 
     /// @dev The live NAV in cash units per whole bond, or revert: a settle that cannot be priced waits (or goes
     ///      through the manual path). Uses the oracle's non-reverting read so the failure code is surfaced.
-    function _navFor(address bondToken)
+    function _navFor(
+        uint256 lotId,
+        Lot storage lot
+    )
         private
         view
         returns (uint256 nav, GyldBondRegistry.InstrumentConfig memory cfg)
     {
         GyldBondYieldSourceOracle oracle = valuationOracle;
         if (address(oracle) == address(0)) revert NAV_UNAVAILABLE(type(uint8).max);
-        GyldBondYieldSourceOracle.NavStatus memory st = oracle.previewNav(bondToken);
+        GyldBondYieldSourceOracle.NavStatus memory st = oracle.previewNav(lot.bondToken);
         if (st.failureCode != 0 || st.nav == 0) revert NAV_UNAVAILABLE(st.failureCode);
         nav = st.nav;
-        cfg = BOND_REGISTRY.getInstrumentConfig(bondToken);
+        cfg = BOND_REGISTRY.getInstrumentConfig(lot.bondToken);
+        // a re-registered instrument in another cash denomination would price this lot's units wrongly
+        if (cfg.cashToken != lot.cashToken) revert INSTRUMENT_DENOMINATION_CHANGED(lotId);
     }
 
     /// @dev One Gyld reference settles exactly once (anti-replay for the reconciler's own submissions).
@@ -1054,16 +1167,23 @@ contract GyldInTransitRegistry is AccessControl {
         if (amount > lot.open) revert EXCEEDS_OPEN(lot.open, amount);
         lot.open -= amount;
         PendingManualSettle storage m = pendingManualSettles[lotId];
-        if (m.executeAt != 0 && m.amount > lot.open) {
-            if (lot.open == 0) {
+        if (m.executeAt != 0) {
+            // a reconciler settle changed the facts a sweep proposal was made on: it falls and is re-made if still
+            // needed. A plain decrease is clamped to what is left open, or dropped with the lot.
+            if (lot.open == 0 || m.sweepAmount != 0) {
                 _dropPending(lotId, lot);
-            } else {
-                _removePending(lot, m.amount - lot.open);
+            } else if (m.amount > lot.open) {
                 m.amount = lot.open;
+                if (m.netted > lot.open) {
+                    _removePending(lot, m.netted - lot.open);
+                    m.netted = lot.open;
+                }
             }
         }
         if (lot.open == 0) {
             if (lot.kind == LotKind.CASH_OUT) --openCashLotsAt[lot.destination];
+            --p.openLots;
+            --openLotsPayingIn[lot.account][lot.cashToken];
             _advanceHead(p);
         }
     }

@@ -481,6 +481,36 @@ contract GyldBondYieldSourceOracleTransitTest is Test {
         assertFalse(off.hasUnsettledDelivery(address(bond), holder));
     }
 
+    /// @dev A sweep proposal with ZERO recognised loss raises the impairment flag (governance is deciding) without
+    ///      moving the valuation; its execution swaps the cash note for wallet bonds at the live NAV in one step.
+    function test_PauseSignals_ZeroLossSweep_FlaggedNotPricedIn() public {
+        bond.mint(holder, 1e18);
+        _cashOut(100e6);
+        uint256 v = oracle.getTVLByOwnerOfShares(address(bond), holder);
+        vm.prank(admin);
+        transit.proposeManualSweep(1, 100e6, 0, address(bond), 96e18, bytes32("sw"));
+        assertTrue(oracle.hasPendingImpairment(address(bond), holder), "flagged while governance decides");
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v, "zero loss: nothing priced in");
+        // a partial loss on top is priced in from the proposal on
+        vm.startPrank(admin);
+        transit.cancelManualSettle(1);
+        transit.proposeManualSweep(1, 100e6, 4e6, address(bond), 96e18, bytes32("sw2"));
+        vm.stopPrank();
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v - 4e6, "the recognised loss is priced in");
+        assertEq(oracle.getTVL(address(bond)), 1 * NAV_IN_CASH + 96e6, "getTVL nets the same amount");
+        bond.mint(_recv(holder), 96e18); // Gyld's delivery sits in the receiver, worth nothing to the oracle yet
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), v - 4e6, "receiver never valued");
+        assertTrue(oracle.hasUnsettledDelivery(address(bond), holder));
+        vm.warp(block.timestamp + transit.MANUAL_SETTLE_DELAY());
+        navFeed.setLatestAnswer(NAV_ANSWER);
+        vm.prank(admin);
+        transit.executeManualSettle(1);
+        assertFalse(oracle.hasPendingImpairment(address(bond), holder));
+        assertFalse(oracle.hasUnsettledDelivery(address(bond), holder));
+        assertEq(oracle.getTVLByOwnerOfShares(address(bond), holder), 97 * NAV_IN_CASH, "97 wallet bonds at NAV");
+        assertEq(oracle.getTVL(address(bond)), 97 * NAV_IN_CASH, "no cash note left");
+    }
+
     /// @dev Lazy NAV rescues a CASH-ONLY position only: wallet bonds, or bonds in transit, still need the feed, so a
     ///      suspended instrument reverts for them (and getTVL always, since supply is priced).
     function test_TVL_WalletBondsPlusCashOnlyTransit_SuspendedReverts() public {

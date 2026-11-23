@@ -43,9 +43,28 @@ contract ConfigureGyldInTransitRegistry is DeployV2Base, ConstantsOtherHooks {
         require(dep == depositAddress, "DEPOSIT_ADDRESS_NOT_APPLIED");
         require(hold == redeemHoldingWallet, "HOLDING_WALLET_NOT_APPLIED");
         console2.log("deliveryReceiver    ->", address(registry.receiverOf(strategy)));
-        console2.log("  (one Gyld account per strategy: a deposit address already used by another strategy is refused)");
+        console2.log("  (one deposit address per strategy: an address already used by another strategy is refused)");
         console2.log("  ^ give THIS to Gyld: whitelisted withdrawal address and mint wallet_address");
         console2.log("====== Destinations configured ======");
+    }
+
+    /// @notice MANAGER: restrict cash deposits to one strategy (zero clears). Gyld's ledger is per legal entity, so
+    ///         this is how "one funded principal per ledger" is enforced on chain.
+    function runSolePrincipal(
+        uint256 env,
+        uint64 chainId,
+        address registryAddr,
+        address principal
+    )
+        external
+        broadcast(env)
+    {
+        _requireRegistry(chainId, registryAddr);
+        GyldInTransitRegistry registry = GyldInTransitRegistry(registryAddr);
+        console2.log("solePrincipal: current", registry.solePrincipal(), "-> target", principal);
+        registry.setSolePrincipal(principal);
+        require(registry.solePrincipal() == principal, "SOLE_PRINCIPAL_NOT_APPLIED");
+        console2.log("====== Sole principal configured ======");
     }
 
     /// @notice Sets `maxTransitAge` to the reviewed constant
@@ -229,8 +248,27 @@ contract ConfigureGyldInTransitRegistry is DeployV2Base, ConstantsOtherHooks {
             if (unsweptBonds != 0 || unsweptCash != 0) {
                 console2.log("    UNSWEPT in the receiver: bonds", unsweptBonds, "cash", unsweptCash);
             }
-            if (registry.hasPendingManualSettle(strategy, bondTokens[j])) {
-                console2.log("    PENDING manual settle (already netted from the valuation)");
+            _printLotHealth(registry, strategy, bondTokens[j]);
+        }
+    }
+
+    /// @dev Per-pair lot bound and manual-settle state
+    function _printLotHealth(GyldInTransitRegistry registry, address strategy, address bondToken) internal view {
+        uint256 open = registry.openLots(strategy, bondToken);
+        uint256 max = registry.MAX_OPEN_LOTS_PER_PAIR();
+        if (open * 4 >= max * 3) console2.log("    OPEN LOTS near the per-pair bound:", open, "of", max);
+        if (registry.hasPendingManualSettle(strategy, bondToken)) {
+            console2.log("    PENDING manual settle (its recognised loss is already netted from the valuation)");
+            _printExpiredProposals(registry, strategy, bondToken);
+        }
+    }
+
+    /// @dev An expired proposal keeps its netting and its flag until governance replaces or cancels it
+    function _printExpiredProposals(GyldInTransitRegistry registry, address strategy, address bondToken) internal view {
+        uint256[] memory ids = registry.lotsOf(strategy, bondToken);
+        for (uint256 k; k < ids.length; ++k) {
+            if (registry.isManualSettleExpired(ids[k])) {
+                console2.log("    EXPIRED proposal on lot", ids[k], ": re-propose or cancel (still netted + flagged)");
             }
         }
     }

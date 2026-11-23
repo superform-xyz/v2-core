@@ -10,8 +10,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 /// @notice One strategy's mailbox for Gyld deliveries: its whitelisted withdrawal address and the `wallet_address`
 ///         of its mint orders. Only `GyldInTransitRegistry` can move funds out, and only into the strategy, as the
 ///         sweep of a settle that shrinks the matching lot in the same transaction.
-/// @dev Funds here can only have come from Gyld (or a donation that ends in the strategy anyway), so the balance is
-///      an upper bound on what Gyld delivered, and the oracle never values it: no delivery is counted twice.
+/// @dev Whatever is here reached THIS strategy's receiver (a Gyld delivery, or a donation that ends in the strategy
+///      anyway), so the balance bounds what a settle may sweep; which order it belongs to is the reconciler's claim.
+///      The oracle never values it: no delivery is counted twice.
 ///      Deployed by the registry with the strategy's destinations; no owner, no upgrade path, one function.
 contract GyldDeliveryReceiver {
     using SafeERC20 for IERC20;

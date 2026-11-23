@@ -24,8 +24,11 @@ contract GyldInTransitHandler is Test {
     uint256 public settles;
     uint256 public pendingProposed;
     uint256 public rotations;
+    uint256 public navMoves;
     uint256 public navTied;
     uint256 public manualExecuted;
+    uint256 public sweepsProposed;
+    uint256 public sweepsExecuted;
     uint256 public donations;
     uint256 public collisions;
     uint256 public skipped;
@@ -128,7 +131,7 @@ contract GyldInTransitHandler is Test {
             ++skipped;
             return;
         }
-        (,, uint64 pendingAt) = REG.pendingManualSettles(id);
+        (,,,,, uint64 pendingAt) = REG.pendingManualSettles(id);
         bool bondProposal = l.kind == GyldInTransitRegistry.LotKind.BONDS_OUT && kindSeed % 3 == 2;
         if (pendingAt != 0 && (kindSeed % 4 == 1 || bondProposal)) {
             // an already-pending lot cannot take a second proposal: execute (or cancel) the one it has instead
@@ -138,6 +141,12 @@ contract GyldInTransitHandler is Test {
             } else {
                 if (pendingAt > block.timestamp) vm.warp(pendingAt);
                 FEED.setUpdatedAt(block.timestamp);
+                (,, uint256 sweepAmt, address sweepTok,,) = REG.pendingManualSettles(id);
+                if (sweepAmt != 0) {
+                    // Gyld's out-of-band delivery sits in the receiver by the time governance executes
+                    MockERC20(sweepTok).mint(address(REG.receiverOf(l.account)), sweepAmt);
+                    ++sweepsExecuted;
+                }
                 REG.executeManualSettle(id);
                 ++manualExecuted;
             }
@@ -157,12 +166,14 @@ contract GyldInTransitHandler is Test {
         address recv = address(REG.receiverOf(l.account));
         if (l.kind == GyldInTransitRegistry.LotKind.CASH_OUT) {
             uint256 k = kindSeed % 4;
-            if (k == 0) {
-                MockERC20(l.bondToken).mint(recv, amt * 1e12);
+            if (k == 0 && amt >= 1000) {
+                // sized at the live NAV; floors keep the value a hair under amt, inside the 5% band
+                uint256 bondsOut_ = _bondsFor(amt);
+                MockERC20(l.bondToken).mint(recv, bondsOut_);
                 vm.prank(ADMIN);
-                REG.settleMint(id, amt, amt * 1e12, ref);
+                REG.settleMint(id, amt, bondsOut_, ref);
                 ++navTied;
-            } else if (k == 1) {
+            } else if (k == 1 || k == 0) {
                 // a loss: the manager's timelocked path
                 vm.startPrank(ADMIN);
                 REG.proposeManualSettle(id, amt, ref);
@@ -172,9 +183,15 @@ contract GyldInTransitHandler is Test {
                 ++manualExecuted;
                 vm.stopPrank();
             } else if (k == 2) {
-                // a proposal left pending (netted, not executed): later settles must clamp or drop it
+                // a proposal left pending (netted, not executed): later settles must clamp or drop it. Every other
+                // time it is a decrease-plus-sweep with a partial recognised loss (dropped by a later settle).
                 vm.prank(ADMIN);
-                REG.proposeManualSettle(id, amt, ref);
+                if (amountSeed % 2 == 0) {
+                    REG.proposeManualSettle(id, amt, ref);
+                } else {
+                    REG.proposeManualSweep(id, amt, amt / 3, l.bondToken, _bondsFor(amt) + 1, ref);
+                    ++sweepsProposed;
+                }
                 ++pendingProposed;
             } else {
                 MockERC20(CASH).mint(recv, amt);
@@ -183,7 +200,7 @@ contract GyldInTransitHandler is Test {
             }
         } else {
             uint256 k = kindSeed % 3;
-            uint256 cashOut_ = amt / 1e12; // the bonds' value at NAV 1.00 in 6-dec cash; zero for dust lots
+            uint256 cashOut_ = _cashFor(amt); // the bonds' value at the live NAV in 6-dec cash; zero for dust lots
             if (k == 0 && cashOut_ != 0) {
                 MockERC20(CASH).mint(recv, cashOut_);
                 vm.prank(ADMIN);
@@ -194,9 +211,14 @@ contract GyldInTransitHandler is Test {
                 vm.prank(ADMIN);
                 REG.settleReturn(id, amt, ref);
             } else {
-                // a bond write-down left pending
+                // a bond write-down left pending; every other time a decrease-plus-sweep of the bonds themselves
                 vm.prank(ADMIN);
-                REG.proposeManualSettle(id, amt, ref);
+                if (amountSeed % 2 == 0) {
+                    REG.proposeManualSettle(id, amt, ref);
+                } else {
+                    REG.proposeManualSweep(id, amt, amt / 3, l.bondToken, amt, ref);
+                    ++sweepsProposed;
+                }
                 ++pendingProposed;
             }
         }
@@ -207,6 +229,24 @@ contract GyldInTransitHandler is Test {
         vm.warp(block.timestamp + bound(s, 0, 3 days));
         FEED.setUpdatedAt(block.timestamp);
         ++warped;
+    }
+
+    /// @dev The NAV drifts between 0.80 and 1.25; deliveries below are sized at the live NAV so the band holds.
+    function moveNav(uint256 seed) external {
+        FEED.setLatestAnswer(int256(bound(seed, 0.8e8, 1.25e8)));
+        ++navMoves;
+    }
+
+    /// @dev Bonds (18 dec) worth `cashUnits` (6 dec) at the live NAV, floored
+    function _bondsFor(uint256 cashUnits) internal view returns (uint256) {
+        (, int256 answer,,,) = FEED.latestRoundData();
+        return cashUnits * 1e20 / uint256(answer);
+    }
+
+    /// @dev Cash units (6 dec) that `bonds` (18 dec) are worth at the live NAV, floored
+    function _cashFor(uint256 bonds) internal view returns (uint256) {
+        (, int256 answer,,,) = FEED.latestRoundData();
+        return bonds * uint256(answer) / 1e20;
     }
 
     function actorCount() external view returns (uint256) {
@@ -269,7 +309,8 @@ contract GyldInTransitRegistryInvariants is Test {
         reg.setMaxTransitAge(AGE);
         reg.setValuationOracle(address(oracle));
         for (uint256 i; i < actors.length; ++i) {
-            // one Gyld account (deposit address) per strategy; the holding wallet may be shared
+            // one deposit address per strategy (not a ledger: Gyld pools cash per legal entity); the holding wallet may
+            // be shared
             reg.setDestinations(actors[i], _depositOf(i), holding);
         }
         for (uint256 i; i < bonds.length; ++i) {
@@ -283,13 +324,14 @@ contract GyldInTransitRegistryInvariants is Test {
         for (uint256 i; i < actors.length; ++i) {
             receiversAtBirth.push(address(reg.receiverOf(actors[i])));
         }
-        bytes4[] memory selectors = new bytes4[](6);
+        bytes4[] memory selectors = new bytes4[](7);
         selectors[0] = handler.recordCash.selector;
         selectors[1] = handler.recordBonds.selector;
         selectors[2] = handler.settle.selector;
         selectors[3] = handler.warp.selector;
         selectors[4] = handler.rotate.selector;
         selectors[5] = handler.donate.selector;
+        selectors[6] = handler.moveNav.selector;
         targetSelector(FuzzSelector({ addr: address(handler), selectors: selectors }));
     }
 
@@ -311,11 +353,11 @@ contract GyldInTransitRegistryInvariants is Test {
                 GyldInTransitRegistry.Transit memory net = reg.transitNet(actors[a], bonds[b]);
                 assertEq(net.cashOut, cashSum - pendingSum, "net cash == open minus pending proposals");
                 assertEq(net.bondsOut, bondSum - pendingBondSum, "net bonds == open minus pending proposals");
-                assertEq(
-                    reg.hasPendingManualSettle(actors[a], bonds[b]),
-                    pendingSum + pendingBondSum != 0,
-                    "flag follows pending"
-                );
+                // netting implies the flag; the converse is in invariant_CountersMatchTheLots (a sweep proposal
+                // with zero recognised loss is flagged but nets nothing)
+                if (pendingSum + pendingBondSum != 0) {
+                    assertTrue(reg.hasPendingManualSettle(actors[a], bonds[b]), "netted implies flagged");
+                }
                 totalCash += cashSum;
                 totalPending += pendingSum;
             }
@@ -332,7 +374,7 @@ contract GyldInTransitRegistryInvariants is Test {
     ///      strategies share one, released addresses are free, and a rotation never replaces the receiver.
     /// forge-config: default.invariant.runs = 32
     /// forge-config: default.invariant.depth = 80
-    function invariant_OneGyldAccountPerStrategy_ReceiverStable() public view {
+    function invariant_OneDepositAddressPerStrategy_ReceiverStable() public view {
         for (uint256 a; a < actors.length; ++a) {
             address dep = reg.depositAddressOf(actors[a]);
             assertTrue(dep != address(0), "a configured strategy always has a deposit address");
@@ -358,15 +400,21 @@ contract GyldInTransitRegistryInvariants is Test {
     function invariant_PendingProposalsAreClampedToOpen_FlagMatchesReceiver() public view {
         uint256 n = reg.lotCount();
         for (uint256 id = 1; id <= n; ++id) {
-            (uint256 amt, bytes32 ref, uint64 at) = reg.pendingManualSettles(id);
+            (uint256 amt, uint256 netted, uint256 sweepAmt, address sweepTok, bytes32 ref, uint64 at) =
+                reg.pendingManualSettles(id);
             GyldInTransitRegistry.Lot memory l = reg.getLot(id);
             if (at == 0) {
                 assertEq(amt, 0, "no amount without a proposal");
+                assertEq(netted, 0, "no netting without a proposal");
                 continue;
             }
             assertGt(l.open, 0, "a closed lot carries no proposal");
             assertLe(amt, l.open, "pending <= open");
+            assertLe(netted, amt, "recognised loss <= decrease");
             assertGt(amt, 0, "a proposal is never empty");
+            if (sweepAmt != 0) {
+                assertTrue(sweepTok == l.bondToken || sweepTok == l.cashToken, "sweep token of the lot");
+            }
             assertTrue(reg.apiRefUsed(ref), "a pending proposal holds its reference");
         }
         for (uint256 a; a < actors.length; ++a) {
@@ -378,6 +426,32 @@ contract GyldInTransitRegistryInvariants is Test {
                 bool open = reg.cashOut(actors[a], bonds[b]) != 0 || reg.bondsOut(actors[a], bonds[b]) != 0;
                 assertEq(reg.hasUnsettledDelivery(actors[a], bonds[b]), open && (ub != 0 || uc != 0), "flag");
             }
+        }
+    }
+
+    /// @dev The O(1) counters are exact: open lots per pair (both kinds), open lots paying in the cash token per
+    ///      account, and the pending flag equals "some open lot of the pair carries a proposal".
+    /// forge-config: default.invariant.runs = 32
+    /// forge-config: default.invariant.depth = 80
+    function invariant_CountersMatchTheLots() public view {
+        for (uint256 a; a < actors.length; ++a) {
+            uint256 payingInCash;
+            for (uint256 b; b < bonds.length; ++b) {
+                uint256[] memory ids = reg.lotsOf(actors[a], bonds[b]);
+                uint256 open;
+                bool pending;
+                for (uint256 i; i < ids.length; ++i) {
+                    if (reg.getLot(ids[i]).open == 0) continue;
+                    ++open;
+                    (,,,,, uint64 at) = reg.pendingManualSettles(ids[i]);
+                    if (at != 0) pending = true;
+                }
+                assertEq(reg.openLots(actors[a], bonds[b]), open, "open lots of the pair");
+                assertLe(open, reg.MAX_OPEN_LOTS_PER_PAIR(), "bounded");
+                assertEq(reg.hasPendingManualSettle(actors[a], bonds[b]), pending, "pending flag == walk");
+                payingInCash += open;
+            }
+            assertEq(reg.openLotsPayingIn(actors[a], address(cash)), payingInCash, "open lots paying in cash");
         }
     }
 
@@ -402,18 +476,22 @@ contract GyldInTransitRegistryInvariants is Test {
     function test_HandlerReachesEveryPath() public {
         for (uint256 i; i < 600; ++i) {
             uint256 s = uint256(keccak256(abi.encode(i)));
-            uint256 op = s % 6;
-            uint256 x = s >> 32; // independent bits for the arguments: `s % 6` must not pick the actor too
+            uint256 op = s % 7;
+            uint256 x = s >> 32; // independent bits for the arguments: `s % 7` must not pick the actor too
             if (op == 0) handler.recordCash(x, x >> 8, x >> 16);
             else if (op == 1) handler.recordBonds(x, x >> 8, x >> 16);
             else if (op == 2) handler.settle(x, x >> 8, x >> 16);
             else if (op == 3) handler.warp(x % 2 days);
             else if (op == 4) handler.rotate(x, x >> 8);
-            else handler.donate(x, x >> 8, x >> 16, x % 2 == 0);
+            else if (op == 5) handler.donate(x, x >> 8, x >> 16, x % 2 == 0);
+            else handler.moveNav(x);
         }
+        assertGt(handler.navMoves(), 0);
         assertGt(handler.records(), 0);
         assertGt(handler.navTied(), 0, "NAV-tied settles reached");
         assertGt(handler.manualExecuted(), 0, "manual executes reached");
+        assertGt(handler.sweepsProposed(), 0, "sweep proposals reached");
+        assertGt(handler.sweepsExecuted(), 0, "sweep executes reached");
         assertGt(handler.rotations(), 0, "rotations reached");
         assertGt(handler.collisions(), 0, "refused rotations reached");
         assertGt(handler.donations(), 0);
@@ -509,13 +587,13 @@ contract GyldInTransitRegistryInvariants is Test {
         uint256[] memory ids = reg.lotsOf(account, bond);
         for (uint256 i; i < ids.length; ++i) {
             GyldInTransitRegistry.Lot memory l = reg.getLot(ids[i]);
-            (uint256 amt,,) = reg.pendingManualSettles(ids[i]);
+            (, uint256 netted,,,,) = reg.pendingManualSettles(ids[i]);
             if (l.kind == GyldInTransitRegistry.LotKind.CASH_OUT) {
                 cashSum += l.open;
-                pendingSum += amt;
+                pendingSum += netted;
             } else {
                 bondSum += l.open;
-                pendingBondSum += amt;
+                pendingBondSum += netted;
             }
         }
     }

@@ -13,6 +13,7 @@ import { GyldDeliveryReceiver } from "../../../../src/accounting/oracles/GyldDel
 
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../../mocks/MockAggregator.sol";
+import { ConfigureGyldInTransitRegistry } from "../../../../script/ConfigureGyldInTransitRegistry.s.sol";
 
 /// @title GyldInTransitRegistryTest
 /// @notice Roles, timelocked destinations, the account-side record rules (cap, staleness, approved pair) and
@@ -264,9 +265,9 @@ contract GyldInTransitRegistryTest is Test {
     }
 
     /// @dev Destinations are per strategy. A second strategy has none until the manager sets its own pair, so it
-    ///      can neither deposit nor redeem, and configuring it never touches the first one. One Gyld account per
+    ///      can neither deposit nor redeem, and configuring it never touches the first one. One deposit address per
     ///      strategy or one pooled account a second strategy needs its own Gyld account (a shared deposit address is
-    /// refused, see test_Segregation_OneGyldAccountPerStrategy): the second case is simply the same pair on every
+    /// refused, see test_Segregation_OneDepositAddressPerStrategy): the second case is simply the same pair on every
     /// strategy.
     function test_Destinations_PerStrategy_UnconfiguredStrategyIsRefused() public {
         _configure();
@@ -1295,7 +1296,7 @@ contract GyldInTransitRegistryTest is Test {
         assertEq(reg.transitNet(account, address(bond)).cashOut, 20e6, "80 written down provisionally");
         // Gyld fills 50 after all: the pending amount is clamped to what is left open (50)
         _mint(lot, 50e6);
-        (uint256 amt,,) = reg.pendingManualSettles(lot);
+        (uint256 amt,,,,,) = reg.pendingManualSettles(lot);
         assertEq(amt, 50e6, "clamped to open");
         assertEq(reg.transitNet(account, address(bond)).cashOut, 0, "50 open, 50 pending");
         assertTrue(reg.hasPendingManualSettle(account, address(bond)));
@@ -1305,7 +1306,7 @@ contract GyldInTransitRegistryTest is Test {
         emit GyldInTransitRegistry.ManualSettleCancelled(lot);
         vm.prank(admin);
         reg.settleMint(lot, 50e6, 50e18, _ref());
-        (,, uint64 at) = reg.pendingManualSettles(lot);
+        (,,,,, uint64 at) = reg.pendingManualSettles(lot);
         assertEq(at, 0, "dropped with the lot");
         assertFalse(reg.apiRefUsed(bytes32("w")), "reference released");
         assertFalse(reg.hasPendingManualSettle(account, address(bond)));
@@ -1416,7 +1417,7 @@ contract GyldInTransitRegistryTest is Test {
     /// @dev Segregation (Gyld pools cash per account): a deposit address, which identifies the Gyld account on that
     ///      chain, belongs to at most one strategy. Checked on the immediate path, at proposal and at execution; a
     ///      rotation releases the old address; the holding wallet may be shared.
-    function test_Segregation_OneGyldAccountPerStrategy() public {
+    function test_Segregation_OneDepositAddressPerStrategy() public {
         _configure();
         assertEq(reg.accountOfDepositAddress(deposit), account);
         vm.startPrank(admin);
@@ -1602,7 +1603,7 @@ contract GyldInTransitRegistryTest is Test {
         bond.mint(_recv(account), 7e18);
         vm.prank(admin);
         reg.settleReturn(lot, 7e18, bytes32("r"));
-        (uint256 amt,,) = reg.pendingManualSettles(lot);
+        (uint256 amt,,,,,) = reg.pendingManualSettles(lot);
         assertEq(amt, 3e18, "clamped to open");
         assertEq(reg.transitNet(account, address(bond)).bondsOut, 0, "3 open, 3 pending");
         assertEq(bond.balanceOf(account), 7e18);
@@ -1839,7 +1840,7 @@ contract GyldInTransitRegistryTest is Test {
         uint256 lot = _record(100e6);
         vm.startPrank(admin);
         reg.proposeManualSettle(lot, 60e6, bytes32("old"));
-        (,, uint64 at) = reg.pendingManualSettles(lot);
+        (,,,,, uint64 at) = reg.pendingManualSettles(lot);
         vm.warp(at - 1);
         vm.expectRevert(GyldInTransitRegistry.CHANGE_TIMELOCK_NOT_ELAPSED.selector);
         reg.executeManualSettle(lot);
@@ -1853,7 +1854,7 @@ contract GyldInTransitRegistryTest is Test {
         assertFalse(reg.apiRefUsed(bytes32("old")), "old reference released");
         assertTrue(reg.apiRefUsed(bytes32("new")));
         assertEq(reg.transitNet(account, address(bond)).cashOut, 0);
-        (,, at) = reg.pendingManualSettles(lot);
+        (,,,,, at) = reg.pendingManualSettles(lot);
         vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.MANUAL_SETTLE_PENDING.selector, lot));
         reg.proposeManualSettle(lot, 1, bytes32("third")); // a LIVE one still blocks
         vm.warp(at + reg.MANUAL_SETTLE_WINDOW()); // last second of the window
@@ -1941,6 +1942,670 @@ contract GyldInTransitRegistryTest is Test {
         vm.prank(admin);
         vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.DELIVERY_NOT_FOUND.selector, lotB, 0, 100e6));
         reg.settleRedemption(lotB, 100e18, 100e6, bytes32("b"));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                  EVENTS, DECIMALS, SCRIPT SMOKE, MORE FUZZ
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Every configuration setter announces itself; monitoring keys off these.
+    function test_Events_ConfigurationSetters() public {
+        vm.startPrank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.MaxTransitAgeUpdated(AGE);
+        reg.setMaxTransitAge(AGE);
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.MaxCashInTransitUpdated(address(bond), CAP);
+        reg.setMaxCashInTransit(address(bond), CAP);
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.MaxTotalCashInTransitUpdated(address(bond), GLOBAL_CAP);
+        reg.setMaxTotalCashInTransit(address(bond), GLOBAL_CAP);
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.TransitFeeUpdated(address(bond), 25);
+        reg.setTransitFeeBps(address(bond), 25);
+        // the receiver's creation is announced with the first pair, with the address the registry stored
+        vm.recordLogs();
+        reg.setDestinations(account, deposit, holding);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool sawReceiver;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].topics[0] == GyldInTransitRegistry.ReceiverCreated.selector) {
+                assertEq(address(uint160(uint256(logs[i].topics[1]))), account);
+                assertEq(address(uint160(uint256(logs[i].topics[2]))), _recv(account));
+                sawReceiver = true;
+            }
+        }
+        assertTrue(sawReceiver, "ReceiverCreated");
+        uint64 at = uint64(block.timestamp + reg.DESTINATION_DELAY());
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.DestinationsProposed(account, address(0xD3), address(0x43), at);
+        reg.proposeDestinations(account, address(0xD3), address(0x43));
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.DestinationsCancelled(account);
+        reg.cancelDestinations(account);
+        vm.stopPrank();
+    }
+
+    /// @dev The redemption mirror fuzz: a fixed payout against a fuzzed bond decrease is accepted exactly inside
+    ///      the band, so under-reporting the bonds consumed (leaving bonds "in transit" that were already sold)
+    ///      is refused.
+    function testFuzz_SettleRedemption_DecreaseMustMatchThePayout(
+        uint96 bondsRaw,
+        uint16 tolRaw,
+        uint16 feeRaw
+    )
+        public
+    {
+        uint256 bondsConsumed = bound(uint256(bondsRaw), 1, 1000e18);
+        uint16 tol = uint16(bound(uint256(tolRaw), 1, 2000));
+        uint256 fee = bound(uint256(feeRaw), 0, 1000);
+        MockERC20 b = _instrumentWithTolerance(tol, fee);
+        vm.prank(account);
+        uint256 lot = reg.recordBondsOut(address(b), address(cash), 1000e18);
+        uint256 cashReturned = 1000e6; // the whole lot's worth at NAV 1.00
+        cash.mint(_recv(account), cashReturned);
+        uint256 value = bondsConsumed / 1e12;
+        uint256 required = (value * (10_000 - fee) / 10_000) * (10_000 - tol) / 10_000;
+        uint256 allowed = value * (10_000 + tol) / 10_000;
+        vm.prank(admin);
+        if (cashReturned > allowed) {
+            vm.expectRevert(
+                abi.encodeWithSelector(GyldInTransitRegistry.SETTLE_ABOVE_NAV.selector, lot, cashReturned, allowed)
+            );
+            reg.settleRedemption(lot, bondsConsumed, cashReturned, bytes32("r"));
+            assertEq(reg.getLot(lot).open, 1000e18, "lot untouched");
+        } else {
+            assertGe(cashReturned, required);
+            reg.settleRedemption(lot, bondsConsumed, cashReturned, bytes32("r"));
+            assertEq(reg.getLot(lot).open, 1000e18 - bondsConsumed);
+            assertEq(cash.balanceOf(account), cashReturned);
+        }
+    }
+
+    /// @dev A 6-decimal bond: `bondScale` comes from the instrument, so the band is in cash units either way.
+    function test_Settle_Band_SixDecimalBond() public {
+        MockERC20 b6 = new MockERC20("Gyld Bond 6", "GB6", 6);
+        GyldBondRegistry.InstrumentConfig memory cfg;
+        cfg.bondToken = address(b6);
+        cfg.navFeed = address(navFeed);
+        cfg.cashToken = address(cash);
+        cfg.maxObservationAge = 7 days;
+        cfg.maxPublicationAge = 7 days;
+        cfg.maxEntryPremiumBps = 500;
+        cfg.maxExitDiscountBps = 500;
+        vm.startPrank(admin);
+        bonds.registerInstrument(cfg);
+        reg.setDestinations(account, deposit, holding);
+        reg.setMaxTransitAge(AGE);
+        reg.setMaxCashInTransit(address(b6), CAP);
+        reg.setMaxTotalCashInTransit(address(b6), CAP);
+        vm.stopPrank();
+        navFeed.setLatestAnswer(1.25e8); // NAV 1.25: 1000 of cash buys 800 bonds
+        vm.prank(account);
+        uint256 lot = reg.recordCashOut(address(b6), address(cash), 1000e6);
+        b6.mint(_recv(account), 800e6);
+        vm.prank(admin);
+        reg.settleMint(lot, 1000e6, 800e6, bytes32("m")); // delivered = 800e6 * 1.25e6 / 1e6 = 1000e6, in band
+        assertEq(reg.getLot(lot).open, 0);
+        assertEq(b6.balanceOf(account), 800e6);
+        // and the ceiling in 6 decimals: 800 bonds against 100 of decrease is 10x too much
+        vm.prank(account);
+        uint256 lot2 = reg.recordCashOut(address(b6), address(cash), 1000e6);
+        b6.mint(_recv(account), 800e6);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.SETTLE_ABOVE_NAV.selector, lot2, 1000e6, 105e6));
+        reg.settleMint(lot2, 100e6, 800e6, bytes32("m2"));
+    }
+
+    /// @dev Rescue uses the same delta check as a sweep: a token that skims cannot be "rescued" for more than lands.
+    function test_Rescue_RequiresTheExactDelta() public {
+        _configure();
+        SkimmingToken skim = new SkimmingToken();
+        skim.mint(_recv(account), 10e18);
+        vm.prank(admin);
+        vm.expectRevert(
+            abi.encodeWithSelector(GyldInTransitRegistry.SWEEP_SHORT.selector, address(skim), 10e18, 10e18 - 1)
+        );
+        reg.rescueFromReceiver(account, address(skim), 10e18);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            REVIEW ROUND 4: LEDGER WORDS, RESCUE, BOUNDS, SWEEP PROPOSALS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Cash returns and redemption payouts land in the lot's CASH token, so a cash rescue is refused while any
+    ///      lot of the account (either kind) could still be paid in it; the same token is free once nothing is open.
+    function test_Rescue_CashBlockedWhileAnyLotPaysInIt() public {
+        _configure();
+        cash.mint(_recv(account), 5e6); // a stray cash balance
+        uint256 bondLot = _recordBonds(10e18); // its payout is cash
+        assertEq(reg.openLotsPayingIn(account, address(cash)), 1);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.RESCUE_BLOCKED.selector, address(cash)));
+        reg.rescueFromReceiver(account, address(cash), 5e6);
+        uint256 cashLot = _record(10e6); // a cash return would also land in cash
+        assertEq(reg.openLotsPayingIn(account, address(cash)), 2);
+        // other tokens are never blocked
+        otherCash.mint(_recv(account), 1);
+        vm.prank(admin);
+        reg.rescueFromReceiver(account, address(otherCash), 1);
+        // close the bond lot: the cash lot still pays in cash
+        bond.mint(_recv(account), 10e18);
+        vm.prank(admin);
+        reg.settleReturn(bondLot, 10e18, _ref());
+        assertEq(reg.openLotsPayingIn(account, address(cash)), 1);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.RESCUE_BLOCKED.selector, address(cash)));
+        reg.rescueFromReceiver(account, address(cash), 5e6);
+        // the cash lot settles against the stray balance itself (a return IS cash in the receiver)...
+        vm.prank(admin);
+        reg.settleCashReturn(cashLot, 5e6, _ref());
+        _loss(cashLot, 5e6);
+        assertEq(reg.openLotsPayingIn(account, address(cash)), 0, "nothing open pays in cash");
+        // ...and anything left is a stray again
+        cash.mint(_recv(account), 2);
+        vm.prank(admin);
+        reg.rescueFromReceiver(account, address(cash), 2);
+        assertEq(cash.balanceOf(account), 5e6 + 2);
+        // another strategy's lots never block this one's rescue
+        vm.prank(admin);
+        reg.setDestinations(other, address(0xD2), address(0x42));
+        vm.prank(other);
+        reg.recordBondsOut(address(bond), address(cash), 1e18);
+        cash.mint(_recv(account), 3);
+        vm.prank(admin);
+        reg.rescueFromReceiver(account, address(cash), 3);
+    }
+
+    /// @dev Gyld's ledger is per legal entity, so only one strategy may fund it when `solePrincipal` is set:
+    ///      every other strategy's cash leg is refused (preview 209), bond legs are untouched, zero clears it.
+    function test_SolePrincipal_OnlyThatStrategyMayDeposit() public {
+        _configure();
+        vm.prank(admin);
+        reg.setDestinations(other, address(0xD2), address(0x42));
+        vm.prank(other);
+        vm.expectRevert();
+        reg.setSolePrincipal(account); // MANAGER only
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.SolePrincipalSet(account);
+        vm.prank(admin);
+        reg.setSolePrincipal(account);
+        assertEq(reg.previewCashOut(other, address(bond), address(cash), 1e6), 209);
+        assertEq(reg.previewCashOut(account, address(bond), address(cash), 1e6), 0);
+        vm.prank(other);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.NOT_SOLE_PRINCIPAL.selector, account));
+        reg.recordCashOut(address(bond), address(cash), 1e6);
+        vm.prank(other);
+        reg.recordBondsOut(address(bond), address(cash), 1e18); // redeeming is not funding the ledger
+        _record(1e6);
+        vm.prank(admin);
+        reg.setSolePrincipal(address(0));
+        assertEq(reg.previewCashOut(other, address(bond), address(cash), 1e6), 0);
+        vm.prank(other);
+        reg.recordCashOut(address(bond), address(cash), 1e6);
+    }
+
+    /// @dev The per-pair open-lot bound: every walk the registry does is over at most `MAX_OPEN_LOTS_PER_PAIR`
+    ///      lots, and hitting it refuses both legs (previews 210 / 305) until something settles.
+    function test_OpenLotBound_RefusesBothLegsUntilASettle() public {
+        _configure();
+        uint256 max = reg.MAX_OPEN_LOTS_PER_PAIR();
+        uint256 first;
+        for (uint256 i; i < max; ++i) {
+            uint256 id = i % 2 == 0 ? _record(1e6) : _recordBonds(1e18);
+            if (i == 0) first = id;
+        }
+        assertEq(reg.openLots(account, address(bond)), max);
+        assertEq(reg.previewCashOut(account, address(bond), address(cash), 1e6), 210);
+        assertEq(reg.previewBondsOut(account, address(bond), address(cash)), 305);
+        vm.prank(account);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.TOO_MANY_OPEN_LOTS.selector, max, max));
+        reg.recordCashOut(address(bond), address(cash), 1e6);
+        vm.prank(account);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.TOO_MANY_OPEN_LOTS.selector, max, max));
+        reg.recordBondsOut(address(bond), address(cash), 1e18);
+        // another pair of the same strategy is not affected
+        MockERC20 b2 = new MockERC20("Gyld Bond 2", "GB2", 18);
+        GyldBondRegistry.InstrumentConfig memory cfg;
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(navFeed);
+        cfg.cashToken = address(cash);
+        cfg.maxObservationAge = 7 days;
+        cfg.maxPublicationAge = 7 days;
+        vm.startPrank(admin);
+        bonds.registerInstrument(cfg);
+        reg.setMaxCashInTransit(address(b2), CAP);
+        reg.setMaxTotalCashInTransit(address(b2), CAP);
+        vm.stopPrank();
+        vm.prank(account);
+        reg.recordCashOut(address(b2), address(cash), 1e6);
+        // a partial settle frees nothing, closing a lot frees one slot
+        _mint(first, 1e6 / 2);
+        assertEq(reg.openLots(account, address(bond)), max);
+        _mint(first, 1e6 / 2);
+        assertEq(reg.openLots(account, address(bond)), max - 1);
+        assertEq(reg.previewCashOut(account, address(bond), address(cash), 1e6), 0);
+        _record(1e6);
+        assertEq(reg.openLots(account, address(bond)), max);
+    }
+
+    /// @dev `hasPendingManualSettle` is a counter now: it follows proposals across lots, cancels, executes, clamps
+    ///      and drops exactly.
+    function test_HasPendingManualSettle_CountsAcrossLots() public {
+        _configure();
+        uint256 l1 = _record(10e6);
+        uint256 l2 = _record(20e6);
+        uint256 l3 = _recordBonds(5e18);
+        vm.startPrank(admin);
+        reg.proposeManualSettle(l1, 10e6, bytes32("a"));
+        reg.proposeManualSettle(l2, 5e6, bytes32("b"));
+        reg.proposeManualSettle(l3, 5e18, bytes32("c"));
+        reg.cancelManualSettle(l1);
+        vm.stopPrank();
+        assertTrue(reg.hasPendingManualSettle(account, address(bond)));
+        _mint(l2, 20e6); // closes l2: its proposal is dropped
+        assertTrue(reg.hasPendingManualSettle(account, address(bond)), "l3 still pending");
+        vm.startPrank(admin);
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(l3);
+        vm.stopPrank();
+        assertFalse(reg.hasPendingManualSettle(account, address(bond)));
+        assertFalse(reg.hasPendingManualSettle(other, address(bond)), "another account: nothing");
+    }
+
+    /// @dev The expiry view: false while live, true once the window closed, false again when replaced or cancelled.
+    function test_IsManualSettleExpired_View() public {
+        _configure();
+        uint256 lot = _record(10e6);
+        assertFalse(reg.isManualSettleExpired(lot), "no proposal");
+        vm.startPrank(admin);
+        reg.proposeManualSettle(lot, 10e6, bytes32("a"));
+        (,,,,, uint64 at) = reg.pendingManualSettles(lot);
+        vm.warp(at + reg.MANUAL_SETTLE_WINDOW());
+        assertFalse(reg.isManualSettleExpired(lot), "last second of the window");
+        vm.warp(block.timestamp + 1);
+        assertTrue(reg.isManualSettleExpired(lot));
+        assertTrue(reg.hasPendingManualSettle(account, address(bond)), "still flagged while expired");
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 0, "still netted while expired");
+        reg.proposeManualSettle(lot, 10e6, bytes32("b"));
+        assertFalse(reg.isManualSettleExpired(lot), "replaced");
+        reg.cancelManualSettle(lot);
+        assertFalse(reg.isManualSettleExpired(lot), "cancelled");
+        vm.stopPrank();
+    }
+
+    /// @dev A filled order whose receipt is out of the band (the NAV moved after the fill): the reconciler cannot
+    ///      settle it, governance proposes ONE decrease-plus-sweep, only the recognised loss is netted meanwhile,
+    ///      and at execution the bonds enter the wallet as the claim leaves the valuation, atomically.
+    function test_ManualSweep_AtomicDecreaseAndSweep() public {
+        _configure();
+        uint256 lot = _record(100e6);
+        bond.mint(_recv(account), 90e18); // worth 90 at NAV 1.00: below the 5% band for a 100 debit
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.SETTLE_BELOW_NAV.selector, lot, 90e6, 95_238_095));
+        reg.settleMint(lot, 100e6, 90e18, bytes32("x"));
+        // validation of the proposal
+        vm.startPrank(admin);
+        vm.expectRevert(GyldInTransitRegistry.ZERO_AMOUNT.selector);
+        reg.proposeManualSweep(lot, 100e6, 10e6, address(bond), 0, bytes32("s"));
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.LOSS_EXCEEDS_DECREASE.selector, 101e6, 100e6));
+        reg.proposeManualSweep(lot, 100e6, 101e6, address(bond), 90e18, bytes32("s"));
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.INVALID_SWEEP_TOKEN.selector, address(otherCash)));
+        reg.proposeManualSweep(lot, 100e6, 10e6, address(otherCash), 1, bytes32("s"));
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.EXCEEDS_OPEN.selector, 100e6, 101e6));
+        reg.proposeManualSweep(lot, 101e6, 10e6, address(bond), 90e18, bytes32("s"));
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.ManualSweepAttached(lot, address(bond), 90e18, 10e6);
+        reg.proposeManualSweep(lot, 100e6, 10e6, address(bond), 90e18, bytes32("s"));
+        vm.stopPrank();
+        assertTrue(reg.apiRefUsed(bytes32("s")), "reference reserved at proposal");
+        assertTrue(reg.hasPendingManualSettle(account, address(bond)));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 90e6, "only the recognised loss is netted");
+        assertEq(reg.totalCashInTransitNet(address(bond)), 90e6);
+        (uint256 amt, uint256 netted, uint256 sweepAmt, address sweepTok,,) = reg.pendingManualSettles(lot);
+        assertEq(amt, 100e6);
+        assertEq(netted, 10e6);
+        assertEq(sweepAmt, 90e18);
+        assertEq(sweepTok, address(bond));
+        // execution: decrease and sweep in one transaction
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.ManualSweepExecuted(lot, address(bond), 90e18);
+        vm.prank(admin);
+        reg.executeManualSettle(lot);
+        assertEq(reg.getLot(lot).open, 0);
+        assertEq(reg.cashOut(account, address(bond)), 0);
+        assertEq(bond.balanceOf(account), 90e18, "delivery in the wallet");
+        assertEq(bond.balanceOf(_recv(account)), 0);
+        assertFalse(reg.hasPendingManualSettle(account, address(bond)));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 0);
+        assertEq(reg.maxTotalCashInTransit(address(bond)) - reg.totalCashInTransitNet(address(bond)), GLOBAL_CAP);
+    }
+
+    /// @dev Zero loss: a pure out-of-band receipt moves nothing until it executes; the receiver must hold the sweep
+    ///      at execution (the whole execute reverts otherwise, lot and proposal untouched); a reconciler settle in
+    ///      the meantime drops the sweep proposal because its facts changed.
+    function test_ManualSweep_ZeroLoss_NeedsTheDelivery_DroppedByAReconcilerSettle() public {
+        _configure();
+        uint256 lot = _record(100e6);
+        vm.prank(admin);
+        reg.proposeManualSweep(lot, 100e6, 0, address(bond), 96e18, bytes32("s"));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 100e6, "nothing netted");
+        assertTrue(reg.hasPendingManualSettle(account, address(bond)), "but flagged: governance is deciding");
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.DELIVERY_NOT_FOUND.selector, lot, 0, 96e18));
+        reg.executeManualSettle(lot);
+        assertEq(reg.getLot(lot).open, 100e6, "untouched");
+        assertTrue(reg.apiRefUsed(bytes32("s")), "proposal still stands");
+        // Gyld settles part of it honestly after all: the sweep proposal falls
+        bond.mint(_recv(account), 40e18);
+        _freshNav();
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.ManualSettleCancelled(lot);
+        vm.prank(admin);
+        reg.settleMint(lot, 40e6, 40e18, bytes32("m"));
+        assertFalse(reg.apiRefUsed(bytes32("s")), "reference released");
+        assertFalse(reg.hasPendingManualSettle(account, address(bond)));
+        assertEq(reg.getLot(lot).open, 60e6);
+        // the plain decrease on the same lot still clamps instead of dropping
+        vm.prank(admin);
+        reg.proposeManualSettle(lot, 60e6, bytes32("p"));
+        bond.mint(_recv(account), 20e18);
+        vm.prank(admin);
+        reg.settleMint(lot, 20e6, 20e18, bytes32("m2"));
+        (uint256 amt, uint256 netted,,,,) = reg.pendingManualSettles(lot);
+        assertEq(amt, 40e6, "clamped");
+        assertEq(netted, 40e6, "netting clamped with it");
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 0);
+    }
+
+    /// @dev A deregistered instrument re-registered in another cash denomination: a priced settle of an old lot would
+    ///      value its units in the wrong currency, so it is refused; the governed sweep closes such lots.
+    function test_Settle_RefusedAfterDenominationChange_ManualSweepCloses() public {
+        _configure();
+        uint256 lot = _record(100e6);
+        bond.mint(_recv(account), 100e18);
+        vm.startPrank(admin);
+        bonds.proposeDeregisterInstrument(address(bond));
+        vm.warp(block.timestamp + bonds.DEREGISTER_DELAY());
+        bonds.executeDeregisterInstrument(address(bond));
+        _freshNav();
+        // unregistered: no NAV, no priced settle
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.NAV_UNAVAILABLE.selector, uint8(1)));
+        reg.settleMint(lot, 100e6, 100e18, bytes32("m"));
+        // re-registered against another cash token
+        GyldBondRegistry.InstrumentConfig memory cfg;
+        cfg.bondToken = address(bond);
+        cfg.navFeed = address(navFeed);
+        cfg.cashToken = address(otherCash);
+        cfg.maxObservationAge = 7 days;
+        cfg.maxPublicationAge = 7 days;
+        cfg.maxEntryPremiumBps = 500;
+        cfg.maxExitDiscountBps = 500;
+        bonds.registerInstrument(cfg);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.INSTRUMENT_DENOMINATION_CHANGED.selector, lot));
+        reg.settleMint(lot, 100e6, 100e18, bytes32("m"));
+        // the returns need no NAV and are still fine (same token in, same token out)
+        cash.mint(_recv(account), 1e6);
+        reg.settleCashReturn(lot, 1e6, bytes32("r"));
+        // the rest closes through the governed sweep
+        reg.proposeManualSweep(lot, 99e6, 0, address(bond), 100e18, bytes32("s"));
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(lot);
+        vm.stopPrank();
+        assertEq(reg.getLot(lot).open, 0);
+        assertEq(bond.balanceOf(account), 100e18);
+    }
+
+    /// @dev Setting a sole principal never strands another strategy: its open lots still settle, it can still redeem
+    ///      and still record bond lots; only NEW cash deposits are refused. Clearing re-enables them.
+    function test_SolePrincipal_OthersStillSettleAndRedeem() public {
+        _configure();
+        vm.prank(admin);
+        reg.setDestinations(other, address(0xD2), address(0x42));
+        vm.prank(other);
+        uint256 lot = reg.recordCashOut(address(bond), address(cash), 50e6);
+        vm.prank(admin);
+        reg.setSolePrincipal(account);
+        // the open lot of the non-principal settles as before
+        bond.mint(_recv(other), 50e18);
+        vm.prank(admin);
+        reg.settleMint(lot, 50e6, 50e18, _ref());
+        assertEq(reg.cashOut(other, address(bond)), 0);
+        // and it may still redeem
+        vm.prank(other);
+        reg.recordBondsOut(address(bond), address(cash), 10e18);
+        // but not fund the ledger
+        assertEq(reg.previewCashOut(other, address(bond), address(cash), 1e6), 209);
+        vm.prank(other);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.NOT_SOLE_PRINCIPAL.selector, account));
+        reg.recordCashOut(address(bond), address(cash), 1e6);
+        // the principal itself is unaffected; re-pointing the principal moves the gate
+        _record(1e6);
+        vm.expectEmit(true, true, true, true);
+        emit GyldInTransitRegistry.SolePrincipalSet(other);
+        vm.prank(admin);
+        reg.setSolePrincipal(other);
+        assertEq(reg.previewCashOut(account, address(bond), address(cash), 1e6), 209);
+        vm.prank(other);
+        reg.recordCashOut(address(bond), address(cash), 1e6);
+    }
+
+    /// @dev Sweep proposals on BONDS_OUT lots: a redemption payout outside the band (cash swept) and a bond return
+    ///      (bonds swept); the execute pays the strategy and closes the lot either way.
+    function test_ManualSweep_BondLot_CashPayoutOrBondReturn() public {
+        _configure();
+        uint256 lot = _recordBonds(100e18);
+        // Gyld sold at 90 for bonds worth 100: below the 5% band for a settleRedemption
+        cash.mint(_recv(account), 90e6);
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.SETTLE_BELOW_NAV.selector, lot, 90e6, 95e6));
+        reg.settleRedemption(lot, 100e18, 90e6, bytes32("x"));
+        vm.startPrank(admin);
+        reg.proposeManualSweep(lot, 60e18, 6e18, address(cash), 54e6, bytes32("s1"));
+        assertEq(reg.transitNet(account, address(bond)).bondsOut, 94e18, "only the recognised loss is netted");
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(lot);
+        vm.stopPrank();
+        assertEq(cash.balanceOf(account), 54e6, "payout in the wallet");
+        assertEq(reg.getLot(lot).open, 40e18);
+        assertEq(reg.bondsOut(account, address(bond)), 40e18);
+        // the rest comes back as bonds (a cancelled remainder), swept through the same path
+        bond.mint(_recv(account), 40e18);
+        vm.startPrank(admin);
+        reg.proposeManualSweep(lot, 40e18, 0, address(bond), 40e18, bytes32("s2"));
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(lot);
+        vm.stopPrank();
+        assertEq(bond.balanceOf(account), 40e18);
+        assertEq(reg.getLot(lot).open, 0);
+        assertEq(reg.openLots(account, address(bond)), 0);
+        assertEq(cash.balanceOf(_recv(account)), 36e6, "what the sweep did not name stays in the receiver");
+        assertFalse(reg.hasUnsettledDelivery(account, address(bond)), "nothing open: not a delivery");
+    }
+
+    /// @dev A sweep proposal is cancelled or expires like a plain one: netting and reference released, counter back
+    ///      to zero, an expired one replaced by the next proposal.
+    function test_ManualSweep_CancelAndExpiry() public {
+        _configure();
+        uint256 lot = _record(100e6);
+        vm.startPrank(admin);
+        reg.proposeManualSweep(lot, 100e6, 30e6, address(bond), 70e18, bytes32("a"));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 70e6);
+        reg.cancelManualSettle(lot);
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 100e6, "netting released");
+        assertFalse(reg.apiRefUsed(bytes32("a")));
+        assertFalse(reg.hasPendingManualSettle(account, address(bond)));
+        reg.proposeManualSweep(lot, 100e6, 30e6, address(bond), 70e18, bytes32("a")); // the ref is free again
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY() + reg.MANUAL_SETTLE_WINDOW() + 1);
+        assertTrue(reg.isManualSettleExpired(lot));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 70e6, "expired: still netted");
+        vm.expectRevert(GyldInTransitRegistry.CHANGE_EXPIRED.selector);
+        reg.executeManualSettle(lot);
+        reg.proposeManualSettle(lot, 100e6, bytes32("b")); // replaces it, as a plain write-off this time
+        (,, uint256 sweepAmt, address sweepTok,,) = reg.pendingManualSettles(lot);
+        assertEq(sweepAmt, 0);
+        assertEq(sweepTok, address(0));
+        assertFalse(reg.apiRefUsed(bytes32("a")));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 0);
+        vm.stopPrank();
+    }
+
+    /// @dev The sweep moves exactly `sweepAmount`: a receiver holding more keeps the rest as an unswept balance for
+    ///      the next settle or a rescue once nothing is open.
+    function test_ManualSweep_MovesExactlyTheNamedAmount() public {
+        _configure();
+        uint256 lot = _record(100e6);
+        bond.mint(_recv(account), 120e18);
+        vm.startPrank(admin);
+        reg.proposeManualSweep(lot, 100e6, 0, address(bond), 90e18, bytes32("s"));
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(lot);
+        vm.stopPrank();
+        assertEq(bond.balanceOf(account), 90e18);
+        assertEq(bond.balanceOf(_recv(account)), 30e18);
+        (uint256 ub,) = reg.unsweptDelivery(account, address(bond));
+        assertEq(ub, 30e18);
+        vm.prank(admin);
+        reg.rescueFromReceiver(account, address(bond), 30e18); // nothing open on the instrument any more
+        assertEq(bond.balanceOf(account), 120e18);
+    }
+
+    /// @dev The open-lot bound is released by a manual execute that closes the lot, not by one that leaves it open.
+    function test_OpenLotBound_FreedByManualClose() public {
+        _configure();
+        uint256 max = reg.MAX_OPEN_LOTS_PER_PAIR();
+        uint256 first;
+        for (uint256 i; i < max; ++i) {
+            uint256 id = _record(1e6);
+            if (i == 0) first = id;
+        }
+        vm.startPrank(admin);
+        reg.proposeManualSettle(first, 1e6 / 2, bytes32("half"));
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(first);
+        vm.stopPrank();
+        assertEq(reg.openLots(account, address(bond)), max, "half open still counts");
+        assertEq(reg.previewCashOut(account, address(bond), address(cash), 1e6), 210);
+        _loss(first, 1e6 / 2);
+        assertEq(reg.openLots(account, address(bond)), max - 1);
+        assertEq(reg.previewCashOut(account, address(bond), address(cash), 1e6), 0);
+    }
+
+    /// @dev The cash guard counts open lots of EVERY instrument that pays in the token: closing the lots of one bond
+    ///      does not free a rescue while another bond's lot still pays in the same cash.
+    function test_Rescue_CashGuardSpansInstruments() public {
+        _configure();
+        MockERC20 b2 = new MockERC20("Gyld Bond 2", "GB2", 18);
+        GyldBondRegistry.InstrumentConfig memory cfg;
+        cfg.bondToken = address(b2);
+        cfg.navFeed = address(navFeed);
+        cfg.cashToken = address(cash);
+        cfg.maxObservationAge = 7 days;
+        cfg.maxPublicationAge = 7 days;
+        vm.startPrank(admin);
+        bonds.registerInstrument(cfg);
+        reg.setMaxCashInTransit(address(b2), CAP);
+        reg.setMaxTotalCashInTransit(address(b2), CAP);
+        vm.stopPrank();
+        uint256 lotA = _record(10e6);
+        vm.prank(account);
+        reg.recordBondsOut(address(b2), address(cash), 1e18);
+        assertEq(reg.openLotsPayingIn(account, address(cash)), 2);
+        cash.mint(_recv(account), 1);
+        _loss(lotA, 10e6);
+        assertEq(reg.cashOut(account, address(bond)), 0, "bond A has nothing open");
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.RESCUE_BLOCKED.selector, address(cash)));
+        reg.rescueFromReceiver(account, address(cash), 1);
+        // the b2 lot returns its bonds: nothing pays in cash any more
+        b2.mint(_recv(account), 1e18);
+        vm.prank(admin);
+        reg.settleReturn(2, 1e18, _ref());
+        assertEq(reg.openLotsPayingIn(account, address(cash)), 0);
+        vm.prank(admin);
+        reg.rescueFromReceiver(account, address(cash), 1);
+    }
+
+    /// @dev The denomination guard covers the redemption leg too: a bond lot recorded against one cash token cannot
+    ///      be priced once the instrument is re-registered against another.
+    function test_Settle_RedemptionRefusedAfterDenominationChange() public {
+        _configure();
+        uint256 lot = _recordBonds(10e18);
+        vm.startPrank(admin);
+        bonds.proposeDeregisterInstrument(address(bond));
+        vm.warp(block.timestamp + bonds.DEREGISTER_DELAY());
+        bonds.executeDeregisterInstrument(address(bond));
+        GyldBondRegistry.InstrumentConfig memory cfg;
+        cfg.bondToken = address(bond);
+        cfg.navFeed = address(navFeed);
+        cfg.cashToken = address(otherCash);
+        cfg.maxObservationAge = 7 days;
+        cfg.maxPublicationAge = 7 days;
+        cfg.maxExitDiscountBps = 500;
+        bonds.registerInstrument(cfg);
+        _freshNav();
+        cash.mint(_recv(account), 10e6);
+        vm.expectRevert(abi.encodeWithSelector(GyldInTransitRegistry.INSTRUMENT_DENOMINATION_CHANGED.selector, lot));
+        reg.settleRedemption(lot, 10e18, 10e6, bytes32("r"));
+        // the bond return still works (no NAV, same token in and out)
+        bond.mint(_recv(account), 4e18);
+        reg.settleReturn(lot, 4e18, bytes32("ret"));
+        assertEq(reg.getLot(lot).open, 6e18);
+        vm.stopPrank();
+    }
+
+    /// @dev Over random decreases and recognised losses: the valuation moves by exactly the recognised loss at the
+    ///      proposal, by the rest at execution, and the sweep lands the named amount in the wallet.
+    function testFuzz_ManualSweep_NetsOnlyTheRecognisedLoss(uint96 amountRaw, uint96 lossRaw, uint96 sweepRaw) public {
+        _configure();
+        uint256 amount = bound(uint256(amountRaw), 1, 1000e6);
+        uint256 loss = bound(uint256(lossRaw), 0, amount);
+        uint256 sweep = bound(uint256(sweepRaw), 1, 1000e18);
+        uint256 lot = _record(1000e6);
+        bond.mint(_recv(account), sweep);
+        vm.startPrank(admin);
+        reg.proposeManualSweep(lot, amount, loss, address(bond), sweep, bytes32("f"));
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 1000e6 - loss);
+        assertEq(reg.totalCashInTransitNet(address(bond)), 1000e6 - loss);
+        assertTrue(reg.hasPendingManualSettle(account, address(bond)));
+        vm.warp(block.timestamp + reg.MANUAL_SETTLE_DELAY());
+        reg.executeManualSettle(lot);
+        vm.stopPrank();
+        assertEq(reg.cashOut(account, address(bond)), 1000e6 - amount);
+        assertEq(reg.transitNet(account, address(bond)).cashOut, 1000e6 - amount, "no netting left behind");
+        assertEq(bond.balanceOf(account), sweep);
+        assertEq(bond.balanceOf(_recv(account)), 0);
+        assertFalse(reg.hasPendingManualSettle(account, address(bond)));
+        assertEq(reg.openLots(account, address(bond)), amount == 1000e6 ? 0 : 1);
+    }
+
+    /// @dev The configure script's read-only check runs against a fully configured registry without reverting:
+    ///      it is the operator's view and nothing else exercises it.
+    function test_Script_RunCheckReadsAConfiguredRegistry() public {
+        _configure();
+        vm.startPrank(admin);
+        reg.setTransitFeeBps(address(bond), 50);
+        reg.setDestinations(other, address(0xD2), address(0x42));
+        vm.stopPrank();
+        uint256 lot = _record(100e6);
+        bond.mint(_recv(account), 1); // an unswept dust delivery, to hit that branch
+        vm.prank(admin);
+        reg.proposeManualSettle(lot, 1e6, bytes32("p")); // and a pending proposal
+        vm.prank(admin);
+        reg.proposeDestinations(other, address(0xD5), address(0x45)); // and a pending rotation
+        ConfigureGyldInTransitRegistry script = new ConfigureGyldInTransitRegistry();
+        address[] memory strategies = new address[](3);
+        strategies[0] = account;
+        strategies[1] = other;
+        strategies[2] = address(0x9999); // never configured: UNSET branches
+        address[] memory bondTokens = new address[](1);
+        bondTokens[0] = address(bond);
+        script.runCheck(uint64(block.chainid), address(reg), strategies, bondTokens);
+        // and on a bare registry every value prints UNSET
+        GyldInTransitRegistry bare = new GyldInTransitRegistry(admin, address(bonds));
+        script.runCheck(uint64(block.chainid), address(bare), strategies, bondTokens);
     }
 }
 
