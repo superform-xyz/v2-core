@@ -56,9 +56,12 @@
 #            --sig 'run(uint256,uint64,address)' <env> <chainId> <registry>
 #        Its own NatSpec explains why this precedes instrument registration.
 #
-#     4. register each instrument, AS GOVERNOR. There is no script for this yet. Set
-#        maxEntryPremiumBps / maxExitDiscountBps IN THE InstrumentConfig here — registration accepts
-#        zero for both, and zero is what the policy reports as unconfigured.
+#     4. register each instrument, AS GOVERNOR. One tuple argument; both floors are REQUIRED non-zero by the
+#        script (registration itself accepts zero, and zero is what the policy reports as unconfigured):
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runRegisterInstrument(uint256,uint64,address,(address,address,uint8,address,address,bool,bool,int192,int192,int192,int192,uint256,uint256,address,uint256,uint16,uint16))' \
+#            <env> <chainId> <registry> '(<bond>,<navFeed>,<kind 0|1>,<cash>,<cashFeed|0x0>,<usdNav>,<obsTime>,<navMin>,<navMax>,<cashMin>,<cashMax>,<obsAge>,<pubAge>,<sequencerFeed|0x0>,<grace>,<entryBps>,<exitBps>)'
+#        Re-running for a registered bond is a no-op that checks the stored cash token and feed match.
 #
 #     5. only if step 4 left either tolerance at zero, or to recalibrate later, AS GOVERNOR:
 #          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
@@ -102,9 +105,11 @@
 #        them with proposeManualSettle; rescueFromReceiver is for stray tokens and written-off lots only).
 #        runOracle sets the FIRST oracle immediately; a later change is proposed by runOracle and applied by
 #          --sig 'runOracleExecute(uint256,uint64,address)' <env> <chainId> <inTransit>   # after 2 days
-#        ONE GYLD ACCOUNT PER STRATEGY: the registry refuses a deposit address another strategy already uses
-#        (DEPOSIT_ADDRESS_IN_USE), because Gyld pools cash per account. Open a separate Investor API account per
-#        strategy per chain before running runDestinations for it.
+#        ONE DEPOSIT ADDRESS PER STRATEGY, NOT ONE LEDGER: the registry refuses a deposit address another strategy
+#        already uses (DEPOSIT_ADDRESS_IN_USE), which keeps deposits and deliveries attributable; Gyld's ledger is per
+#        legal entity, so request a separate whitelisted deposit address per strategy per chain before runDestinations.
+#        When one strategy must be the ledger's only funder (hub model), AS MANAGER:
+#          --sig 'runSolePrincipal(uint256,uint64,address,address)' <env> <chainId> <inTransit> <strategy>   # zero clears
 #     9. hand the roles over (MANAGER -> GOVERNOR, RECONCILER -> the reconciler bot, admin -> SUPER_GOVERNOR):
 #          forge script script/TransferGyldInTransitRegistryRoles.s.sol:TransferGyldInTransitRegistryRoles \
 #            --sig 'run(uint256,uint64,address,address)' <env> <chainId> <inTransit> <reconciler>
