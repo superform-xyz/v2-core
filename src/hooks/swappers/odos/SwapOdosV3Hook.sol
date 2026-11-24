@@ -9,6 +9,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { SuperVaultSupplyPin } from "../SuperVaultSupplyPin.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
@@ -39,6 +40,7 @@ import {
 ///      for swap execution. The executor must be trusted -- off-chain validation via inspect() is recommended.
 contract SwapOdosV3Hook is
     BaseHook,
+    SuperVaultSupplyPin,
     ISuperHookSwap,
     ISuperHookContextAware,
     ISuperHookInflowOutflow,
@@ -252,11 +254,13 @@ contract SwapOdosV3Hook is
 
     /// @inheritdoc BaseHook
     function _preExecute(address, address account, bytes calldata data) internal override {
+        _pinVaultSupply(account);
         _setOutAmount(_getBalance(account, data), account);
     }
 
     /// @inheritdoc BaseHook
     function _postExecute(address, address account, bytes calldata data) internal override {
+        _requireVaultSupplyUnchanged(account);
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }

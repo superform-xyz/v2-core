@@ -10,6 +10,7 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { SuperVaultSupplyPin } from "../SuperVaultSupplyPin.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
@@ -37,7 +38,7 @@ import {
 /// @notice         bool      usePrevHookAmount  = _decodeBool(data, 188);
 /// @notice         uint256   payload_paramLength = BytesLib.toUint256(data, 189);
 /// @notice         bytes     payload            = BytesLib.slice(data, 221, payload_paramLength);
-contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract Swap1InchHook is BaseHook, SuperVaultSupplyPin, ISuperHookSwap, ISuperHookContextAware, ISuperHookInflowOutflow, ISuperHookOutflow {
     using ProtocolLib for Address;
     using AddressLib for Address;
     using SafeCast for uint256;
@@ -226,10 +227,12 @@ contract Swap1InchHook is BaseHook, ISuperHookSwap, ISuperHookContextAware, ISup
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
+        _pinVaultSupply(account);
         _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
+        _requireVaultSupplyUnchanged(account);
         _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
         _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }

@@ -46,6 +46,8 @@ contract KyberSwapUnitTests is Helpers {
 
         // Deploy a mock router (just need an address for constructor)
         kyberRouter = address(new MockKyberRouter());
+        // SUP-21772: the hook refuses any approveTarget other than the router (or zero, which falls back to it)
+        approveTarget = kyberRouter;
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
@@ -145,10 +147,10 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory payload = abi.encode(txData_);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(native),      // inputToken = native
+            bytes20(native), // inputToken = native
             bytes20(outputToken),
             bytes32(uint256(1 ether)), // inputAmount
-            bytes32(uint256(0)),       // outputQuote
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(0)),
             bytes32(payload.length),
@@ -180,10 +182,10 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory payload = abi.encode(txData_);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(native),      // inputToken = native
+            bytes20(native), // inputToken = native
             bytes20(outputToken),
             bytes32(uint256(1 ether)), // inputAmount
-            bytes32(uint256(0)),       // outputQuote
+            bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
             bytes1(uint8(1)), // usePrevHookAmount = true
             bytes32(payload.length),
@@ -239,6 +241,26 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory approveCallData0 = executions[1].callData;
         (address spender0,) = abi.decode(_sliceBytes(approveCallData0, 4), (address, uint256));
         assertEq(spender0, approveTarget);
+    }
+
+    /// @dev SUP-21772: a payload naming a third party as approveTarget would hand it the account's allowance for the
+    ///      batch; `swap()` never consumes approveTarget, so nothing legitimate needs it. Refused at build.
+    function test_ApproveAndSwapHook_Build_RevertIf_ApproveTargetIsNotTheRouter() public {
+        bytes memory txData_ = _buildKyberTxDataWithApproveTarget(makeAddr("thirdParty"));
+        bytes memory payload = abi.encode(txData_);
+        bytes memory data = bytes.concat(
+            bytes(new bytes(52)),
+            bytes20(inputToken),
+            bytes20(outputToken),
+            bytes32(inputAmount),
+            bytes32(uint256(0)),
+            bytes32(outputMin),
+            bytes1(uint8(0)),
+            bytes32(payload.length),
+            payload
+        );
+        vm.expectRevert(ApproveAndSwapKyberSwapHook.INVALID_APPROVE_TARGET.selector);
+        approveAndSwapHook.build(address(prevHook), account, data);
     }
 
     function test_ApproveAndSwapHook_Build_ApproveTarget_FallbackToRouter() public view {
@@ -328,8 +350,8 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory payload = abi.encode(txData_);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
-            bytes20(inputToken),  // inputToken
-            bytes20(NATIVE),      // outputToken = native ETH
+            bytes20(inputToken), // inputToken
+            bytes20(NATIVE), // outputToken = native ETH
             bytes32(inputAmount),
             bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
@@ -352,7 +374,7 @@ contract KyberSwapUnitTests is Helpers {
         bytes memory data = bytes.concat(
             bytes(new bytes(52)), // 52-byte placeholder
             bytes20(inputToken),
-            bytes20(NATIVE),      // outputToken = native ETH
+            bytes20(NATIVE), // outputToken = native ETH
             bytes32(inputAmount),
             bytes32(uint256(0)), // outputQuote
             bytes32(outputMin),
@@ -549,7 +571,8 @@ contract KyberSwapUnitTests is Helpers {
     function test_ApproveAndSwapKyberSwap_ReplaceCalldataAmounts_PreservesOtherFields() public view {
         bytes memory data = _buildApproveAndSwapData(false);
         bytes memory replaced = approveAndSwapHook.replaceCalldataAmounts(data, _singleAmount(999));
-        // Verify bytes before AMOUNT_POSITION (92) are unchanged (52-byte placeholder + inputToken(20) + outputToken(20))
+        // Verify bytes before AMOUNT_POSITION (92) are unchanged (52-byte placeholder + inputToken(20) +
+        // outputToken(20))
         for (uint256 i = 0; i < 92; i++) {
             assertEq(replaced[i], data[i]);
         }
@@ -582,7 +605,7 @@ contract KyberSwapUnitTests is Helpers {
 
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0: 52-byte placeholder
-            bytes20(inputToken),  // Layer 1
+            bytes20(inputToken), // Layer 1
             bytes20(outputToken),
             bytes32(inputAmount),
             bytes32(uint256(0)), // outputQuote (unused by KyberSwap hook)
@@ -602,7 +625,7 @@ contract KyberSwapUnitTests is Helpers {
 
         return bytes.concat(
             bytes(new bytes(52)), // Layer 0: 52-byte placeholder
-            bytes20(inputToken),  // Layer 1
+            bytes20(inputToken), // Layer 1
             bytes20(outputToken),
             bytes32(inputAmount),
             bytes32(uint256(0)), // outputQuote (unused by KyberSwap hook)

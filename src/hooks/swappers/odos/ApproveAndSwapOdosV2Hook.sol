@@ -9,6 +9,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { SuperVaultSupplyPin } from "../SuperVaultSupplyPin.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataUpdater } from "../../../libraries/HookDataUpdater.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
@@ -37,6 +38,7 @@ import {
 /// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 contract ApproveAndSwapOdosV2Hook is
     BaseHook,
+    SuperVaultSupplyPin,
     ISuperHookSwap,
     ISuperHookContextAware,
     ISuperHookInflowOutflow,
@@ -239,10 +241,12 @@ contract ApproveAndSwapOdosV2Hook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
+        _pinVaultSupply(account);
         _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
+        _requireVaultSupplyUnchanged(account);
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }

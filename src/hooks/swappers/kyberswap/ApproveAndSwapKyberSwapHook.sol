@@ -10,6 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { SuperVaultSupplyPin } from "../SuperVaultSupplyPin.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { KyberSwapScaler } from "../../../libraries/KyberSwapScaler.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
@@ -38,6 +39,7 @@ import {
 /// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 contract ApproveAndSwapKyberSwapHook is
     BaseHook,
+    SuperVaultSupplyPin,
     ISuperHookSwap,
     ISuperHookContextAware,
     ISuperHookInflowOutflow,
@@ -59,6 +61,9 @@ contract ApproveAndSwapKyberSwapHook is
 
     /// @notice Thrown when dstToken in txData does not match the expected outputToken
     error OUTPUT_TOKEN_MISMATCH();
+    /// @notice Thrown when the payload's approveTarget is neither zero nor KYBER_ROUTER. `swap()` does not consume
+    ///         approveTarget, so any other value only hands a third party an allowance for the batch
+    error INVALID_APPROVE_TARGET();
 
     constructor(
         address router_,
@@ -245,10 +250,12 @@ contract ApproveAndSwapKyberSwapHook is
     //////////////////////////////////////////////////////////////*/
 
     function _preExecute(address, address account, bytes calldata data) internal override {
+        _pinVaultSupply(account);
         _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
+        _requireVaultSupplyUnchanged(account);
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
@@ -265,13 +272,15 @@ contract ApproveAndSwapKyberSwapHook is
         return IERC20(outputToken).balanceOf(account);
     }
 
-    /// @dev Extracts approveTarget and dstToken from decoded txData. Falls back to KYBER_ROUTER if approveTarget is zero.
+    /// @dev Extracts approveTarget and dstToken from decoded txData. Falls back to KYBER_ROUTER if approveTarget is zero;
+    ///      any other target is refused (SUP-21772).
     function _getApproveTargetAndDstToken(bytes memory txData_) private view returns (address, address) {
         IMetaAggregationRouterV2.SwapExecutionParams memory params = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         address approveTarget = params.approveTarget == address(0) ? address(KYBER_ROUTER) : params.approveTarget;
+        if (approveTarget != address(KYBER_ROUTER)) revert INVALID_APPROVE_TARGET();
         return (approveTarget, address(params.desc.dstToken));
     }
 }
