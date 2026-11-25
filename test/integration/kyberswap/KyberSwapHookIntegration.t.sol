@@ -6,9 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { SwapKyberSwapHook } from "../../../src/hooks/swappers/kyberswap/SwapKyberSwapHook.sol";
-import {
-    ApproveAndSwapKyberSwapHook
-} from "../../../src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol";
+import { ApproveAndSwapKyberSwapHook } from "../../../src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol";
 import { IMetaAggregationRouterV2 } from "../../../src/vendor/kyberswap/IMetaAggregationRouterV2.sol";
 import { ISuperHook, ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
 import { IScaleHelper } from "../../../src/vendor/kyberswap/IScaleHelper.sol";
@@ -109,11 +107,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: callTarget_,
-            approveTarget: approveTarget_,
-            clientData: "",
-            desc: desc,
-            targetData: targetData_
+            callTarget: callTarget_, approveTarget: approveTarget_, clientData: "", desc: desc, targetData: targetData_
         });
 
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -334,8 +328,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         // Simulate a pre-existing stale approval (USDT requires approve(0) before changing)
         // Use low-level call since USDT doesn't return bool
-        (bool preApproveOk,) =
-            USDT.call(abi.encodeWithSelector(IERC20.approve.selector, KYBER_ROUTER, uint256(500e6)));
+        (bool preApproveOk,) = USDT.call(abi.encodeWithSelector(IERC20.approve.selector, KYBER_ROUTER, uint256(500e6)));
         assertTrue(preApproveOk, "pre-approve should succeed");
 
         // Execute approve(0) - critical for USDT to reset stale approval
@@ -456,23 +449,19 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
              APPROVE TARGET EXTRACTION FROM REAL TX DATA
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Verify approveTarget is correctly extracted when different from callTarget
-    function test_ApproveAndSwapHook_DifferentApproveTarget() public {
+    /// @notice SUP-21772: an approveTarget other than the router is IGNORED. The real router's `swap()` never
+    ///         consumes the field, so the account's allowance goes to the router only, never to the payload's target.
+    function test_ApproveAndSwapHook_DifferentApproveTarget_IsIgnored() public {
         address callTarget_ = makeAddr("dexPool");
         address approveTarget_ = makeAddr("tokenTransferProxy");
 
-        bytes memory txData_ =
-            _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, callTarget_, approveTarget_, "");
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, callTarget_, approveTarget_, "");
 
         bytes memory hookData = _buildApproveAndSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
 
         Execution[] memory executions = approveAndSwapHook.build(address(0), account, hookData);
-
-        // Verify approvals go to approveTarget, not callTarget
-        abi.decode(_sliceBytes(executions[1].callData, 4), (address, uint256));
         (address approveSpender,) = abi.decode(_sliceBytes(executions[2].callData, 4), (address, uint256));
-
-        assertEq(approveSpender, approveTarget_, "approve should target approveTarget from txData");
+        assertEq(approveSpender, KYBER_ROUTER, "allowance goes to the router, not the payload's approveTarget");
     }
 
     /// @notice Verify fallback to KYBER_ROUTER when approveTarget is zero
@@ -523,8 +512,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory swapCalldata = executions[1].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory decoded = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         // Proportional fallback should have updated desc.amount
@@ -600,8 +588,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         // Decode the swap calldata to verify desc.amount was updated
         bytes memory swapCalldata = executions[3].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory params = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         assertEq(params.desc.amount, prevAmount, "desc.amount should be updated to prevHook amount");
@@ -625,8 +612,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         // Decode the swap calldata to verify desc.amount was updated
         bytes memory swapCalldata = executions[1].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory params = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         assertEq(params.desc.amount, prevAmount, "desc.amount should be updated to prevHook amount");
@@ -713,11 +699,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: KYBER_ROUTER,
-            approveTarget: KYBER_ROUTER,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: KYBER_ROUTER, approveTarget: KYBER_ROUTER, clientData: "", desc: desc, targetData: ""
         });
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -770,11 +752,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: KYBER_ROUTER,
-            approveTarget: KYBER_ROUTER,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: KYBER_ROUTER, approveTarget: KYBER_ROUTER, clientData: "", desc: desc, targetData: ""
         });
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -786,8 +764,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         // Decode the swap calldata and verify srcAmounts are scaled
         bytes memory swapCalldata = executions[1].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory decoded = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         assertEq(decoded.desc.amount, prevAmount, "desc.amount should be prevAmount");
@@ -831,11 +808,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: KYBER_ROUTER,
-            approveTarget: KYBER_ROUTER,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: KYBER_ROUTER, approveTarget: KYBER_ROUTER, clientData: "", desc: desc, targetData: ""
         });
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -882,11 +855,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: KYBER_ROUTER,
-            approveTarget: KYBER_ROUTER,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: KYBER_ROUTER, approveTarget: KYBER_ROUTER, clientData: "", desc: desc, targetData: ""
         });
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -898,8 +867,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         // Decode swap calldata
         bytes memory swapCalldata = executions[3].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory decoded = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         // 990e6 * 2000e6 / 1000e6 = 1980e6
@@ -942,11 +910,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: KYBER_ROUTER,
-            approveTarget: KYBER_ROUTER,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: KYBER_ROUTER, approveTarget: KYBER_ROUTER, clientData: "", desc: desc, targetData: ""
         });
 
         bytes memory txData_ = abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -958,8 +922,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         // Decode swap calldata (execution[1] is the swap, [0] is preExecute, [2] is postExecute)
         bytes memory swapCalldata = executions[1].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory decoded = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         // 990e6 * 2000e6 / 1000e6 = 1980e6
@@ -975,8 +938,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
     /// @notice Verify decodeUsePrevHookAmount works with real hook data
     function test_SwapHook_DecodeUsePrevHookAmount_OnFork() public view {
-        bytes memory txData_ =
-            _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookDataFalse = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
         bytes memory hookDataTrue = _buildSwapHookData(USDC, WETH, 1000e6, 0.3 ether, true, txData_);
@@ -987,8 +949,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
     /// @notice Verify decodeUsePrevHookAmount works with ApproveAndSwap hook data
     function test_ApproveAndSwapHook_DecodeUsePrevHookAmount_OnFork() public view {
-        bytes memory txData_ =
-            _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, 1000e6, 0.3 ether, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookDataFalse = _buildApproveAndSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
         bytes memory hookDataTrue = _buildApproveAndSwapHookData(USDC, WETH, 1000e6, 0.3 ether, true, txData_);
@@ -1070,8 +1031,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory swapCalldata = executions[1].callData;
         IMetaAggregationRouterV2.SwapExecutionParams memory decoded = abi.decode(
-            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4),
-            (IMetaAggregationRouterV2.SwapExecutionParams)
+            BytesLib.slice(swapCalldata, 4, swapCalldata.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
 
         assertEq(decoded.desc.amount, prevAmount, "desc.amount should be updated");
@@ -1091,8 +1051,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         MockHook prevHookMock = new MockHook(ISuperHook.HookType.NONACCOUNTING, USDC);
         prevHookMock.setOutAmount(prevAmount, account);
 
-        bytes memory txData_ =
-            _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookData = _buildApproveAndSwapHookData(USDC, WETH, originalAmount, 0, true, txData_);
 
@@ -1156,8 +1115,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     function test_SwapHook_RevertIf_OriginalAmountZero_OnFork() public {
         uint256 inputAmount = 0; // zero original
         uint256 minReturn = 0;
-        bytes memory txData_ =
-            _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
+        bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, inputAmount, minReturn, KYBER_ROUTER, KYBER_ROUTER, "");
 
         bytes memory hookData = _buildSwapHookData(USDC, WETH, inputAmount, minReturn, true, txData_);
 
@@ -1177,8 +1135,7 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
         uint256 originalAmount = 1000e6;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");
 
-        bytes memory hookData =
-            _buildApproveAndSwapHookData(USDC, WETH, originalAmount, 0.2 ether, false, txData_);
+        bytes memory hookData = _buildApproveAndSwapHookData(USDC, WETH, originalAmount, 0.2 ether, false, txData_);
 
         // Verify decodeAmount reads correctly
         assertEq(approveAndSwapHook.decodeAmounts(hookData)[0], originalAmount, "decodeAmount mismatch");
@@ -1194,7 +1151,8 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
     }
 
     /// @notice decodeAmount + replaceCalldataAmount roundtrip for SwapKyberSwapHook
-    /// @dev SwapKyberSwapHook 3-layer layout: header(52) | inputToken(20) | outputToken(20) | inputAmount(32) | outputQuote(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
+    /// @dev SwapKyberSwapHook 3-layer layout: header(52) | inputToken(20) | outputToken(20) | inputAmount(32) |
+    /// outputQuote(32) | outputMin(32) | usePrevHookAmount(1) | txDataLength(32) | txData
     function test_Swap_DecodeAmounts_ReplaceCalldataAmounts() public {
         uint256 originalAmount = 2000e6;
         bytes memory txData_ = _buildKyberSwapTxData(USDC, WETH, originalAmount, 0, KYBER_ROUTER, KYBER_ROUTER, "");

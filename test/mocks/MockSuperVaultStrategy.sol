@@ -52,6 +52,26 @@ contract MockSuperVaultStrategy {
     receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
+                      SUPERVAULT STRATEGY IDENTITY
+    //////////////////////////////////////////////////////////////*/
+
+    error VAULT_NOT_SET();
+
+    /// @notice The vault this mock strategy belongs to (zero = behaves like a plain account for getVaultInfo)
+    address public vault;
+
+    function setVault(address vault_) external {
+        vault = vault_;
+    }
+
+    /// @notice Mirrors SuperVaultStrategy.getVaultInfo; reverts while unset so existing consumers keep reading
+    ///         "not a SuperVault strategy" (the swap hooks' supply pin is then a no-op)
+    function getVaultInfo() external view returns (address, address, uint8) {
+        if (vault == address(0)) revert VAULT_NOT_SET();
+        return (vault, address(0), 18);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               CONFIGURATION
     //////////////////////////////////////////////////////////////*/
 
@@ -111,12 +131,8 @@ contract MockSuperVaultStrategy {
                 revert OPERATION_FAILED();
             }
 
-            prevHook = _processSingleHookExecution(
-                hook,
-                prevHook,
-                args.hookCalldata[i],
-                args.expectedAssetsOrSharesOut[i]
-            );
+            prevHook =
+                _processSingleHookExecution(hook, prevHook, args.hookCalldata[i], args.expectedAssetsOrSharesOut[i]);
         }
 
         emit HooksExecuted(args.hooks);

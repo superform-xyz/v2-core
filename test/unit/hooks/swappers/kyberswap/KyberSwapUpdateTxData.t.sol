@@ -45,11 +45,13 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         outputToken = address(_outputToken);
 
         kyberRouter = address(new MockKyberRouterForUpdateTest());
+        approveTarget = kyberRouter; // SUP-21772: the payload field is ignored; the router is always the spender
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
         swapHook = new SwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        approveAndSwapHook = new ApproveAndSwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveAndSwapHook =
+            new ApproveAndSwapKyberSwapHook(kyberRouter, address(0), 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     }
 
     /// @notice Tests that when usePrevHookAmount=true and prevAmount doubles,
@@ -299,10 +301,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
                          HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _buildKyberTxDataWithAmounts(
-        uint256 amount,
-        uint256 minReturnAmount
-    )
+    function _buildKyberTxDataWithAmounts(uint256 amount, uint256 minReturnAmount)
         internal
         view
         returns (bytes memory)
@@ -331,11 +330,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: callTarget,
-            approveTarget: approveTarget,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: callTarget, approveTarget: approveTarget, clientData: "", desc: desc, targetData: ""
         });
 
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -377,11 +372,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: callTarget,
-            approveTarget: approveTarget,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: callTarget, approveTarget: approveTarget, clientData: "", desc: desc, targetData: ""
         });
 
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));
@@ -414,9 +405,8 @@ contract MockScaleHelperSuccess is IScaleHelper {
         returns (bool isSuccess, bytes memory newScaledData)
     {
         // Decode, update amount, add marker in clientData to prove ScaleHelper was used
-        IMetaAggregationRouterV2.SwapExecutionParams memory params = abi.decode(
-            inputData[4:], (IMetaAggregationRouterV2.SwapExecutionParams)
-        );
+        IMetaAggregationRouterV2.SwapExecutionParams memory params =
+            abi.decode(inputData[4:], (IMetaAggregationRouterV2.SwapExecutionParams));
 
         params.desc.amount = newAmount;
         params.desc.minReturnAmount = Math.mulDiv(params.desc.minReturnAmount, newAmount, params.desc.amount);
@@ -475,6 +465,7 @@ contract KyberSwapScaleHelperTest is Helpers {
         outputToken = address(_outputToken);
 
         kyberRouter = address(new MockKyberRouterForUpdateTest());
+        approveTarget = kyberRouter; // SUP-21772: the payload field is ignored; the router is always the spender
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
@@ -482,10 +473,15 @@ contract KyberSwapScaleHelperTest is Helpers {
         address scaleHelperFail = address(new MockScaleHelperFail());
         address scaleHelperRevert = address(new MockScaleHelperRevert());
 
-        swapHookWithScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperSuccess, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        swapHookWithFailingScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperFail, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        swapHookWithRevertingScaleHelper = new SwapKyberSwapHook(kyberRouter, scaleHelperRevert, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-        approveHookWithScaleHelper = new ApproveAndSwapKyberSwapHook(kyberRouter, scaleHelperSuccess, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapHookWithScaleHelper =
+            new SwapKyberSwapHook(kyberRouter, scaleHelperSuccess, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapHookWithFailingScaleHelper =
+            new SwapKyberSwapHook(kyberRouter, scaleHelperFail, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        swapHookWithRevertingScaleHelper =
+            new SwapKyberSwapHook(kyberRouter, scaleHelperRevert, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        approveHookWithScaleHelper = new ApproveAndSwapKyberSwapHook(
+            kyberRouter, scaleHelperSuccess, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+        );
     }
 
     /// @notice When ScaleHelper succeeds, its output should be used (verified via clientData marker)
@@ -648,11 +644,7 @@ contract KyberSwapScaleHelperTest is Helpers {
         });
 
         IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
-            callTarget: callTarget,
-            approveTarget: approveTarget,
-            clientData: "",
-            desc: desc,
-            targetData: ""
+            callTarget: callTarget, approveTarget: approveTarget, clientData: "", desc: desc, targetData: ""
         });
 
         return abi.encodePacked(IMetaAggregationRouterV2.swap.selector, abi.encode(params));

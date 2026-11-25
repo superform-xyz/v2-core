@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { BaseHook } from "../../BaseHook.sol";
+import { SuperVaultSupplyPin } from "../SuperVaultSupplyPin.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { SwapCalldataLayout } from "../../../libraries/SwapCalldataLayout.sol";
@@ -36,6 +37,7 @@ import {
 /// @notice         bytes     payload          = BytesLib.slice(data, 221, payload_paramLength);
 contract ApproveAndSwapOpenOceanHook is
     BaseHook,
+    SuperVaultSupplyPin,
     ISuperHookSwap,
     ISuperHookContextAware,
     ISuperHookInflowOutflow,
@@ -250,10 +252,12 @@ contract ApproveAndSwapOpenOceanHook is
     // ─── Internal ────────────────────────────────────────────────────────────
 
     function _preExecute(address, address account, bytes calldata data) internal override {
+        _pinVaultSupply(account);
         _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
+        _requireVaultSupplyUnchanged(account);
         _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         _setOutToken(BytesLib.toAddress(data, SwapCalldataLayout.OUTPUT_TOKEN_OFFSET), account);
     }
