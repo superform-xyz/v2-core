@@ -103,11 +103,14 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     struct GyldHookAddresses {
         address gyldBondRegistry;
+        address gyldInTransitRegistry;
         address gyldBondYieldSourceOracle;
         address gyldTradeGuardHook;
         address gyldTradePolicy;
         address approveAndTradeGyldBondCashInHook;
         address approveAndTradeGyldBondBondInHook;
+        address gyldInvestorDepositHook;
+        address gyldInvestorRedeemHook;
     }
 
     struct DETHHookAddresses {
@@ -1889,14 +1892,29 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         require(hookAddresses.gyldBondRegistry != address(0), "GyldBondRegistry not assigned");
 
-        // ---- 2. The oracle, over that registry ----
+        // ---- 1b. The in-transit registry (Investor API, SUP-21848), over that registry ----
+        // Always ships with the valuation half: the oracle pins it in an immutable, so it must exist before
+        // the oracle even on a chain where the investor hooks themselves stay disabled. Inert until a
+        // MANAGER sets destinations, a transit age and a per-instrument cap.
+        hookAddresses.gyldInTransitRegistry = __deployContract(
+            GYLD_IN_TRANSIT_REGISTRY_KEY,
+            chainId,
+            __getSalt(GYLD_IN_TRANSIT_REGISTRY_KEY),
+            abi.encodePacked(
+                __getOtherHooksBytecode("GyldInTransitRegistry", env),
+                abi.encode(DEPLOYER, hookAddresses.gyldBondRegistry)
+            )
+        );
+        require(hookAddresses.gyldInTransitRegistry != address(0), "GyldInTransitRegistry not assigned");
+
+        // ---- 2. The oracle, over that registry and the in-transit registry ----
         hookAddresses.gyldBondYieldSourceOracle = __deployContract(
             GYLD_BOND_YIELD_SOURCE_ORACLE_KEY,
             chainId,
             __getSalt(GYLD_BOND_YIELD_SOURCE_ORACLE_KEY),
             abi.encodePacked(
                 __getOtherHooksBytecode("GyldBondYieldSourceOracle", env),
-                abi.encode(ledgerConfig, hookAddresses.gyldBondRegistry)
+                abi.encode(ledgerConfig, hookAddresses.gyldBondRegistry, hookAddresses.gyldInTransitRegistry)
             )
         );
         require(hookAddresses.gyldBondYieldSourceOracle != address(0), "GyldBondYieldSourceOracle not assigned");
@@ -1949,6 +1967,45 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             // The policy reads this from the registry and REFUSES to trade while it is zero, so it is a
             // required post-deploy step rather than a nicety.
             console2.log("  TODO post-deploy: registry.setMaxPpsAge(GYLD_MAX_PPS_AGE) =", GYLD_MAX_PPS_AGE);
+        }
+
+        // ---- 3c. The Investor API hooks (SUP-21848), gated on their own flag ----
+        // No venue needed: they move tokens to Gyld-pinned destinations read from the in-transit registry.
+        // Gated separately because they are only useful once Gyld onboarding has returned a deposit address
+        // and a redeem holding wallet for the strategy; until then the registry is deployed and inert.
+        if (otherHooksConfiguration.gyldInvestorEnabled[chainId] && aggregator == address(0)) {
+            // the deposit hook's policy check needs the strategy pause: no aggregator row for this env, no hooks
+            console2.log("SKIPPED Gyld investor hooks: no SuperVaultAggregator for this env on chainId", chainId);
+        } else if (otherHooksConfiguration.gyldInvestorEnabled[chainId]) {
+            hookAddresses.gyldInvestorDepositHook = __deployContract(
+                GYLD_INVESTOR_DEPOSIT_HOOK_KEY,
+                chainId,
+                __getSalt(GYLD_INVESTOR_DEPOSIT_HOOK_KEY),
+                abi.encodePacked(
+                    __getOtherHooksBytecode("GyldInvestorDepositHook", env),
+                    abi.encode(hookAddresses.gyldInTransitRegistry, hookAddresses.gyldTradePolicy)
+                )
+            );
+            hookAddresses.gyldInvestorRedeemHook = __deployContract(
+                GYLD_INVESTOR_REDEEM_HOOK_KEY,
+                chainId,
+                __getSalt(GYLD_INVESTOR_REDEEM_HOOK_KEY),
+                abi.encodePacked(
+                    __getOtherHooksBytecode("GyldInvestorRedeemHook", env),
+                    abi.encode(hookAddresses.gyldInTransitRegistry)
+                )
+            );
+            require(hookAddresses.gyldInvestorDepositHook != address(0), "GyldInvestorDepositHook not assigned");
+            require(hookAddresses.gyldInvestorRedeemHook != address(0), "GyldInvestorRedeemHook not assigned");
+            if (verbose) {
+                console2.log(
+                    "  TODO post-deploy: ConfigureGyldInTransitRegistry.runDestinations + runTransitDefaults + runOracle (+ runSolePrincipal for a hub)"
+                );
+                console2.log("  TODO post-deploy: TransferGyldInTransitRegistryRoles; then AS GOVERNOR runCap + runFee");
+                console2.log("  TODO post-deploy: ConfigureGyldInTransitRegistry.runCheck before the first deposit");
+            }
+        } else if (verbose) {
+            console2.log("SKIPPED Gyld investor hooks: not enabled on chainId", chainId);
         }
 
         // ---- 4. The two trade instances, one per direction ----

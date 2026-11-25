@@ -22,11 +22,13 @@
 #   DeployV2OtherHooks.s.sol, e.g. runHyperCore/runFirelight/runSponsorship/runFeeSplitting/runGyld):
 #     TARGET_FAMILY=HyperCore ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
 #
-#   Gyld tokenized bonds are ONLY deployable this way, because both config tables in
-#   ConfigOtherHooks are deliberately empty and the generic `run` path therefore skips the family
-#   on every chain:
-#     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh staging deploy v2
-#   That ships the registry, oracle and guard, which are inert until an instrument is registered.
+#   Gyld tokenized bonds: enabled on Katana (gyldOracleEnabled + gyldInvestorEnabled in ConfigOtherHooks),
+#   so the generic `run` path ships the valuation half and the investor hooks there; elsewhere the family
+#   is skipped. A targeted redeploy:
+#     TARGET_FAMILY=Gyld ./script/run/deploy/deploy_v2_other_hooks_staging_prod.sh prod deploy v2
+#   Everything is inert until an instrument is registered and the in-transit registry is configured.
+#   STAGING on Katana has no SuperVaultAggregator row yet: the policy ships with a zero aggregator (WARNING)
+#   and the investor hooks are skipped until superVaultAggregatorsStaging[747474] is set.
 #   The two trade instances additionally need gyldSettlements[chainId] set to Gyld's venue address,
 #   which does not exist yet.
 #
@@ -54,9 +56,12 @@
 #            --sig 'run(uint256,uint64,address)' <env> <chainId> <registry>
 #        Its own NatSpec explains why this precedes instrument registration.
 #
-#     4. register each instrument, AS GOVERNOR. There is no script for this yet. Set
-#        maxEntryPremiumBps / maxExitDiscountBps IN THE InstrumentConfig here — registration accepts
-#        zero for both, and zero is what the policy reports as unconfigured.
+#     4. register each instrument, AS GOVERNOR. One tuple argument; both floors are REQUIRED non-zero by the
+#        script (registration itself accepts zero, and zero is what the policy reports as unconfigured):
+#          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
+#            --sig 'runRegisterInstrument(uint256,uint64,address,(address,address,uint8,address,address,bool,bool,int192,int192,int192,int192,uint256,uint256,address,uint256,uint16,uint16))' \
+#            <env> <chainId> <registry> '(<bond>,<navFeed>,<kind 0|1>,<cash>,<cashFeed|0x0>,<usdNav>,<obsTime>,<navMin>,<navMax>,<cashMin>,<cashMax>,<obsAge>,<pubAge>,<sequencerFeed|0x0>,<grace>,<entryBps>,<exitBps>)'
+#        Re-running for a registered bond is a no-op that checks the stored cash token and feed match.
 #
 #     5. only if step 4 left either tolerance at zero, or to recalibrate later, AS GOVERNOR:
 #          forge script script/ConfigureGyldBondRegistry.s.sol:ConfigureGyldBondRegistry \
@@ -82,6 +87,39 @@
 #
 #     7. register the guard and both trade instances in the periphery SuperGovernor, then add the
 #        leaves to the strategy's Merkle root. Both are periphery-side and outside this repo.
+#
+#   INVESTOR API HOOKS (SUP-21848), only once gyldInvestorEnabled[chainId] is set and Gyld onboarding
+#   has returned a deposit address and a redeem holding wallet for the strategy. The in-transit registry
+#   itself ships with the valuation half (the oracle pins it) and is inert until configured.
+#     8. AS DEPLOYER (still MANAGER_ROLE): destinations, the transit age, then the valuation oracle:
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runDestinations(uint256,uint64,address,address,address,address)' <env> <chainId> <inTransit> <strategy> <deposit> <holding>   # once per strategy
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runTransitDefaults(uint256,uint64,address)' <env> <chainId> <inTransit>
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runOracle(uint256,uint64,address,address)' <env> <chainId> <inTransit> <GyldBondYieldSourceOracle>
+#        Left unset -> every deposit and redeem leaf reverts DESTINATION_NOT_SET / TRANSIT_AGE_NOT_CONFIGURED, and
+#        without the oracle every mint / redemption settle reverts NAV_UNAVAILABLE.
+#        runDestinations prints the strategy's GyldDeliveryReceiver: hand THAT address to Gyld as the whitelisted
+#        withdrawal address and the mint wallet_address (deliveries to the strategy itself cannot be settled: book
+#        them with proposeManualSettle; rescueFromReceiver is for stray tokens and written-off lots only).
+#        runOracle sets the FIRST oracle immediately; a later change is proposed by runOracle and applied by
+#          --sig 'runOracleExecute(uint256,uint64,address)' <env> <chainId> <inTransit>   # after 2 days
+#        ONE DEPOSIT ADDRESS PER STRATEGY, NOT ONE LEDGER: the registry refuses a deposit address another strategy
+#        already uses (DEPOSIT_ADDRESS_IN_USE), which keeps deposits and deliveries attributable; Gyld's ledger is per
+#        legal entity, so request a separate whitelisted deposit address per strategy per chain before runDestinations.
+#        When one strategy must be the ledger's only funder (hub model), AS MANAGER:
+#          --sig 'runSolePrincipal(uint256,uint64,address,address)' <env> <chainId> <inTransit> <strategy>   # zero clears
+#     9. hand the roles over (MANAGER -> GOVERNOR, RECONCILER -> the reconciler bot, admin -> SUPER_GOVERNOR):
+#          forge script script/TransferGyldInTransitRegistryRoles.s.sol:TransferGyldInTransitRegistryRoles \
+#            --sig 'run(uint256,uint64,address,address)' <env> <chainId> <inTransit> <reconciler>
+#    10. per instrument, AS GOVERNOR, after registerInstrument: the two caps on cash at Gyld, per strategy and across
+#        all strategies (either at zero = deposits disabled):
+#          forge script script/ConfigureGyldInTransitRegistry.s.sol:ConfigureGyldInTransitRegistry \
+#            --sig 'runCap(uint256,uint64,address,address,uint256,uint256)' <env> <chainId> <inTransit> <bondToken> <perStrategyCap> <totalCap>
+#        and the expected upfront fee (netted from the valuation, tolerated by the settle tie):
+#            --sig 'runFee(uint256,uint64,address,address,uint256)' <env> <chainId> <inTransit> <bondToken> <bps>
+#    11. check: --sig 'runCheck(uint64,address,address[],address[])' <chainId> <inTransit> '[<strategy>,...]' '[<bondToken>,...]'
 #   Note: a targeted family run executes on every configured network; families with chain
 #   requirements revert (and are reported) on unsupported chains.
 #
@@ -311,6 +349,9 @@ GYLD_CONTRACTS=(
     "GyldTradePolicy"
     "GyldTradeGuardHook"
     "ApproveAndTradeGyldBondHook"
+    "GyldInTransitRegistry"
+    "GyldInvestorDepositHook"
+    "GyldInvestorRedeemHook"
 )
 
 missing_gyld=0

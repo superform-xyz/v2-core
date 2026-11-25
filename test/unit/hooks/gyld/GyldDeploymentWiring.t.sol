@@ -9,6 +9,9 @@ import { GyldTradeGuardHook } from "../../../../src/hooks/swappers/gyld/GyldTrad
 import { ApproveAndTradeGyldBondHook } from "../../../../src/hooks/swappers/gyld/ApproveAndTradeGyldBondHook.sol";
 import { GyldTradePolicy } from "../../../../src/accounting/oracles/GyldTradePolicy.sol";
 import { IGyldTradePolicy } from "../../../../src/interfaces/accounting/IGyldTradePolicy.sol";
+import { GyldInTransitRegistry } from "../../../../src/accounting/oracles/GyldInTransitRegistry.sol";
+import { GyldInvestorDepositHook } from "../../../../src/hooks/gyld/GyldInvestorDepositHook.sol";
+import { GyldInvestorRedeemHook } from "../../../../src/hooks/gyld/GyldInvestorRedeemHook.sol";
 
 /// @notice Exposes the deploy script's Gyld path and its configuration so the WIRING can be exercised,
 ///         not a copy of it.
@@ -57,6 +60,34 @@ contract GyldWiringHarness is DeployV2OtherHooks {
     /// @dev The valuation half alone: enabled, no venue, no caps.
     function enableOracleOnly(uint64 chainId) external {
         otherHooksConfiguration.gyldOracleEnabled[chainId] = true;
+    }
+
+    function investorEnabled(uint64 chainId) external view returns (bool) {
+        return otherHooksConfiguration.gyldInvestorEnabled[chainId];
+    }
+
+    function enableInvestor(uint64 chainId) external {
+        otherHooksConfiguration.gyldInvestorEnabled[chainId] = true;
+    }
+
+    function disableInvestor(uint64 chainId) external {
+        otherHooksConfiguration.gyldInvestorEnabled[chainId] = false;
+    }
+
+    function stagingAggregator(uint64 chainId) external view returns (address) {
+        return otherHooksConfiguration.superVaultAggregatorsStaging[chainId];
+    }
+
+    function inTransitKey() external pure returns (string memory) {
+        return GYLD_IN_TRANSIT_REGISTRY_KEY;
+    }
+
+    function investorDepositKey() external pure returns (string memory) {
+        return GYLD_INVESTOR_DEPOSIT_HOOK_KEY;
+    }
+
+    function investorRedeemKey() external pure returns (string memory) {
+        return GYLD_INVESTOR_REDEEM_HOOK_KEY;
     }
 
     function setAggregator(uint64 chainId, address aggregator_) external {
@@ -124,6 +155,7 @@ contract GyldDeploymentWiringTest is Test {
     uint64 internal constant HYPEREVM = 999;
     uint64 internal constant BNB = 56;
     uint256 internal constant ENV_PROD = 0;
+    uint256 internal constant ENV_STAGING = 1;
 
     address internal constant VENUE = address(0xBEEF);
     uint256 internal constant CASH_CAP = 500_000e6;
@@ -141,9 +173,9 @@ contract GyldDeploymentWiringTest is Test {
     /// @dev Gyld's settlement contract and NAV feed are deployed nowhere, and three high-severity review
     ///      findings are open, so a routine deploy run must ship none of this. If someone enables a chain,
     ///      this test fails and they have to update it deliberately, which is the point.
-    function test_FamilyIsDisabledOnEveryChain() public view {
-        // Every chain in networks-production.sh, not a sample: the point of this test is that enabling ANY
-        // chain fails it, and a 5-chain sample left 13 chains able to be enabled silently.
+    function test_FamilyIsEnabledOnKatanaOnly_TradingHalfNowhere() public view {
+        // Every chain in networks-production.sh, not a sample: enabling ANY other chain, or the trading half
+        // anywhere, fails this test rather than slipping in silently.
         uint64[18] memory chains = [
             KATANA,
             MAINNET,
@@ -165,7 +197,8 @@ contract GyldDeploymentWiringTest is Test {
             uint64(4663) // Robinhood
         ];
         for (uint256 i; i < chains.length; ++i) {
-            assertFalse(h.oracleEnabled(chains[i]), "valuation half must be disabled");
+            assertEq(h.oracleEnabled(chains[i]), chains[i] == KATANA, "valuation half enabled on Katana only");
+            assertEq(h.investorEnabled(chains[i]), chains[i] == KATANA, "investor hooks enabled on Katana only");
             assertEq(h.settlement(chains[i]), address(0), "no venue address may be configured yet");
             assertEq(h.cashCap(chains[i]), 0, "no cash cap may be configured yet");
             assertEq(h.bondCap(chains[i]), 0, "no bond cap may be configured yet");
@@ -619,5 +652,84 @@ contract GyldDeploymentWiringTest is Test {
         string memory path = "src/accounting/oracles/GyldTradePolicy.sol";
         assertTrue(vm.isFile(path), "policy lives under src/accounting/oracles");
         assertFalse(vm.isFile("src/hooks/swappers/gyld/GyldTradePolicy.sol"), "and not under src/hooks");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    INVESTOR API HOOKS (SUP-21848)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_InvestorFamily_KatanaProdHasAnAggregator_StagingDoesNot() public view {
+        assertTrue(h.investorEnabled(KATANA));
+        assertFalse(h.investorEnabled(MAINNET));
+        assertEq(h.stagingAggregator(KATANA), address(0), "no staging aggregator row yet: staging skips the hooks");
+    }
+
+    /// @dev On an env with no aggregator row the valuation half still ships (zero aggregator, loud warning) but the
+    ///      investor hooks are skipped: their policy check needs the strategy pause.
+    function test_DeployPath_StagingWithoutAggregator_SkipsInvestorHooks() public {
+        _etchLedgerConfig();
+        vm.etch(h.ledgerConfigAddress(ENV_STAGING), hex"600160005260206000f3");
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_STAGING);
+        assertTrue(a.gyldInTransitRegistry != address(0), "valuation half ships");
+        assertTrue(a.gyldTradePolicy != address(0));
+        assertEq(a.gyldInvestorDepositHook, address(0), "no aggregator for this env: hooks skipped");
+        assertEq(a.gyldInvestorRedeemHook, address(0));
+        // prod on the same chain has the row and ships them
+        DeployV2OtherHooks.GyldHookAddresses memory p = h.deployGyld(KATANA, ENV_PROD);
+        assertTrue(p.gyldInvestorDepositHook != address(0) && p.gyldInvestorRedeemHook != address(0));
+    }
+
+    /// @dev The in-transit registry always ships with the valuation half and the oracle pins it; the two
+    ///      investor hooks stay out until their own flag is set.
+    function test_DeployPath_InTransitRegistryShipsWithTheOracle_HooksGated() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+        h.disableInvestor(KATANA); // the registry must ship even where the hooks themselves stay off
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertTrue(a.gyldInTransitRegistry != address(0), "in-transit registry ships with the valuation half");
+        assertEq(
+            address(GyldBondYieldSourceOracle(a.gyldBondYieldSourceOracle).IN_TRANSIT()),
+            a.gyldInTransitRegistry,
+            "oracle must pin THIS in-transit registry"
+        );
+        assertEq(
+            address(GyldInTransitRegistry(a.gyldInTransitRegistry).BOND_REGISTRY()),
+            a.gyldBondRegistry,
+            "in-transit registry must bind THIS bond registry"
+        );
+        GyldInTransitRegistry reg = GyldInTransitRegistry(a.gyldInTransitRegistry);
+        assertTrue(reg.hasRole(reg.MANAGER_ROLE(), h.deployer()), "DEPLOYER is manager at birth");
+        assertEq(reg.maxTransitAge(), 0, "inert until configured");
+        assertEq(address(reg.valuationOracle()), address(0), "NAV tie unwired until ConfigureGyldInTransitRegistry");
+        assertEq(reg.maxCashInTransit(address(1)), 0, "per-strategy cap zero at birth: deposits disabled");
+        assertEq(reg.maxTotalCashInTransit(address(1)), 0, "instrument-wide cap zero at birth: deposits disabled");
+        assertEq(reg.previewCashOut(h.deployer(), address(1), address(2), 1), 201, "every gate shut at birth");
+        assertEq(reg.depositAddressOf(h.deployer()), address(0), "no strategy has a pair at birth");
+        assertEq(a.gyldInvestorDepositHook, address(0), "no deposit hook without the flag");
+        assertEq(a.gyldInvestorRedeemHook, address(0), "no redeem hook without the flag");
+    }
+
+    function test_DeployPath_InvestorHooksPinTheDeployedDependencies() public {
+        _etchLedgerConfig();
+        h.enableOracleOnly(KATANA);
+        h.enableInvestor(KATANA);
+        DeployV2OtherHooks.GyldHookAddresses memory a = h.deployGyld(KATANA, ENV_PROD);
+        assertTrue(a.gyldInvestorDepositHook != address(0) && a.gyldInvestorRedeemHook != address(0));
+        GyldInvestorDepositHook d = GyldInvestorDepositHook(a.gyldInvestorDepositHook);
+        GyldInvestorRedeemHook r = GyldInvestorRedeemHook(a.gyldInvestorRedeemHook);
+        assertEq(address(d.IN_TRANSIT()), a.gyldInTransitRegistry);
+        assertEq(address(d.POLICY()), a.gyldTradePolicy);
+        assertEq(address(r.IN_TRANSIT()), a.gyldInTransitRegistry);
+        assertTrue(a.gyldInvestorDepositHook != a.gyldInvestorRedeemHook);
+        // the trade instances still need a venue; the investor hooks do not
+        assertEq(a.approveAndTradeGyldBondCashInHook, address(0));
+    }
+
+    function test_InvestorKeys_YieldDistinctSalts() public view {
+        bytes32 t = h.saltFor(h.inTransitKey());
+        bytes32 d = h.saltFor(h.investorDepositKey());
+        bytes32 r = h.saltFor(h.investorRedeemKey());
+        bytes32 o = h.saltFor(h.oracleKey());
+        assertTrue(t != d && d != r && t != r && t != o && d != o && r != o);
     }
 }

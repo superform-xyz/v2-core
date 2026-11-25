@@ -70,6 +70,9 @@ import { MarkRootAsUsedHook } from "../../../src/hooks/superform/MarkRootAsUsedH
 import { MorphoHealthCheckHook } from "../../../src/hooks/loan/morpho/MorphoHealthCheckHook.sol";
 import { ApproveAndTradeGyldBondHook } from "../../../src/hooks/swappers/gyld/ApproveAndTradeGyldBondHook.sol";
 import { GyldTradeGuardHook } from "../../../src/hooks/swappers/gyld/GyldTradeGuardHook.sol";
+import { GyldInvestorDepositHook } from "../../../src/hooks/gyld/GyldInvestorDepositHook.sol";
+import { GyldInvestorRedeemHook } from "../../../src/hooks/gyld/GyldInvestorRedeemHook.sol";
+import { GyldInTransitRegistry } from "../../../src/accounting/oracles/GyldInTransitRegistry.sol";
 import { GyldBondRegistry } from "../../../src/accounting/oracles/GyldBondRegistry.sol";
 import { GyldBondYieldSourceOracle } from "../../../src/accounting/oracles/GyldBondYieldSourceOracle.sol";
 import { GyldTradePolicy } from "../../../src/accounting/oracles/GyldTradePolicy.sol";
@@ -408,6 +411,8 @@ contract HookSizingInterfaceTest is Helpers {
     MorphoHealthCheckHook morphoHealthCheck;
     ApproveAndTradeGyldBondHook approveAndTradeGyldBond;
     GyldTradeGuardHook gyldTradeGuard;
+    GyldInvestorDepositHook gyldInvestorDeposit;
+    GyldInvestorRedeemHook gyldInvestorRedeem;
     AaveV4HealthCheckHook aaveV4HealthCheck;
     OfframpTokensHook offrampTokens;
     EthenaUnstakeHook ethenaUnstake;
@@ -568,8 +573,9 @@ contract HookSizingInterfaceTest is Helpers {
         morphoHealthCheck = new MorphoHealthCheckHook(DUMMY_MORPHO);
         // Gyld: registry and oracle are plumbing for the two hooks, not hooks themselves.
         GyldBondRegistry gyldRegistry = new GyldBondRegistry(address(this));
+        GyldInTransitRegistry gyldInTransit = new GyldInTransitRegistry(address(this), address(gyldRegistry));
         GyldBondYieldSourceOracle gyldOracle =
-            new GyldBondYieldSourceOracle(address(this), address(gyldRegistry));
+            new GyldBondYieldSourceOracle(address(this), address(gyldRegistry), address(gyldInTransit));
         GyldTradePolicy gyldPolicy =
             new GyldTradePolicy(address(gyldRegistry), address(gyldOracle), address(0));
         approveAndTradeGyldBond =
@@ -577,6 +583,8 @@ contract HookSizingInterfaceTest is Helpers {
                 DUMMY_MORPHO, type(uint256).max, address(gyldPolicy), IGyldTradePolicy.TradeSide.BUY
             );
         gyldTradeGuard = new GyldTradeGuardHook(address(gyldOracle));
+        gyldInvestorDeposit = new GyldInvestorDepositHook(address(gyldInTransit), address(gyldPolicy));
+        gyldInvestorRedeem = new GyldInvestorRedeemHook(address(gyldInTransit));
         aaveV4HealthCheck = new AaveV4HealthCheckHook();
         offrampTokens = new OfframpTokensHook();
         ethenaUnstake = new EthenaUnstakeHook();
@@ -608,6 +616,10 @@ contract HookSizingInterfaceTest is Helpers {
         assertTrue(fetchNativeFee.supportsInterface(inflowOutflowId));
         assertTrue(approveAndTradeGyldBond.supportsInterface(inflowOutflowId));
         assertTrue(approveAndTradeGyldBond.supportsInterface(outflowId));
+        assertTrue(gyldInvestorDeposit.supportsInterface(inflowOutflowId));
+        assertTrue(gyldInvestorDeposit.supportsInterface(outflowId));
+        assertTrue(gyldInvestorRedeem.supportsInterface(inflowOutflowId));
+        assertTrue(gyldInvestorRedeem.supportsInterface(outflowId));
 
         // ASSETS hooks
         assertTrue(deposit4626.supportsInterface(inflowOutflowId));
@@ -676,6 +688,8 @@ contract HookSizingInterfaceTest is Helpers {
         _assertSingleMeta(wrappedNative.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(fetchNativeFee.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
         _assertSingleMeta(claimFailedTransfer.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        _assertSingleMeta(gyldInvestorDeposit.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
+        _assertSingleMeta(gyldInvestorRedeem.amountRoles(""), ISuperHookInflowOutflow.Direction.IN, ISuperHookInflowOutflow.Denomination.TOKEN);
     }
 
     function test_AmountRoles_TOKEN_Swappers() public view {

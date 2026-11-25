@@ -126,7 +126,7 @@ contract GyldTradePolicyTest is Test {
         nativeFeed.setFreshNav(address(bond), NAV);
 
         registry = new GyldBondRegistry(admin);
-        oracle = new GyldBondYieldSourceOracle(address(this), address(registry));
+        oracle = new GyldBondYieldSourceOracle(address(this), address(registry), address(0));
         aggregator = new MockSuperVaultStrategyState();
         aggregator.register(strategy);
         policy = new GyldTradePolicy(address(registry), address(oracle), address(aggregator));
@@ -229,7 +229,7 @@ contract GyldTradePolicyTest is Test {
     ///      deployments must fail safely" requirement. One comparison closes it at construction.
     function test_Constructor_RevertIf_OracleReadsADifferentRegistry() public {
         GyldBondRegistry other = new GyldBondRegistry(admin);
-        GyldBondYieldSourceOracle foreign = new GyldBondYieldSourceOracle(address(this), address(other));
+        GyldBondYieldSourceOracle foreign = new GyldBondYieldSourceOracle(address(this), address(other), address(0));
         vm.expectRevert(GyldTradePolicy.REGISTRY_MISMATCH.selector);
         new GyldTradePolicy(address(registry), address(foreign), address(aggregator));
     }

@@ -643,9 +643,29 @@ generate_constructor_args() {
         "GyldBondRegistry")
             echo "$(cast abi-encode "constructor(address)" "$deployer")"
             ;;
+        "GyldInTransitRegistry")
+            # Same admin-at-birth rule as GyldBondRegistry: DEPLOYER in the initcode regardless of the later
+            # role handover. NOTE: the registry deploys one GyldDeliveryReceiver per strategy from inside
+            # ConfigureGyldInTransitRegistry.runDestinations (constructor(address strategy), creator = the
+            # registry). Those are not in the deploy manifest; verify them per strategy by hand with
+            #   forge verify-contract <receiver> src/accounting/oracles/GyldDeliveryReceiver.sol:GyldDeliveryReceiver \
+            #     --constructor-args $(cast abi-encode "constructor(address)" <strategy>)
+            local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
+            echo "$(cast abi-encode "constructor(address,address)" "$deployer" "$gyld_registry")"
+            ;;
         "GyldBondYieldSourceOracle")
             local gyld_registry=$(get_contract_address "$chain_id" "GyldBondRegistry")
-            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$gyld_registry")"
+            local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
+            echo "$(cast abi-encode "constructor(address,address,address)" "$super_ledger_config" "$gyld_registry" "$gyld_in_transit")"
+            ;;
+        "GyldInvestorDepositHook")
+            local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
+            local gyld_policy=$(get_contract_address "$chain_id" "GyldTradePolicy")
+            echo "$(cast abi-encode "constructor(address,address)" "$gyld_in_transit" "$gyld_policy")"
+            ;;
+        "GyldInvestorRedeemHook")
+            local gyld_in_transit=$(get_contract_address "$chain_id" "GyldInTransitRegistry")
+            echo "$(cast abi-encode "constructor(address)" "$gyld_in_transit")"
             ;;
         "GyldTradeGuardHook")
             local gyld_oracle=$(get_contract_address "$chain_id" "GyldBondYieldSourceOracle")
@@ -959,6 +979,9 @@ get_contract_source() {
         "GyldBondYieldSourceOracle") echo "src/accounting/oracles/GyldBondYieldSourceOracle.sol" ;;
         "GyldTradePolicy") echo "src/accounting/oracles/GyldTradePolicy.sol" ;;
         "GyldTradeGuardHook") echo "src/hooks/swappers/gyld/GyldTradeGuardHook.sol" ;;
+        "GyldInTransitRegistry") echo "src/accounting/oracles/GyldInTransitRegistry.sol" ;;
+        "GyldInvestorDepositHook") echo "src/hooks/gyld/GyldInvestorDepositHook.sol" ;;
+        "GyldInvestorRedeemHook") echo "src/hooks/gyld/GyldInvestorRedeemHook.sol" ;;
         # Both trade directions are the SAME source file and the same contract; they differ only in
         # constructor args, so `get_artifact_contract_name` maps both keys onto the contract name.
         "ApproveAndTradeGyldBondCashInHook"|"ApproveAndTradeGyldBondBondInHook")

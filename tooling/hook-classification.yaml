@@ -336,6 +336,16 @@ hooks:
     actionTypes: [{intent: config, stage: instant}]
     legSizing: []  # sizeless — guard, moves nothing
 
+  # Gyld Investor API (non-RFQ, SUP-21848): plain transfers to Gyld-pinned destinations plus an in-transit
+  # record. `transfer/instant` is the honest on-chain effect; the broker fill and the later mint/payout are
+  # off-chain and nothing here waits for them.
+  GyldInvestorDepositHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: [sized]
+  GyldInvestorRedeemHook:
+    actionTypes: [{intent: transfer, stage: instant}]
+    legSizing: [sized]
+
   # Spark PSM
   SwapSparkPSMExactInHook:
     actionTypes: [{intent: swap, stage: instant}]

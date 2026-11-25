@@ -251,5 +251,19 @@ abstract contract ConstantsOtherHooks {
 
     address internal constant GYLD_CASH_TOKEN_KATANA = 0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36;
 
+    // ── Gyld Investor API (non-RFQ) hooks, SUP-21848 ──
+    /// @notice On-chain memory of cash / bonds in transit at Gyld through the Investor API; pinned deposit
+    ///         address and redeem holding wallet; per-instrument caps. Deployed BEFORE the oracle, which pins it.
+    string internal constant GYLD_IN_TRANSIT_REGISTRY_KEY = "GyldInTransitRegistry";
+    /// @notice Sends cash to the pinned Gyld deposit address and records it as in transit
+    string internal constant GYLD_INVESTOR_DEPOSIT_HOOK_KEY = "GyldInvestorDepositHook";
+    /// @notice Sends bond tokens to the pinned Gyld redeem holding wallet and records them as in transit
+    string internal constant GYLD_INVESTOR_REDEEM_HOOK_KEY = "GyldInvestorRedeemHook";
+    /// @notice Age after which an in-transit entry is valued at ZERO by the oracle and blocks new deposits.
+    /// @dev PROVISIONAL. Depends on Gyld's answer on market-hours / settlement cadence (asked 2026-11-13).
+    ///      Seeded post-deploy via `ConfigureGyldInTransitRegistry.runTransitDefaults`; the registry refuses
+    ///      every record while it is zero.
+    uint256 internal constant GYLD_MAX_TRANSIT_AGE = 14 days;
+
     // NOTE: Odos V3 hook keys and ODOS_ROUTER_V3 moved to Constants.sol (deployed via DeployV2Core)
 }
