@@ -13,6 +13,7 @@ import { IMetaAggregationRouterV2 } from "../../../src/vendor/kyberswap/IMetaAgg
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 import { ISuperHookSwap } from "../../../src/interfaces/ISuperHookSwap.sol";
 import { MockSuperVaultStrategy } from "../../mocks/MockSuperVaultStrategy.sol";
+import { MockHook } from "../../mocks/MockHook.sol";
 import { Constants } from "../../utils/Constants.sol";
 
 interface IOutAmountSetter {
@@ -51,6 +52,22 @@ contract SuperVaultLike is ERC20 {
     }
 }
 
+/// @dev Funds a route "paying itself" so the router's receiver-delta check can be met without the strategy seeing
+/// anything
+contract WethTreasury {
+    using SafeERC20 for IERC20;
+
+    IERC20 public immutable CASH;
+
+    constructor(IERC20 cash) {
+        CASH = cash;
+    }
+
+    function pay(address to, uint256 amount) external {
+        CASH.safeTransfer(to, amount);
+    }
+}
+
 /// @dev The payload's `callTarget`: Kyber's real `swap()` hands it the input leg (srcReceivers) and then calls
 ///      `callBytes(targetData)` on it with no whitelist. Each mode is one attempt to get past the pinned hook.
 contract AttackerExecutor {
@@ -69,7 +86,9 @@ contract AttackerExecutor {
         CONTEXT_BUMP_HONEST_FAKE_MAX, // pay honestly, bump the context, write outAmount = max (underflows the delta)
         DEPOSIT_FOR_STRATEGY, // deposit own cash for the STRATEGY as receiver
         DEPOSIT_THEN_TRANSFER_TO_STRATEGY, // deposit for self, hand the shares to the strategy
-        HONEST_PLUS_SELF_DEPOSIT // the documented false positive: real payout AND an unrelated own deposit
+        HONEST_PLUS_SELF_DEPOSIT, // the documented false positive: real payout AND an unrelated own deposit
+        HONEST_TO_ROUTER, // fee-on-dst path: the router receives first and forwards to the receiver itself
+        PAY_SELF // dstReceiver == the route: it pays ITSELF (from a treasury) so the router's receiver delta is met
     }
 
     IERC20 public immutable CASH; // the vault asset == the swap's output token
@@ -78,8 +97,13 @@ contract AttackerExecutor {
     address public immutable STRATEGY;
     address public immutable ATTACKER;
     ISuperHook public immutable HOOK;
+    address public TREASURY;
     Mode public mode;
     uint256 public amount;
+
+    function setTreasury(address treasury) external {
+        TREASURY = treasury;
+    }
 
     constructor(
         IERC20 cash,
@@ -146,6 +170,10 @@ contract AttackerExecutor {
             CASH.safeTransfer(STRATEGY, amount);
             CASH.forceApprove(address(VAULT), 1 ether);
             VAULT.deposit(1 ether, ATTACKER);
+        } else if (mode == Mode.HONEST_TO_ROUTER) {
+            CASH.safeTransfer(msg.sender, amount); // msg.sender is the router on this path
+        } else if (mode == Mode.PAY_SELF) {
+            WethTreasury(TREASURY).pay(address(this), amount);
         }
         // PAY_NOTHING: keep the input leg, pay nobody
     }
@@ -167,6 +195,8 @@ contract KyberSwapSupplyPinAttackTest is Test, Constants {
     uint256 internal constant LP_SHARES = 1000 ether;
     uint256 internal constant FORK_BLOCK = 26_400_000; // pinned: router code and whitelist state must not drift
     uint256 internal constant FLAG_PARTIAL_FILL = 0x01; // MetaAggregationRouterV2._PARTIAL_FILL
+    uint256 internal constant FLAG_FEE_ON_DST = 0x40; // MetaAggregationRouterV2._FEE_ON_DST: router receives, then
+    // forwards
     /// @dev swapGeneric(SwapExecutionParams), not in our vendor interface: the whitelisted entrypoint of the real
     /// router
     bytes4 internal constant SWAP_GENERIC = bytes4(
@@ -202,6 +232,9 @@ contract KyberSwapSupplyPinAttackTest is Test, Constants {
             IERC20(WETH), vault, otherVault, address(strategy), attacker, ISuperHook(address(hook))
         );
         deal(WETH, address(route), 10 ether);
+        WethTreasury treasury = new WethTreasury(IERC20(WETH));
+        deal(WETH, address(treasury), 10 ether);
+        route.setTreasury(address(treasury));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -432,18 +465,66 @@ contract KyberSwapSupplyPinAttackTest is Test, Constants {
         _assertNothingMoved();
     }
 
-    /// @notice dstReceiver pointed at the route itself: the router is satisfied (its receiver got paid) but the hook
-    ///         measures the strategy, whose delta is zero, so the strategy's own floor refuses
+    /// @notice dstReceiver pointed at the route itself, which pays itself: the ROUTER is satisfied (its receiver's
+    /// delta met the minimum) but the hook measures the STRATEGY, whose delta is zero, so the strategy's own floor
+    ///         is what refuses. The pin is not even reached: nothing credited the vault.
     function test_Attack_ReceiverIsTheRoute_StrategyFloorRefuses() public {
-        route.set(AttackerExecutor.Mode.HONEST, FLOOR); // "pays" itself: HONEST sends to STRATEGY, so use a custom
-        // receiver
+        route.set(AttackerExecutor.Mode.PAY_SELF, FLOOR);
         MockSuperVaultStrategy.ExecuteArgs memory args =
             _args(_txDataFull(IMetaAggregationRouterV2.swap.selector, address(0), address(route), 0));
-        // the route pays the strategy FLOOR (HONEST) while the router measures the route's own balance: router sees
-        // 0 delta on its receiver and refuses; either way nothing reaches the batch's floor
+        vm.expectRevert(MockSuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector);
+        strategy.executeHooks(args);
+        _assertNothingMoved();
+    }
+
+    /// @notice Fee-on-destination path: the router receives the output itself and forwards it to the receiver, but it
+    ///         still measures the receiver's delta. A deposit mid-route satisfies it; the pin refuses. An honest
+    ///         route paying the router passes.
+    function test_Attack_FeeOnDstPath_DepositFails_HonestToRouterPasses() public {
+        route.set(AttackerExecutor.Mode.DEPOSIT, FLOOR);
+        MockSuperVaultStrategy.ExecuteArgs memory args =
+            _args(_txDataFull(IMetaAggregationRouterV2.swap.selector, address(0), address(strategy), FLAG_FEE_ON_DST));
         vm.expectRevert(MockSuperVaultStrategy.OPERATION_FAILED.selector);
         strategy.executeHooks(args);
         _assertNothingMoved();
+        route.set(AttackerExecutor.Mode.HONEST_TO_ROUTER, FLOOR);
+        strategy.executeHooks(args);
+        assertEq(IERC20(WETH).balanceOf(address(strategy)), LP_SHARES + FLOOR, "router forwarded the payout");
+        assertEq(hook.getOutAmount(address(strategy)), FLOOR);
+    }
+
+    /// @notice Two-hook batches: a benign hook before or after the poisoned swap changes nothing, and a benign hook
+    ///         next to an honest swap keeps working
+    function test_Attack_TwoHookBatches_BenignNeighbourDoesNotHelp() public {
+        MockHook benign = new MockHook(ISuperHook.HookType.NONACCOUNTING, WETH);
+        route.set(AttackerExecutor.Mode.DEPOSIT, FLOOR);
+        MockSuperVaultStrategy.ExecuteArgs memory one = _swapArgs();
+        // [benign, poisoned]
+        MockSuperVaultStrategy.ExecuteArgs memory two;
+        two.hooks = new address[](2);
+        two.hookCalldata = new bytes[](2);
+        two.expectedAssetsOrSharesOut = new uint256[](2);
+        two.hooks[0] = address(benign);
+        two.hooks[1] = one.hooks[0];
+        two.hookCalldata[1] = one.hookCalldata[0];
+        two.expectedAssetsOrSharesOut[1] = FLOOR;
+        vm.expectRevert(MockSuperVaultStrategy.OPERATION_FAILED.selector);
+        strategy.executeHooks(two);
+        _assertNothingMoved();
+        // [poisoned, benign]
+        two.hooks[0] = one.hooks[0];
+        two.hooks[1] = address(benign);
+        two.hookCalldata[0] = one.hookCalldata[0];
+        two.hookCalldata[1] = "";
+        two.expectedAssetsOrSharesOut[0] = FLOOR;
+        two.expectedAssetsOrSharesOut[1] = 0;
+        vm.expectRevert(MockSuperVaultStrategy.OPERATION_FAILED.selector);
+        strategy.executeHooks(two);
+        _assertNothingMoved();
+        // [honest, benign]
+        route.set(AttackerExecutor.Mode.HONEST, FLOOR);
+        strategy.executeHooks(two);
+        assertEq(IERC20(WETH).balanceOf(address(strategy)), LP_SHARES + FLOOR);
     }
 
     /// @notice The documented false positive: an honest fill whose route ALSO makes an unrelated deposit into the
@@ -456,14 +537,16 @@ contract KyberSwapSupplyPinAttackTest is Test, Constants {
         _assertNothingMoved();
     }
 
-    /// @notice approveTarget poisoning: the hook refuses at build, before any approval is granted
-    function test_Attack_ApproveTargetPoisoned_RefusedAtBuild() public {
+    /// @notice approveTarget poisoning: the payload names the route as approve target; the hook ignores it and the
+    ///         allowance goes to the router. The honest swap still works and the route never held an allowance.
+    function test_Attack_ApproveTargetPoisoned_IgnoredAllowanceStaysWithRouter() public {
         route.set(AttackerExecutor.Mode.HONEST, FLOOR);
         MockSuperVaultStrategy.ExecuteArgs memory args =
             _args(_txData(IMetaAggregationRouterV2.swap.selector, address(route)));
-        vm.expectRevert(ApproveAndSwapKyberSwapHook.INVALID_APPROVE_TARGET.selector);
         strategy.executeHooks(args);
-        assertEq(IERC20(USDC).allowance(address(strategy), address(route)), 0, "no allowance handed out");
+        assertEq(IERC20(WETH).balanceOf(address(strategy)), LP_SHARES + FLOOR, "swap went through the router");
+        assertEq(IERC20(USDC).allowance(address(strategy), address(route)), 0, "no allowance to the route");
+        assertEq(IERC20(USDC).allowance(address(strategy), KYBER_ROUTER), 0, "router allowance reset");
     }
 
     /// @notice swapGeneric on the real router whitelists callTarget: a poisoned route cannot even start there

@@ -46,7 +46,7 @@ contract KyberSwapUnitTests is Helpers {
 
         // Deploy a mock router (just need an address for constructor)
         kyberRouter = address(new MockKyberRouter());
-        // SUP-21772: the hook refuses any approveTarget other than the router (or zero, which falls back to it)
+        // SUP-21772: the payload's approveTarget is ignored; set it to the router so the spender assertions read naturally
         approveTarget = kyberRouter;
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
@@ -243,10 +243,11 @@ contract KyberSwapUnitTests is Helpers {
         assertEq(spender0, approveTarget);
     }
 
-    /// @dev SUP-21772: a payload naming a third party as approveTarget would hand it the account's allowance for the
-    ///      batch; `swap()` never consumes approveTarget, so nothing legitimate needs it. Refused at build.
-    function test_ApproveAndSwapHook_Build_RevertIf_ApproveTargetIsNotTheRouter() public {
-        bytes memory txData_ = _buildKyberTxDataWithApproveTarget(makeAddr("thirdParty"));
+    /// @dev SUP-21772: the payload's approveTarget is ignored. `swap()` never consumes it and `swapGeneric()` only
+    ///      uses it router-side, so the account's allowance always goes to the router and never to a third party.
+    function test_ApproveAndSwapHook_Build_ForeignApproveTarget_IsIgnored_RouterApproved() public {
+        address thirdParty = makeAddr("thirdParty");
+        bytes memory txData_ = _buildKyberTxDataWithApproveTarget(thirdParty);
         bytes memory payload = abi.encode(txData_);
         bytes memory data = bytes.concat(
             bytes(new bytes(52)),
@@ -259,8 +260,15 @@ contract KyberSwapUnitTests is Helpers {
             bytes32(payload.length),
             payload
         );
-        vm.expectRevert(ApproveAndSwapKyberSwapHook.INVALID_APPROVE_TARGET.selector);
-        approveAndSwapHook.build(address(prevHook), account, data);
+        Execution[] memory executions = approveAndSwapHook.build(address(prevHook), account, data);
+        (address spender0,) = abi.decode(_sliceBytes(executions[1].callData, 4), (address, uint256));
+        (address spender1, uint256 amount1) = abi.decode(_sliceBytes(executions[2].callData, 4), (address, uint256));
+        (address spender3,) = abi.decode(_sliceBytes(executions[4].callData, 4), (address, uint256));
+        assertEq(spender0, kyberRouter);
+        assertEq(spender1, kyberRouter);
+        assertEq(amount1, inputAmount);
+        assertEq(spender3, kyberRouter);
+        assertTrue(spender1 != thirdParty, "the third party never appears in an approval");
     }
 
     function test_ApproveAndSwapHook_Build_ApproveTarget_FallbackToRouter() public view {

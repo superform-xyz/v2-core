@@ -18,7 +18,9 @@ import { ISuperVaultStrategyVault } from "../../interfaces/ISuperVaultStrategySt
 /// @dev NO-OP FOR PLAIN ACCOUNTS. An account that does not expose `getVaultInfo()` (an ERC-7579 smart account
 ///      on the 4337 path) commits to zero both times, so the app path is untouched. Shape adapted from
 ///      `GyldTradePolicy.accountStateCommitment` / `ApproveAndTradeGyldBondHook`, with a raw staticcall so that
-///      short or empty return data cannot brick a leg.
+///      short or empty return data cannot brick a leg. Two cases still fail the leg, by design: 96 bytes that do not
+///      decode as (address, address, uint8), and a named vault that cannot answer `totalSupply()`. Only the account
+///      itself can produce either, and a real strategy produces neither.
 /// @dev TAMPER RESISTANCE. The slot is keyed by `account` in this contract's transient storage; the only writers
 ///      are `preExecute` / `postExecute`, which BaseHook restricts to `msg.sender == account`. A route calling
 ///      the unpermissioned `setExecutionContext` mid-swap does not touch the slot, and the commitment is

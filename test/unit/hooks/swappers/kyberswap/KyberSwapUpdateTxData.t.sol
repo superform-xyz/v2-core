@@ -45,7 +45,7 @@ contract KyberSwapUpdateTxDataTest is Helpers {
         outputToken = address(_outputToken);
 
         kyberRouter = address(new MockKyberRouterForUpdateTest());
-        approveTarget = kyberRouter; // SUP-21772: only the router may be the approve target
+        approveTarget = kyberRouter; // SUP-21772: the payload field is ignored; the router is always the spender
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
@@ -465,7 +465,7 @@ contract KyberSwapScaleHelperTest is Helpers {
         outputToken = address(_outputToken);
 
         kyberRouter = address(new MockKyberRouterForUpdateTest());
-        approveTarget = kyberRouter; // SUP-21772: only the router may be the approve target
+        approveTarget = kyberRouter; // SUP-21772: the payload field is ignored; the router is always the spender
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 

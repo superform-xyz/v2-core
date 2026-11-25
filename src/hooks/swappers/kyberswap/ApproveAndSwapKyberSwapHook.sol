@@ -61,9 +61,6 @@ contract ApproveAndSwapKyberSwapHook is
 
     /// @notice Thrown when dstToken in txData does not match the expected outputToken
     error OUTPUT_TOKEN_MISMATCH();
-    /// @notice Thrown when the payload's approveTarget is neither zero nor KYBER_ROUTER. `swap()` does not consume
-    ///         approveTarget, so any other value only hands a third party an allowance for the batch
-    error INVALID_APPROVE_TARGET();
 
     constructor(
         address router_,
@@ -111,8 +108,9 @@ contract ApproveAndSwapKyberSwapHook is
         bytes memory payload = BytesLib.slice(data, SwapCalldataLayout.PAYLOAD_DATA_OFFSET, payloadLength);
         (bytes memory txData_) = abi.decode(payload, (bytes));
 
-        // Extract approveTarget and validate dstToken before scaling to avoid double-decoding SwapExecutionParams
-        (address approveTarget, address dstToken) = _getApproveTargetAndDstToken(txData_);
+        // The spender is always the router (SUP-21772); only dstToken is read from the payload, before scaling
+        address approveTarget = address(KYBER_ROUTER);
+        address dstToken = _dstTokenOf(txData_);
         if (dstToken != outputToken) revert OUTPUT_TOKEN_MISMATCH();
 
         if (usePrevHookAmount) {
@@ -272,15 +270,14 @@ contract ApproveAndSwapKyberSwapHook is
         return IERC20(outputToken).balanceOf(account);
     }
 
-    /// @dev Extracts approveTarget and dstToken from decoded txData. Falls back to KYBER_ROUTER if approveTarget is zero;
-    ///      any other target is refused (SUP-21772).
-    function _getApproveTargetAndDstToken(bytes memory txData_) private view returns (address, address) {
+    /// @dev Extracts dstToken from decoded txData. The payload's approveTarget is deliberately NOT used (SUP-21772):
+    ///      on the real router `swap()` never reads it and pulls from msg.sender itself, and `swapGeneric()` uses it
+    ///      only router-side (the router approves it from its own collected balance). Honouring it handed a third
+    ///      party an allowance on the account's tokens for the duration of the batch.
+    function _dstTokenOf(bytes memory txData_) private pure returns (address) {
         IMetaAggregationRouterV2.SwapExecutionParams memory params = abi.decode(
             BytesLib.slice(txData_, 4, txData_.length - 4), (IMetaAggregationRouterV2.SwapExecutionParams)
         );
-
-        address approveTarget = params.approveTarget == address(0) ? address(KYBER_ROUTER) : params.approveTarget;
-        if (approveTarget != address(KYBER_ROUTER)) revert INVALID_APPROVE_TARGET();
-        return (approveTarget, address(params.desc.dstToken));
+        return address(params.desc.dstToken);
     }
 }

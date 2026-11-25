@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
-import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
+import { ISuperHook, Execution } from "../../../../src/interfaces/ISuperHook.sol";
 import { ISuperHookSwap } from "../../../../src/interfaces/ISuperHookSwap.sol";
 import { SuperVaultSupplyPin } from "../../../../src/hooks/swappers/SuperVaultSupplyPin.sol";
 import { ApproveAndSwapKyberSwapHook } from "../../../../src/hooks/swappers/kyberswap/ApproveAndSwapKyberSwapHook.sol";
@@ -146,6 +146,32 @@ contract ShortReturnAccount {
             mstore(0, 1)
             return(0, 32)
         }
+    }
+}
+
+/// @dev An input token whose transferFrom runs attacker code (a hooked / callback token): the only pre-router
+///      re-entry surface, since build() is a view. When armed it bumps the hook's context and mints vault shares.
+contract CallbackInputToken is MockERC20 {
+    ISuperHook public hook;
+    address public strategy;
+    MockERC20 public vaultShares;
+    bool public armed;
+
+    constructor() MockERC20("Callback Token", "CBK", 18) { }
+
+    function arm(ISuperHook hook_, address strategy_, MockERC20 vaultShares_) external {
+        hook = hook_;
+        strategy = strategy_;
+        vaultShares = vaultShares_;
+        armed = true;
+    }
+
+    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        if (armed) {
+            hook.setExecutionContext(strategy); // unpermissioned
+            vaultShares.mint(address(this), 1);
+        }
+        return super.transferFrom(from, to, value);
     }
 }
 
@@ -406,7 +432,7 @@ contract SuperVaultSupplyPinTest is Test {
         bytes memory data = _data(0);
         ISuperHook(address(hooks[0])).setExecutionContext(address(bad));
         vm.prank(address(bad));
-        vm.expectRevert();
+        vm.expectRevert(bytes("")); // totalSupply() on a codeless address: the extcodesize check reverts with no data
         hooks[0].preExecute(address(0), address(bad), data);
     }
 
@@ -649,5 +675,103 @@ contract SuperVaultSupplyPinTest is Test {
         router.setMidSwapMint(address(vaultShares), 1);
         vm.expectRevert(MockSuperVaultStrategy.OPERATION_FAILED.selector);
         strategy.executeHooks(args);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ROUND 3: MORE WAYS IN
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice A callback input token that bumps the context and mints during the router's transferFrom: refused
+    function test_Kyber_CallbackInputToken_MintsDuringTransferFrom_FailsTheBatch() public {
+        CallbackInputToken cbk = new CallbackInputToken();
+        cbk.mint(address(strategy), 10e18);
+        outputToken.mint(address(kyberRouter), 1000e6);
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(address(cbk));
+        desc.dstToken = IERC20(address(outputToken));
+        desc.dstReceiver = address(strategy);
+        desc.amount = 1e18;
+        desc.minReturnAmount = 99e6;
+        bytes memory txData = abi.encodeCall(
+            IMetaAggregationRouterV2.swap,
+            (IMetaAggregationRouterV2.SwapExecutionParams({
+                    callTarget: address(0xCA11),
+                    approveTarget: address(kyberRouter),
+                    clientData: "",
+                    desc: desc,
+                    targetData: ""
+                }))
+        );
+        bytes memory data = ISuperHookSwap(address(hooks[0]))
+            .encodeSwapData(
+                ISuperHookSwap.SwapHeader({
+                    inputToken: address(cbk),
+                    outputToken: address(outputToken),
+                    inputAmount: 1e18,
+                    outputQuote: 99e6,
+                    outputMin: 99e6,
+                    usePrevHookAmount: false
+                }),
+                abi.encode(txData)
+            );
+        MockSuperVaultStrategy.ExecuteArgs memory args = _oneHook(address(hooks[0]), data, 99e6);
+        strategy.executeHooks(args); // unarmed: an ordinary token
+        assertEq(hooks[0].getOutAmount(address(strategy)), 99e6);
+        cbk.arm(ISuperHook(address(hooks[0])), address(strategy), vaultShares);
+        vm.expectRevert(MockSuperVaultStrategy.OPERATION_FAILED.selector);
+        strategy.executeHooks(args);
+    }
+
+    /// @notice The hook does not pin the router selector: a swapGeneric-shaped payload builds, and its approveTarget
+    ///         is ignored like any other. Pinned here so a future selector rule is a deliberate change.
+    function test_Kyber_SwapGenericSelector_BuildsAndApprovesTheRouterOnly() public view {
+        bytes4 swapGeneric = bytes4(
+            keccak256(
+                "swapGeneric((address,address,bytes,(address,address,address[],uint256[],address[],uint256[],address,uint256,uint256,uint256,bytes),bytes))"
+            )
+        );
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(address(inputToken));
+        desc.dstToken = IERC20(address(outputToken));
+        desc.dstReceiver = address(strategy);
+        desc.amount = 1e18;
+        desc.minReturnAmount = 99e6;
+        IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
+            callTarget: address(0xCA11), approveTarget: address(0xBAD), clientData: "", desc: desc, targetData: ""
+        });
+        bytes memory data = ISuperHookSwap(address(hooks[0]))
+            .encodeSwapData(_header(1e18, 99e6), abi.encode(abi.encodePacked(swapGeneric, abi.encode(params))));
+        Execution[] memory ex = hooks[0].build(address(0), address(strategy), data);
+        (address spender,) = abi.decode(_slice(ex[2].callData, 4), (address, uint256));
+        assertEq(spender, address(kyberRouter));
+        assertEq(bytes4(ex[3].callData), swapGeneric, "the selector is forwarded as is");
+    }
+
+    /// @notice Whatever approveTarget the payload names, the account approves only the router
+    function testFuzz_Kyber_ApproveTargetIsAlwaysTheRouter(address foreign) public view {
+        IMetaAggregationRouterV2.SwapDescriptionV2 memory desc;
+        desc.srcToken = IERC20(address(inputToken));
+        desc.dstToken = IERC20(address(outputToken));
+        desc.dstReceiver = address(strategy);
+        desc.amount = 1e18;
+        desc.minReturnAmount = 99e6;
+        IMetaAggregationRouterV2.SwapExecutionParams memory params = IMetaAggregationRouterV2.SwapExecutionParams({
+            callTarget: address(0xCA11), approveTarget: foreign, clientData: "", desc: desc, targetData: ""
+        });
+        bytes memory data = ISuperHookSwap(address(hooks[0]))
+            .encodeSwapData(_header(1e18, 99e6), abi.encode(abi.encodeCall(IMetaAggregationRouterV2.swap, (params))));
+        Execution[] memory ex = hooks[0].build(address(0), address(strategy), data);
+        for (uint256 k = 1; k <= 4; k += 1) {
+            if (k == 3) continue; // ex[3] is the router call
+            (address spender,) = abi.decode(_slice(ex[k].callData, 4), (address, uint256));
+            assertEq(spender, address(kyberRouter));
+        }
+    }
+
+    function _slice(bytes memory d, uint256 start) internal pure returns (bytes memory out) {
+        out = new bytes(d.length - start);
+        for (uint256 k; k < out.length; ++k) {
+            out[k] = d[k + start];
+        }
     }
 }

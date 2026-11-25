@@ -449,9 +449,9 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
              APPROVE TARGET EXTRACTION FROM REAL TX DATA
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice SUP-21772: an approveTarget other than the router is refused. The real router's `swap()` never
-    ///         consumes approveTarget, so a payload naming a third party only hands it the account's allowance.
-    function test_ApproveAndSwapHook_DifferentApproveTarget_IsRefused() public {
+    /// @notice SUP-21772: an approveTarget other than the router is IGNORED. The real router's `swap()` never
+    ///         consumes the field, so the account's allowance goes to the router only, never to the payload's target.
+    function test_ApproveAndSwapHook_DifferentApproveTarget_IsIgnored() public {
         address callTarget_ = makeAddr("dexPool");
         address approveTarget_ = makeAddr("tokenTransferProxy");
 
@@ -459,8 +459,9 @@ contract KyberSwapHookIntegrationTest is Test, Constants {
 
         bytes memory hookData = _buildApproveAndSwapHookData(USDC, WETH, 1000e6, 0.3 ether, false, txData_);
 
-        vm.expectRevert(ApproveAndSwapKyberSwapHook.INVALID_APPROVE_TARGET.selector);
-        approveAndSwapHook.build(address(0), account, hookData);
+        Execution[] memory executions = approveAndSwapHook.build(address(0), account, hookData);
+        (address approveSpender,) = abi.decode(_sliceBytes(executions[2].callData, 4), (address, uint256));
+        assertEq(approveSpender, KYBER_ROUTER, "allowance goes to the router, not the payload's approveTarget");
     }
 
     /// @notice Verify fallback to KYBER_ROUTER when approveTarget is zero
