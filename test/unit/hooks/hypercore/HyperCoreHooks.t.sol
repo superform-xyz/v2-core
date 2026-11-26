@@ -9,6 +9,7 @@ import { BaseHyperCoreWriterHook } from "../../../../src/hooks/hypercore/BaseHyp
 import { HyperCoreAddApiWalletHook } from "../../../../src/hooks/hypercore/HyperCoreAddApiWalletHook.sol";
 import { HyperCoreUsdClassTransferHook } from "../../../../src/hooks/hypercore/HyperCoreUsdClassTransferHook.sol";
 import { HyperCoreSendAssetHook } from "../../../../src/hooks/hypercore/HyperCoreSendAssetHook.sol";
+import { HyperCoreSetUnifiedAccountHook } from "../../../../src/hooks/hypercore/HyperCoreSetUnifiedAccountHook.sol";
 import { HyperCoreApproveBuilderFeeHook } from "../../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
 import { ICoreWriter } from "../../../../src/vendor/hyperliquid/ICoreWriter.sol";
 import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../../src/interfaces/ISuperHook.sol";
@@ -32,6 +33,7 @@ contract HyperCoreHooksTest is Helpers {
     HyperCoreSendAssetHook internal sendAsset;
     HyperCoreApproveBuilderFeeHook internal builderFee;
     HyperCoreApproveBuilderFeeHook internal builderFeeSpot;
+    HyperCoreSetUnifiedAccountHook internal setUnified;
 
     function setUp() public {
         addAgent = new HyperCoreAddApiWalletHook(CORE_WRITER);
@@ -39,6 +41,7 @@ contract HyperCoreHooksTest is Helpers {
         sendAsset = new HyperCoreSendAssetHook(CORE_WRITER);
         builderFee = new HyperCoreApproveBuilderFeeHook(CORE_WRITER, MAX_FEE_PERPS);
         builderFeeSpot = new HyperCoreApproveBuilderFeeHook(CORE_WRITER, MAX_FEE_SPOT);
+        setUnified = new HyperCoreSetUnifiedAccountHook(CORE_WRITER);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -175,6 +178,29 @@ contract HyperCoreHooksTest is Helpers {
         assertEq(uint8(p[1]), 0x00, "action id b0");
         assertEq(uint8(p[2]), 0x00, "action id b1");
         assertEq(uint8(p[3]), 0x07, "action id b2 == 7");
+    }
+
+    /// @dev Synthetic fixture using the wire format from the CoreWriter action 16 specification.
+    function test_SetUnified_EncodesExecutingAccountAndUnifiedMode() public view {
+        bytes memory header = abi.encodePacked(bytes32(uint256(1)), address(0xCAFE));
+        bytes memory payload = _payloadOf(setUnified.build(address(0), address(0xBEEF), header));
+        assertEq(
+            payload,
+            hex"01000010" hex"000000000000000000000000000000000000000000000000000000000000beef"
+            hex"0000000000000000000000000000000000000000000000000000000000000002"
+        );
+    }
+
+    function test_SetUnified_RequiresExactlyTheStrategyHeader() public {
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        setUnified.build(address(0), address(this), new bytes(51));
+        vm.expectRevert(BaseHyperCoreWriterHook.DATA_NOT_VALID.selector);
+        setUnified.build(address(0), address(this), abi.encodePacked(_header(), uint8(3)));
+    }
+
+    function test_SetUnified_RejectsZeroAccount() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        setUnified.build(address(0), address(0), _header());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -337,7 +363,8 @@ contract HyperCoreHooksTest is Helpers {
     /// @dev The whole point: no rewrite function exists, so the bundler cannot resize a fee rate,
     ///      an ntl or a token index during hook chaining.
     function test_S2_DeclaresSizelessAndRefusesOutflow() public view {
-        address[4] memory hooks = [address(addAgent), address(classTransfer), address(sendAsset), address(builderFee)];
+        address[5] memory hooks =
+            [address(addAgent), address(classTransfer), address(sendAsset), address(builderFee), address(setUnified)];
         for (uint256 i; i < hooks.length; ++i) {
             assertTrue(
                 IERC165(hooks[i]).supportsInterface(type(ISuperHookInflowOutflow).interfaceId),
@@ -496,6 +523,9 @@ contract HyperCoreHooksTest is Helpers {
         builderFee.preExecute(address(prev), address(this), bfData);
         assertEq(builderFee.getOutAmount(address(this)), 99, "builder fee approval moves nothing");
         assertEq(builderFee.getOutToken(address(this)), address(0xBEEF), "builder fee approval moves nothing");
+        setUnified.preExecute(address(prev), address(this), _header());
+        assertEq(setUnified.getOutAmount(address(this)), 99);
+        assertEq(setUnified.getOutToken(address(this)), address(0xBEEF));
     }
 
     /// @dev First hook in a chain: nothing to forward, values stay zero, no revert.
@@ -529,6 +559,7 @@ contract HyperCoreHooksTest is Helpers {
         address builder = address(0xB111DE2);
         bytes memory bfData = abi.encodePacked(_header(), uint64(50), bytes20(builder));
         assertEq(builderFee.inspect(bfData), abi.encodePacked(CORE_WRITER, builder), "builderFee: coreWriter + builder");
+        assertEq(setUnified.inspect(_header()), abi.encodePacked(CORE_WRITER), "setUnified: coreWriter only");
     }
 }
 

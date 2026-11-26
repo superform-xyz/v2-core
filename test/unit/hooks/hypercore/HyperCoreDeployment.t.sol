@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { HyperCoreAddApiWalletHook } from "../../../../src/hooks/hypercore/HyperCoreAddApiWalletHook.sol";
+import { HyperCoreSetUnifiedAccountHook } from "../../../../src/hooks/hypercore/HyperCoreSetUnifiedAccountHook.sol";
 import { HyperCoreGasTopUpHook } from "../../../../src/hooks/hypercore/HyperCoreGasTopUpHook.sol";
 import { HyperCoreApproveBuilderFeeHook } from "../../../../src/hooks/hypercore/HyperCoreApproveBuilderFeeHook.sol";
 import { ApproveAndHyperCoreDepositHook } from "../../../../src/hooks/hypercore/ApproveAndHyperCoreDepositHook.sol";
@@ -24,7 +25,7 @@ contract FeeCapHarness is DeployV2OtherHooks {
     }
 
     function hyperCoreHookKeys() external pure returns (string[] memory keys) {
-        keys = new string[](7);
+        keys = new string[](8);
         keys[0] = HYPERCORE_ADD_API_WALLET_HOOK_KEY;
         keys[1] = HYPERCORE_USD_CLASS_TRANSFER_HOOK_KEY;
         keys[2] = HYPERCORE_SEND_ASSET_HOOK_KEY;
@@ -32,6 +33,7 @@ contract FeeCapHarness is DeployV2OtherHooks {
         keys[4] = APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY;
         keys[5] = HYPERCORE_PERP_POSITION_ORACLE_KEY;
         keys[6] = HYPERCORE_GAS_TOP_UP_HOOK_KEY;
+        keys[7] = HYPERCORE_SET_UNIFIED_ACCOUNT_HOOK_KEY;
     }
 }
 
@@ -68,6 +70,15 @@ contract HyperCoreDeploymentTest is Helpers {
     function test_LockedBytecode_SingleArgLeafSetsCoreWriter() public {
         address a = _deploy("HyperCoreAddApiWalletHook", abi.encode(CORE_WRITER));
         assertEq(HyperCoreAddApiWalletHook(a).CORE_WRITER(), CORE_WRITER, "CORE_WRITER immutable");
+    }
+
+    function test_LockedBytecode_SetUnifiedMatchesSource() public {
+        assertEq(
+            vm.getCode("script/locked-bytecode/HyperCoreSetUnifiedAccountHook.json"),
+            type(HyperCoreSetUnifiedAccountHook).creationCode
+        );
+        address hook = _deploy("HyperCoreSetUnifiedAccountHook", abi.encode(CORE_WRITER));
+        assertEq(HyperCoreSetUnifiedAccountHook(hook).CORE_WRITER(), CORE_WRITER);
     }
 
     /// @dev Two-arg leaf: arg ORDER matters and a swap would still deploy cleanly.
@@ -137,9 +148,10 @@ contract HyperCoreDeploymentTest is Helpers {
     ///      instance-scoped key, and it is the sixth entry the deploy block assigns.
     function test_PerpOracleKeyNamesTheContract() public {
         string[] memory keys = new FeeCapHarness().hyperCoreHookKeys();
-        assertEq(keys.length, 7, "HyperCore family ships seven contracts");
+        assertEq(keys.length, 8);
         assertEq(keys[5], "HyperCorePerpPositionOracle", "oracle key is the contract name");
         assertEq(keys[6], "HyperCoreGasTopUpHook", "funding hook is appended after existing contracts");
+        assertEq(keys[7], "HyperCoreSetUnifiedAccountHook");
     }
 
     /// @dev Guards the single most confusable pair in this whole integration.

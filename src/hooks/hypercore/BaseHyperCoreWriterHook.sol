@@ -46,6 +46,7 @@ abstract contract BaseHyperCoreWriterHook is BaseHook, ISuperHookInflowOutflow {
     uint24 internal constant ACTION_ADD_API_WALLET = 9;
     uint24 internal constant ACTION_APPROVE_BUILDER_FEE = 12;
     uint24 internal constant ACTION_SEND_ASSET = 13;
+    uint24 internal constant ACTION_SET_ABSTRACTION = 16;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS

@@ -29,10 +29,8 @@ DEPLOYMENT_JSON="script/output/prod/latest.json"
 MODE="${1:-simulate}"
 ACCOUNT="${2:-v2-supervaults}"
 
-# The HyperCore deploy family (DeployV2OtherHooks._deployHyperCoreHooks) ships SEVEN contracts; this list
-# deliberately holds only the SIX hooks. HyperCorePerpPositionOracle is a read-only oracle,
-# not an ISuperHook, and must NEVER be registered in SuperGovernor: registerHook only checks for a
-# non-zero address, so adding it here would "succeed" (simulate and execute) and poison the hook set.
+# Register only hooks. HyperCorePerpPositionOracle is a read-only oracle in the same deployment family.
+# SuperGovernor.registerHook accepts any non-zero address, so the oracle must stay out of this list.
 HOOK_NAMES=(
     "HyperCoreAddApiWalletHook"
     "HyperCoreUsdClassTransferHook"
@@ -40,6 +38,7 @@ HOOK_NAMES=(
     "HyperCoreApproveBuilderFeeHook"
     "ApproveAndHyperCoreDepositUsdcPerpHook"
     "HyperCoreGasTopUpHook"
+    "HyperCoreSetUnifiedAccountHook"
 )
 
 # ── Validate mode ──────────────────────────────────────────────────────────────
