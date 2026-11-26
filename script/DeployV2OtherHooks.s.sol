@@ -99,6 +99,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         address approveAndHyperCoreDepositUsdcPerpHook;
         address hyperCorePerpPositionOracle;
         address hyperCoreGasTopUpHook;
+        address hyperCoreSetUnifiedAccountHook;
     }
 
     struct GyldHookAddresses {
@@ -1733,7 +1734,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Deploys the Hyperliquid CoreWriter hooks, deposit and gas funding hooks, and read-only perp oracle
     /// @dev Gated on CoreWriter being configured for the chain, so this is HyperEVM-only.
-    ///      The four CoreWriter leaves share a single constructor arg; the deposit hook is not a
+    ///      The CoreWriter leaves share a writer address; the deposit hook is not a
     ///      CoreWriter hook and pins its token, gateway and undocumented uint32 as immutables. The
     ///      oracle is the read side of the same family (HyperCore read precompiles, which exist only
     ///      where CoreWriter does): no constructor args, zero storage, not an IYieldSourceOracle, so
@@ -1742,7 +1743,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     function _deployHyperCoreHooks(uint64 chainId, uint256 env) internal returns (HyperCoreHookAddresses memory) {
         HyperCoreHookAddresses memory hookAddresses;
 
-        uint256 len = 7;
+        uint256 len = 8;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1791,6 +1792,11 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
             // Fixed protocol recipient; no caller-selected constructor dependency.
             __getOtherHooksBytecode("HyperCoreGasTopUpHook", env)
         );
+        hooks[7] = HookDeployment(
+            HYPERCORE_SET_UNIFIED_ACCOUNT_HOOK_KEY,
+            "",
+            abi.encodePacked(__getOtherHooksBytecode("HyperCoreSetUnifiedAccountHook", env), coreWriterArg)
+        );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -1805,6 +1811,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         hookAddresses.approveAndHyperCoreDepositUsdcPerpHook = addresses[4];
         hookAddresses.hyperCorePerpPositionOracle = addresses[5];
         hookAddresses.hyperCoreGasTopUpHook = addresses[6];
+        hookAddresses.hyperCoreSetUnifiedAccountHook = addresses[7];
 
         require(hookAddresses.hyperCoreAddApiWalletHook != address(0), "HyperCoreAddApiWalletHook not assigned");
         require(hookAddresses.hyperCoreUsdClassTransferHook != address(0), "HyperCoreUsdClassTransferHook not assigned");
@@ -1818,6 +1825,9 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         );
         require(hookAddresses.hyperCorePerpPositionOracle != address(0), "HyperCorePerpPositionOracle not assigned");
         require(hookAddresses.hyperCoreGasTopUpHook != address(0), "HyperCoreGasTopUpHook not assigned");
+        require(
+            hookAddresses.hyperCoreSetUnifiedAccountHook != address(0), "HyperCoreSetUnifiedAccountHook not assigned"
+        );
 
         console2.log("All HyperCore hooks deployed and validated successfully.");
 

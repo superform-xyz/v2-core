@@ -142,6 +142,7 @@ abstract contract ConstantsOtherHooks {
     string internal constant HYPERCORE_SEND_ASSET_HOOK_KEY = "HyperCoreSendAssetHook";
     string internal constant HYPERCORE_APPROVE_BUILDER_FEE_HOOK_KEY = "HyperCoreApproveBuilderFeeHook";
     string internal constant HYPERCORE_GAS_TOP_UP_HOOK_KEY = "HyperCoreGasTopUpHook";
+    string internal constant HYPERCORE_SET_UNIFIED_ACCOUNT_HOOK_KEY = "HyperCoreSetUnifiedAccountHook";
     string internal constant APPROVE_AND_HYPERCORE_DEPOSIT_USDC_PERP_HOOK_KEY =
         "ApproveAndHyperCoreDepositUsdcPerpHook";
     /// @notice Read-only perp position oracle over the HyperCore read precompiles (0x800+).

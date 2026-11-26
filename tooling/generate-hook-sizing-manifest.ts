@@ -210,6 +210,7 @@ const OVERRIDES: Record<string, Partial<ManifestEntry>> = {
   ApproveAndSwapBinanceHook: { mode: "sizeless" },
   // The independent signed fee reserve must not be resized, despite its AMOUNT_POSITION constant.
   HyperCoreGasTopUpHook: { mode: "sizeless" },
+  HyperCoreSetUnifiedAccountHook: { mode: "sizeless" },
 
   // == external hooks (amount exists but not at a static byte offset) ==
   // Amount is embedded in aggregator txData, ABI-encoded structs, or dynamic arrays.

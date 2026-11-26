@@ -1,6 +1,6 @@
 {
   "$schema": "hook-manifest-v1",
-  "generatedAt": "2026-11-19T20:09:22Z",
+  "generatedAt": "2026-11-26T08:11:21Z",
   "vocabulary": {
     "intents": [
       "deposit",
@@ -10593,6 +10593,36 @@
         "prod": [
           "999"
         ]
+      },
+      "amountMeta": [],
+      "sized": false,
+      "erc165": [
+        "ISuperHookInflowOutflow"
+      ],
+      "requiresApproval": false,
+      "approveVariant": null,
+      "asyncLifecycle": null,
+      "compatibleProtocols": []
+    },
+    "HyperCoreSetUnifiedAccountHook": {
+      "name": "HyperCore Set Unified Account",
+      "description": "Enables shared spot and perpetuals collateral for the executing account on HyperCore",
+      "hookType": "NONACCOUNTING",
+      "subtype": "HYPERCORE",
+      "actionTypes": [
+        {
+          "intent": "config",
+          "stage": "instant"
+        }
+      ],
+      "legSizing": [],
+      "addresses": {
+        "staging": {},
+        "prod": {}
+      },
+      "availableChains": {
+        "staging": [],
+        "prod": []
       },
       "amountMeta": [],
       "sized": false,

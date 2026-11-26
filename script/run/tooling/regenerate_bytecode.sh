@@ -322,6 +322,7 @@ RFLR_HOOK_CONTRACTS=(
 #       stale and a deploy would have shipped the previous bytecode.
 HYPERCORE_HOOK_CONTRACTS=(
     "HyperCoreGasTopUpHook"
+    "HyperCoreSetUnifiedAccountHook"
     "HyperCoreAddApiWalletHook"
     "HyperCoreApproveBuilderFeeHook"
     "HyperCoreSendAssetHook"

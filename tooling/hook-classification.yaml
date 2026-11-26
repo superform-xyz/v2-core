@@ -707,8 +707,12 @@ hooks:
     legSizing: []  # sizeless — wei is a HyperCore-unit uint64, S2 decode-only (not bundler-resizable)
 
   # ============================================================
-  # CONFIG (15 hooks) — all instant
+  # CONFIG (16 hooks) — all instant
   # ============================================================
+
+  HyperCoreSetUnifiedAccountHook:
+    actionTypes: [{intent: config, stage: instant}]
+    legSizing: []
 
   MetaMorphoReallocateHook:
     actionTypes: [{intent: config, stage: instant}]
